@@ -92,7 +92,7 @@ Router 和 LP Manager 直接以获准的 raw 稳定 Currency 与用户和 PoolMa
 
 ```mermaid
 flowchart LR
-  HR["HALT_REPORTER"] -->|签署 INITIAL／HALT／RESUME| DI["DataInbox：验签与顺序"]
+  HR["HALT_REPORTER"] -->|直接提交 INITIAL／HALT／RESUME| DI["DataInbox：角色与顺序"]
   VO["VOLUME_ORACLE"] -->|签署 ADTV／可选日配额| DI
   DI -->|按 securityId 更新市场状态| RG["Registry：准入与运行状态"]
   DI -->|ADTV / 可选日配额| VL["VolumeLedger"]
