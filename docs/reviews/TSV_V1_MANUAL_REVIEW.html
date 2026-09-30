@@ -278,7 +278,7 @@
           <textarea class="signoff" data-meta="decisionNote" placeholder="明确列出未完成的规格项、真实协议集成、fork、法律依据及独立审计结论"></textarea>
         </label>
         <div class="callout">
-          <strong>代码验收：</strong>所有适用 R/D/S/L/G/X/P 项有证据，真实 V4 关键交易、失败原子性、签名向量、性质测试、布局回归和 gas 边界完成。<br>
+          <strong>代码验收：</strong>所有适用 R/D/S/L/G/X/P 项有证据，真实 V4 关键交易、失败原子性、Router 签名向量、报告角色 ABI、性质测试、布局回归和 gas 边界完成。<br>
           <strong>生产启用：</strong>另外需要固定区块真实代理核验、TSLAx 股数口径的发行方与法务依据、wTSLAx 直接转账的制裁/暂停/交付可达性、最坏 gas 余量及独立安全审计。TSLAx 外部赎回不属于 TSV 同笔结算。未满足时资产保持 <code>UNREVIEWED</code>。
         </div>
         <div class="refs">依据：
@@ -347,7 +347,7 @@
       ["T03", "禁止股票／股票建池", "用相同和不同 securityId 的两枚已批准股票 Currency 分别申请建池；两种情况都必须在 Registry 登记待初始化池时拒绝，不能留下 PENDING 状态或初始化 V4 池。", ["registry", "tests"], "两枚股票 Currency → Registry.registerPendingPool → InvalidPool"],
       ["T04", "LP 全生命周期", "open/increase/decrease/collect/close 逐步对照 V4 liquidity、salt、tick、callerDelta、Receipt owner 和两侧真实交付；有费与无费、零余额和两个 owner 同区间分别检查。", ["lp", "receipt", "v4", "localTest"], "owner → LPManager → PoolManager.modifyLiquidity → 两侧 Currency 直接 settle/take → Receipt/position"],
       ["T05", "强退与 wTSLAx/普通 Token 拒转", "停牌、撤证、配额缺失时检查强退准入；资产只能发给原 owner。让 wTSLAx 或另一侧普通 Token 在第一腿和第二腿分别拒转，比较 V4、Receipt、position、余额和额度是否都等于 S_pre；当前路径不执行发行方包装或赎回。", ["lp", "receipt", "wrapped", "tests"], "执行人 → LPManager.forceExit → V4 移除 → 双侧 Currency 直接交付原 owner → 成功后才关闭仓位和销毁 Receipt"],
-      ["T06", "报告更正与自动 UTC 日切", "核对签名域/序列、状态变化才上链、UTC 起点边界、过渡日、ADTV 上月口径、可选 quota 下调与跨池累计；缺失 ADTV 时 Swap 应拒绝，缺失 quota 时使用硬上限。", ["inbox", "ledger", "registry", "tests"], "report signer → DataInbox → Registry/VolumeLedger；日切由区块时间自动计算"],
+      ["T06", "报告更正与自动 UTC 日切", "核对直接角色调用、序列与 reportId、状态变化才上链、UTC 起点边界、过渡日、ADTV 上月口径、可选 quota 下调与跨池累计；缺失 ADTV 时 Swap 应拒绝，缺失 quota 时使用硬上限。", ["inbox", "ledger", "registry", "tests"], "HALT_REPORTER/VOLUME_ORACLE → DataInbox → Registry/VolumeLedger；日切由区块时间自动计算"],
       ["T07", "普通升级、事故升级和恢复", "普通升级按该次指定 delay；事故入口仅允许目标且可冻结；恢复只由 Council 走受保护路径。比较升级前后 PoolKey、额度、nonce、仓位、Receipt、角色和现有仓位强退能力。", ["timelock", "emergency", "governed", "tests"], "Governor/Guardian/Council → Timelock 或 Controller → UUPS 代理 → 现有状态继续可读可用"]
     ];
     const protocols = [
@@ -363,8 +363,8 @@
     ];
     const security = [
       ["A01", "全入口权限与直接调用", "列出全部 external/public 状态修改函数及调用者；检查普通用户、relayer、PoolManager、Router/LP、Adapter、Governor、Guardian、Council 的边界。", ["registry", "hook", "router", "lp", "timelock"]],
-      ["A02", "签名、nonce 与重放", "离线重算 EIP-712 typehash、字段顺序、chainId 和代理地址；测试 EOA/1271、角色撤销、nonce 取消及失败后 nonce 回滚。", ["router", "inbox", "tests"]],
-      ["A03", "外部调用与重入", "对 ERC-20、wTSLAx、SBT、V4、签名校验逐处标记外部调用；检查操作上下文与 operationId 绑定、重入期间的状态、异常返回及少转。历史结算 Adapter 仅作隔离源码回归。", ["router", "lp", "sbtAdapter"]],
+      ["A02", "授权、角色与重放", "Router 离线重算 EIP-712 typehash、字段顺序、chainId 和代理地址；DataInbox 直接检查 msg.sender 角色、reportId/sequence、角色撤销及失败后状态不变。", ["router", "inbox", "tests"]],
+      ["A03", "外部调用与重入", "对 ERC-20、wTSLAx、SBT、V4、Router 签名校验逐处标记外部调用；检查操作上下文与 operationId 绑定、重入期间的状态、异常返回及少转。历史结算 Adapter 仅作隔离源码回归。", ["router", "lp", "sbtAdapter"]],
       ["A04", "完整失败原子性", "每个预期 revert 在调用前保存 S_pre，逐项比较资金、shares、Wrapper 供应、V4 状态、仓位、Receipt、used、nonce、报告和暂停状态。", ["tests", "localTest"]],
       ["A05", "治理与代理布局", "检查升级目标允许名单、冻结、恢复角色旁路、UUPS 授权和 storage layout；候选升级后执行 Swap 与现有仓位强退。", ["governed", "timelock", "emergency", "tests"]],
       ["A06", "发布与监控缺口", "核对部署脚本、CREATE2 manifest、最坏 gas、固定区块 fork、发行方代理变更监控及独立安全审计证据。未完成项明确阻断生产结论。", ["status", "tests", "factory"]]
@@ -389,8 +389,8 @@
         ["R08", "SBT 持有、暂停、撤证与 ERC-1271 钱包"]
       ]},
       { id: "D", title: "报告、日历与额度", refs: ["inbox", "ledger", "registry", "tests"], items: [
-        ["D01", "四类 EOA/1271 报告签名和 relayer"],
-        ["D02", "签名、角色、域、序号、deadline 与重复拒绝"],
+        ["D01", "三类报告的直接角色提交"],
+        ["D02", "角色、序号、deadline 与重复拒绝"],
         ["D03", "市场状态只在变化时上链"],
         ["D04", "自动 UTC 日切、边界、缺口与过渡日"],
         ["D05", "未来日切起点排期、版本和序号单调"],

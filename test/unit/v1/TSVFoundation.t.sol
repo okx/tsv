@@ -68,7 +68,6 @@ contract V1MockTimelock is IRecoveryContext {
 }
 
 contract TSVFoundationTest is Test {
-    uint256 private constant REPORTER_KEY = 0x1234;
     bytes32 private constant SECURITY = keccak256("SEC_A");
     uint32 private constant DAY = 20261001;
     uint64 private constant MONTH = 202609;
@@ -83,11 +82,9 @@ contract TSVFoundationTest is Test {
     StaticLegalShareAdapter internal stockAdapter;
     PoolKey internal key;
     bytes32 internal poolId;
-    address internal reporter;
 
     function setUp() public {
         vm.warp(1_790_827_201);
-        reporter = vm.addr(REPORTER_KEY);
         timelock = new V1MockTimelock();
         authority = new TSVBusinessAuthority(address(this), address(timelock));
         registry = TSVRegistryV1(
@@ -123,8 +120,8 @@ contract TSVFoundationTest is Test {
         registry.bindComponents(address(this), address(this), address(inbox));
         ledger.bindWriters(address(this), address(inbox));
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
-        inbox.grantRole(inbox.HALT_REPORTER_ROLE(), reporter);
-        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), reporter);
+        inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
+        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         registry.setTierPolicy(1, 25, 10, keccak256("tier"));
         registry.listSecurity(SECURITY, keccak256("STDx"), 1, keccak256("listing"));
 
@@ -273,13 +270,10 @@ contract TSVFoundationTest is Test {
         bytes32 firstSecurity = uint256(SECURITY) < uint256(secondSecurity) ? SECURITY : secondSecurity;
         bytes32 lastSecurity = firstSecurity == SECURITY ? secondSecurity : SECURITY;
         AdtvReport[] memory reports = new AdtvReport[](2);
-        bytes[] memory signatures = new bytes[](2);
         reports[0] = _adtv(firstSecurity, 1000e18, 1, 1, keccak256("adtv-batch-a"));
         reports[1] = _adtv(lastSecurity, 2000e18, 1, 1, keccak256("adtv-batch-b"));
-        signatures[0] = _signAdtv(reports[0]);
-        signatures[1] = _signAdtv(reports[1]);
 
-        inbox.submitAdtvBatch(reports, signatures);
+        inbox.submitAdtvBatch(reports);
 
         TSVVolumeLedgerV1.AdtvValue memory first = ledger.adtvOf(firstSecurity, uint32(MONTH));
         TSVVolumeLedgerV1.AdtvValue memory last = ledger.adtvOf(lastSecurity, uint32(MONTH));
@@ -296,15 +290,12 @@ contract TSVFoundationTest is Test {
         bytes32 firstSecurity = uint256(SECURITY) < uint256(secondSecurity) ? SECURITY : secondSecurity;
         bytes32 lastSecurity = firstSecurity == SECURITY ? secondSecurity : SECURITY;
         AdtvReport[] memory reports = new AdtvReport[](2);
-        bytes[] memory signatures = new bytes[](2);
         reports[0] = _adtv(firstSecurity, 1000e18, 1, 1, keccak256("adtv-atomic-a"));
         // Version 2 is invalid because this security has no accepted version 1.
         reports[1] = _adtv(lastSecurity, 2000e18, 2, 1, keccak256("adtv-atomic-b"));
-        signatures[0] = _signAdtv(reports[0]);
-        signatures[1] = _signAdtv(reports[1]);
 
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
-        inbox.submitAdtvBatch(reports, signatures);
+        inbox.submitAdtvBatch(reports);
 
         assertFalse(inbox.reportIdUsed(reports[0].reportId));
         assertFalse(inbox.reportIdUsed(reports[1].reportId));
@@ -319,13 +310,13 @@ contract TSVFoundationTest is Test {
         assertEq(left, 2.5e18);
 
         QuotaReport memory setReport = _quota(2e18, 1, 1, 1, keccak256("quota-set"));
-        inbox.submitQuota(setReport, _signQuota(setReport));
+        inbox.submitQuota(setReport);
         (valid, left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 2e18);
 
         QuotaReport memory clearReport = _quota(0, 2, 2, 2, keccak256("quota-clear"));
-        inbox.submitQuota(clearReport, _signQuota(clearReport));
+        inbox.submitQuota(clearReport);
         TSVVolumeLedgerV1.QuotaOverride memory quota = ledger.quotaOf(SECURITY, DAY);
         assertFalse(quota.active);
         assertEq(quota.version, 2);
@@ -337,21 +328,18 @@ contract TSVFoundationTest is Test {
     function testQuotaRejectsInvalidClearAndValuesAboveHardCapAtomically() public {
         _submitAdtv(1000e18);
         QuotaReport memory report = _quota(0, 2, 1, 1, keccak256("clear-without-set"));
-        bytes memory signature = _signQuota(report);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
-        inbox.submitQuota(report, signature);
+        inbox.submitQuota(report);
         assertFalse(inbox.reportIdUsed(report.reportId));
 
         report = _quota(0, 1, 1, 1, keccak256("zero-set"));
-        signature = _signQuota(report);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
-        inbox.submitQuota(report, signature);
+        inbox.submitQuota(report);
         assertFalse(inbox.reportIdUsed(report.reportId));
 
         report = _quota(3e18, 1, 1, 1, keccak256("over-hard-cap"));
-        signature = _signQuota(report);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
-        inbox.submitQuota(report, signature);
+        inbox.submitQuota(report);
         assertFalse(inbox.reportIdUsed(report.reportId));
         assertEq(inbox.lastSequence(2, SECURITY), 0);
     }
@@ -379,11 +367,17 @@ contract TSVFoundationTest is Test {
         assertEq(uint8(registry.marketStatus(SECURITY)), 2);
         MarketReport memory report = _market(MarketAction.RESUME, 2, keccak256("market-2"));
         report.submitDeadline = uint64(block.timestamp + 1);
-        bytes memory sig = _sign(inbox.MARKET_TYPEHASH(), report);
-        inbox.submitMarketStatus(report, sig);
+        inbox.submitMarketStatus(report);
         vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
-        inbox.submitMarketStatus(report, sig);
+        inbox.submitMarketStatus(report);
         assertEq(uint8(registry.marketStatus(SECURITY)), 1);
+    }
+
+    function testReportsRequireDirectRoleCaller() public {
+        MarketReport memory report = _market(MarketAction.RESUME, 2, keccak256("unauthorized"));
+        vm.prank(makeAddr("unregistered-reporter"));
+        vm.expectRevert(TSVDataInboxV1.UnauthorizedReporter.selector);
+        inbox.submitMarketStatus(report);
     }
 
     function testAutomaticTradeDayUsesGregorianDatesAndPreviousMonth() public {
@@ -483,45 +477,12 @@ contract TSVFoundationTest is Test {
         c.reviewHash = keccak256("review");
     }
 
-    function _domain() private view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256("TSVDataInbox"),
-                keccak256("2"),
-                block.chainid,
-                address(inbox)
-            )
-        );
-    }
-
-    function _sign(bytes32 typeHash, MarketReport memory report) private view returns (bytes memory) {
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", _domain(), keccak256(abi.encode(typeHash, report))));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(REPORTER_KEY, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function _signAdtv(AdtvReport memory report) private view returns (bytes memory) {
-        bytes32 digest =
-            keccak256(abi.encodePacked("\x19\x01", _domain(), keccak256(abi.encode(inbox.ADTV_TYPEHASH(), report))));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(REPORTER_KEY, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function _signQuota(QuotaReport memory report) private view returns (bytes memory) {
-        bytes32 digest =
-            keccak256(abi.encodePacked("\x19\x01", _domain(), keccak256(abi.encode(inbox.QUOTA_TYPEHASH(), report))));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(REPORTER_KEY, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
     function _market(MarketAction action, uint64 sequence, bytes32 reportId)
         private
         view
         returns (MarketReport memory report)
     {
         report = MarketReport(
-            reporter,
             SECURITY,
             action,
             keccak256("reason"),
@@ -536,12 +497,12 @@ contract TSVFoundationTest is Test {
 
     function _submitMarket(MarketAction action, uint64 sequence, bytes32 reportId) private {
         MarketReport memory report = _market(action, sequence, reportId);
-        inbox.submitMarketStatus(report, _sign(inbox.MARKET_TYPEHASH(), report));
+        inbox.submitMarketStatus(report);
     }
 
     function _submitAdtv(uint256 value) private {
         AdtvReport memory report = _adtv(SECURITY, value, 1, 1, keccak256("adtv"));
-        inbox.submitAdtv(report, _signAdtv(report));
+        inbox.submitAdtv(report);
     }
 
     function _adtv(bytes32 securityId, uint256 value, uint64 version, uint64 sequence, bytes32 reportId)
@@ -550,7 +511,6 @@ contract TSVFoundationTest is Test {
         returns (AdtvReport memory)
     {
         return AdtvReport(
-            reporter,
             securityId,
             uint32(MONTH),
             value,
@@ -565,7 +525,7 @@ contract TSVFoundationTest is Test {
 
     function _submitQuota(uint256 value) private {
         QuotaReport memory report = _quota(value, 1, 1, 1, keccak256("quota"));
-        inbox.submitQuota(report, _signQuota(report));
+        inbox.submitQuota(report);
     }
 
     function _quota(uint256 value, uint8 action, uint64 version, uint64 sequence, bytes32 reportId)
@@ -574,7 +534,6 @@ contract TSVFoundationTest is Test {
         returns (QuotaReport memory)
     {
         return QuotaReport(
-            reporter,
             SECURITY,
             DAY,
             action,

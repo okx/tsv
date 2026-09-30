@@ -341,7 +341,7 @@ EMERGENCY_RESUMER / 业务授权恢复交易
 1. V1 是否固定采用“下一个 UTC 计量日生效”，还是必须支持市场生效时间即时切换。
 2. 日内公司行动时，是否一律暂停到下一个计量日。
 3. `marketEffectiveAt` 与 `legalEffectiveAt` 哪一个作为 TSV 暂停触发依据。
-4. 公司行动报告由哪个角色提交和签名。
+4. 公司行动报告由哪个运营角色直接提交（V1 DataInbox 不接受报告签名）。
 5. 是按 Token 分别就绪后启用各自的新 Adapter/参数 epoch，还是要求同一 `securityId` 下所有 Token 全部就绪后再恢复交易。
 6. 拆股比例是否上链保存为审计数据。
 7. ADTV 和 quota 报告是否必须显式携带 `unitEpoch` 或 `corporateActionId`。

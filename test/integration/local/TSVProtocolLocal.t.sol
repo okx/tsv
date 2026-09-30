@@ -92,7 +92,6 @@ contract V1LocalSBT {
 contract TSVProtocolLocalTest is Test {
     using PoolIdLibrary for PoolKey;
 
-    uint256 private constant REPORTER_KEY = 0xABC123;
     address private constant HOOK_ADDRESS = address(uint160(0x3FFF));
     address private constant RECEIPT_ADDRESS = address(uint160(0xBEEF0));
     bytes32 private constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
@@ -113,13 +112,11 @@ contract TSVProtocolLocalTest is Test {
     V1LocalERC20 internal quote;
     PoolKey internal key;
     address internal alice;
-    address internal reporter;
     uint256 internal positionId;
 
     function setUp() public {
         vm.warp(1_790_827_201);
         alice = makeAddr("alice");
-        reporter = vm.addr(REPORTER_KEY);
         manager = new PoolManager(address(this));
         TSVBusinessAuthority authority = new TSVBusinessAuthority(address(this), address(0xA11CE));
         registry = TSVRegistryV1(
@@ -211,8 +208,8 @@ contract TSVProtocolLocalTest is Test {
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         lpManager.grantRole(lpManager.POOL_CREATOR_ROLE(), address(this));
         lpManager.grantRole(lpManager.REVOKE_EXIT_EXECUTOR_ROLE(), address(this));
-        inbox.grantRole(inbox.HALT_REPORTER_ROLE(), reporter);
-        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), reporter);
+        inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
+        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         registry.setTierPolicy(1, 10_000, 10, keccak256("tier"));
         registry.listSecurity(SECURITY, keccak256("STDx"), 1, keccak256("list"));
         stock = new ERC8056TestToken("STDx", "STDx", 18, 0);
@@ -439,7 +436,7 @@ contract TSVProtocolLocalTest is Test {
         uint256 stockBefore = stock.balanceOf(alice);
         uint256 quoteBefore = quote.balanceOf(alice);
         sbt.setHolder(alice, false);
-        lpManager.forceExit(positionId, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 1, 1, keccak256("revoke"), keccak256("evidence"));
         assertGt(stock.balanceOf(alice), stockBefore);
         assertGt(quote.balanceOf(alice), quoteBefore);
         assertFalse(lpManager.getPosition(positionId).active);
@@ -450,7 +447,7 @@ contract TSVProtocolLocalTest is Test {
     function testForceExitAdminCanActWhenAlsoRevokeExecutorAndOwnerStillHasSbt() public {
         lpManager.grantRole(lpManager.FORCE_EXIT_ADMIN_ROLE(), address(this));
         assertTrue(sbtAdapter.hasCredential(alice));
-        lpManager.forceExit(positionId, keccak256("incident"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 1, 1, keccak256("incident"), keccak256("evidence"));
         assertFalse(lpManager.getPosition(positionId).active);
     }
 
@@ -462,7 +459,7 @@ contract TSVProtocolLocalTest is Test {
         uint256 beforeUsed = ledger.used(SECURITY, DAY);
         uint128 beforeLiquidity = lpManager.getPosition(positionId).liquidity;
         vm.expectRevert();
-        lpManager.forceExit(positionId, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("revoke"), keccak256("evidence"));
         assertEq(stock.balanceOf(alice), beforeStock);
         assertEq(quote.balanceOf(alice), beforeQuote);
         assertEq(ledger.used(SECURITY, DAY), beforeUsed);
@@ -476,9 +473,31 @@ contract TSVProtocolLocalTest is Test {
         vm.expectRevert();
         router.swapExactInput(_swapRequest(true, 1e18, 1), "");
         vm.expectRevert();
-        lpManager.forceExit(positionId, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
         sbt.setHolder(alice, false);
-        lpManager.forceExit(positionId, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+    }
+
+    function testForceExitEnforcesBothMinimumOutputsAtomically() public {
+        sbt.setHolder(alice, false);
+        uint256 stockBefore = stock.balanceOf(alice);
+        uint256 quoteBefore = quote.balanceOf(alice);
+        uint128 liquidityBefore = lpManager.getPosition(positionId).liquidity;
+        uint256 usedBefore = ledger.used(SECURITY, DAY);
+
+        vm.expectRevert(TSVLPManagerV1.SlippageExceeded.selector);
+        lpManager.forceExit(positionId, type(uint256).max, 0, keccak256("revoke"), keccak256("evidence"));
+
+        vm.expectRevert(TSVLPManagerV1.SlippageExceeded.selector);
+        lpManager.forceExit(positionId, 0, type(uint256).max, keccak256("revoke"), keccak256("evidence"));
+
+        TSVLPManagerV1.Position memory position = lpManager.getPosition(positionId);
+        assertTrue(position.active);
+        assertEq(position.liquidity, liquidityBefore);
+        assertEq(receipt.ownerOf(positionId), alice);
+        assertEq(stock.balanceOf(alice), stockBefore);
+        assertEq(quote.balanceOf(alice), quoteBefore);
+        assertEq(ledger.used(SECURITY, DAY), usedBefore);
     }
 
     function testLegacyIssuerWrappedSettlementPathIsRejected() public {
@@ -518,8 +537,7 @@ contract TSVProtocolLocalTest is Test {
     }
 
     function _installProxy(address target, address implementation) private {
-        TSVERC1967Proxy template = new TSVERC1967Proxy(implementation, "");
-        vm.etch(target, address(template).code);
+        vm.etch(target, type(TSVERC1967Proxy).runtimeCode);
         vm.store(target, IMPLEMENTATION_SLOT, bytes32(uint256(uint160(implementation))));
     }
 
@@ -569,26 +587,9 @@ contract TSVProtocolLocalTest is Test {
         r.deadline = uint64(block.timestamp + 100);
     }
 
-    function _sign(bytes32 typeHash, bytes memory encodedReport) private view returns (bytes memory) {
-        bytes32 domain = keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256("TSVDataInbox"),
-                keccak256("2"),
-                block.chainid,
-                address(inbox)
-            )
-        );
-        bytes32 digest =
-            keccak256(abi.encodePacked("\x19\x01", domain, keccak256(abi.encodePacked(typeHash, encodedReport))));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(REPORTER_KEY, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
     function _submitReports() private {
         uint64 now_ = uint64(block.timestamp);
         MarketReport memory market = MarketReport(
-            reporter,
             SECURITY,
             MarketAction.INITIAL_OPEN,
             keccak256("open"),
@@ -599,10 +600,10 @@ contract TSVProtocolLocalTest is Test {
             keccak256("market"),
             keccak256("source")
         );
-        inbox.submitMarketStatus(market, _sign(inbox.MARKET_TYPEHASH(), abi.encode(market)));
+        inbox.submitMarketStatus(market);
         AdtvReport memory adtv = AdtvReport(
-            reporter, SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, 1, keccak256("adtv"), keccak256("source")
+            SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, 1, keccak256("adtv"), keccak256("source")
         );
-        inbox.submitAdtv(adtv, _sign(inbox.ADTV_TYPEHASH(), abi.encode(adtv)));
+        inbox.submitAdtv(adtv);
     }
 }

@@ -11,7 +11,7 @@
 | 单池 Swap、LP 和 V4 Hook | [Router](../src/v1/periphery/TSVSwapRouterV1.sol)、[LP Manager](../src/v1/periphery/TSVLPManagerV1.sol)、[Hook](../src/v1/core/TSVHookV1.sol)；Hook 工厂要求地址低位 `0x3FFF` | V1 所有返回 delta 为零；不等于未来非零 Hook delta 已可启用 |
 | 资产登记、池门禁 | [Registry](../src/v1/core/TSVRegistryV1.sol) 仅接受 `userToken == poolCurrency` 的直接结算组合，建池时拒绝两侧 `securityId` 同时非零；旧 TSLAx→wTSLAx 配置有负向回归 | 真实 wTSLAx 代理的生产准入仍需外部证据；本地标准股票使用 `ERC8056TestToken` |
 | 股数与额度 | [股数接口](../src/v1/interfaces/ILegalShareAdapter.sol)提供正向计股和只读 raw 边界反算；`ERC8056LegalShareAdapter` 读取 `uiMultiplier()`；[Ledger](../src/v1/core/TSVVolumeLedgerV1.sol)按实际 V4 delta、自动 UTC 计量日和可选日额度记账 | 日内公司行动下的历史用量单位换算尚未冻结；生产 wTSLAx 证据仍需补齐；Registry 不把静态比例作为新权威字段 |
-| 报告、身份、治理 | [DataInbox](../src/v1/core/TSVDataInboxV1.sol)处理 Market/ADTV/Quota 三类签名报告；ADTV 支持单条和同月批量提交，Quota 支持 SET/CLEAR，EIP-712 域版本为 2；SBT、ERC-1271、当前 UUPS/Timelock/事故升级路径已编码 | 治理根三地址整体迁移尚无 Anchor |
+| 报告、身份、治理 | [DataInbox](../src/v1/core/TSVDataInboxV1.sol)处理 Market/ADTV/Quota 三类角色直写报告；ADTV 支持单条和同月批量提交，Quota 支持 SET/CLEAR；报告入口不使用 EIP-712 或签名，`msg.sender` 必须直接持有对应角色；Router 自身的 EIP-712/ ERC-1271 用户授权仍保留 | 治理根三地址整体迁移尚无 Anchor |
 | 发行方资产结算 | 目标新路径只直接收付池内 Currency；Registry 拒绝旧 TSLAx→wTSLAx 登记。`IssuerShareSettlementAdapter` 仍保留独立正向/负向单元测试作为历史源码回归，但不属于可达生产路径 | 生产 wTSLAx 仍需实际代理的精确转账、制裁、暂停和强退证据；本部署没有旧 LP 仓位，因此不设计旧仓位兼容分支 |
 
 ## 2. 目标行为与未实现内容
@@ -21,8 +21,8 @@
 | GAP-01 **已编码（本地）** | Registry/Router/LP 的新路径按 `userToken == poolCurrency` 直接结算；旧 TSLAx→wTSLAx 配置在本地回归中被拒绝 | 真实 wTSLAx 生产接入、实际代理和法律股数公式仍需外部证据；不增加路径选择或 LP 路径字段。由于没有历史旧仓位，不实现旧仓位兼容分支。验收 A05/A06 |
 | GAP-02 **已编码（本地标准夹具）** | `ERC8056TestToken + ERC8056LegalShareAdapter` 已覆盖 `DIRECT_ERC20 + ONCHAIN_DYNAMIC`、multiplier 更新、双向 Swap 和 LP 原始结算 | 真实发行方 Token 仍需逐实例审查；仅有 UI getter 不足以准入。验收 A01/A04 |
 | GAP-03 **部分实现** | Registry 不重复保存静态比例；计股 Adapter 提供同一快照下的正向计账和只读 raw 反算；Adapter 可在资产暂停、无活跃池时换版并记录权益依据 | 日内公司行动的 `usedWad`、ADTV 和覆盖值单位换算仍未冻结；执行拆并股仍须暂停并完成统一单位切换。前端读取发行方持仓权益及 Adapter 报价，构造现有 raw Swap/LP 参数；**不新增股数输入合约入口**。验收 A02、S08/S09；详见[静态比例缺口](./STATIC_RATIO_CORPORATE_ACTION_GAP.md) |
-| GAP-04 **已编码** | D-33：Quota 支持 SET/CLEAR、逐日版本和可选覆盖；无覆盖时使用 ADTV/Tier 硬上限，CLEAR 不重置已用量 | 同步外部报告签名客户端和索引器；验收 D06/D07/D09 |
-| GAP-05 **已编码** | D-34：每个 UTC 日期自动形成 TSV 计量日；日切起点支持未来排期、最多 ±4 小时调整、过渡日锁定和可取消的待生效配置 | 同步部署清单、ABI、索引器及外部签名/报告服务；本部署无旧 SIP 日账，不实现历史额度迁移。验收 D04/D05/P03 |
+| GAP-04 **已编码** | D-33：Quota 支持 SET/CLEAR、逐日版本和可选覆盖；无覆盖时使用 ADTV/Tier 硬上限，CLEAR 不重置已用量；报告由持有对应角色的地址直接提交 | 同步 ABI、角色运营流程和索引器；验收 D06/D07/D09 |
+| GAP-05 **已编码** | D-34：每个 UTC 日期自动形成 TSV 计量日；日切起点支持未来排期、最多 ±4 小时调整、过渡日锁定和可取消的待生效配置 | 同步部署清单、ABI、索引器及报告服务；本部署无旧 SIP 日账，不实现历史额度迁移。验收 D04/D05/P03 |
 | GAP-06 **未实现** | D-35：Timelock、BusinessAuthority、事故控制器三地址要能在原代理地址下整体迁移；当前 [TSVGoverned](../src/v1/governance/TSVGoverned.sol)固定保存治理地址，Authority/控制器绑定旧 Timelock | 冻结 GovernanceAnchor ABI、存储及恢复状态机，八个业务代理统一从 Anchor 读取治理根；RecoveryCouncil 提案、独立 Guardian 批准、三地址原子切换；验收 G09 和升级布局。现有 Governor/Guardian 身份恢复不等于治理合约换址 |
 | GAP-07 **已编码** | Router 和 LP Manager 对直接结算的输入、输出同时校验发送方扣除与接收方增加的精确余额变化 | 本地故障代币覆盖发送方额外扣费并验证整笔回滚；仍需按 A03 在固定依赖/目标网络完成验收，见安全评审 F-05 |
 | GAP-08 **运营方案已定** | 发行方代理升级不由链上自动检查；由链下监控发现后触发暂停和复审 | 交付监控数据源、告警、暂停/复审 runbook，并留存升级证据；链上不读取外部代理实现地址或 codehash。 |
@@ -47,7 +47,7 @@
 | EXT-01 | 发行方和法务确认 TSLAx/wTSLAx 的**逐笔法定股数公式**、账户持仓权益、手续费计量口径、公司行动单位及拒收强退的方案 A；批准前保持 `UNREVIEWED` |
 | EXT-02 | 实际 TSLAx/wTSLAx 代理 ABI、管理员、制裁、wTSLAx 精确转账、`getCurrentMultiplier()` 的有界 gas 与恢复能力；发行方代理升级由链下监控发现，监控告警后的暂停和复审流程须留证；安全评审 F-01 的条件风险未被真实实例排除 |
 | EXT-03 | 锁定 `lib/v4-core` 的可重现版本；独立构建并集成固定的 SmartWalletSbt 与 Backed 源码。当前本地集成使用真实 V4 PoolManager，但 SBT 与发行方资产仍用行为 mock |
-| EXT-04 | 固定区块 X Layer 只读/受控路径、独立 EIP-712 向量、ERC-1271、fuzz/invariant、存储布局升级回归、最坏 gas、部署脚本/Hook salt manifest 和监控；逐项按[测试规格](./TEST_SPEC_V1.md)留证 |
+| EXT-04 | 固定区块 X Layer 只读/受控路径、Router 独立 EIP-712 向量与 ERC-1271、fuzz/invariant、存储布局升级回归、最坏 gas、部署脚本/Hook salt manifest 和监控；逐项按[测试规格](./TEST_SPEC_V1.md)留证 |
 | EXT-05 | 已建立 Git 基线提交 `c12676c`，冻结当前 `src/`、`test/`、`docs/`、配置、测试夹具、三项 Git 子模块指针及仓库内 `lib/v4-core` 源码快照；`lib/v4-core` 仍不是上游 Git 子模块，后续需补充上游来源/版本证明和固定构建证据，本文不能代替线上部署审计 |
 
 ## 5. 验证状态与执行顺序

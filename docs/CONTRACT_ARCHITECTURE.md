@@ -36,7 +36,7 @@
 | D-26 | V1 不自建 Wrapped | 已确认，2026-09-30 问答 | `balanceOf()` 会自行变化的 Rebase 原币不直接入池；发行方稳定 Wrapped 可作为用户与池共同使用的 Currency，raw 稳定的 UI Multiplier 原币可另行审查 |
 | D-27 | 旧 TSLAx 用户路径的显示数量无需严格相等 | **已由 D-31 取代** | 目标新交易只提交 wTSLAx raw 限额；前端股数显示为报价，Hook 仍按实际 V4 delta 计股。旧显示边界仅存在于历史源码对照 |
 | D-28 | 结算准入与股数计量独立判断 | 按最新单一路径规则修订，2026-09-30 | raw 稳定且精确转账的 Currency 直接进入 V4；权益系数可由股数 Adapter 动态读取。TSLAx Rebase 原币不参加 TSV 结算 |
-| D-30 | V1 每笔 Swap 只经过一个池，报告接受后不按时间自动过期 | 用户确认单池，2026-09-30；无心跳要求据 D-23 固化 | 固定单 PoolKey 签名和执行上下文；报告以月份/计量日适用，`submitDeadline` 只限制迟到签名上链 |
+| D-30 | V1 每笔 Swap 只经过一个池，报告接受后不按时间自动过期 | 用户确认单池，2026-09-30；无心跳要求据 D-23 固化 | 固定单 PoolKey 的 Router 授权和执行上下文；报告以月份/计量日适用，`submitDeadline` 只限制迟到报告上链 |
 | D-31 | V1 每侧只直接收付该侧 PoolKey Currency；Tesla 池只收付 wTSLAx | 用户最新修正，2026-09-30；本地直接动态路径已实现，生产 wTSLAx 待外部证据 | 一个 wTSLAx Currency、一个 Tesla `securityId`、一个动态计股 Adapter；不登记额外 TSLAx 路径、不签路径选择、不为新 LP 保存路径字段；TSLAx 原币包装/赎回由用户在 TSV 外办理 |
 | D-32 | Hook 代理地址预留全部 V4 回调与返回 delta 权限 | 用户选择的部署前扩展策略；V1 非零 delta 未启用 | 低 14 位设为 `0x3FFF`；现版四类 delta 均返回零，donate 回滚。未来非零 delta 须同版重做最终结算、成交量口径和 Hook 自身清算，不能只替换 Hook 实现 |
 | D-33 | 单个计量日的场所配额报告改为可选覆盖 | 用户确认，2026-09-30；已按 D-33 编码 | 适用 ADTV 与 Tier 算出硬上限；当日无配额覆盖时使用硬上限，有覆盖时取两者较小值；SET/CLEAR 不跨日继承 |
@@ -111,14 +111,14 @@ flowchart LR
 | --- | --- | --- |
 | `SYMBOL_ADMIN` | 登记／重上架／下架证券，登记或停用 Token、池，调整证券 Tier，并按准入流程更换 Adapter | 不设置 Tier 政策比例，不提交市场或成交量报告；受资产状态和已有仓位约束 |
 | `POOL_CREATOR` | 经 LP Manager 登记获准 PoolKey 并调用官方 PoolManager 初始化池，提交初始价格及依据摘要 | 不能绕过 Token 准入、Hook 地址、费率和双股票池禁令；不是普通用户 Swap／LP 身份 |
-| `HALT_REPORTER` | 对一个 `securityId` 签署市场状态报告；任意 relayer 可调用 `DataInbox.submitMarketStatus` 提交。初次为 `INITIAL_OPEN` 或 `INITIAL_HALTED`，此后仅在状态变化时提交 `HALT`／`RESUME` | 只控制该证券的市场状态；不能新增或清除紧急暂停。没有周末或日常收市报告 |
-| `VOLUME_ORACLE` | 签署证券的月度 ADTV 报告和指定 TSV 计量日的可选配额覆盖报告；任意 relayer 经 DataInbox 提交、更正须提高版本和序号 | 不能改 `usedWad`、标的准入、市场状态或日切配置。日切由 Ledger 按 UTC 和治理排期自动计算，不需要日历报告 |
+| `HALT_REPORTER` | 直接调用 `DataInbox.submitMarketStatus` 提交市场状态报告。初次为 `INITIAL_OPEN` 或 `INITIAL_HALTED`，此后仅在状态变化时提交 `HALT`／`RESUME` | `msg.sender` 必须直接持有该角色；只控制该证券的市场状态，不能新增或清除紧急暂停。没有周末或日常收市报告 |
+| `VOLUME_ORACLE` | 直接调用 `DataInbox.submitAdtv`、`submitAdtvBatch` 和 `submitQuota` 提交月度 ADTV 与指定 TSV 计量日的可选配额覆盖报告；更正须提高版本和序号 | `msg.sender` 必须直接持有该角色；不能改 `usedWad`、标的准入、市场状态或日切配置。日切由 Ledger 按 UTC 和治理排期自动计算，不需要日历报告 |
 | `EMERGENCY_PAUSER` | 直接调用 `Registry.addEmergencyPause(scope,target,reasonCode,sourceHash)`；范围为 `GLOBAL`、`SECURITY`、池内 `TOKEN` 或 `POOL`，成功后生成独立 `recordId` 并立即生效 | 只能新增暂停，不能解除；同一目标可有多条活跃记录 |
 | `EMERGENCY_RESUMER` | 直接调用 `Registry.clearEmergencyPause(recordId,reasonCode)`，关闭指定活跃记录并减少该范围的活跃计数 | 不能新增暂停、不能一笔清除其他记录，也不能将证券从 `HALTED` 改为 `OPEN` |
 | `REVOKE_EXIT_EXECUTOR` | 对当前已失去共用 SBT 资格的原 owner，逐仓位调用 `LPManager.forceExit` | 不能强退仍有资格的 owner；不能更改资产接收人 |
 | `FORCE_EXIT_ADMIN` | 对任意仍开放且有流动性的仓位，凭原因码和证据摘要调用 `LPManager.forceExit` | 只能全额退出并向仓位原 owner 交付，不能指定其他接收人或直接提取池资产 |
 
-紧急暂停的 `target` 编码为：`GLOBAL` 使用零值，`SECURITY` 使用 `securityId`，`TOKEN` 使用池内 Currency 地址左填充为 `bytes32`，`POOL` 使用 `PoolId`。Tesla 池的 `TOKEN` 暂停目标是 wTSLAx，而非不经 TSV 收付的 TSLAx；需要停掉该证券全部池时使用 `SECURITY`。`Registry.isTradable` 同时检查市场状态和四级紧急暂停；命中任一项即拒绝相关池的 Swap 与普通用户 LP 操作。`RESUME` 不清除紧急暂停，关闭暂停记录也不改变 `HALTED` 市场状态。授权强退仍走独立路径。表中的运营与数据身份各按独立地址配置，业务 Governor 可授予或撤销角色；`VOLUME_ORACLE` 是报告签名者，relayer 只是提交者。Guardian 冻结事故**升级**入口，不代替这些运营暂停。入口及状态规则见[暂停与停牌 §6](#6-暂停与停牌)。
+紧急暂停的 `target` 编码为：`GLOBAL` 使用零值，`SECURITY` 使用 `securityId`，`TOKEN` 使用池内 Currency 地址左填充为 `bytes32`，`POOL` 使用 `PoolId`。Tesla 池的 `TOKEN` 暂停目标是 wTSLAx，而非不经 TSV 收付的 TSLAx；需要停掉该证券全部池时使用 `SECURITY`。`Registry.isTradable` 同时检查市场状态和四级紧急暂停；命中任一项即拒绝相关池的 Swap 与普通用户 LP 操作。`RESUME` 不清除紧急暂停，关闭暂停记录也不改变 `HALTED` 市场状态。授权强退仍走独立路径。表中的运营与数据身份各按独立地址配置，业务 Governor 可授予或撤销角色；`VOLUME_ORACLE` 必须由持有该角色的地址直接提交报告。Guardian 冻结事故**升级**入口，不代替这些运营暂停。入口及状态规则见[暂停与停牌 §6](#6-暂停与停牌)。
 
 #### 单只证券的准入与报告生命周期
 
@@ -151,7 +151,7 @@ flowchart TD
   R --> Z["池停用／证券下架：停止新业务，按既定规则处理原 owner 仓位"]
 ```
 
-目标规则下，ADTV 在同一适用月份内不变时无须定时重报；新适用月份仍须提交对应报告。日配额只在某个计量日需要低于硬上限的覆盖时提交，同日更正需新版本；未提交则当日使用硬上限。计量日从区块时间自动计算，不需要日历报告。缺适用 ADTV 阻止 Swap；缺日配额不阻止 Swap；这些数据缺失本身不阻止用户 LP。市场停牌、资产或池停用则阻止新 Swap 和用户 LP。LP 增减仓不计入 `usedWad`，既有仓位的授权强退遵守 §7.1–7.2 的独立规则。当前签名报告字段及目标变更见[编码规格 §7](./CODING_SPEC_V1.md#7-签名报告计量日和额度)。
+目标规则下，ADTV 在同一适用月份内不变时无须定时重报；新适用月份仍须提交对应报告。日配额只在某个计量日需要低于硬上限的覆盖时提交，同日更正需新版本；未提交则当日使用硬上限。计量日从区块时间自动计算，不需要日历报告。缺适用 ADTV 阻止 Swap；缺日配额不阻止 Swap；这些数据缺失本身不阻止用户 LP。市场停牌、资产或池停用则阻止新 Swap 和用户 LP。LP 增减仓不计入 `usedWad`，既有仓位的授权强退遵守 §7.1–7.2 的独立规则。当前角色报告字段及目标变更见[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。
 
 ### 2.3 治理与升级
 
@@ -178,7 +178,7 @@ flowchart TB
 | `TSVHook` | 最终代理地址的 `0x3FFF` V4 权限位、全部回调 ABI、PoolManager/Registry/Ledger/Router/LP Manager 绑定、Swap 计量与强退回调 |
 | `TSVRegistry` | 证券／Token／PoolKey 登记、市场状态、紧急暂停记录与活跃计数、角色授权 |
 | `TSVVolumeLedger` | 历史和当日 `usedWad`、ADTV、可选配额及 UTC 日切检查点；公司行动涉及单位变化时仍须依未冻结的 D-36 规则处理 |
-| `TSVDataInbox` | 已使用的 `reportId`、来源序号、EIP-712 域与签名版本；类型变化时拒绝旧签名 |
+| `TSVDataInbox` | 已使用的 `reportId`、来源序号和来源时间戳；报告由 `msg.sender` 角色直接授权，不保存报告 EIP-712 域或签名版本 |
 | `TSVSwapRouter` | 用户 nonce、签名域、聚合器允许名单、payer／recipient 绑定和结算规则 |
 | `TSVLPManager` | 已有仓位、原 owner、PoolKey、流动性、原资产交付路径与强退可达性 |
 | `TSVReceipt` | tokenId 与仓位一一对应、owner、不可转让语义及仅 LP Manager 可 mint／burn |
@@ -202,7 +202,7 @@ Guardian 的常规受保护轮换仍由当前 Timelock 完成，但须在同一 
 | --- | --- | --- |
 | `TSVRegistry` | security、Tier、Token 准入、PoolKey、池状态、暂停记录、角色/地址配置 | 治理与授权运营；提供 `requirePoolForSwap/LP/Initialize` 等策略视图 |
 | `TSVVolumeLedger` | 月度 ADTV、交易日、本平台配额、security/day 成交量 | 数据入口更新参数；仅 Hook 在 `afterSwap` 增加成交量 |
-| `TSVDataInbox` | 数据源授权、EIP-712 域、reportId 去重、序号/时间戳 | 验签后调用 Registry/VolumeLedger；HALT 与 VOLUME 权限分离 |
+| `TSVDataInbox` | 数据源角色授权、reportId 去重、序号/时间戳 | 按 `msg.sender` 角色检查后调用 Registry/VolumeLedger；HALT 与 VOLUME 权限分离 |
 | `TSVHook` | 极少量配置状态；固定 `PoolManager/Registry/Ledger/Router/LPManager` 地址 | `before*` 拦截与 `afterSwap` 实际成交记账 |
 | `LegalShareAdapter` | 每资产固定或版本化的权益换算配置；动态实例读取发行方链上状态 | 把池内 Currency 数量转换为交易时法定股数；只读、不可由用户选择，公式更新先暂停相关池 |
 | `TSVSwapRouter` | 签名 nonce、执行上下文 | 用户授权、exact-in/out、直接 Currency 转账、PoolManager `unlock`、结算与成交事件 |
@@ -316,7 +316,7 @@ V1 外部入口 `swapExactInput(request, participantSignature)` 和 `swapExactOu
 
 治理地址可为尚未开始的日期 D 排期一个新 `dayStartOffsetSeconds`，仅从 D 的开始时刻生效；排期时 D 的**前一个计量日也必须尚未开始**，以保证没有已成交的周期被缩短或延长。初始起点可设为 UTC 日内任意秒，运行中每次变更幅度限于四小时。日期 D-1 是唯一过渡日，长度 `86400 + newOffsetSeconds - oldOffsetSeconds`，因此介于 20–28 小时；其后周期恢复严格 24 小时。例如从 04:00 改到 05:00 且 D 为 10 月 3 日，则 10 月 2 日的周期从 10 月 2 日 04:00 持续到 10 月 3 日 05:00，共 25 小时。变更按治理排期事件留痕，不需到点再发激活交易；治理只能在过渡日开始前取消待生效变更。历史计量日边界、`tradeDayId`、`usedWad` 和已成交日志不可改写。配额仍以日期 ID 为键，过渡日的较长或较短时长不按比例改变硬上限；运营方须在排期时复核该日和相邻日已签署的可选配额。
 
-每个 `(securityId, tradeDayId)` 最多保存本平台一份当前有效的配额覆盖，值由 `QuotaReport` 指定，可在同日用递增版本更正。未设置时从 ADTV/Tier 动态计算硬上限；显式设置要求 `0 < quotaWad <=` 提交时的硬上限。恢复默认硬上限使用单独签名的 `CLEAR` 动作，保留版本与审计记录；`quotaWad = 0` 不能表示暂停，需走独立紧急暂停。配额报告在当日中途提交只约束提交成功后的新 Swap，并与该 TSV 计量日已经累计的 `usedWad` 比较，不追溯撤销成交；如果新限额低于已用量，后续 Swap 拒绝。新计量日不会继承昨天的覆盖。若链下还需为其他关联平台分配额度，其配额总和检查由集团数据服务负责，本部署无法单独在链上证明。
+每个 `(securityId, tradeDayId)` 最多保存本平台一份当前有效的配额覆盖，值由 `QuotaReport` 指定，可在同日用递增版本更正。未设置时从 ADTV/Tier 动态计算硬上限；显式设置要求 `0 < quotaWad <=` 提交时的硬上限。恢复默认硬上限使用 `CLEAR` 动作，保留版本与审计记录；`quotaWad = 0` 不能表示暂停，需走独立紧急暂停。配额报告在当日中途提交只约束提交成功后的新 Swap，并与该 TSV 计量日已经累计的 `usedWad` 比较，不追溯撤销成交；如果新限额低于已用量，后续 Swap 拒绝。新计量日不会继承昨天的覆盖。若链下还需为其他关联平台分配额度，其配额总和检查由集团数据服务负责，本部署无法单独在链上证明。
 
 ADTV 更正或 Tier 变更若降低当前硬上限至小于已提交的配额覆盖值，目标规则自动取两者较小值，不能因旧覆盖值较高而突破新硬上限；若硬上限升高，既有覆盖值仍继续限制，直至新的 SET 或 CLEAR 报告。ADTV 原始股数与来源月份单独存储，Tier 比例在计算有效日上限时读取当前批准的政策版本。若公司行动改变法定股数单位，不能仅对不同单位的值取最小值，必须先暂停并完成[准入标准 §4](./TOKEN_ADMISSION_STANDARD_V1.md#4-公司行动与数据单位)的单位对齐。所有 `recordSwap` 检查完成后再写入该证券的日用量；任一上限失败则整笔交易回滚。
 
@@ -345,9 +345,9 @@ Token 下架或 Pool 停用应阻止新交易和用户 LP 操作，同时保留�
 | `decreaseLiquidity` | owner、Receipt、SBT、运行期策略、双币最小到账；减仓量小于当前流动性 | 负 delta，修改后流动性仍严格为正 | 领取本次本金和已累计费用，保持 OPEN |
 | `collectFees` | owner、Receipt、SBT、运行期策略、最小到账；当前流动性严格为正 | 零 delta | 领取实际费用，不改本金和流动性 |
 | `closePosition` | owner、Receipt、SBT、运行期策略、双币最小到账；当前流动性严格为正 | 一次负 delta 移除全部流动性，返回本金及费用 | 同一 unlock 交付所有应收资产后关闭并 burn Receipt |
-| `forceExit` | 授权系统路径、原因码、已知 PoolKey；当前流动性严格为正 | 一次负 delta 移除全部流动性，返回本金及费用 | 只向账本 owner 结算，成功后关闭并 burn |
+| `forceExit` | 授权系统路径、原因码、已知 PoolKey、两侧 raw `minPoolOut`；当前流动性严格为正 | 一次负 delta 移除全部流动性，返回本金及费用 | 每侧实收均达到运营给定下限后，才向账本 owner 结算并关闭、burn |
 
-每个 LP 入口校验 `deadline`、PoolKey、tick 对齐与范围、实际两侧 delta、用户设定的 raw 最大付款/最小收款。目标新仓位只直接使用每侧 PoolKey Currency：开仓/加仓从 owner 拉取实际负 delta，减仓、领费、关闭和强退从 PoolManager `take` 实际正 delta 给**原 owner**。Tesla 仓位的交付物是 wTSLAx，不在同笔调用 TSLAx 包装/赎回。两侧转账均须核对发送方与接收方 raw 差额；Receipt 与仓位更新在同一交易内，任一失败整体回滚。正常 OPEN 仓位始终有正流动性；重复关闭或强退必须失败，不得二次领取。本部署没有旧 TSLAx 交付仓位，所有上线仓位均按 wTSLAx 直结规则创建。
+每个 LP 入口校验 `deadline`、PoolKey、tick 对齐与范围和实际两侧 delta。普通 LP 操作由用户设置 raw 最大付款/最小收款；强退由运营调用方按执行时策略设置每侧 raw `minPoolOut`，未达到任一边界则整笔回滚、保留仓位。目标新仓位只直接使用每侧 PoolKey Currency：开仓/加仓从 owner 拉取实际负 delta，减仓、领费、关闭和强退从 PoolManager `take` 实际正 delta 给**原 owner**。Tesla 仓位的交付物是 wTSLAx，不在同笔调用 TSLAx 包装/赎回。两侧转账均须核对发送方与接收方 raw 差额；Receipt 与仓位更新在同一交易内，任一失败整体回滚。正常 OPEN 仓位始终有正流动性；重复关闭或强退必须失败，不得二次领取。本部署没有旧 TSLAx 交付仓位，所有上线仓位均按 wTSLAx 直结规则创建。
 
 实现 `openPosition` 时可在调用 `unlock` 之前暂写 `Position` 供回调校验，但必须在同一外部交易内完成 PoolManager 修改、Token 结算和 Receipt mint；任一环节失败时 EVM 回滚会撤销暂写。V4 在 `liquidityDelta == 0 && liquidity == 0` 时抛出 `CannotUpdateEmptyPosition`；因此 `decreaseLiquidity` 只允许部分减仓，`closePosition/forceExit` 在最后一次负 delta `modifyLiquidity` 返回的 `callerDelta` 中一次性结算本金和已累计费用，不再追加零 delta 领取。`feesAccrued` 可用于事件/分项核对，实际结算以包含本金和费用的 `callerDelta` 为准。零 delta `collectFees` 只用于正流动性 OPEN 仓位，并进入 `beforeRemoveLiquidity` 回调；强退全额负 delta 同样须在 Hook 的精确强退上下文中授权。若历史迁移发现零流动性 Receipt，须作为单独的遗留状态治理，不能用 V1 正常入口调用 V4 零 delta。
 
@@ -355,9 +355,9 @@ Token 下架或 Pool 停用应阻止新交易和用户 LP 操作，同时保留�
 
 ### 7.1 强退权限与失败
 
-区分 `REVOKE_EXIT_EXECUTOR` 与 `FORCE_EXIT_ADMIN`：自动执行器仅在仓位 owner 当前无共用 SBT 且原仓位存在时强退；合规多签可凭原因码强退任意仍开放且正流动性的仓位。两者都不能提供任意 recipient，内部固定 `position.owner`。在 LP Manager `unlock` 前设置精确 `(positionId, PoolId, salt, mode)` 强退上下文，Hook 只在 PoolManager 发来的对应全额 remove 回调中认可；操作结束清理。普通用户不能设置该上下文。任何暂停、SBT 暂停、SBT 撤销及池停用下仍允许此路径；但资产转账失败会整体回滚。
+区分 `REVOKE_EXIT_EXECUTOR` 与 `FORCE_EXIT_ADMIN`：自动执行器仅在仓位 owner 当前无共用 SBT 且原仓位存在时强退；合规多签可凭原因码强退任意仍开放且正流动性的仓位。调用方必须提交两侧 raw `minPoolOut`，具体金额由运营按执行时的估值和风险政策设定，并通过隐私交易提交降低公开 mempool 抢跑风险。两者都不能提供任意 recipient，内部固定 `position.owner`。在 LP Manager `unlock` 前设置精确 `(positionId, PoolId, salt, mode)` 强退上下文，Hook 只在 PoolManager 发来的对应全额 remove 回调中认可；操作结束清理。普通用户不能设置该上下文。任何暂停、SBT 暂停、SBT 撤销及池停用下仍允许此路径；但资产转账失败会整体回滚。
 
-撤销监控：订阅 SBT `TransferSingle/TransferBatch` 及撤销事件 → 等待约定确认数 → 复核当前 SBT 状态 → 分页读取 activePositionIds → 逐仓位提交 `forceExit` → 按链上完成事件去重。任务主键 `(owner, positionId, revokeTx)`；失败告警、分类、重试和人工处置。单纯 SBT 暂停不生成任务。Token 拒绝向 owner 转账时，链上仓位保持原状，不能标记完成；V1 不提供备用接收地址，也不允许管理员改收款人。
+撤销监控：订阅 SBT `TransferSingle/TransferBatch` 及撤销事件 → 等待约定确认数 → 复核当前 SBT 状态 → 分页读取 activePositionIds → 由运营按当时策略计算两侧 raw `minPoolOut`，经隐私交易逐仓位提交 `forceExit` → 按链上完成事件去重。若任一侧未达到下限，整笔回滚，按最新状态重新评估限额后再试；不得为追求完成而静默改为零下限。任务主键 `(owner, positionId, revokeTx)`；失败告警、分类、重试和人工处置。单纯 SBT 暂停不生成任务。Token 拒绝向 owner 转账时，链上仓位保持原状，不能标记完成；V1 不提供备用接收地址，也不允许管理员改收款人。
 
 ### 7.2 V1 回滚处置和未来备选
 
@@ -378,9 +378,9 @@ B/C/D 仅供未来独立版本评审，**不进入 V1 ABI、部署或升级计�
 
 ## 8. 数据报告与链下接口
 
-目标 `TSVDataInbox` 对 HALT、ADTV、可选 VENUE_QUOTA 使用分开的 EIP-712 typehash 和 signer role；现有代码中的 TRADE_DAY 类型、窗口提交及更正入口须移除。每份签名绑定域、报告类型、目标、reportId、源时间、提交截止、序号和来源哈希；精确类型见[编码规格 §7](./CODING_SPEC_V1.md)。`reportId` 永不重用；按标的及报告类型检查严格递增序号，避免晚到报告覆盖新状态。报告身份只负责签名，治理地址负责授权/撤销、紧急暂停及纠错；公开 relayer 可以提交有效签名，不能修改内容。时间异常、签名提交截止已过、零数据或签名无效均回滚。HALT/RESUME 只在状态变化时提交；其 `submitDeadline` 不决定已记录状态何时失效。
+目标 `TSVDataInbox` 对 HALT、ADTV、可选 VENUE_QUOTA 使用分开的角色入口；现有代码中的 TRADE_DAY 类型、窗口提交及更正入口须移除。报告由当前 `msg.sender` 直接提交，按角色检查；没有 EIP-712 typehash、signer 字段或报告签名。`reportId` 永不重用；按标的及报告类型检查严格递增序号，避免晚到报告覆盖新状态。时间异常、提交截止已过、零数据或角色无权均回滚。HALT/RESUME 只在状态变化时提交；其 `submitDeadline` 不决定已记录状态何时失效。
 
-**有效性由业务适用期间决定，不设置定时刷新年龄阈值。**签名 `submitDeadline` 只阻止迟到的报告被接受上链；一旦接受，ADTV 仅在 `sourceMonth` 为当前 TSV 计量日 ID 所在月份的上月时适用，配额覆盖仅在其 `tradeDayId` 为当前计量日时适用，不在同期间自动过期。新适用月份必须有新 ADTV；日切由区块时间与治理配置自动发生，配额按需覆盖。`sourceTimestamp` 用于来源顺序与审计，不触发 `sourceTimestamp + maxAgeSeconds` 形式的定时失效。主市场 HALT 状态也不按报告年龄自动过期。当前代码已不依赖日历窗口或每日必填配额；Ledger 按 D-34 自动推导计量日。
+**有效性由业务适用期间决定，不设置定时刷新年龄阈值。**`submitDeadline` 只阻止迟到的报告被接受上链；一旦接受，ADTV 仅在 `sourceMonth` 为当前 TSV 计量日 ID 所在月份的上月时适用，配额覆盖仅在其 `tradeDayId` 为当前计量日时适用，不在同期间自动过期。新适用月份必须有新 ADTV；日切由区块时间与治理配置自动发生，配额按需覆盖。`sourceTimestamp` 用于来源顺序与审计，不触发 `sourceTimestamp + maxAgeSeconds` 形式的定时失效。主市场 HALT 状态也不按报告年龄自动过期。当前代码已不依赖日历窗口或每日必填配额；Ledger 按 D-34 自动推导计量日。
 
 | 数据 | 需配置的期间含义 | 缺失或期间不匹配时的链上行为 |
 | --- | --- | --- |
@@ -398,7 +398,7 @@ Hook **代理地址**的低 14 位必须与回调权限位一致。TSV 自有代
 
 **升级治理域。**部署 `TSVUpgradeTimelock`（继承仓库固定版本的 OpenZeppelin `TimelockController`），只赋予它 TSV 代理的常规 UUPS 升级权、事故升级控制器的授权配置和解冻权。其构造参数 `minDelay` 固定为 0，覆写 `updateDelay` 为恒定回滚，防止日后引入全局下限。治理多签以 `PROPOSER_ROLE` 在每笔常规升级的 `schedule` 调用中单独提交 `delaySeconds`；合约不额外规定最小值或最大值，0 表示排期后可立即执行，正数则须等到该笔操作的 ready 时间。执行仍需持有 `EXECUTOR_ROLE`，且排期与执行是两笔交易；普通升级的 payload、salt、排期时间、`delaySeconds` 与最早执行时间由原生事件留痕。无合约层面的审阅窗口承诺：选择 0 时，Guardian 即使持取消权，也可能来不及在执行前取消；选择极大值则可能长期无法执行。
 
-**业务治理域。**治理多签是共享 `TSVBusinessAuthority.governor()` 返回的唯一业务根管理员，可直接向各业务合约提交标的与 Token 准入、Tier/政策参数、报告签名者、业务角色、SBT 配置、暂停和恢复权限等操作；这些操作不通过 UpgradeTimelock，也不受升级排期的 `delaySeconds` 约束。`TSVBusinessAuthority` 是非代理合约，初始化时固定 UpgradeTimelock 地址，仅保存当前 governor，不提供任意调用转发或业务参数修改入口。具体业务操作仍须经过各函数自己的范围、版本、有效期、原子性和事件校验。UpgradeTimelock 不直接持有业务合约的管理员或参数修改角色，治理多签也不能通过业务管理员身份改写代理的 `_authorizeUpgrade`。业务参数即时变更可能立即影响交易，运维流程应在提交前核对影响范围并持续留痕。
+**业务治理域。**治理多签是共享 `TSVBusinessAuthority.governor()` 返回的唯一业务根管理员，可直接向各业务合约提交标的与 Token 准入、Tier/政策参数、业务角色、SBT 配置、暂停和恢复权限等操作；这些操作不通过 UpgradeTimelock，也不受升级排期的 `delaySeconds` 约束。`TSVBusinessAuthority` 是非代理合约，初始化时固定 UpgradeTimelock 地址，仅保存当前 governor，不提供任意调用转发或业务参数修改入口。具体业务操作仍须经过各函数自己的范围、版本、有效期、原子性和事件校验。UpgradeTimelock 不直接持有业务合约的管理员或参数修改角色，治理多签也不能通过业务管理员身份改写代理的 `_authorizeUpgrade`。业务参数即时变更可能立即影响交易，运维流程应在提交前核对影响范围并持续留痕。
 
 权限实现上，`_authorizeUpgrade(newImplementation)` 直接比较两个固定升级调用者地址，不查询业务 `AccessControl` 角色；`setTier`、`setTokenStatus`、`setSbtConfig` 等业务入口检查各自业务角色或 `TSVBusinessAuthority.governor()`。各业务代理共用拟议基类 `TSVGovernedAccessControl`：覆写 `hasRole(DEFAULT_ADMIN_ROLE, account)`，只在 `account == authority.governor()` 时返回 true；禁止通过 `grantRole/revokeRole/renounceRole` 或内部 `_grantRole/_revokeRole` 修改 `DEFAULT_ADMIN_ROLE`；其他业务角色继续由当前 governor 通过正常 `grantRole/revokeRole` 即时管理。初始化时写入同一个 Authority 地址且没有更换入口；任何新业务代理上线前必须使用相同权限根。`TSVBusinessAuthority.recoverGovernor(expectedOldGovernor, newGovernor, evidenceHash)` 只接受 UpgradeTimelock 在受保护恢复上下文中的调用，普通 Timelock 排期不能直接调用。部署脚本逐项核对所有业务代理的 Authority 地址、动态管理员结果、升级授权和 Timelock 自身角色，没有旁路管理员或交叉授予。
 
@@ -420,7 +420,7 @@ RecoveryCouncil 具备按单笔指定延迟更换治理多签和 Guardian 的高
 
 当前 TSV UUPS 实现的 `_authorizeUpgrade` 只接受初始化时保存的 UpgradeTimelock 或事故控制器；D-35 目标改为只接受固定 Anchor 返回的当前两地址。事故控制器的可升级目标名单仅能经当前 UpgradeTimelock 的普通排期修改；治理多签和 Guardian 的常规轮换只通过受保护的 `recoverAuthorities` 原子执行，治理合约地址组的迁移则走 §2.3 的独立双身份流程。业务合约管理员可直接轮换业务角色，但不能借业务 `DEFAULT_ADMIN_ROLE` 或即时授予的 `UPGRADE_ADMIN` 角色开放第三条代理升级路径。控制器仅转发对允许名单中代理的升级调用，不提供任意目标调用。为了可靠记录旧实现，控制器通过代理自身固定的 `tsvImplementation()` 读取 ERC-1967 实现槽，升级前记录旧地址和 `extcodehash`，升级后再次读取并要求等于提交的新地址。该函数写在代理而非可变实现中，以保证修复实现故障时仍可读取。当前代码尚无治理合约地址组迁移入口，不能把 D-35 目标描述为现有能力。
 
-两条路径都要维护相同的不变量：升级不改变 PoolKey.hooks、Hook 地址权限位、已有池的强退通道、额度、暂停、签名 nonce、Receipt owner 和 LP 仓位。升级前后的实现须使用固定存储命名空间或经验证的追加式布局，保留 `proxiableUUID`/代理槽兼容；禁用实现合约的直接初始化和直接升级。Hook 的新实现须保持原回调权限清单及安全语义，禁止新增 PoolManager 自调用绕过计量。上述是代码验收和治理约束：拥有升级权限者能够替换代理逻辑，控制器无法证明新逻辑一定遵守业务不变量。常规升级须先完成独立审计、存储布局检查、接口兼容和 fork 演练，并发布实现地址、codehash、版本、变更摘要及排期事件。事故路径在可用时间内完成这些检查，并补做完整审计与公开事故报告；链上事故标记不能代替代码审查。多个代理逐个升级可能出现版本组合，升级计划须列兼容矩阵与顺序。若需要原子升级多个代理，应由控制器提供限定目标的批量入口，并要求整批成功或整体回滚。
+两条路径都要维护相同的不变量：升级不改变 PoolKey.hooks、Hook 地址权限位、已有池的强退通道、额度、暂停、Router 签名 nonce、Receipt owner 和 LP 仓位。升级前后的实现须使用固定存储命名空间或经验证的追加式布局，保留 `proxiableUUID`/代理槽兼容；禁用实现合约的直接初始化和直接升级。Hook 的新实现须保持原回调权限清单及安全语义，禁止新增 PoolManager 自调用绕过计量。上述是代码验收和治理约束：拥有升级权限者能够替换代理逻辑，控制器无法证明新逻辑一定遵守业务不变量。常规升级须先完成独立审计、存储布局检查、接口兼容和 fork 演练，并发布实现地址、codehash、版本、变更摘要及排期事件。事故路径在可用时间内完成这些检查，并补做完整审计与公开事故报告；链上事故标记不能代替代码审查。多个代理逐个升级可能出现版本组合，升级计划须列兼容矩阵与顺序。若需要原子升级多个代理，应由控制器提供限定目标的批量入口，并要求整批成功或整体回滚。
 
 事故时若暂停功能可用，先即时暂停受影响 Swap/用户 LP，再升级；若故障恰在暂停路径，事故执行记录应说明无法先暂停的原因。升级不会自动恢复交易，恢复仍由独立 `EMERGENCY_RESUMER` 清除对应暂停记录，且此前须核对核心不变量、数据源新鲜度和强退可达性。事故修复候选实现仍须保留方案 A 的原 LPOwner 收款约束。
 
@@ -439,7 +439,7 @@ RecoveryCouncil 具备按单笔指定延迟更换治理多签和 Guardian 的高
 
 全部运营与数据身份的日常职责、入口和边界集中在[运营和日常 §2.2](#22-运营和日常)；本节只描述治理地址如何授予这些权限，不把它们当作代理升级身份。
 
-**治理地址配置。**每个身份在 TSV 合约里都是一个独立地址；合约只按 `msg.sender`、角色映射或报告签名验证结果授权，不关心地址背后的多签成员、门槛或钱包内部轮换。部署配置只需给出地址到权限的映射：
+**治理地址配置。**每个身份在 TSV 合约里都是一个独立地址；合约只按 `msg.sender` 和角色映射授权，不关心地址背后的多签成员、门槛或钱包内部轮换。部署配置只需给出地址到权限的映射：
 
 | 身份地址 | TSV 合约所需配置 |
 | --- | --- |
@@ -449,7 +449,7 @@ RecoveryCouncil 具备按单笔指定延迟更换治理多签和 Guardian 的高
 | Executor | UpgradeTimelock executor 地址或开放执行标志 |
 | 运营与数据身份 | `POOL_CREATOR`、`SYMBOL_ADMIN`、`EMERGENCY_PAUSER`、`EMERGENCY_RESUMER`、`FORCE_EXIT_ADMIN`、`HALT_REPORTER`、`VOLUME_ORACLE` 等角色对应地址 |
 
-部署核对地址非零、必要身份地址互异、实际角色持有人与配置一致。钱包内部如何完成签署属于各身份地址自身的实现与管理，不进入 TSV 合约 ABI 或部署参数。
+部署核对地址非零、必要身份地址互异、实际角色持有人与配置一致。角色地址自行承担交易签名和 gas 支付，不进入 TSV 合约的报告 ABI。
 
 ## 10. 关键不变量和上线验收
 
@@ -459,7 +459,7 @@ RecoveryCouncil 具备按单笔指定延迟更换治理多签和 Guardian 的高
 4. `sum(position.liquidity by position key)` 与 LP Manager 在 PoolManager 的仓位账本一致；一个 Receipt 只对应一个不可转让仓位。
 5. `volumeUsed[securityId][tradeDayId]` 等于该 Registry 下所有成功 TSV Swap 的股票腿实际池内 Currency delta 按交易时批准的 Adapter 快照换算并按批准舍入规则累计的法定股数；股票输入腿包含手续费，股票输出腿取净到账。一个准入池最多一侧为股票；失败交易不改变值。该值不超过 ADTV/Tier 硬上限；当日有配额覆盖时也不超过有效覆盖值。
 6. 任何结算、Receipt mint/burn、强退、额度更新在同一 EVM 交易中原子完成；unlock 结束所有 currency delta 清零。
-7. ADTV 缺失或适用月份不符时拒绝受影响 Swap；计量日由区块时间自动推导，日配额缺失时按硬上限执行。签名提交截止只在报告接受时检查，同期间数据不变不要求定时重报。链上 HALT 状态仅随有效状态变更报告改变。数据服务故障对外告警而不改变链上已发生事实。
+7. ADTV 缺失或适用月份不符时拒绝受影响 Swap；计量日由区块时间自动推导，日配额缺失时按硬上限执行。报告提交截止只在报告接受时检查，同期间数据不变不要求定时重报。链上 HALT 状态仅随有效状态变更报告改变。数据服务故障对外告警而不改变链上已发生事实。
 8. 升级后原 Hook 地址、PoolId、仓位 owner、暂停记录、当日累计量和授权 nonce 保持有效。
 9. 常规升级仅由 UpgradeTimelock 执行；即时升级仅由登记的事故控制器执行，且控制器只接受治理多签和允许名单内的代理。动态业务 `DEFAULT_ADMIN_ROLE` 不授予代理升级权；两条升级路径均不得自动解除暂停。
 10. Guardian 冻结后事故升级入口拒绝执行，只有 UpgradeTimelock 可解冻；冻结不自动影响已排期的常规升级、Swap 或强退。Guardian 可取消普通待执行操作；受保护的权限恢复只有 RecoveryCouncil 可排期，且不能由 Guardian 取消或混入普通升级。
@@ -473,7 +473,7 @@ V1 合约按职责位于 `src/v1/` 的 `core/`、`periphery/`、`adapters/`、`g
 
 ## 12. 生产上线前待填写与确认
 
-1. 不设置 ADTV、配额或 HALT 状态的定时上链心跳；报告签名的 `submitDeadline` 只限制上链时间，已接受数据按适用月份或 TSV 计量日生效。无需日历报告；数据源须确定新期间 ADTV 及按需配额覆盖的提交安排。缺 ADTV 时链上自动拒绝受影响 Swap，缺配额时使用硬上限。
+1. 不设置 ADTV、配额或 HALT 状态的定时上链心跳；报告的 `submitDeadline` 只限制上链时间，已接受数据按适用月份或 TSV 计量日生效。无需日历报告；数据源须确定新期间 ADTV 及按需配额覆盖的提交安排。缺 ADTV 时链上自动拒绝受影响 Swap，缺配额时使用硬上限。
 2. §9 表中的 Governor、Guardian、RecoveryCouncil、Executor 和运营角色需要填写各自的地址；事故升级目标代理允许名单及事故手册批准条件也需确定。钱包内部签署配置不属于 TSV 合约架构。
 3. 用户已选择 §5.1 的技术/业务计量方案：股票输入腿按**含手续费毛支出**、股票输出腿按**净到账**逐笔累计日硬上限，并沿用 PRD 的纯借贷设计。法务仍须书面确认该口径符合成交量定义，尤其是 LP/协议费的处理；用户的架构选择不等于法务批准。若法务要求净输入股数，须重做可验证的手续费拆分设计。
 4. 每个拟上线股票 Currency 的 `LegalShareAdapter` 模式、地址/代码哈希、版本、发行方确认的法定股数定义、最小股单位、舍入规则和可复算依据须填写并审查；静态比例作为 Adapter 构造参数和审查清单项填写，**不作为目标 Registry 的独立字段**；动态模式填写实际系数来源与权益公式，发行方 Wrapped 另记录底层权益来源与外部赎回限制。`balanceOf()` 会自行变化的原币在发行方未提供合格稳定 Wrapped 时不准入；raw 稳定的 UI Multiplier 原币可按新版准入标准的直接动态路径审查。实际 Token 的制裁名单、暂停、代理实现与管理员仍须在部署时核验。
@@ -488,11 +488,11 @@ V1 合约按职责位于 `src/v1/` 的 `core/`、`periphery/`、`adapters/`、`g
 
 ### 13.1 存储主键与状态机
 
-证券以 `securityId`、池以 `PoolId`、成交量与配额以 `(securityId, tradeDayId)`、仓位以 `positionId`、签名以 `(participant, nonce)` 为主键。证券、Token、池、市场状态、暂停记录、仓位和事故升级权限的精确状态迁移，以[编码规格 §2、§6–§9](./CODING_SPEC_V1.md)为当前代码依据；直接结算的目标准入以[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准。已用成交量只随成功 Swap 增加，报告更正不清零；仓位 owner、PoolKey 及旧仓位原应收资产不能因配置升级而被重写。
+证券以 `securityId`、池以 `PoolId`、成交量与配额以 `(securityId, tradeDayId)`、仓位以 `positionId`、Router 授权以 `(participant, nonce)` 为主键。证券、Token、池、市场状态、暂停记录、仓位和事故升级权限的精确状态迁移，以[编码规格 §2、§6–§9](./CODING_SPEC_V1.md)为当前代码依据；直接结算的目标准入以[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准。已用成交量只随成功 Swap 增加，报告更正不清零；仓位 owner、PoolKey 及旧仓位原应收资产不能因配置升级而被重写。
 
 ### 13.2 接口与事件
 
-源码职责目录见仓库根 [README](../README.md)，完整类型、EIP-712 字段、对外 ABI、事件和错误见[编码规格](./CODING_SPEC_V1.md)。Ledger 必须从 Registry 核对池和资产配置，不信任用户传入的证券 ID、decimals 或股数比率；DataInbox 不得直接修改已用成交量。新增路径接口必须先满足[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)，并更新[测试规格](./TEST_SPEC_V1.md)的验收用例。
+源码职责目录见仓库根 [README](../README.md)，完整类型、Router EIP-712 字段、对外 ABI、事件和错误见[编码规格](./CODING_SPEC_V1.md)。Ledger 必须从 Registry 核对池和资产配置，不信任用户传入的证券 ID、decimals 或股数比率；DataInbox 不得直接修改已用成交量。新增路径接口必须先满足[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)，并更新[测试规格](./TEST_SPEC_V1.md)的验收用例。
 
 ### 13.3 三协议构建边界
 
@@ -502,7 +502,7 @@ TSV/V4 Core 使用 Solidity `0.8.26`，SmartWalletSbt 使用 `^0.8.29`，Backed 
 
 1. 固定 v4-core 版本，核对 X Layer chainId、官方 PoolManager 地址和运行代码哈希；锁定 TSV 的 Solidity `0.8.26`、优化参数和依赖 commit。SBT `^0.8.29` 与 Backed `0.8.9` 使用各自独立构建产物；审查跨项目薄接口、实际 ABI、代理实现与 OZ 版本，不把外部实现加入同一编译单元。
 2. 部署治理多签、独立 Guardian、独立 RecoveryCouncil 和自定义 `TSVUpgradeTimelock`，将 OZ `minDelay` 固定为 0 并禁用 `updateDelay`。治理多签为普通 proposer，RecoveryCouncil 的 `schedule` 仅能排期固定权限恢复调用，Guardian 持 `CANCELLER_ROLE`，executor 单独配置。OpenZeppelin 构造时会同时给初始 proposer `CANCELLER_ROLE`；部署管理员须撤销治理多签的该角色，另给 RecoveryCouncil `PROPOSER_ROLE` 但不授予 canceller，并核对自定义入口阻止它排期普通升级。部署事故升级控制器与非代理 `TSVBusinessAuthority`，均绑定同一个初始治理多签和固定 UpgradeTimelock；事故控制器初始化为冻结状态。紧急暂停、紧急恢复、数据报告与强退密钥分别准备配置。
-3. 部署 Registry、VolumeLedger、DataInbox、SBTAdapter、Router、LPManager、Receipt 的实现和 `TSVERC1967Proxy`；实现合约禁用直接初始化。逐个核对代理实现、升级授权和初始化参数。
+3. 部署 Registry、VolumeLedger、DataInbox、SBTAdapter、Router、LPManager、Receipt 的实现和 `TSVERC1967Proxy`；实现合约禁用直接初始化，代理拒绝空初始化数据。每个代理都应在同一交易中使用初始化 calldata 创建，禁止先部署空代理再单独初始化；逐个核对代理实现、升级授权和初始化参数。
 4. 对最终 Hook 代理的创建代码及初始化参数挖掘 CREATE2 salt；在代理上下文初始化或部署脚本中调用等价于 `Hooks.validateHookPermissions` 的校验，核对**代理地址**低 14 位为 `0x3FFF`，并核对四类 delta 实际返回零、donate 回滚、afterAdd/afterRemove 回调不改变结算。部署后核对 implementation、初始化状态和 PoolManager 地址。实现构造函数只禁用直接初始化，不以实现地址校验 Hook 位。先完成 Hook 与 Registry/Ledger/Router/LPManager 的相互绑定，再授予 Hook 唯一成交写入权限。
 5. 经 UpgradeTimelock 排期一次性绑定 BusinessAuthority、设置事故控制器的代理允许名单和首轮解冻，按各笔排期指定的 `delaySeconds` 执行；核对每个代理的 `tsvImplementation()`、控制器地址、Guardian 和升级权限。核对普通提案可被 Guardian 取消、受保护恢复不能被取消、RecoveryCouncil 无法排期普通升级后，撤销临时外部 UpgradeTimelock 管理员。全部业务代理配置同一个 BusinessAuthority，并验证 `hasRole(DEFAULT_ADMIN_ROLE, governor) == true`、其他地址为 false，且直接授予/撤销此根角色会回滚；再配置紧急暂停、紧急恢复、数据报告与强退角色，核对 UpgradeTimelock 不持有这些业务角色。
 6. 注册证券、Tier、Token、普通配对资产和 PoolKey 参数；为每个股票 Currency 登记计股 Adapter、版本、发行方权益依据及最小股单位，拒绝 AutoFee 原币、非精确转账资产和 100%/动态费率池。wTSLAx 实例须核对 raw 稳定、双侧精确转账、底层权益公式、托管、读取 gas 上限、原 owner 收取 wTSLAx 的可达性及发行方代理权限；不要求目标 TSV 同笔包装或赎回。AA 钱包用实际发行方 SBT 核对 ERC-1155 接收能力。上传签名数据源、公示版本化准入与配置摘要；未齐备前保持 Swap fail-closed。

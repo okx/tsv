@@ -12,7 +12,7 @@
 
 | 层级 | 用途 | 必须交付的证据 |
 | --- | --- | --- |
-| U：单元与确定性向量 | 校验纯换算、状态机、签名、边界、权限 | Foundry 用例；每个表内 ID 有通过/失败记录 |
+| U：单元与确定性向量 | 校验纯换算、状态机、Router 授权、边界、权限 | Foundry 用例；每个表内 ID 有通过/失败记录 |
 | I：本地协议集成 | 使用真实 V4 PoolManager 代码、固定版本 SBT/Backed 编译产物；测试完整原子路径 | 调用 trace、关键事件、交易前后状态快照 |
 | F：固定区块 X Layer fork | 核对官方 PoolManager 和实际 TSLAx/wTSLAx 代理、代码哈希、ABI、只读状态及受控地址的交易路径 | 固定 block、chainId、合约地址/codehash、运行结果；不广播主网交易 |
 | P：fuzz/invariant | 随机交易序列、整数边界、升级/暂停/日切交错 | seed、最小复现输入、`fail_on_revert` 策略与不变量结果 |
@@ -36,7 +36,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | `Day D` | 每个 UTC 日期对应一个 TSV 计量日；按当前生效的 UTC 起点自动切分，`tradeDayId` 是周期开始日 `YYYYMMDD`；ADTV 取该日期前一自然月；可选 quota 按 `(securityId,tradeDayId)` 覆盖硬上限 |
 | `Identity` | Governor、Guardian、RecoveryCouncil、Executor、各业务角色各自为单独地址；测试只改变地址和角色，不依赖多签内部签名门槛 |
 
-每个预期回滚的完整路径在发送交易前保存 `S_pre`：用户/Router/LP Manager/PoolManager 的相关 ERC-20 余额、V4 PoolId 状态和仓位流动性、TSV position/Receipt owner、`usedWad`、签名 nonce/reportId、暂停计数和治理状态。回滚后逐项断言等于 `S_pre`；仅断言 revert selector 不足以证明原子性。成功路径逐项检查金额、股数、事件、V4 delta 清零及 Router/LP Manager 本次暂存余额回到基线。
+每个预期回滚的完整路径在发送交易前保存 `S_pre`：用户/Router/LP Manager/PoolManager 的相关 ERC-20 余额、V4 PoolId 状态和仓位流动性、TSV position/Receipt owner、`usedWad`、Router 签名 nonce、报告 reportId/序号、暂停计数和治理状态。回滚后逐项断言等于 `S_pre`；仅断言 revert selector 不足以证明原子性。成功路径逐项检查金额、股数、事件、V4 delta 清零及 Router/LP Manager 本次暂存余额回到基线。
 
 ## 3. 必须实现的确定性测试
 
@@ -72,8 +72,8 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
-| D01 U/I | 目标 Market、ADTV、Quota 三种报告用 EOA/1271 签名，任意 relayer 提交；旧 TradeDay 签名重放 | 域含 chainId 和代理地址，TYPEHASH 与字段顺序一致；仅当 signer 当前持相应角色时接受；旧日历报告无可调用入口，旧 Quota 类型签名不能冒充新 SET/CLEAR |
-| D02 U | 错 signer、角色已撤、错 chainId/代理、改任一字段、重复 reportId、序号回退、过 submitDeadline、sourceTimestamp 在未来 | 各自拒绝，reportId/sequence 不被占用；早先已接受状态不自动失效 |
+| D01 U/I | 由持有 `HALT_REPORTER_ROLE` 或 `VOLUME_ORACLE_ROLE` 的地址直接提交 Market、ADTV、Quota 报告；尝试用 relayer、签名参数或旧 TradeDay 入口提交 | 只有 `msg.sender` 当前持有对应角色时接受；DataInbox ABI 不含签名参数或 signer 字段；旧日历报告无可调用入口 |
+| D02 U | 非角色调用、角色已撤、重复 reportId、序号回退、过 submitDeadline、sourceTimestamp 在未来、同月批次未排序/跨月 | 各自拒绝，reportId/sequence 不被占用；早先已接受状态不自动失效 |
 | D03 U | INITIAL_OPEN/INITIAL_HALTED 一次；OPEN→HALT→RESUME；重复 OPEN、HALT 心跳、RESUME 心跳 | 仅合法状态变化上链；HALT 无年龄失效，状态长期不变无需重报 |
 | D04 U/I | 初始 UTC 日切 04:00；普通日边界前后各一秒、周末、月末、闰日及年末；无预提交日历 | 每个 UTC 日期独立归属一个 `YYYYMMDD` 计量日，连续无空洞/重叠；边界后新日用量从零开始，历史用量不改；不要求下一窗口或心跳交易 |
 | D05 U/I | 治理将日切从 04:00 排期为未来 07:00；另试从 04:00 直接改到 09:00、同时存在第二项待生效排期、已开始的过渡日、更改过去或当前日、取消待生效排期 | 只有符合未来边界、每次偏移差不超过 4 小时且过渡日尚未开始的排期/取消成功；过渡日可为 20–28 小时但只有一份完整硬上限；已开始和历史日边界永久不变；自动生效无需激活交易 |
@@ -109,10 +109,11 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | L04 I | `collectFees` 在正流动性仓位有费/无费；最后一次 `closePosition` 有累计费 | 有费按返回 callerDelta 交付；无费回滚；close 单次负 liquidity 同时拿本金和费，不在零仓位追加领费 |
 | L05 I | LP bounds 的两侧 raw Currency 付款上限、收款下限；报价后池价或 multiplier 变化；任一旧 `AssetBounds` 字段非零 | 各侧按实际 callerDelta 校验 raw 边界，任一失败全回滚；保留的 `AssetBounds` 在目标新仓位中八项都须为零；前端股数展示不被误认为链上独立限价 |
 | L06 I | `REVOKE_EXIT_EXECUTOR` 对确实无 SBT 的原 owner；SBT 只是 paused；`FORCE_EXIT_ADMIN` 有/无 reason/evidence | 仅规定的两类调用者满足各自条件时能强退；paused 但仍持证不能作为撤证理由 |
-| L07 I | 停牌、EmergencyPause、Token/Pool DISABLED、报告缺失时强退 | 业务门禁不阻挡准确的既有仓位全额强退；资产仍只发到**原 owner** |
+| L07 I | 停牌、EmergencyPause、Token/Pool DISABLED、报告缺失时强退，并提交两侧 raw `minPoolOut` | 业务门禁不阻挡既有仓位全额强退；两侧实际到账均满足调用时下限才成功，资产仍只发到**原 owner** |
 | L08 I | 发行方 wTSLAx 拒绝向原 owner 转账，或另一侧普通 Token 拒转；分别安排失败发生在第一/第二腿 | 方案 A：V4 移除、资产转账、Receipt burn、TSV 仓位和事件均回滚到 `S_pre`；旧仓位可重试，无持久失败事件 |
 | L09 I | 强退 wTSLAx 时底层 multiplier 或 TSLAx 账户显示余额改变，但 wTSLAx raw 应付量确定 | 原 owner 实收 wTSLAx raw 与 V4 应付量精确相等；不要求本交易执行发行方赎回，也不错误以 TSLAx 的 `balanceOfUI` 差额判断交付 |
 | L10 I | 正常 LP 修改时零 liquidity、部分减仓清空、tick 未对齐、deadline 过期、余额不足、外部重入 | 全部拒绝且仓位/Receipt 保持一致 |
+| L11 I | 强退设置任一侧高于实际到账的 `minPoolOut`，另一侧正常；再以可满足的两侧下限重试 | 前次整笔回滚且仓位、Receipt、两侧余额保持不变；重试按运营给定下限成功并向原 owner 交付 |
 
 ### 3.5 治理与升级
 
@@ -167,4 +168,4 @@ FOUNDRY_PROFILE=unit forge build --skip test --sizes
 
 执行顺序：先 U，再 I，再 P，最后固定区块 F 与 G。每次候选实现升级后重跑全部相关 U/I/P/F；涉及 Token/Adapter/Hook 的改动至少重跑 X-V4、X-BACKED 与 G08。CI 记录编译器、优化参数、依赖 commit、fork block、部署清单哈希、随机 seed、gas 报告和测试结果。不要使用实时最新区块生成会随市场状态漂移的必过断言。
 
-V1 **代码验收**要求：上述所有适用 ID 已落地且通过；没有跳过/预期失败的关键路径；关键完整交易用真实 V4 PoolManager 测过；失败原子性快照与六项性质测试通过；事件、错误及 EIP-712 离线编码向量可复算；代理布局和 Hook 权限位通过升级回归。**生产启用**另外要求固定区块 fork/真实代理核验、wTSLAx 股数口径的发行方/法务书面批准、实际制裁/暂停/精确转账与强退可达性、最坏 gas 余量及独立安全审计。缺任一项时不宣称 wTSLAx 生产测试完成，也不把 `UNREVIEWED` 改为 `APPROVED`。
+V1 **代码验收**要求：上述所有适用 ID 已落地且通过；没有跳过/预期失败的关键路径；关键完整交易用真实 V4 PoolManager 测过；失败原子性快照与六项性质测试通过；Router 的 EIP-712 离线编码向量、报告直接角色 ABI、事件和错误可复算；代理布局和 Hook 权限位通过升级回归。**生产启用**另外要求固定区块 fork/真实代理核验、wTSLAx 股数口径的发行方/法务书面批准、实际制裁/暂停/精确转账与强退可达性、最坏 gas 余量及独立安全审计。缺任一项时不宣称 wTSLAx 生产测试完成，也不把 `UNREVIEWED` 改为 `APPROVED`。
