@@ -48,8 +48,8 @@
 | EXT-02 | 实际 TSLAx/wTSLAx 代理 ABI、管理员、制裁、wTSLAx 精确转账、`getCurrentMultiplier()` 的有界 gas 与恢复能力；发行方代理升级由链下监控发现，监控告警后的暂停和复审流程须留证；安全评审 F-01 的条件风险未被真实实例排除 |
 | EXT-03 | 锁定 `lib/v4-core` 的可重现版本；独立构建并集成固定的 SmartWalletSbt 与 Backed 源码。当前本地集成使用真实 V4 PoolManager，但 SBT 与发行方资产仍用行为 mock |
 | EXT-04 | 固定区块 X Layer 只读/受控路径、Router 独立 EIP-712 向量与 ERC-1271、fuzz/invariant、存储布局升级回归、最坏 gas、部署脚本/Hook salt manifest 和监控；逐项按[测试规格](./TEST_SPEC_V1.md)留证 |
-| EXT-05 | 已建立 Git 基线提交 `c12676c`，冻结当前 `src/`、`test/`、`docs/`、配置、测试夹具、三项 Git 子模块指针及仓库内 `lib/v4-core` 源码快照；`lib/v4-core` 仍不是上游 Git 子模块，后续需补充上游来源/版本证明和固定构建证据，本文不能代替线上部署审计 |
+| EXT-05 | 已建立 Git 基线提交 `11171f1`，并在 `868906e` 固化报告直写 ABI；提交冻结当前 `src/`、`test/`、`docs/`、配置、测试夹具、三项 Git 子模块指针及仓库内 `lib/v4-core` 源码快照；`lib/v4-core` 仍不是上游 Git 子模块，后续需补充上游来源/版本证明和固定构建证据，本文不能代替线上部署审计 |
 
 ## 5. 验证状态与执行顺序
 
-当前 `test/unit/v1/` 和 `test/integration/local/` 有确定性测试源码。2026-10-01 在本工作区执行 `forge test --summary`，共 **46 个通过、0 个失败、0 个跳过**；其中覆盖 ERC8056 Adapter、本地标准 ERC-8056 股票和普通 ERC-20 Swap/LP、可选 quota SET/CLEAR、自动 UTC 日切与旧 TSLAx 包装路径拒绝。该结果只证明本地源码，不替代固定区块真实 wTSLAx、SBT 和发行方代理核验。**当前文档尚不能直接作为完整生产编码规格**：SPEC-01～02 须先闭合；GAP-03 仍部分实现，GAP-06 未实现，GAP-08 及 EXT-01～05 仍需交付或留证；由于没有旧链上状态，不需要旧 LP 或旧 SIP 账本迁移。
+当前 `test/unit/v1/` 和 `test/integration/local/` 有确定性测试源码。2026-10-01 在本工作区执行 `forge test --summary`，共 **51 个通过、0 个失败、0 个跳过**；其中覆盖 ERC8056 Adapter、本地标准 ERC-8056 股票和普通 ERC-20 Swap/LP、可选 quota SET/CLEAR、自动 UTC 日切、报告直接角色调用和旧 TSLAx 包装路径拒绝。该结果只证明本地源码，不替代固定区块真实 wTSLAx、SBT 和发行方代理核验。**当前文档尚不能直接作为完整生产编码规格**：SPEC-01～02 须先闭合；GAP-03 仍部分实现，GAP-06 未实现，GAP-08 及 EXT-01～05 仍需交付或留证；由于没有旧链上状态，不需要旧 LP 或旧 SIP 账本迁移。
