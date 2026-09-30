@@ -11,7 +11,7 @@
 | 单池 Swap、LP 和 V4 Hook | [Router](../src/v1/periphery/TSVSwapRouterV1.sol)、[LP Manager](../src/v1/periphery/TSVLPManagerV1.sol)、[Hook](../src/v1/core/TSVHookV1.sol)；Hook 工厂要求地址低位 `0x3FFF` | V1 所有返回 delta 为零；不等于未来非零 Hook delta 已可启用 |
 | 资产登记、池门禁 | [Registry](../src/v1/core/TSVRegistryV1.sol) 仅接受 `userToken == poolCurrency` 的直接结算组合，建池时拒绝两侧 `securityId` 同时非零；旧 TSLAx→wTSLAx 配置有负向回归 | 真实 wTSLAx 代理的生产准入仍需外部证据；本地标准股票使用 `ERC8056TestToken` |
 | 股数与额度 | [股数接口](../src/v1/interfaces/ILegalShareAdapter.sol)提供正向计股和只读 raw 边界反算；`ERC8056LegalShareAdapter` 读取 `uiMultiplier()`；[Ledger](../src/v1/core/TSVVolumeLedgerV1.sol)按实际 V4 delta、自动 UTC 计量日和可选日额度记账 | 日内公司行动下的历史用量单位换算尚未冻结；生产 wTSLAx 证据仍需补齐；Registry 不把静态比例作为新权威字段 |
-| 报告、身份、治理 | [DataInbox](../src/v1/core/TSVDataInboxV1.sol)处理 Market/ADTV/Quota 三类签名报告；Quota 支持 SET/CLEAR，EIP-712 域版本为 2；SBT、ERC-1271、当前 UUPS/Timelock/事故升级路径已编码 | 治理根三地址整体迁移尚无 Anchor |
+| 报告、身份、治理 | [DataInbox](../src/v1/core/TSVDataInboxV1.sol)处理 Market/ADTV/Quota 三类签名报告；ADTV 支持单条和同月批量提交，Quota 支持 SET/CLEAR，EIP-712 域版本为 2；SBT、ERC-1271、当前 UUPS/Timelock/事故升级路径已编码 | 治理根三地址整体迁移尚无 Anchor |
 | 发行方资产结算 | 目标新路径只直接收付池内 Currency；Registry 拒绝旧 TSLAx→wTSLAx 登记。`IssuerShareSettlementAdapter` 仍保留独立正向/负向单元测试作为历史源码回归，但不属于可达生产路径 | 生产 wTSLAx 仍需实际代理的精确转账、制裁、暂停和强退证据；本部署没有旧 LP 仓位，因此不设计旧仓位兼容分支 |
 
 ## 2. 目标行为与未实现内容

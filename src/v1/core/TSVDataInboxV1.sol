@@ -13,6 +13,9 @@ contract TSVDataInboxV1 is TSVGoverned, EIP712Upgradeable {
     error InvalidReport();
     error Expired();
 
+    /// @dev Bounded to keep a monthly report submission within block gas limits.
+    uint256 public constant MAX_ADTV_BATCH_SIZE = 100;
+
     bytes32 public constant MARKET_TYPEHASH = keccak256(
         "MarketReport(address signer,bytes32 securityId,uint8 action,bytes32 reasonCode,bytes32 exchangeHash,uint64 sourceTimestamp,uint64 submitDeadline,uint64 sequence,bytes32 reportId,bytes32 sourceHash)"
     );
@@ -59,6 +62,34 @@ contract TSVDataInboxV1 is TSVGoverned, EIP712Upgradeable {
     }
 
     function submitAdtv(AdtvReport calldata report, bytes calldata signature) external {
+        _submitAdtv(report, signature);
+    }
+
+    /// @notice Atomically accepts the monthly ADTV reports for multiple securities.
+    /// @dev Reports must use the same source month and be sorted by unique securityId.
+    ///      Each item keeps the existing AdtvReport EIP-712 signature format, so the
+    ///      batch does not invalidate already deployed signing infrastructure.
+    function submitAdtvBatch(AdtvReport[] calldata reports, bytes[] calldata signatures) external {
+        if (reports.length == 0 || reports.length > MAX_ADTV_BATCH_SIZE || reports.length != signatures.length) {
+            revert InvalidReport();
+        }
+
+        uint32 sourceMonth = reports[0].sourceMonth;
+        bytes32 previousSecurityId;
+        for (uint256 i; i < reports.length; i++) {
+            AdtvReport calldata report = reports[i];
+            if (
+                report.securityId == 0 || report.sourceMonth != sourceMonth
+                    || (i != 0 && uint256(report.securityId) <= uint256(previousSecurityId))
+            ) {
+                revert InvalidReport();
+            }
+            _submitAdtv(report, signatures[i]);
+            previousSecurityId = report.securityId;
+        }
+    }
+
+    function _submitAdtv(AdtvReport calldata report, bytes calldata signature) private {
         _accept(
             1,
             report.securityId,

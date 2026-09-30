@@ -266,6 +266,52 @@ contract TSVFoundationTest is Test {
         assertEq(ledger.used(SECURITY, DAY), 1e18);
     }
 
+    function testAdtvBatchAcceptsMultipleSecuritiesInOneSubmission() public {
+        bytes32 secondSecurity = bytes32(type(uint256).max);
+        registry.listSecurity(secondSecurity, keccak256("STD_y"), 1, keccak256("listing-y"));
+
+        bytes32 firstSecurity = uint256(SECURITY) < uint256(secondSecurity) ? SECURITY : secondSecurity;
+        bytes32 lastSecurity = firstSecurity == SECURITY ? secondSecurity : SECURITY;
+        AdtvReport[] memory reports = new AdtvReport[](2);
+        bytes[] memory signatures = new bytes[](2);
+        reports[0] = _adtv(firstSecurity, 1000e18, 1, 1, keccak256("adtv-batch-a"));
+        reports[1] = _adtv(lastSecurity, 2000e18, 1, 1, keccak256("adtv-batch-b"));
+        signatures[0] = _signAdtv(reports[0]);
+        signatures[1] = _signAdtv(reports[1]);
+
+        inbox.submitAdtvBatch(reports, signatures);
+
+        TSVVolumeLedgerV1.AdtvValue memory first = ledger.adtvOf(firstSecurity, uint32(MONTH));
+        TSVVolumeLedgerV1.AdtvValue memory last = ledger.adtvOf(lastSecurity, uint32(MONTH));
+        assertEq(first.value, 1000e18);
+        assertEq(last.value, 2000e18);
+        assertEq(first.version, 1);
+        assertEq(last.version, 1);
+    }
+
+    function testAdtvBatchIsAtomicWhenOneReportIsInvalid() public {
+        bytes32 secondSecurity = bytes32(type(uint256).max);
+        registry.listSecurity(secondSecurity, keccak256("STD_z"), 1, keccak256("listing-z"));
+
+        bytes32 firstSecurity = uint256(SECURITY) < uint256(secondSecurity) ? SECURITY : secondSecurity;
+        bytes32 lastSecurity = firstSecurity == SECURITY ? secondSecurity : SECURITY;
+        AdtvReport[] memory reports = new AdtvReport[](2);
+        bytes[] memory signatures = new bytes[](2);
+        reports[0] = _adtv(firstSecurity, 1000e18, 1, 1, keccak256("adtv-atomic-a"));
+        // Version 2 is invalid because this security has no accepted version 1.
+        reports[1] = _adtv(lastSecurity, 2000e18, 2, 1, keccak256("adtv-atomic-b"));
+        signatures[0] = _signAdtv(reports[0]);
+        signatures[1] = _signAdtv(reports[1]);
+
+        vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
+        inbox.submitAdtvBatch(reports, signatures);
+
+        assertFalse(inbox.reportIdUsed(reports[0].reportId));
+        assertFalse(inbox.reportIdUsed(reports[1].reportId));
+        assertEq(ledger.adtvOf(firstSecurity, uint32(MONTH)).version, 0);
+        assertEq(ledger.adtvOf(lastSecurity, uint32(MONTH)).version, 0);
+    }
+
     function testDailyQuotaIsOptionalAndClearRestoresTheHardCap() public {
         _submitAdtv(1000e18);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
@@ -494,19 +540,27 @@ contract TSVFoundationTest is Test {
     }
 
     function _submitAdtv(uint256 value) private {
-        AdtvReport memory report = AdtvReport(
+        AdtvReport memory report = _adtv(SECURITY, value, 1, 1, keccak256("adtv"));
+        inbox.submitAdtv(report, _signAdtv(report));
+    }
+
+    function _adtv(bytes32 securityId, uint256 value, uint64 version, uint64 sequence, bytes32 reportId)
+        private
+        view
+        returns (AdtvReport memory)
+    {
+        return AdtvReport(
             reporter,
-            SECURITY,
+            securityId,
             uint32(MONTH),
             value,
             uint64(block.timestamp - 1),
             uint64(block.timestamp + 100),
-            1,
-            1,
-            keccak256("adtv"),
+            version,
+            sequence,
+            reportId,
             keccak256("source")
         );
-        inbox.submitAdtv(report, _signAdtv(report));
     }
 
     function _submitQuota(uint256 value) private {
