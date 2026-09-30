@@ -1,0 +1,26 @@
+{
+  "chainId": 43114,
+  "chain": "Avalanche C-Chain",
+  "sourceRepository": "https://github.com/securitize-io/dstoken",
+  "sourceCommit": "d7cf3858c371def66e5b37ed0949aa991d0a0234",
+  "sourceContract": "contracts/token/DSToken.sol",
+  "compiler": {
+    "version": "0.8.22+commit.4fc1097e",
+    "optimizerEnabled": true,
+    "optimizerRuns": 200,
+    "evmVersion": "paris"
+  },
+  "token": {
+    "name": "Securitize Corp.",
+    "symbol": "SECZ",
+    "decimals": 6,
+    "address": "0x5954fF4099ac47C4d6D098A9216f3278BB8C9506",
+    "explorer": "https://snowtrace.io/token/0x5954fF4099ac47C4d6D098A9216f3278BB8C9506/contract/code?type=erc20&chainid=43114"
+  },
+  "implementation": {
+    "name": "DSToken",
+    "address": "0x18295407744efA5c3FeD0318c1F37aBe8a5e2d45",
+    "explorer": "https://snowtrace.io/address/0x18295407744efA5c3FeD0318c1F37aBe8a5e2d45/contract/code?chainid=43114"
+  },
+  "note": "The source repository is pinned to a revision whose verified Solidity sources match the explorer-verified DSToken implementation. This mapping records the explorer-reported implementation at lookup time and does not track future proxy upgrades."
+}

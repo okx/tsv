@@ -1,0 +1,9 @@
+[submodule "lib/soul-bound-token-1155"]
+	path = lib/soul-bound-token-1155
+	url = git@gitlab.okg.com:web3-wallet/smart-wallet-infra/soul-bound-token-1155.git
+[submodule "lib/TestToken/backed-token-contract"]
+	path = lib/TestToken/backed-token-contract
+	url = https://github.com/backed-fi/backed-token-contract.git
+[submodule "lib/TestToken/securitize-dstoken"]
+	path = lib/TestToken/securitize-dstoken
+	url = https://github.com/securitize-io/dstoken.git

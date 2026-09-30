@@ -1,0 +1,16 @@
+out/
+cache/
+broadcast/
+dependencies/
+.DS_Store
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# Local editor state
+.vscode/
+
+# Vendored dependency build output
+lib/v4-core/test/js-scripts/dist/
