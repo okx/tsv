@@ -37,7 +37,6 @@ interface IHookLinksV1 {
 interface IRouterLinksV1 {
     function registry() external view returns (address);
     function ledger() external view returns (address);
-    function hook() external view returns (address);
     function poolManager() external view returns (address);
 }
 
@@ -119,7 +118,6 @@ contract TSVGovernanceAnchor {
                 || IHookLinksV1(addresses[3]).lpManager() != addresses[5]
                 || IRouterLinksV1(addresses[4]).registry() != addresses[0]
                 || IRouterLinksV1(addresses[4]).ledger() != addresses[1]
-                || IRouterLinksV1(addresses[4]).hook() != addresses[3]
                 || ILpLinksV1(addresses[5]).registry() != addresses[0]
                 || IHookLinksV1(addresses[3]).poolManager() != IRouterLinksV1(addresses[4]).poolManager()
                 || IHookLinksV1(addresses[3]).poolManager() != ILpLinksV1(addresses[5]).poolManager()

@@ -118,14 +118,13 @@ contract TSVHookFactoryTest is Test {
         }
         assertEq(uint160(predictedHook) & 0x3FFF, 0x3FFF);
 
-        TSVSwapRouterV1 router = _deployRouter(d, predictedHook);
+        TSVSwapRouterV1 router = _deployRouter(d);
         TSVLPManagerV1 lp = _deployLp(d);
         TSVHookV1 hook = TSVHookV1(d.factory.deploy(d.hookImpl, hookInit, salt));
 
         assertEq(address(router), predictedRouter);
         assertEq(address(lp), predictedLp);
         assertEq(address(hook), predictedHook);
-        assertEq(address(router.hook()), address(hook));
         assertEq(hook.router(), address(router));
         assertEq(hook.lpManager(), address(lp));
         d.registry.bindComponents(address(hook), address(lp), address(d.inbox));
@@ -195,7 +194,7 @@ contract TSVHookFactoryTest is Test {
         d.factory = new TSVHookProxyFactoryV1();
     }
 
-    function _deployRouter(Base memory d, address hook) private returns (TSVSwapRouterV1) {
+    function _deployRouter(Base memory d) private returns (TSVSwapRouterV1) {
         return TSVSwapRouterV1(
             address(
                 new TSVERC1967Proxy(
@@ -208,8 +207,7 @@ contract TSVHookFactoryTest is Test {
                             address(d.controller),
                             address(this),
                             address(d.registry),
-                            address(d.ledger),
-                            hook
+                            address(d.ledger)
                         )
                     )
                 )

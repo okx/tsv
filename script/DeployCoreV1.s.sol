@@ -161,8 +161,7 @@ contract DeployCoreV1 is Script {
                             address(input.controller),
                             input.poolManager,
                             address(d.registry),
-                            address(d.ledger),
-                            predictedHook
+                            address(d.ledger)
                         )
                     )
                 )
@@ -192,7 +191,7 @@ contract DeployCoreV1 is Script {
             address(d.router) != predictedRouter || address(d.lpManager) != predictedLpManager
                 || address(d.hook) != predictedHook || (uint160(address(d.hook)) & HOOK_FLAGS) != HOOK_FLAGS
                 || TSVERC1967Proxy(payable(address(d.hook))).tsvImplementation() != d.implementations.hook
-                || address(d.router.hook()) != address(d.hook) || d.hook.router() != address(d.router)
+                || d.hook.router() != address(d.router)
                 || d.hook.lpManager() != address(d.lpManager) || address(d.lpManager.registry()) != address(d.registry)
         ) revert AddressPredictionMismatch();
     }

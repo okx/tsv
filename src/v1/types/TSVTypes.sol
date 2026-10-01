@@ -77,19 +77,23 @@ struct LPContext {
     uint256 positionId;
     int24 tickLower;
     int24 tickUpper;
-    bytes32 salt;
     LPOperationMode mode;
-    address owner;
+    bytes32 salt;
+    int256 liquidityDelta;
+}
+
+struct LPHookContext {
+    bytes32 poolId;
+    int24 tickLower;
+    int24 tickUpper;
+    LPOperationMode mode;
+    bytes32 salt;
     int256 liquidityDelta;
 }
 
 struct SwapRequest {
     PoolKey key;
-    address participant;
-    address payer;
-    address recipient;
     bool zeroForOne;
-    bool exactInput;
     uint128 amountSpecified;
     uint128 limitAmount;
     uint160 sqrtPriceLimitX96;

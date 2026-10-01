@@ -6,11 +6,10 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
-import {PoolConfig, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
-import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVDirectSettlementLib} from "tsv-v1/libraries/TSVDirectSettlementLib.sol";
 
 /// @notice One-pool credential-gated swap entry; the participant settles each PoolKey currency directly.
@@ -23,20 +22,14 @@ contract TSVSwapRouterV1 is TSVGoverned {
     error InvalidPool();
     error Expired();
     error SlippageExceeded();
+    error InputAmountTooLarge();
     error SettlementMismatch();
     error Reentrancy();
-
-    struct Active {
-        bytes32 poolId;
-        address participant;
-    }
 
     IPoolManager public poolManager;
     TSVRegistryV1 public registry;
     TSVVolumeLedgerV1 public ledger;
-    TSVHookV1 public hook;
     bool private entered;
-    Active private active;
 
     event SwapExecuted(
         bytes32 indexed poolId,
@@ -53,18 +46,15 @@ contract TSVSwapRouterV1 is TSVGoverned {
         address controller,
         address poolManager_,
         address registry_,
-        address ledger_,
-        address hook_
+        address ledger_
     ) external initializer {
         __TSVGoverned_init(authority, timelock, controller);
-        if (
-            poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0
-                || hook_ == address(0)
-        ) revert InvalidRequest();
+        if (poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0) {
+            revert InvalidRequest();
+        }
         poolManager = IPoolManager(poolManager_);
         registry = TSVRegistryV1(registry_);
         ledger = TSVVolumeLedgerV1(ledger_);
-        hook = TSVHookV1(hook_);
     }
 
     modifier nonReentrant() {
@@ -79,8 +69,7 @@ contract TSVSwapRouterV1 is TSVGoverned {
         nonReentrant
         returns (uint256 actualIn, uint256 actualOut)
     {
-        if (!request.exactInput) revert InvalidRequest();
-        return _swap(request);
+        return _swap(request, true);
     }
 
     function swapExactOutput(SwapRequest calldata request)
@@ -88,70 +77,58 @@ contract TSVSwapRouterV1 is TSVGoverned {
         nonReentrant
         returns (uint256 actualIn, uint256 actualOut)
     {
-        if (request.exactInput) revert InvalidRequest();
-        return _swap(request);
-    }
-
-    function activeSwapContext() external view returns (bool isActive, bytes32 poolId, address participant) {
-        if (!entered || active.poolId == 0) return (false, 0, address(0));
-        return (true, active.poolId, active.participant);
+        return _swap(request, false);
     }
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
-        if (msg.sender != address(poolManager) || !entered || active.poolId == 0) revert Unauthorized();
-        SwapRequest memory request = abi.decode(data, (SwapRequest));
-        if (PoolId.unwrap(request.key.toId()) != active.poolId || request.participant != active.participant) {
-            revert Unauthorized();
-        }
+        if (msg.sender != address(poolManager) || !entered) revert Unauthorized();
+        (SwapRequest memory request, address participant, bool exactInput) =
+            abi.decode(data, (SwapRequest, address, bool));
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams(
             request.zeroForOne,
-            request.exactInput ? -int256(uint256(request.amountSpecified)) : int256(uint256(request.amountSpecified)),
+            exactInput ? -int256(uint256(request.amountSpecified)) : int256(uint256(request.amountSpecified)),
             request.sqrtPriceLimitX96
         );
         BalanceDelta delta = poolManager.swap(request.key, params, bytes(""));
         int128 inDelta = request.zeroForOne ? delta.amount0() : delta.amount1();
         int128 outDelta = request.zeroForOne ? delta.amount1() : delta.amount0();
         if (inDelta >= 0 || outDelta <= 0) revert SlippageExceeded();
+        if (inDelta == type(int128).min) revert InputAmountTooLarge();
         uint256 actualIn = uint256(-int256(inDelta));
         uint256 actualOut = uint256(int256(outDelta));
-        if (request.exactInput) {
+        if (exactInput) {
             if (actualIn > request.amountSpecified || actualOut < request.limitAmount) revert SlippageExceeded();
         } else if (actualOut != request.amountSpecified || actualIn > request.limitAmount) {
             revert SlippageExceeded();
         }
 
-        _settle(request.key.currency0, delta.amount0(), request.participant);
-        _settle(request.key.currency1, delta.amount1(), request.participant);
+        _settle(request.key.currency0, delta.amount0(), participant);
+        _settle(request.key.currency1, delta.amount1(), participant);
         return abi.encode(actualIn, actualOut, delta);
     }
 
-    function _swap(SwapRequest calldata request) private returns (uint256 actualIn, uint256 actualOut) {
-        bytes32 poolId = _validate(request);
-        active = Active(poolId, request.participant);
-        bytes memory result = poolManager.unlock(abi.encode(request));
+    function _swap(SwapRequest calldata request, bool exactInput)
+        private
+        returns (uint256 actualIn, uint256 actualOut)
+    {
+        address participant = msg.sender;
+        bytes32 poolId = _validate(request, participant);
+        bytes memory result = poolManager.unlock(abi.encode(request, participant, exactInput));
         BalanceDelta delta;
         (actualIn, actualOut, delta) = abi.decode(result, (uint256, uint256, BalanceDelta));
-        (bool exists, uint32 day) = ledger.currentTradeDay();
-        if (!exists) revert InvalidPool();
-        emit SwapExecuted(poolId, request.participant, request.zeroForOne, delta.amount0(), delta.amount1(), day);
-        delete active;
+        (, uint32 day) = ledger.currentTradeDay();
+        emit SwapExecuted(poolId, participant, request.zeroForOne, delta.amount0(), delta.amount1(), day);
     }
 
-    function _validate(SwapRequest calldata request) private view returns (bytes32 poolId) {
+    function _validate(SwapRequest calldata request, address participant) private view returns (bytes32 poolId) {
         if (block.timestamp > request.deadline) revert Expired();
         if (
-            request.participant == address(0) || request.participant != msg.sender
-                || request.participant != request.payer || request.participant != request.recipient
-                || request.amountSpecified == 0 || request.amountSpecified > uint128(type(int128).max)
+            request.amountSpecified == 0 || request.amountSpecified > uint128(type(int128).max)
                 || request.limitAmount == 0
         ) revert InvalidRequest();
-        if (!registry.isEligible(request.participant)) revert Unauthorized();
+        if (!registry.isEligible(participant)) revert Unauthorized();
         poolId = PoolId.unwrap(request.key.toId());
         if (!registry.isTradable(poolId)) revert InvalidPool();
-        PoolConfig memory pool = registry.getPool(poolId);
-        if (keccak256(abi.encode(pool.key)) != keccak256(abi.encode(request.key))) revert InvalidPool();
-        (bool dayExists,) = ledger.currentTradeDay();
-        if (!dayExists) revert InvalidPool();
     }
 
     function _settle(Currency currency, int128 delta, address participant) private {

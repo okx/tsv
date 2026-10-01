@@ -16,7 +16,7 @@
 | GAP-06 **已编码，本地回归通过** | 六个业务代理经固定 Anchor 读取当前 Authority、Timelock 与事故控制器；治理根迁移要求 Council 提案和当前 Guardian 批准，并原子更新六代理授权 | 目标链部署、三治理合约代码哈希、迁移前后存储布局和真实身份权限仍须独立核验；验收见 G09 |
 | GAP-07 **已编码** | Router 和 LP Manager 对直接结算校验转出、PoolManager 和最终收款方的实际余额变化；非精确转账整笔回滚 | 真实发行方 Token 与目标链仍须执行 A03 及固定依赖验证；相关安全评审见 F-05 |
 | GAP-08 **运营方案已定** | 不在链上自动监控发行方代理升级；监控发现后由运营暂停并复审 | 监控数据源、告警、暂停/复审 runbook 和升级证据留存仍待交付 |
-| DEPLOY-01 **脚本已编码，本地预测已测** | DeployGovernanceV1 与 DeployCoreV1 分阶段部署；六代理及 Hook/Router/LP 循环地址有 CREATE/CREATE2 回归 | 尚未在目标链广播；按[部署清单](./DEPLOYMENT_CHECKLIST_V1.md)完成绑定、SBT、角色及发布后快照 |
+| DEPLOY-01 **脚本已编码，本地预测已测** | DeployGovernanceV1 与 DeployCoreV1 分阶段部署；六代理地址及 Hook 依赖 Router/LP Manager 地址的 CREATE/CREATE2 预测有回归 | 尚未在目标链广播；按[部署清单](./DEPLOYMENT_CHECKLIST_V1.md)完成绑定、SBT、角色及发布后快照 |
 
 ## 2. 规格与发布门禁
 

@@ -84,10 +84,10 @@ flowchart LR
 
 ### 2.1 Swap：授权、执行、计量、结算
 
-1. **提交请求。**用户通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。Router 要求 `msg.sender == participant == payer == recipient`，并绑定 PoolKey、金额边界和 deadline。
+1. **提交请求。**用户通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。调用者由 Router 同时作为 participant、payer 和 recipient；请求绑定 PoolKey、金额边界和 deadline。
 2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：它调用 Registry 的 `isEligible` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户也会经 Registry 查询资格和池状态。
-3. **在 V4 中执行。**Router 通过官方 [PoolManager](../lib/v4-core/src/PoolManager.sol) 发起 Swap。PoolManager 调用 [TSVHookV1](../src/v1/core/TSVHookV1.sol)；Hook 校验唯一活跃上下文、池和运行状态。Router 非重入锁保证同一时刻只有一笔 Swap，不使用 Swap `operationId`。
-4. **按实际成交量计量。**`afterSwap` 收到实际 delta 后，对股票腿调用 Registry 绑定的 LegalShareAdapter `toLegalShares(currency,rawAmount)`，再把结果和真实 delta 一起交给 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)。Ledger 校验股票身份、Adapter 配置及非零 shares，按 `(securityId, tradeDayId)` 更新全平台共享用量并检查当日有效上限；它不重复调用 Adapter。Router 在 unlock 回调结束后清理自身活跃上下文。
+3. **在 V4 中执行。**Router 通过官方 [PoolManager](../lib/v4-core/src/PoolManager.sol) 发起 Swap。PoolManager 调用 [TSVHookV1](../src/v1/core/TSVHookV1.sol)；Hook 检查回调来自 Router、池可交易且 PoolKey 与 Registry 配置一致。Router 非重入锁限制单笔 Swap，不使用 Swap `operationId`，也不保存 Swap 活跃上下文。
+4. **按实际成交量计量。**`afterSwap` 收到实际 delta 后，对股票腿调用 Registry 绑定的 LegalShareAdapter `toLegalShares(currency,rawAmount)`，再把结果和真实 delta 一起交给 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)。Ledger 校验股票身份、Adapter 配置及非零 shares，按 `(securityId, tradeDayId)` 更新全平台共享用量并检查当日有效上限；它不重复调用 Adapter。
 5. **原子结算。**Router 直接以池内 ERC-20 Currency 和用户结算。交易门禁、计股、额度检查或精确余额校验任一失败，整笔交易回滚，成交和账本不会只成功一半。
 
 当前 V1 是单池直接结算路径；用户直接支付和接收 `PoolKey` 中的池内 Currency。Tesla 目标池直接使用 wTSLAx，TSLAx 不在 TSV 同笔交易中包装或赎回。股票腿和普通报价币腿的计量方式不同：报价币不占证券额度；一个合格池最多有一侧是股票。
@@ -98,10 +98,10 @@ flowchart LR
 
 | 调用方 → 合约 | 函数入口 | 参数与作用 |
 | --- | --- | --- |
-| 用户 → [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) | `swapExactInput(SwapRequest request) returns (uint256 actualIn, uint256 actualOut)` | 精确输入模式；要求 `request.exactInput == true` 且 `msg.sender == request.participant`。 |
-| 用户 → Router | `swapExactOutput(SwapRequest request) returns (uint256 actualIn, uint256 actualOut)` | 精确输出模式；要求 `request.exactInput == false` 且 `msg.sender == request.participant`。 |
+| 用户 → [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) | `swapExactInput(SwapRequest request) returns (uint256 actualIn, uint256 actualOut)` | 精确输入模式；调用者本人作为 participant、payer 和 recipient，模式由入口确定。 |
+| 用户 → Router | `swapExactOutput(SwapRequest request) returns (uint256 actualIn, uint256 actualOut)` | 精确输出模式；调用者本人作为 participant、payer 和 recipient，模式由入口确定。 |
 
-**每笔 Swap 都由 participant 直接提交。**Router 要求 `msg.sender == participant == payer == recipient`，并实时检查 participant 的 SBT 资格；Router 不接受代提交者或 participant 签名。合约钱包可由自身发起调用，其 UserOperation/所有者授权由钱包自身验证。用户仍须预先授权 Router 花费输入 Token。
+**每笔 Swap 都由 participant 直接提交。**participant、payer 和 recipient 均由 `msg.sender` 确定，Router 实时检查其 SBT 资格；Router 不接受代提交者或 participant 签名。合约钱包可由自身发起调用，其 UserOperation/所有者授权由钱包自身验证。用户仍须预先授权 Router 花费输入 Token。
 
 #### `SwapRequest` 结构与字段
 
@@ -118,11 +118,7 @@ struct PoolKey {
 
 struct SwapRequest {
     PoolKey key;
-    address participant;
-    address payer;
-    address recipient;
     bool zeroForOne;
-    bool exactInput;
     uint128 amountSpecified;
     uint128 limitAmount;
     uint160 sqrtPriceLimitX96;
@@ -132,12 +128,8 @@ struct SwapRequest {
 
 | `SwapRequest` 字段 | 类型 | 含义与当前约束 |
 | --- | --- | --- |
-| `key` | `PoolKey` | V4 池的完整身份键。Router 根据它计算 `poolId`，并要求它与 Registry 登记的完整 PoolKey 相同；具体字段见下表。 |
-| `participant` | `address` | 本笔交易的主体，必须非零且通过 Registry 的 SBT 资格检查。V1 还要求 `participant == payer == recipient`。 |
-| `payer` | `address` | Router 从该地址拉取实际输入 Currency；V1 要求等于 `participant`，并须预先授权 Router 花费 Token。 |
-| `recipient` | `address` | Router 将实际输出 Currency 发送到该地址；V1 要求等于 `participant`。 |
+| `key` | `PoolKey` | V4 池的完整身份键。Router 从它计算 `poolId` 并检查 Registry 的 `isTradable(poolId)`；Hook 在 `beforeSwap` 核对精确 PoolKey。具体字段见下表。 |
 | `zeroForOne` | `bool` | `true` 表示从 `currency0` 换到 `currency1`；`false` 表示从 `currency1` 换到 `currency0`。 |
-| `exactInput` | `bool` | `true` 选择 `swapExactInput`，`false` 选择 `swapExactOutput`；必须与实际调用的入口一致。 |
 | `amountSpecified` | `uint128` | 使用池内 Currency 的 raw 最小单位，不是股数。精确输入时表示目标/上限输入量；精确输出时表示必须完整得到的输出量。必须大于零且不超过 `int128.max`。 |
 | `limitAmount` | `uint128` | 交易滑点界限，单位同样是池内 Currency 的 raw 最小单位。精确输入时为最小输出量；精确输出时为最大输入量；必须大于零。 |
 | `sqrtPriceLimitX96` | `uint160` | V4 的价格停止边界，表示 Q64.96 格式的平方根价格。PoolManager 按交易方向校验该边界；到达边界可能令精确输入部分成交，但精确输出若未达到目标会回滚。 |
@@ -193,12 +185,11 @@ Receipt 是 LP 仓位凭证，不可转让；普通 LP 操作检查用户 SBT �
 
 | 合约 | 直接查询入口 | 含义 |
 | --- | --- | --- |
-| SwapRouter | `poolManager()`、`registry()`、`ledger()`、`hook()` | 查询 Router 绑定的组件地址。 |
+| SwapRouter | `poolManager()`、`registry()`、`ledger()` | 查询 Router 绑定的组件地址。 |
 | LPManager | `getPosition(uint256 positionId) returns (Position memory)` | 读取仓位 owner、PoolKey、ticks、salt、流动性和 active 状态。 |
 | LPManager | `ownerOf(uint256 tokenId)`、`balanceOf(address owner)`、`tokenURI(uint256 tokenId)`、`name()`、`symbol()`、`getApproved(uint256 tokenId)`、`isApprovedForAll(address owner, address operator)`、`supportsInterface(bytes4 interfaceId)` | ERC-721 Receipt 标准查询；`tokenURI` 对有效 Receipt 返回空字符串；Receipt 不可转让，approve 查询通常为零/false。 |
-| LPManager | `poolManager()`、`registry()`、`nextPositionId()`、`nextOperationNonce()` | 查询绑定的 PoolManager、Registry、下一个仓位编号和下一个 LP 操作序号。 |
-| LPManager（协议上下文） | `activeLPContext(bytes32 operationId)` | 仅在 LP Manager 的活跃 PoolManager 操作上下文中供 Hook 核对，不是普通用户读取入口。 |
-| SwapRouter（协议上下文） | `activeSwapContext() returns (bool isActive, bytes32 poolId, address participant)` | 仅在 Router 的单笔活跃 Swap 上下文中供 Hook 核对，不是普通用户操作入口。 |
+| LPManager | `poolManager()`、`registry()`、`nextPositionId()` | 查询绑定的 PoolManager、Registry 和下一个仓位编号。 |
+| LPManager（协议上下文） | `activeLPContext()` | 仅在 LP Manager 的活跃 PoolManager 操作上下文中返回 Hook 所需字段，供 Hook 核对，不是普通用户读取入口。 |
 
 Receipt 的 `approve(address,uint256)`、`setApprovalForAll(address,bool)`、`transferFrom(address,address,uint256)`、`safeTransferFrom(address,address,uint256)` 和 `safeTransferFrom(address,address,uint256,bytes)` 均可在 ABI 层调用，但会回滚 `NonTransferable()`；它们不是可成功执行的业务操作。
 
@@ -771,7 +762,7 @@ TimelockController 继承的 `updateDelay(uint256 newDelay)` selector 也存在�
 | VolumeLedger | `initialize(address authority, address timelock, address controller, address registry, uint32 dayStartOffsetSeconds)` |
 | DataInbox | `initialize(address authority, address timelock, address controller, address registry, address ledger)` |
 | Hook | `initialize(address authority, address timelock, address controller, address poolManager, address registry, address ledger, address router, address lpManager)` |
-| SwapRouter | `initialize(address authority, address timelock, address controller, address poolManager, address registry, address ledger, address hook)` |
+| SwapRouter | `initialize(address authority, address timelock, address controller, address poolManager, address registry, address ledger)` |
 | LPManager | `initialize(address authority, address timelock, address controller, address poolManager, address registry)` |
 
 ### 7.4 ABI 范围说明

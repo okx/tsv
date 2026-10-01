@@ -42,12 +42,27 @@
 | D-34 | 计量日按 UTC 日期和可配置起点计算，可排期调整未来起点 | 已编码；算法见编码规格 `7 |
 | D-35 | 治理根可在业务代理地址不变时受限迁移 | 已编码并有本地回归；目标链未部署 |
 | D-36 | 股票 Currency 绑定直接换算 LegalShareAdapter，不保存 rate snapshot 或反算接口 | Backed AutoFee Adapter 已接入 Hook；真实发行方方法与法定股数口径待逐实例审查 |
+| D-37 | 拆股/合股改变法律股数单位时暂停至新计量日；不自动比例调整旧日限额、ADTV 或历史用量，使用新单位的适用报告后再恢复 | 已确认；运营步骤见准入标准 §4.1 |
+| D-38 | Router 的多池路由能力缺口需结合 SBT 准入模型评估实际需求 | 能力差异已确认；业务需求与是否扩展待评估 |
+| D-39 | LP Manager 需要支持一次请求内原子批量处理多个仓位动作 | 批处理需求已确认；动作范围及实现方案待设计 |
 
 ## 关键设计理由
 
 ### 用户资格由 TSV 入口统一执行
 
 用户必须经 Router 或 LP Manager 进入，Registry 为 Swap 和普通 LP 操作提供同一份 SBT 资格判断。若只在某条入口检查，直接进入其他执行路径可能绕开参与者身份、请求边界或额度约束。当前函数与调用约束见[三系统总览](./SYSTEMS_OVERVIEW.md)和[编码规格](./CODING_SPEC_V1.md)。
+
+### Router 的多池路由需求须按 SBT 场景评估
+
+当前 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 只提供单池 exact-in 和 exact-out 入口，不支持多跳路径或把多个 Swap 与结算动作编码到同一请求。官方 [V4Router](../lib/v4-periphery/src/V4Router.sol) 提供 exact-in/exact-out 单池及多跳 action 处理逻辑，并可在一次 PoolManager unlock 中结算；它是抽象合约，需要具体入口合约承接交易。
+
+这是已确认的能力差异，但是否构成 TSV 的业务缺口仍待评估。SBT 资格门禁可能意味着用户只需在获准的池中直接交易；若当前产品不需要中间资产路径，增加多跳的收益有限。若确有更优流动性或跨池路径需求，则每条路径都必须绑定发起用户的 SBT 资格，并逐跳检查 Registry 池状态及 Hook 约束。多跳还会改变 D-30“每笔 Swap 只经过一个池”的边界；扩展前须明确同一请求内每个证券 Swap 的额度记账口径，尤其是路径重复经过同一证券或池时如何避免错误计量。此记录确认能力缺口，不代表已批准开放多跳。
+
+### LP Manager 需要原子批处理
+
+当前 [TSVLPManagerV1](../src/v1/periphery/TSVLPManagerV1.sol) 将开仓、加仓、减仓、收取费用和关仓拆成独立入口；每个入口单独执行一次 PoolManager unlock，不能把多个仓位动作组合成一笔原子请求。用户因此无法在一个交易中组合例如收取费用后调整仓位，多个调用之间也不能共同回滚。批处理需求已确认。
+
+官方 [PositionManager](../lib/v4-periphery/src/PositionManager.sol) 的 `modifyLiquidities` 通过 Actions 在一个 unlock 内组合 mint/increase/decrease/burn 与结算动作，可作为交互模型参考；这不意味着直接替换 TSV Manager。TSV 批处理仍须逐项执行调用者 SBT 资格、每个仓位的 Receipt owner、池可交易状态、tick/流动性与余额边界校验，并维持 Hook 对当前 LP 操作的授权上下文。应先定义允许的动作集合、同批是否允许跨池/跨仓位、单个调用者能否操作多个自有仓位，以及任何一步失败时整批回滚；管理员 `forceExit` 保持独立的恢复流程，不与普通用户批次混用。
 
 ### 池内资产与用户结算资产保持一致
 

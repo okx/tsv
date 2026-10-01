@@ -18,11 +18,15 @@ import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 
 interface IERC20DecimalsV1 {
+    /// @notice Returns the token's configured decimal precision for registration checks.
     function decimals() external view returns (uint8);
 }
 
 interface ISmartWalletSbtV1 {
+    /// @notice Checks whether `user` holds the configured credential token.
     function verify(address user, uint256 tokenId) external view returns (bool);
+
+    /// @notice Reports whether the SBT contract has globally paused credential checks.
     function paused() external view returns (bool);
 }
 
@@ -97,11 +101,13 @@ contract TSVRegistryV1 is TSVGoverned {
         address indexed oldSbt, address indexed newSbt, uint256 oldTokenId, uint256 newTokenId, bytes32 evidenceHash
     );
 
+    /// @notice Initializes governance and starts emergency-pause IDs at one.
     function initialize(address authority, address timelock, address controller) external initializer {
         __TSVGoverned_init(authority, timelock, controller);
         nextPauseId = 1;
     }
 
+    /// @notice Binds the Hook, LP Manager, and DataInbox once after all three are deployed.
     function bindComponents(address hook_, address lpManager_, address dataInbox_) external onlyGovernor {
         if (hook != address(0) || lpManager != address(0) || dataInbox != address(0)) revert InvalidStatus();
         if (hook_.code.length == 0 || lpManager_.code.length == 0 || dataInbox_.code.length == 0) {
@@ -113,6 +119,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit ComponentsBound(hook_, lpManager_, dataInbox_);
     }
 
+    /// @notice Sets a tier's quota multiplier and maximum number of listed securities.
     function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed, bytes32 evidenceHash) external onlyGovernor {
         TierPolicy storage tier = tiers[tierId];
         if (tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount || evidenceHash == 0) {
@@ -123,10 +130,12 @@ contract TSVRegistryV1 is TSVGoverned {
         emit TierPolicyChanged(tierId, tierBps, maxListed, evidenceHash);
     }
 
+    /// @notice Returns the quota and listing-cap policy currently configured for `tierId`.
     function tierPolicy(uint8 tierId) external view returns (TierPolicy memory) {
         return tiers[tierId];
     }
 
+    /// @notice Configures the participant SBT after checking that its required view methods respond.
     function setSbtConfig(address sbt_, uint256 tokenId_, bytes32 evidenceHash) external onlyGovernor {
         if (sbt_.code.length == 0 || evidenceHash == 0) revert InvalidConfig();
         // Validate both selectors at configuration time. This keeps a bad SBT
@@ -146,16 +155,19 @@ contract TSVRegistryV1 is TSVGoverned {
         emit SbtConfigChanged(oldSbt, sbt_, oldTokenId, tokenId_, evidenceHash);
     }
 
+    /// @notice Returns whether `owner` holds the configured credential, without checking global pause.
     function hasCredential(address owner) public view returns (bool) {
         if (address(participantSbt) == address(0)) revert SbtNotConfigured();
         return participantSbt.verify(owner, sbtTokenId);
     }
 
+    /// @notice Returns whether SBT checks are active and `owner` holds the configured credential.
     function isEligible(address owner) external view returns (bool) {
         if (address(participantSbt) == address(0)) revert SbtNotConfigured();
         return !participantSbt.paused() && hasCredential(owner);
     }
 
+    /// @notice Lists a new security and reserves its unique symbol and one slot in its tier.
     function listSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, bytes32 evidenceHash)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
@@ -170,6 +182,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit SecurityListed(securityId, symbolHash, tierId, evidenceHash);
     }
 
+    /// @notice Relists a delisted security under its existing symbol and tier.
     function relistSecurity(bytes32 securityId, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
         SecurityConfig storage config = securities[securityId];
         if (config.securityId == 0 || config.listed || evidenceHash == 0) revert InvalidStatus();
@@ -179,6 +192,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit SecurityListed(securityId, config.symbolHash, config.tierId, evidenceHash);
     }
 
+    /// @notice Moves a listed security to another tier and updates both tier listing counts.
     function setSecurityTier(bytes32 securityId, uint8 tierId, bytes32 evidenceHash)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
@@ -193,6 +207,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit SecurityTierChanged(securityId, old, tierId, evidenceHash);
     }
 
+    /// @notice Delists a security only after all of its active pools have been disabled.
     function delistSecurity(bytes32 securityId, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
         SecurityConfig storage config = securities[securityId];
         if (!config.listed || config.activePoolCount != 0 || evidenceHash == 0) revert InvalidStatus();
@@ -202,10 +217,12 @@ contract TSVRegistryV1 is TSVGoverned {
         emit SecurityDelisted(securityId, evidenceHash);
     }
 
+    /// @notice Returns the stored listing, tier, version, and active-pool data for a security.
     function getSecurity(bytes32 securityId) external view returns (SecurityConfig memory) {
         return securities[securityId];
     }
 
+    /// @notice Registers a token after validating its runtime code, decimals, security, and share adapter.
     function registerToken(TokenConfig calldata config, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
         if (
             config.poolCurrency == address(0) || config.status != TokenStatus.UNREVIEWED || evidenceHash == 0
@@ -234,6 +251,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit TokenRegistered(config.poolCurrency, config.securityId, evidenceHash);
     }
 
+    /// @notice Changes a registered token's review status, enforcing approval prerequisites.
     function setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
@@ -258,6 +276,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit TokenStatusChanged(currency, uint8(old), uint8(status), evidenceHash);
     }
 
+    /// @notice Replaces a security token's share adapter while its asset is paused for replacement.
     function replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
@@ -277,10 +296,12 @@ contract TSVRegistryV1 is TSVGoverned {
         emit LegalShareAdapterChanged(currency, oldAdapter, newAdapter, nextVersion, evidenceHash);
     }
 
+    /// @notice Returns the registered token configuration for `currency`.
     function getToken(address currency) external view returns (TokenConfig memory) {
         return tokens[currency];
     }
 
+    /// @notice Registers a pending pool for the LP Manager after validating its key and currencies.
     function registerPendingPool(PoolKey calldata key) external returns (bytes32 poolId) {
         if (msg.sender != lpManager) revert InvalidPool();
         address c0 = Currency.unwrap(key.currency0);
@@ -299,6 +320,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit PoolStatusChanged(poolId, uint8(PoolStatus.ABSENT), uint8(PoolStatus.PENDING), 0);
     }
 
+    /// @notice Activates a pending pool and increments its currencies' and security's active-pool counts.
     function markPoolActive(bytes32 poolId, uint160 sqrtPriceX96, address creator, bytes32 priceBasisHash) external {
         if (msg.sender != lpManager || pools[poolId].status != PoolStatus.PENDING) revert InvalidPool();
         PoolConfig storage pool = pools[poolId];
@@ -312,6 +334,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit PoolStatusChanged(poolId, uint8(PoolStatus.PENDING), uint8(PoolStatus.ACTIVE), 0);
     }
 
+    /// @notice Disables an active pool and decrements its currencies' and security's active-pool counts.
     function disablePool(bytes32 poolId, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
         PoolConfig storage pool = pools[poolId];
         if (pool.status != PoolStatus.ACTIVE || evidenceHash == 0) revert InvalidStatus();
@@ -324,6 +347,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit PoolStatusChanged(poolId, uint8(PoolStatus.ACTIVE), uint8(PoolStatus.DISABLED), evidenceHash);
     }
 
+    /// @notice Re-enables a disabled pool only when both tokens and listed securities remain valid.
     function enablePool(bytes32 poolId, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
         PoolConfig storage pool = pools[poolId];
         if (pool.status != PoolStatus.DISABLED || evidenceHash == 0) revert InvalidStatus();
@@ -344,18 +368,22 @@ contract TSVRegistryV1 is TSVGoverned {
         emit PoolStatusChanged(poolId, uint8(PoolStatus.DISABLED), uint8(PoolStatus.ACTIVE), evidenceHash);
     }
 
+    /// @notice Returns the registered key, securities, status, and version for a pool.
     function getPool(bytes32 poolId) external view returns (PoolConfig memory) {
         return pools[poolId];
     }
 
+    /// @notice Returns whether the pool has been registered, regardless of its current status.
     function isKnownPool(bytes32 poolId) external view returns (bool) {
         return pools[poolId].status != PoolStatus.ABSENT;
     }
 
+    /// @notice Returns the current reported market state for a security.
     function marketStatus(bytes32 securityId) external view returns (MarketStatus) {
         return marketStatuses[securityId];
     }
 
+    /// @notice Applies the next valid market-state transition from the bound DataInbox.
     function applyMarketStatus(bytes32 securityId, MarketAction action, uint64 sequence, bytes32 reportId) external {
         if (
             msg.sender != dataInbox || securityId == 0 || !securities[securityId].listed
@@ -373,6 +401,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit MarketStatusChanged(securityId, uint8(old), uint8(next), sequence, reportId);
     }
 
+    /// @notice Opens a scoped emergency pause and returns its record ID.
     function addEmergencyPause(PauseScope scope, bytes32 target, bytes32 reasonCode, bytes32 sourceHash)
         external
         onlyRole(EMERGENCY_PAUSER_ROLE)
@@ -389,6 +418,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit EmergencyPauseOpened(recordId, uint8(scope), target, reasonCode);
     }
 
+    /// @notice Closes an active emergency-pause record and decrements its scope's active count.
     function clearEmergencyPause(uint256 recordId, bytes32 reasonCode) external onlyRole(EMERGENCY_RESUMER_ROLE) {
         EmergencyPause storage record = emergencyPauses[recordId];
         if (!record.active || reasonCode == 0) revert InvalidStatus();
@@ -397,6 +427,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit EmergencyPauseClosed(recordId, reasonCode);
     }
 
+    /// @notice Returns whether a pool and both assets pass status, market, and emergency-pause checks.
     function isTradable(bytes32 poolId) external view returns (bool) {
         PoolConfig storage pool = pools[poolId];
         if (pool.status != PoolStatus.ACTIVE) return false;
@@ -422,12 +453,14 @@ contract TSVRegistryV1 is TSVGoverned {
         return true;
     }
 
+    /// @dev Checks the tier is configured and below capacity, then reserves one listing slot.
     function _takeTierSlot(uint8 tierId) private {
         TierPolicy storage tier = tiers[tierId];
         if (tierId == 0 || tier.tierBps == 0 || tier.listedCount >= tier.maxListed) revert InvalidConfig();
         tier.listedCount++;
     }
 
+    /// @dev Verifies the adapter interface and that it reports the expected currency and version.
     function _validateLegalShareAdapter(address adapter, address currency, uint32 version) private view {
         IDirectLegalShareAdapter directAdapter = IDirectLegalShareAdapter(adapter);
         try directAdapter.supportsInterface(type(IDirectLegalShareAdapter).interfaceId) returns (bool supported) {
@@ -440,15 +473,18 @@ contract TSVRegistryV1 is TSVGoverned {
         }
     }
 
+    /// @dev Allows adapter replacement when the currency has no active pools or is emergency-paused.
     function _assetPausedForReplacement(address currency) private view returns (bool) {
         return activePoolCountByCurrency[currency] == 0 || _isPaused(PauseScope.GLOBAL, 0)
             || _isPaused(PauseScope.TOKEN, _addressKey(currency));
     }
 
+    /// @dev Checks whether at least one active pause record exists for the scope and target.
     function _isPaused(PauseScope scope, bytes32 target) private view returns (bool) {
         return activePauseCount[uint8(scope)][target] != 0;
     }
 
+    /// @dev Encodes an address as the bytes32 target key used by token-scoped pauses.
     function _addressKey(address a) private pure returns (bytes32) {
         return bytes32(uint256(uint160(a)));
     }

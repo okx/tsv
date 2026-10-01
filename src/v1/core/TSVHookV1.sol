@@ -8,18 +8,14 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
-import {PoolConfig, PoolStatus, TokenConfig, LPContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
+import {PoolConfig, PoolStatus, TokenConfig, LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 
-interface IActiveSwapContextV1 {
-    function activeSwapContext() external view returns (bool isActive, bytes32 poolId, address participant);
-}
-
 interface IActiveLPContextV1 {
-    function activeLPContext(bytes32 operationId) external view returns (LPContext memory);
+    function activeLPContext() external view returns (LPHookContext memory);
 }
 
 /// @notice Upgradeable hook whose proxy address carries the V4 permission bits.
@@ -100,7 +96,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata hookData
     ) external view override onlyPoolManager returns (bytes4) {
-        LPContext memory ctx = _checkLP(sender, key, params, hookData);
+        LPHookContext memory ctx = _checkLP(sender, key, params, hookData);
         if (
             params.liquidityDelta <= 0 || (ctx.mode != LPOperationMode.OPEN && ctx.mode != LPOperationMode.INCREASE)
                 || !registry.isTradable(ctx.poolId)
@@ -125,7 +121,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata hookData
     ) external view override onlyPoolManager returns (bytes4) {
-        LPContext memory ctx = _checkLP(sender, key, params, hookData);
+        LPHookContext memory ctx = _checkLP(sender, key, params, hookData);
         if (params.liquidityDelta > 0 || ctx.mode == LPOperationMode.OPEN || ctx.mode == LPOperationMode.INCREASE) {
             revert InvalidOperation();
         }
@@ -157,10 +153,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     {
         if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
         bytes32 poolId = PoolId.unwrap(key.toId());
-        (bool isActive, bytes32 activePoolId, address participant) = IActiveSwapContextV1(router).activeSwapContext();
-        if (!isActive || activePoolId != poolId || participant == address(0) || !registry.isTradable(poolId)) {
-            revert InvalidOperation();
-        }
+        if (!registry.isTradable(poolId)) revert InvalidOperation();
         _requireExactKey(key, poolId);
         return (IHooks.beforeSwap.selector, BeforeSwapDelta.wrap(0), 0);
     }
@@ -217,10 +210,9 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         PoolKey calldata key,
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata hookData
-    ) private view returns (LPContext memory ctx) {
-        if (sender != lpManager || hookData.length != 32) revert UnauthorizedCallback();
-        bytes32 operationId = abi.decode(hookData, (bytes32));
-        ctx = IActiveLPContextV1(lpManager).activeLPContext(operationId);
+    ) private view returns (LPHookContext memory ctx) {
+        if (sender != lpManager || hookData.length != 0) revert UnauthorizedCallback();
+        ctx = IActiveLPContextV1(lpManager).activeLPContext();
         if (
             ctx.poolId == 0 || ctx.poolId != PoolId.unwrap(key.toId()) || ctx.salt != params.salt
                 || ctx.tickLower != params.tickLower || ctx.tickUpper != params.tickUpper

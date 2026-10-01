@@ -69,9 +69,17 @@ struct LPContext {
     uint256 positionId;
     int24 tickLower;
     int24 tickUpper;
-    bytes32 salt;
     LPOperationMode mode;
-    address owner;
+    bytes32 salt;
+    int256 liquidityDelta;
+}
+
+struct LPHookContext {
+    bytes32 poolId;
+    int24 tickLower;
+    int24 tickUpper;
+    LPOperationMode mode;
+    bytes32 salt;
     int256 liquidityDelta;
 }
 ```
@@ -129,13 +137,9 @@ function redeemAndDeliver(address recipient, uint256 shares, uint256 minDisplaye
 ```solidity
 struct SwapRequest {
     PoolKey key;
-    address participant;
-    address payer;
-    address recipient;
     bool zeroForOne;
-    bool exactInput;
     uint128 amountSpecified;   // V4 输入/输出 Currency 的原始单位；须 <= int128.max
-    uint128 limitAmount;       // exactInput 为最小输出；exactOutput 为最大输入
+    uint128 limitAmount;       // exact-in 为最小输出；exact-out 为最大输入
     uint160 sqrtPriceLimitX96;
     uint64 deadline;
 }
@@ -146,19 +150,19 @@ function swapExactOutput(SwapRequest calldata request)
     external returns (uint256 actualIn, uint256 actualOut);
 ```
 
-两个入口分别要求 `exactInput == true/false`。Router 要求 `msg.sender == participant == payer == recipient != 0`，participant 通过 Registry 的 SBT 检查。Router 不接受第三方代提交或用户签名，也不提供应用层请求 nonce；同一 participant 后续再次直接提交相同参数会作为一笔新的 Swap 校验并执行。合约钱包直接调用时，由钱包自身验证其 UserOperation/所有者授权。
+入口函数本身决定 exact-in 或 exact-out 模式。V1 仅支持调用者本人交易：participant、payer 和 recipient 均由 `msg.sender` 确定，不在请求中重复传入；Router 检查该地址的 SBT 资格。Router 不接受第三方代提交或用户签名，也不提供应用层请求 nonce；同一地址后续再次直接提交相同参数会作为一笔新的 Swap 校验并执行。合约钱包直接调用时，由钱包自身验证其 UserOperation/所有者授权。
 
 `amountSpecified > 0` 且不超过 `int128.max`；`limitAmount > 0`；deadline 未过。准入池最多一侧为股票，两种池内 Currency 的普通滑点由 `limitAmount` 约束。
 
 执行顺序固定如下：
 
-1. Router 非重入，核对 `msg.sender == participant == payer == recipient`、SBT `!paused() && verify(participant, tokenId)`、完整 PoolKey、Pool/Token/security 暂停、市场状态和 Ledger 当前数据。`sqrtPriceLimitX96` 须处于 V4 允许范围且方向正确。
-2. Router 保存本次活跃上下文 `(poolId,participant)`，调用 `PoolManager.unlock(abi.encode(request))`。`unlockCallback` 只接受 PoolManager，并核对回调请求中的 PoolId 和 participant 与活跃上下文相同。一次 unlock 只调用一次 `swap`，`hookData` 为空；Router 的非重入状态保证同一时刻只有一笔活跃 Swap。
-3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，所有回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、Router 存在活跃上下文且 PoolId 匹配，重新核对池、暂停和市场状态；SBT 资格由 Router 在进入 unlock 前检查。Hook 不为 Swap 保存状态。`afterSwap` 保留 `sender == Router` 和空 `hookData` 检查，从实际 `BalanceDelta` 获取两侧 raw 成交量，对股票腿即时调用 Registry 绑定的 Adapter `toLegalShares`，将直接换算出的 shares 与真实 delta 一并交由 Ledger 原子记账；配对币使用零 shares 且不调用股数 Adapter。Ledger 按 Registry 身份及已配置 Adapter 元数据核验输入并记账，不再读取 Adapter 或重复换算。Hook 返回零 delta 与零费率覆盖。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
-4. Router 对实际 delta 再验 `actualIn > 0 && actualOut > 0`。exact input 要求 `actualIn <= amountSpecified && actualOut >= limitAmount`，允许价格边界造成的部分成交；exact output 要求 `actualOut == amountSpecified && actualIn <= limitAmount`，任何部分成交回滚。按**实际**负 delta 直接从 participant 拉取对应 Currency，按实际正 delta 直接 `take` 同一 Currency 给 participant；两侧均核对发送方扣减、PoolManager 余额变化、接收方增加和 `settle()` 返回值。
-5. Router 在 `unlockCallback` 返回后清除自身活跃上下文。成交换算和额度记账均在 `afterSwap` 完成，后续 Router 直接结算 raw Currency，不再读取或复验换算参数。当前路径没有包装、赎回、底层 shares 转移或其他结算分流。
+1. Router 非重入，检查调用者的 SBT 资格、池是否可交易、金额边界和 deadline。完整 PoolKey 的精确匹配由 Hook 的 `beforeSwap` 检查；Registry 的 `isTradable(poolId)` 让无效池在进入 unlock 前快速失败。`sqrtPriceLimitX96` 须处于 V4 允许范围且方向正确。
+2. Router 调用 `PoolManager.unlock(abi.encode(request, participant, exactInput))`，其中 participant 是 `msg.sender`，模式来自入口函数。`unlockCallback` 只接受 PoolManager 且要求 Router 非重入锁处于活跃状态，然后解码本次 unlock 携带的数据并执行一次 `swap`；资格、可交易池和请求参数已在进入 unlock 前检查。`hookData` 为空；Router 的非重入状态保证同一时刻只有一笔活跃 Swap，不另存 Swap 上下文。
+3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，所有回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、空 `hookData`、池可交易且 PoolKey 与 Registry 配置完全一致；SBT 资格由 Router 在进入 unlock 前检查。Hook 不为 Swap 保存状态，也不读取 Router 活跃上下文。`afterSwap` 保留 `sender == Router` 和空 `hookData` 检查，从实际 `BalanceDelta` 获取两侧 raw 成交量，对股票腿即时调用 Registry 绑定的 Adapter `toLegalShares`，将直接换算出的 shares 与真实 delta 一并交由 Ledger 原子记账；配对币使用零 shares 且不调用股数 Adapter。Ledger 按 Registry 身份及已配置 Adapter 元数据核验输入并记账，不再读取 Adapter 或重复换算。Hook 返回零 delta 与零费率覆盖。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
+4. Router 对实际 delta 再验 `actualIn > 0 && actualOut > 0`。exact-in 要求 `actualIn <= amountSpecified && actualOut >= limitAmount`，允许价格边界造成的部分成交；exact-out 要求 `actualOut == amountSpecified && actualIn <= limitAmount`，任何部分成交回滚。输入 `inDelta` 为 `int128.min` 时，在结算前以 `InputAmountTooLarge()` 拒绝，因为其绝对值 `2^127` 无法用 PoolManager 的 `int128` 结算边界表示。按**实际**负 delta 直接从调用者拉取对应 Currency，按实际正 delta 直接 `take` 同一 Currency 给调用者；两侧均核对发送方扣减、PoolManager 余额变化、接收方增加和 `settle()` 返回值。
+5. `unlockCallback` 返回后 Router 读取当前交易日并完成事件记录。Ledger 已在 `afterSwap` 记账时读取并校验交易日；Router 不在 unlock 前额外预查。成交换算和额度记账均在 `afterSwap` 完成，后续 Router 直接结算 raw Currency，不再读取或复验换算参数。当前路径没有包装、赎回、底层 shares 转移或其他结算分流。
 
-**当前直接结算路径。**Registry 只登记实际池内 Currency；Router 使用单池 `swapExactInput/swapExactOutput` 与 raw `amountSpecified/limitAmount`，对实际负 delta 通过 `TSVDirectSettlementLib` 从 payer 拉取池内 Currency 并 `sync/settle`，对正 delta 直接 `take` 同一 Currency 给 recipient；每次核对发送方恰扣、接收方恰增。当前 ABI 不含结算模式或用户结算 Adapter。旧 `IssuerShareSettlementAdapter` 与接口仅在 `src/v1/legacy/` 保留，供隔离单元测试对照，不参与新 Swap。
+**当前直接结算路径。**Registry 只登记实际池内 Currency；Router 使用单池 `swapExactInput/swapExactOutput` 与 raw `amountSpecified/limitAmount`，对实际负 delta 通过 `TSVDirectSettlementLib` 从调用者拉取池内 Currency 并 `sync/settle`，对正 delta 直接 `take` 同一 Currency 给调用者；每次核对发送方恰扣、接收方恰增。当前 ABI 不含 payer、recipient、结算模式或用户结算 Adapter。旧 `IssuerShareSettlementAdapter` 与接口仅在 `src/v1/legacy/` 保留，供隔离单元测试对照，不参与新 Swap。
 
 Swap 成功事件包含 `participant,poolId,zeroForOne,actualAmount0,actualAmount1,tradeDayId`。Hook/Ledger 的 `SwapAccounted` 对每个股票腿分别记录 `securityId,poolCurrency,inputSide,rawAmount,legalSharesWad,legalAdapterVersion`。交易哈希与 logIndex 由索引器取链上 receipt，不写进合约事件。同一用户再次直接提交相同请求是独立 Swap，不做应用层幂等去重。
 
@@ -194,11 +198,11 @@ function forceExit(
 
 建池仅 `POOL_CREATOR`，要求 `key.hooks == Hook`、`currency0 < currency1`、两侧都有已批准 TokenConfig、`0 <= key.fee < 1_000_000` pips 且 `1 <= key.tickSpacing <= 32767`；拒绝 V4 动态费率哨兵与 100% LP fee。Registry 先标记 PENDING，LP Manager 调用 PoolManager `initialize`，Hook 只允许来自 LP Manager 的准确 PoolKey，成功后 Registry 改为 ACTIVE；任一失败全部回滚。初始价格由 POOL_CREATOR 提交，只校验 V4 范围；`priceBasisHash` 只用于审计。
 
-`positionId` 从 1 单调递增；`salt = keccak256(abi.encode(block.chainid,address(LPManager),positionId))`。LP Manager 的 `nextOperationNonce` 也从 1 单调递增，每次 LP 外部操作在 unlock 前生成 `operationId = keccak256(abi.encode(block.chainid,address(this),nextOperationNonce,positionId,operationMode))`，保存活跃上下文供 Hook 和结算 Adapter 核对，结束清除；回滚不消耗序号。LP `modifyLiquidity` 的 `hookData = abi.encode(operationId)`；LP Manager 提供 `activeLPContext(bytes32 operationId) external view returns (LPContext memory)`，Hook 的 `beforeAddLiquidity/beforeRemoveLiquidity` 必须与 V4 `sender/params` 逐项比对，强退还要求 `mode == FORCE_EXIT` 且全额负 delta。仓位保存不可变 owner、PoolKey、ticks、salt，流动性严格为正。LP Manager 内置 Receipt ERC-721，tokenId 等于 positionId，mint/burn 仅由 LP 生命周期内部执行；所有转移和授权入口回滚。用户 LP 操作仅允许 `msg.sender == position.owner == ownerOf(positionId)` 且 Registry 的共用 SBT 当前有效、未暂停；只允许已批准资产和 ACTIVE 池。强退例外见下段。
+`positionId` 从 1 单调递增，V4 salt 直接取 `bytes32(positionId)`；在同一 LP Manager 内 positionId 唯一，且 V4 仓位键还包含 manager、PoolKey 和 ticks。每次 LP 操作在 `PoolManager.unlock` 前保存活跃 `LPContext`，并保存完整 `ModifyRequest` 的 `activeRequestHash`；unlock data 是该请求编码，LP `modifyLiquidity` 的 `hookData` 为空。PoolManager 回调要求调用者为 PoolManager、Manager 正处于非重入操作中、活跃 positionId 非零，并核对 unlock data 哈希后才解码和结算。Hook 通过无参 `activeLPContext()` 读取只含自身校验所需字段的 `LPHookContext`，并将 poolId、PoolKey、ticks、salt、liquidityDelta 与 V4 参数逐项比对；`beforeAddLiquidity/beforeRemoveLiquidity` 再按模式限制增加或移除，强退只允许全额负 delta。操作成功后 Manager 清除活跃上下文与请求哈希；任何回滚会原子恢复状态。这里不使用 LP operationId 或 nonce。仓位保存不可变 owner、PoolKey、ticks、salt，流动性严格为正。LP Manager 内置 Receipt ERC-721，tokenId 等于 positionId，mint/burn 仅由 LP 生命周期内部执行；所有转移和授权入口回滚。用户 LP 操作仅允许 `msg.sender == position.owner == ownerOf(positionId)` 且 Registry 的共用 SBT 当前有效、未暂停；只允许已批准资产和 ACTIVE 池。强退例外见下段。
 
-所有 LP 操作验证 deadline、tick 间隔、`0 < liquidity <= int128.max`（需要非零 liquidity 的操作）和 PoolManager 返回的**实际** `callerDelta`；`maxPoolIn* / minPoolOut*` 是两种池内 Currency 的原始单位边界。强退调用方必须传入两侧 raw `minPoolOut`，合约逐侧校验，具体下限由运营按执行时策略设置；若任一侧不足则整笔回滚并保留仓位。正流动性变化用 V4 `modifyLiquidity(+liquidity)`，减仓用负值；所有实际负 delta 直接从原 owner 拉取对应 Currency，正 delta 直接交付同一 Currency 给原 owner，并核对双方准确余额变化。`openPosition` 在同笔结算成功后 mint Receipt；`increaseLiquidity` 增加账本流动性；`decreaseLiquidity` 的 `liquidity < current` 且剩余严格为正；`collectFees` 只在 OPEN 且正流动性时使用 V4 零 delta，若两侧实际领取均为零则回滚；`closePosition` 一次负 delta 清空流动性，直接用该次包含费用的 `callerDelta` 结清、交付并 burn Receipt，不再调用零 delta。wTSLAx 与普通 ERC-20 完全共用这条直接结算路径，不调用包装/赎回 Adapter。
+所有 LP 操作验证 deadline、tick 间隔、`0 < liquidity <= int128.max`（需要非零 liquidity 的操作）和 PoolManager 返回的**实际** `callerDelta`；`maxPoolIn* / minPoolOut*` 是两种池内 Currency 的原始单位边界。若输入 delta 为 `int128.min`，Manager 在 ERC-20 转账前以 `InputAmountTooLarge()` 拒绝，因为其绝对值 `2^127` 超出 PoolManager 可结算的正 `int128` 范围。强退调用方必须传入两侧 raw `minPoolOut`，合约逐侧校验，具体下限由运营按执行时策略设置；若任一侧不足则整笔回滚并保留仓位。正流动性变化用 V4 `modifyLiquidity(+liquidity)`，减仓用负值；所有实际负 delta 直接从原 owner 拉取对应 Currency，正 delta 直接交付同一 Currency 给原 owner，并核对双方准确余额变化。`openPosition` 在同笔结算成功后 mint Receipt；`increaseLiquidity` 增加账本流动性；`decreaseLiquidity` 的 `liquidity < current` 且剩余严格为正；`collectFees` 只在 OPEN 且正流动性时使用 V4 零 delta，任一负 delta 都拒绝、若两侧实际领取均为零也回滚；`closePosition` 一次负 delta 清空流动性，直接用该次包含费用的 `callerDelta` 结清、交付并 burn Receipt，不再调用零 delta。wTSLAx 与普通 ERC-20 完全共用这条直接结算路径，不调用包装/赎回 Adapter。
 
-`forceExit` 仅 `REVOKE_EXIT_EXECUTOR` 或 `FORCE_EXIT_ADMIN`。前者还须在执行当时确认原 owner 的 SBT 凭证**已缺失**；仅 SBT 全局 paused 不算撤销。后者须传非零 reason/evidence。LP Manager 在 unlock 前设置精确 `(positionId,poolId,salt,forceExit)` 上下文，Hook 只允许对应的全额 remove；普通暂停、HALT、报告缺失或 Token DISABLED 不阻止该路径。所有应收资产只能交付仓位原 owner，调用者无 recipient 参数。两侧 Currency 均直接交付原 owner，并核对双方准确余额变化。两侧全部成功后关闭仓位并 burn Receipt；任何拒转整体回滚，仓位与 Receipt 保留。失败交易不产生持久失败事件，链下按失败 receipt 告警，沿用方案 A。本部署没有旧仓位，因此不定义旧 Adapter 退出分支。
+`forceExit` 仅 `REVOKE_EXIT_EXECUTOR` 或 `FORCE_EXIT_ADMIN`。前者还须在执行当时确认原 owner 的 SBT 凭证**已缺失**；仅 SBT 全局 paused 不算撤销。后者须传非零 reason/evidence。LP Manager 在 unlock 前设置当前操作上下文并将模式设为 `FORCE_EXIT`，Hook 只允许与该上下文匹配的全额 remove；普通暂停、HALT、报告缺失或 Token DISABLED 不阻止该路径。所有应收资产只能交付仓位原 owner，调用者无 recipient 参数。两侧 Currency 均直接交付原 owner，并核对双方准确余额变化；force-exit 的任意负 delta 在转账前拒绝。两侧全部成功后关闭仓位并 burn Receipt；任何拒转整体回滚，仓位与 Receipt 保留。失败交易不产生持久失败事件，链下按失败 receipt 告警，沿用方案 A。本部署没有旧仓位，因此不定义旧 Adapter 退出分支。
 
 **前端股数展示与 LP 报价。**当前 Adapter 不提供从用户股数预算反算股票 Currency raw 数量的通用接口。前端须使用发行方认可的账户权益定义及具体 Token 的报价逻辑估计所需 raw 数量，再结合当前 V4 价格、tick 范围和另一侧资金预算估计 `liquidity`；开仓和加仓仍提交现有 `openPosition`／`increaseLiquidity` 与 raw `LPBounds`。减仓、关仓和领费时，前端按预计 raw 到账展示对应股数，提交现有流动性参数和 raw 到账下限。报价只是估计，实际 LP `callerDelta` 还可能包含已累积手续费；价格、发行方转换结果或账户余额变化后，实际显示股数可能变化，raw 边界不等于链上股数保证。LP Manager 不增加股数驱动入口，LP 操作也不调用 `recordSwap` 或占用成交额度。
 
@@ -219,7 +223,7 @@ function forceExit(
 **D-34：每个日期都是独立 TSV 计量日，日切点按未来排期更新；当前 `src/v1/` 已实现以下规则。**
 
 1. 初始配置 `dayStartOffsetSeconds` 是部署清单中的 `uint32`，范围 `0..86399`；示例为 `14400`，即 UTC 04:00。配置在 Ledger 初始化时设置，禁止未初始化或超范围值。`tradeDayId` 是周期**开始时的 UTC 公历日期** `YYYYMMDD`，不是成交所在 UTC 自然日期，也不再表示外部 SIP 归属日。所有公历日期，包括周末和节假日，都有自己的 ID、额度和 `usedWad`。时间区间左闭右开，链上以 `block.timestamp` 判定；不引入本地时区或夏令时。
-2. 对 UTC 日期 D，定义 `midnightUTC(D) = ordinal(D) * 86400`，`startUTC(D) = midnightUTC(D) + offsetFor(D)`，`endUTC(D) = startUTC(D+1)`。`offsetFor(D)` 为最大 `effectiveDayId <= D` 的已排期配置值，若无则为初始值。设 `N = UTCDate(block.timestamp / 86400)`；若 `block.timestamp >= startUTC(N)`，当前 `tradeDayId=N`，否则为 N 的前一日期。实现须使用覆盖闰年、月末、年末的公历整数转换，校验日期范围；不能直接把 Unix 日数强转成 `YYYYMMDD`。每次 Swap 只算一次日 ID，并用于计量、ADTV 源月、可选配额和事件；`sourceMonth` 是该 ID 所在月的上一自然月。`currentTradeDay()` 可保留现有 `(bool,uint32)` ABI，但初始化后的 `exists` 恒为 true，不再要求当前／下一窗口。
+2. 对 UTC 日期 D，定义 `midnightUTC(D) = ordinal(D) * 86400`，`startUTC(D) = midnightUTC(D) + offsetFor(D)`，`endUTC(D) = startUTC(D+1)`。`offsetFor(D)` 为最大 `effectiveDayId <= D` 的已排期配置值，若无则为初始值。设 `N = UTCDate(block.timestamp / 86400)`；若 `block.timestamp >= startUTC(N)`，当前 `tradeDayId=N`，否则为 N 的前一日期。实现须使用覆盖闰年、月末、年末的公历整数转换，校验日期范围；不能直接把 Unix 日数强转成 `YYYYMMDD`。Ledger 在一次记账中计算日 ID，并用于额度、ADTV 源月及可选配额；Router 在 unlock 完成后再次读取当前日，仅用于 Swap 事件。`sourceMonth` 是 Ledger 所用 ID 所在月的上一自然月。`currentTradeDay()` 可保留现有 `(bool,uint32)` ABI，但初始化后的 `exists` 恒为 true，不再要求当前／下一窗口。
 3. 治理入口 `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId,bytes32 reasonHash)` 只允许当前业务 Governor；`newOffsetSeconds < 86400`、`newOffsetSeconds != oldOffsetSeconds`、`abs(newOffsetSeconds - oldOffsetSeconds) <= 14400`、`reasonHash != 0`。初始起点可设为任意 UTC 日内秒数，**运行中每次最多变更四小时**。只允许一个待生效配置；新 `effectiveDayId` 必须晚于最后一次生效日，并且排期交易发生时，`effectiveDayId` 的前一个计量日按**当前已排期规则**尚未开始。Ledger 用链上公历算法算出前一日的开始时刻并要求 `block.timestamp < startUTC(D-1)`。不得排期使当前或过去计量日的开始/结束改变。事件记录旧/新秒数、D、过渡日 ID、过渡日新结束 UTC、操作者与 `reasonHash`。生效只看区块时间，无额外激活交易。
 4. 排期一次由旧起点 `oldOffset` 改到 `newOffset` 时，只有 D-1 是过渡日，长度精确为 `86400 + newOffset - oldOffset` 秒，且在 20–28 小时范围内；此前及 D 以后均为 86400 秒。治理可在 D-1 开始**之前**取消这次尚未生效的排期并发出取消事件；D-1 一旦开始，配置锁定，不能取消或替换。生效后可为更晚日期排下一次变更；历史配置和计量日边界须永久可读。对查询日 D 的配置按生效日有序检查点选择，不能以后一次配置重算历史。较长或较短的过渡日仍只有**一份完整日硬上限**，不得按小时比例放大或缩小；已提交的 D-1/D 配额继续按原日 ID 生效，运营方在排期时复核。
 5. 当前实现已移除 `TradeDayReport`、`DAY_TYPEHASH`、`submitTradeDay`、`replaceFutureWindows`、`appendWindow`、`windowCount/getWindow` 以及旧 Ledger 的窗口门禁。`DataInbox` 仅处理 Market、ADTV、Quota 三类报告。由于本部署没有旧 SIP 日账，部署直接初始化自动日切状态，不实现旧窗口到账本的历史转换；新 ABI、角色运营脚本、索引器和部署清单必须一起发布。
@@ -344,7 +348,7 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 
 ## 11. 部署输入和验收向量
 
-部署清单必须含 chainId、官方 PoolManager 地址及代码哈希、每个 TSV 代理地址和实现 codehash、Hook 权限位、SBT 地址/tokenId、Governor/Guardian/RecoveryCouncil/Executor 与各运营报告角色地址、Tier 参数、两个资产地址/decimals/代码哈希/代理实现、股票股数 Adapter 地址和版本、发行方权益依据、制裁/暂停与升级控制者、价格依据及首批 PoolKey。新资产只登记唯一池内 Currency，不再配置第二个用户 Token 或独立结算路径；本部署没有旧 LP 仓位或旧 SIP 日账，也不需要历史账本迁移清单。Router、LP Manager、Hook 的循环地址必须通过确定性部署或 nonce 预计算后逐项比对；`TSVERC1967Proxy` 初始化数据不得为空。缺必填项部署脚本拒绝启用资产；所有身份按独立地址配置，不读取多签内部设置。完整顺序见[全新部署清单](./DEPLOYMENT_CHECKLIST_V1.md)。
+部署清单必须含 chainId、官方 PoolManager 地址及代码哈希、每个 TSV 代理地址和实现 codehash、Hook 权限位、SBT 地址/tokenId、Governor/Guardian/RecoveryCouncil/Executor 与各运营报告角色地址、Tier 参数、两个资产地址/decimals/代码哈希/代理实现、股票股数 Adapter 地址和版本、发行方权益依据、制裁/暂停与升级控制者、价格依据及首批 PoolKey。新资产只登记唯一池内 Currency，不再配置第二个用户 Token 或独立结算路径；本部署没有旧 LP 仓位或旧 SIP 日账，也不需要历史账本迁移清单。Hook 初始化所需的 Router/LP Manager 地址必须通过确定性部署或 nonce 预计算后逐项比对；`TSVERC1967Proxy` 初始化数据不得为空。缺必填项部署脚本拒绝启用资产；所有身份按独立地址配置，不读取多签内部设置。完整顺序见[全新部署清单](./DEPLOYMENT_CHECKLIST_V1.md)。
 
 编码验收至少覆盖以下**给定输入→确定结果**；这些是实现验收样例，不替代源码审计和真实代理行为核验：
 
@@ -381,9 +385,9 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 | VolumeLedger | `bindWriters(address hook,address dataInbox)` | Governor 仅可首次绑定；两个地址均须有代码。部署初始化入口，不可替换已绑定写入者 |
 | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId,bytes32 reasonHash)`、`cancelPendingDayStart(bytes32 reasonHash)` | 仅 Governor；未来边界排期、单次偏差上限与过渡日锁定按 §7 |
 | VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()`、`remaining(bytes32 securityId,uint32 tradeDayId)`、`used(bytes32 securityId,uint32 tradeDayId)` | 只读；初始化后 `currentTradeDay.exists == true`；ADTV 缺失时 `remaining` 返回无效标志 |
-| Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用 | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；`beforeSwap` 校验 Router 活跃上下文，`afterSwap` 校验 Router sender 与空 hookData |
-| Router | §5 两个 Swap 入口、`activeSwapContext()` | Swap 仅 participant 直接调用；单笔活跃上下文由非重入锁约束，只在活跃调用期间供 Hook 读取 |
-| LP Manager | §6 七个 LP/建池入口、`activeLPContext(bytes32)`、ERC-721 `ownerOf/balanceOf/tokenURI/supportsInterface` | 建池仅 POOL_CREATOR；普通 LP 仅原 owner；强退两类专职角色；Receipt 的 mint/burn 仅由 LP 生命周期内部执行；所有转移和 approve 系列入口回滚；上下文只读，`tokenURI` 对有效 Receipt 返回空字符串 |
+| Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用 | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；`beforeSwap` 校验 Router sender、可交易状态和完整 PoolKey，`afterSwap` 校验 Router sender 与空 hookData |
+| Router | §5 两个 Swap 入口、PoolManager `unlockCallback` | Swap 仅 participant 直接调用；资格与池校验在 unlock 前完成，非重入锁约束单笔 Swap 与解锁回调；不保存或暴露 Swap 活跃上下文 |
+| LP Manager | §6 七个 LP/建池入口、协议上下文 `activeLPContext()`、ERC-721 `ownerOf/balanceOf/tokenURI/supportsInterface` | 建池仅 POOL_CREATOR；普通 LP 仅原 owner；强退两类专职角色；Receipt 的 mint/burn 仅由 LP 生命周期内部执行；所有转移和 approve 系列入口回滚；活跃上下文只供 Hook 校验，`tokenURI` 对有效 Receipt 返回空字符串 |
 | UpgradeTimelock/事故控制器/BusinessAuthority | `bindBusinessAuthority`、`bindEmergencyController`、§9 的 schedule/execute/cancel、冻结/解冻/即时升级、受保护恢复 | 精确 caller、目标、operationId、freezeId 和恢复上下文按 §9 |
 
 `MarketReport/AdtvReport/QuotaReport` 的 Solidity 字段类型和顺序逐项等于 `src/v1/types/TSVReports.sol`，不额外嵌套、重排或使用 `string` 代替 `bytes32`；报告结构不含 `signer` 字段，也没有签名参数；`QuotaReport.action` 为 `uint8`。TradeDayReport 只属于历史资料，当前接口不再接受该类型。当前 getter 对未知主键返回 Solidity 默认结构；调用方必须检查 `status`、`poolCurrency`、`securityId`、`version` 或报告 `version/reportId` 等存在性字段，不能把零值当作有效配置。`Tier` 的规范存储为 `tierBps uint16`、`maxListed uint32`、`listedCount uint32`，Governor 修改 `tierBps/maxListed` 要求 `1 <= tierBps <= 10000` 且新 `maxListed >= listedCount`，变更对未来 Swap 立即生效而不清除历史额度。

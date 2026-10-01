@@ -9,7 +9,7 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
-import {LPBounds, LPContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
+import {LPBounds, LPContext, LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVDirectSettlementLib} from "tsv-v1/libraries/TSVDirectSettlementLib.sol";
@@ -25,6 +25,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     error Expired();
     error NoFees();
     error SlippageExceeded();
+    error InputAmountTooLarge();
     error SettlementMismatch();
     error Reentrancy();
     error NonTransferable();
@@ -40,7 +41,6 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     }
 
     struct ModifyRequest {
-        bytes32 operationId;
         uint256 positionId;
         LPOperationMode mode;
         int256 liquidityDelta;
@@ -50,10 +50,8 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     IPoolManager public poolManager;
     TSVRegistryV1 public registry;
     uint256 public nextPositionId;
-    uint256 public nextOperationNonce;
     mapping(uint256 => Position) private positions;
     LPContext private activeContext;
-    bytes32 private activeOperationId;
     bytes32 private activeRequestHash;
     bool private entered;
 
@@ -75,7 +73,6 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         poolManager = IPoolManager(poolManager_);
         registry = TSVRegistryV1(registry_);
         nextPositionId = 1;
-        nextOperationNonce = 1;
     }
 
     modifier nonReentrant() {
@@ -103,7 +100,8 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         uint128 liquidity,
         LPBounds calldata bounds
     ) external nonReentrant returns (uint256 positionId) {
-        _requireUserPool(PoolId.unwrap(key.toId()), bounds.deadline);
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        _requireUserPool(poolId, bounds.deadline);
         if (liquidity == 0 || liquidity > uint128(type(int128).max)) revert InvalidPosition();
         _validateTicks(key, tickLower, tickUpper);
         positionId = nextPositionId++;
@@ -112,18 +110,18 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
             key,
             tickLower,
             tickUpper,
-            keccak256(abi.encode(block.chainid, address(this), positionId)),
+            bytes32(positionId),
             0,
             true
         );
-        _modify(positionId, LPOperationMode.OPEN, int256(uint256(liquidity)), bounds);
+        _modify(positionId, poolId, LPOperationMode.OPEN, int256(uint256(liquidity)), bounds);
         positions[positionId].liquidity = liquidity;
         _mint(msg.sender, positionId);
-        emit PositionOpened(positionId, msg.sender, PoolId.unwrap(key.toId()), liquidity);
+        emit PositionOpened(positionId, msg.sender, poolId, liquidity);
     }
 
     function increaseLiquidity(uint256 positionId, uint128 liquidity, LPBounds calldata bounds) external nonReentrant {
-        Position storage p = _requireOwner(positionId, bounds.deadline);
+        (Position storage p, bytes32 poolId) = _requireOwner(positionId, bounds.deadline);
         if (
             liquidity == 0 || liquidity > uint128(type(int128).max)
                 || uint256(p.liquidity) + liquidity > uint256(uint128(type(int128).max))
@@ -131,31 +129,31 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
             revert InvalidPosition();
         }
         uint128 old = p.liquidity;
-        _modify(positionId, LPOperationMode.INCREASE, int256(uint256(liquidity)), bounds);
+        _modify(positionId, poolId, LPOperationMode.INCREASE, int256(uint256(liquidity)), bounds);
         p.liquidity = old + liquidity;
         emit PositionChanged(positionId, old, p.liquidity);
     }
 
     function decreaseLiquidity(uint256 positionId, uint128 liquidity, LPBounds calldata bounds) external nonReentrant {
-        Position storage p = _requireOwner(positionId, bounds.deadline);
+        (Position storage p, bytes32 poolId) = _requireOwner(positionId, bounds.deadline);
         if (liquidity == 0 || liquidity >= p.liquidity) revert InvalidPosition();
         uint128 old = p.liquidity;
-        _modify(positionId, LPOperationMode.DECREASE, -int256(uint256(liquidity)), bounds);
+        _modify(positionId, poolId, LPOperationMode.DECREASE, -int256(uint256(liquidity)), bounds);
         p.liquidity = old - liquidity;
         emit PositionChanged(positionId, old, p.liquidity);
     }
 
     function collectFees(uint256 positionId, LPBounds calldata bounds) external nonReentrant {
-        Position storage p = _requireOwner(positionId, bounds.deadline);
+        (Position storage p, bytes32 poolId) = _requireOwner(positionId, bounds.deadline);
         if (p.liquidity == 0) revert InvalidPosition();
-        BalanceDelta delta = _modify(positionId, LPOperationMode.COLLECT, 0, bounds);
+        BalanceDelta delta = _modify(positionId, poolId, LPOperationMode.COLLECT, 0, bounds);
         if (delta.amount0() <= 0 && delta.amount1() <= 0) revert NoFees();
         emit FeesCollected(positionId, _positive(delta.amount0()), _positive(delta.amount1()));
     }
 
     function closePosition(uint256 positionId, LPBounds calldata bounds) external nonReentrant {
-        Position storage p = _requireOwner(positionId, bounds.deadline);
-        _modify(positionId, LPOperationMode.CLOSE, -int256(uint256(p.liquidity)), bounds);
+        (Position storage p, bytes32 poolId) = _requireOwner(positionId, bounds.deadline);
+        _modify(positionId, poolId, LPOperationMode.CLOSE, -int256(uint256(p.liquidity)), bounds);
         _close(positionId, p, false, 0);
     }
 
@@ -180,8 +178,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         bounds.minPoolOut0 = minPoolOut0;
         bounds.minPoolOut1 = minPoolOut1;
         bounds.deadline = uint64(block.timestamp);
-        BalanceDelta delta = _modify(positionId, LPOperationMode.FORCE_EXIT, -int256(uint256(p.liquidity)), bounds);
-        if (delta.amount0() < 0 || delta.amount1() < 0) revert SettlementMismatch();
+        _modify(positionId, poolId, LPOperationMode.FORCE_EXIT, -int256(uint256(p.liquidity)), bounds);
         _close(positionId, p, true, reasonCode);
     }
 
@@ -189,9 +186,16 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         return positions[positionId];
     }
 
-    function activeLPContext(bytes32 operationId) external view returns (LPContext memory) {
-        if (operationId != activeOperationId || operationId == 0) revert InvalidPosition();
-        return activeContext;
+    function activeLPContext() external view returns (LPHookContext memory) {
+        if (!entered || activeContext.positionId == 0) revert InvalidPosition();
+        return LPHookContext(
+            activeContext.poolId,
+            activeContext.tickLower,
+            activeContext.tickUpper,
+            activeContext.mode,
+            activeContext.salt,
+            activeContext.liquidityDelta
+        );
     }
 
     function approve(address, uint256) public pure override {
@@ -226,17 +230,18 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     }
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
-        if (msg.sender != address(poolManager) || activeOperationId == 0 || keccak256(data) != activeRequestHash) {
+        if (
+            msg.sender != address(poolManager) || !entered || activeContext.positionId == 0
+                || keccak256(data) != activeRequestHash
+        ) {
             revert Unauthorized();
         }
         ModifyRequest memory request = abi.decode(data, (ModifyRequest));
-        if (request.operationId != activeOperationId || block.timestamp > request.bounds.deadline) {
-            revert InvalidPosition();
-        }
+        if (block.timestamp > request.bounds.deadline) revert Expired();
         Position storage p = positions[request.positionId];
         IPoolManager.ModifyLiquidityParams memory params =
             IPoolManager.ModifyLiquidityParams(p.tickLower, p.tickUpper, request.liquidityDelta, p.salt);
-        (BalanceDelta delta,) = poolManager.modifyLiquidity(p.key, params, abi.encode(activeOperationId));
+        (BalanceDelta delta,) = poolManager.modifyLiquidity(p.key, params, bytes(""));
         _settle(
             p.key.currency0,
             delta.amount0(),
@@ -256,22 +261,23 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         return abi.encode(delta);
     }
 
-    function _modify(uint256 positionId, LPOperationMode mode, int256 liquidityDelta, LPBounds memory bounds)
+    function _modify(
+        uint256 positionId,
+        bytes32 poolId,
+        LPOperationMode mode,
+        int256 liquidityDelta,
+        LPBounds memory bounds
+    )
         private
         returns (BalanceDelta delta)
     {
         Position storage p = positions[positionId];
-        bytes32 operationId =
-            keccak256(abi.encode(block.chainid, address(this), nextOperationNonce++, positionId, mode));
-        bytes32 poolId = PoolId.unwrap(p.key.toId());
-        activeContext = LPContext(poolId, positionId, p.tickLower, p.tickUpper, p.salt, mode, p.owner, liquidityDelta);
-        activeOperationId = operationId;
-        ModifyRequest memory request = ModifyRequest(operationId, positionId, mode, liquidityDelta, bounds);
+        activeContext = LPContext(poolId, positionId, p.tickLower, p.tickUpper, mode, p.salt, liquidityDelta);
+        ModifyRequest memory request = ModifyRequest(positionId, mode, liquidityDelta, bounds);
         activeRequestHash = keccak256(abi.encode(request));
         bytes memory result = poolManager.unlock(abi.encode(request));
         delta = abi.decode(result, (BalanceDelta));
         delete activeContext;
-        delete activeOperationId;
         delete activeRequestHash;
     }
 
@@ -284,8 +290,12 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         LPOperationMode mode
     ) private {
         address token = Currency.unwrap(currency);
+        if (delta < 0 && (mode == LPOperationMode.FORCE_EXIT || mode == LPOperationMode.COLLECT)) {
+            revert SlippageExceeded();
+        }
+        if (delta == type(int128).min) revert InputAmountTooLarge();
         uint256 amount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
-        if (delta < 0 && (mode == LPOperationMode.FORCE_EXIT || amount > maxIn)) revert SlippageExceeded();
+        if (delta < 0 && amount > maxIn) revert SlippageExceeded();
         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();
         if (delta < 0) {
             TSVDirectSettlementLib.settleFrom(poolManager, currency, token, owner, amount);
@@ -296,15 +306,21 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
 
     function _requireUserPool(bytes32 poolId, uint64 deadline) private view {
         if (block.timestamp > deadline) revert Expired();
-        if (!registry.isEligible(msg.sender) || !registry.isTradable(poolId)) revert Unauthorized();
+        if (!registry.isEligible(msg.sender)) revert Unauthorized();
+        if (!registry.isTradable(poolId)) revert InvalidPool();
     }
 
-    function _requireOwner(uint256 positionId, uint64 deadline) private view returns (Position storage p) {
+    function _requireOwner(uint256 positionId, uint64 deadline)
+        private
+        view
+        returns (Position storage p, bytes32 poolId)
+    {
         p = positions[positionId];
         if (!p.active || p.liquidity == 0 || p.owner != msg.sender || ownerOf(positionId) != p.owner) {
             revert InvalidPosition();
         }
-        _requireUserPool(PoolId.unwrap(p.key.toId()), deadline);
+        poolId = PoolId.unwrap(p.key.toId());
+        _requireUserPool(poolId, deadline);
     }
 
     function _validateTicks(PoolKey calldata key, int24 lower, int24 upper) private pure {

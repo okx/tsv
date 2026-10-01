@@ -185,8 +185,7 @@ contract TSVProtocolLocalTest is Test {
                         address(controller),
                         address(manager),
                         address(registry),
-                        address(ledger),
-                        HOOK_ADDRESS
+                        address(ledger)
                     )
                 )
             )
@@ -324,11 +323,11 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
     }
 
-    function testSwapMustBeSubmittedByParticipant() public {
+    function testSwapRequiresEligibleDirectCaller() public {
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(stockInput, 1e18);
 
-        vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
+        vm.expectRevert(TSVSwapRouterV1.Unauthorized.selector);
         router.swapExactInput(request);
 
         vm.prank(alice);
@@ -347,9 +346,6 @@ contract TSVProtocolLocalTest is Test {
 
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(stockInput, 1e18);
-        request.participant = address(wallet);
-        request.payer = address(wallet);
-        request.recipient = address(wallet);
 
         (uint256 actualIn, uint256 actualOut) = wallet.swapExactInput(router, request);
         assertGt(actualIn, 0);
@@ -514,7 +510,6 @@ contract TSVProtocolLocalTest is Test {
     function testExactOutputRequiresFullDelivery() public {
         bool stockIsCurrency0 = address(stock) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(stockIsCurrency0, 1e18);
-        request.exactInput = false;
         request.limitAmount = 2e18;
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         vm.prank(alice);
@@ -529,7 +524,6 @@ contract TSVProtocolLocalTest is Test {
 
         bool quoteIsCurrency0 = address(quote) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(quoteIsCurrency0, 1e18);
-        request.exactInput = false;
         request.limitAmount = 2e18;
         uint256 quoteBefore = quote.balanceOf(alice);
         uint256 stockBefore = stock.balanceOf(alice);
@@ -686,11 +680,7 @@ contract TSVProtocolLocalTest is Test {
 
     function _swapRequest(bool zeroForOne, uint128 amount) private view returns (SwapRequest memory r) {
         r.key = key;
-        r.participant = alice;
-        r.payer = alice;
-        r.recipient = alice;
         r.zeroForOne = zeroForOne;
-        r.exactInput = true;
         r.amountSpecified = amount;
         r.limitAmount = 1;
         r.sqrtPriceLimitX96 = zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1;

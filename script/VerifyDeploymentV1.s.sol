@@ -72,7 +72,7 @@ contract VerifyDeploymentV1 is Script {
                 || address(hook.registry()) != a[0] || address(hook.ledger()) != a[1] || hook.router() != a[4]
                 || hook.lpManager() != a[5] || address(router.poolManager()) != poolManager
                 || address(router.registry()) != a[0] || address(router.ledger()) != a[1]
-                || address(router.hook()) != a[3] || address(lp.poolManager()) != poolManager
+                || address(lp.poolManager()) != poolManager
                 || address(lp.registry()) != a[0] || (uint160(a[3]) & 0x3FFF) != 0x3FFF
                 || address(anchor.authority()) != address(registry.businessAuthority())
         ) revert VerificationFailed();

@@ -79,16 +79,16 @@ Timelock 的普通升级延迟由每次排期指定；本清单不为它设置�
    TSVDataInboxV1.initialize(anchor, timelock, emergencyController, registry, ledger)
    ```
 
-### 4.2 处理 Hook、Router、LP Manager 的地址关系
+### 4.2 预计算 Hook 所需地址
 
-Hook 的初始化需要 Router 和 LP Manager 地址，Router 初始化又需要最终 Hook 地址。发布脚本必须使用以下任一方式解决循环：
+Hook 初始化需要 Router 和 LP Manager 的最终代理地址。Router 本身不保存 Hook 地址，因此这里没有 Router↔Hook 的循环依赖。部署脚本须先确定 Router 和 LP Manager 地址，再以这两个地址构造 Hook 初始化数据并预测 Hook 地址：
 
-- 使用确定性部署或 nonce 预计算，先得到 Router/LP Manager 的最终代理地址，再用 Hook 工厂预测最终 Hook 地址；或
-- 使用等价的部署工厂一次性预计算全部代理地址。
+- 使用 CREATE 地址或 nonce 预计算 Router/LP Manager 代理地址；或
+- 使用等价的确定性部署工厂计算这两个代理地址。
 
-不得用临时 Hook 地址、零地址或部署后无法修改的占位地址。Router 的 `hook` 一旦初始化就作为安全边界使用。
+不得在 Hook 初始化数据中使用临时 Router/LP Manager 地址或零地址。
 
-确定性地址计算至少要在部署前验证：
+部署前至少验证：
 
 ```text
 Router 代理地址、LP Manager 代理地址
@@ -98,19 +98,16 @@ Hook initialize 的 initData
 Hook 工厂 predict(implementation, initData, salt)
         ↓
 Hook 地址低 14 位 == 0x3FFF
-        ↓
-Router.initialize(..., predictedHook)
-Hook.initialize(..., actualRouter, actualLpManager)
 ```
 
 ### 4.3 部署 Router、LP Manager 和 Hook
 
-1. 使用最终预测的 Hook 地址部署 Router 代理，调用：
+1. 部署 Router 代理，调用：
 
    ```solidity
    TSVSwapRouterV1.initialize(
        anchor, timelock, emergencyController,
-       poolManager, registry, ledger, hook
+       poolManager, registry, ledger
    )
    ```
 
@@ -148,7 +145,7 @@ Hook.initialize(..., actualRouter, actualLpManager)
 
 - Registry 的 `hook/lpManager/dataInbox`
 - VolumeLedger 的 `hook/dataInbox`
-- Router 的 `poolManager/registry/ledger/hook`
+- Router 的 `poolManager/registry/ledger`
 - LP Manager 的 `poolManager/registry`
 - Hook 的 `poolManager/registry/ledger/router/lpManager`
 - 六代理 `governanceAnchor()` 指向同一个 Anchor，且 Anchor 保存的六地址顺序正确
@@ -237,7 +234,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - wTSLAx 仍缺少发行方/法务准入证据
 - 任一资产仍为 `UNREVIEWED` 却尝试建池
 - 使用了旧代理、旧 Receipt、旧 SBT Adapter 或 legacy Adapter
-- Router/LP/Hook 的循环地址未经过预测和实际地址比对
+- Hook 初始化中 Router/LP Manager 地址未经过预测和实际地址比对
 
 ## 9. 治理根迁移
 

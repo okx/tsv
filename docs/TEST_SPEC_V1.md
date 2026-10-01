@@ -55,14 +55,14 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | R06 U/I | 非 POOL_CREATOR、错 Hook、两侧均为股票（相同或不同 `securityId`）、倒序 Currency、动态费、fee=1_000_000、tickSpacing=0/32768、越界价格 | 全部拒绝；Registry 不残留 PENDING；V4 不创建池 |
 | R07 I | 第三方直接调用 PoolManager `swap/modifyLiquidity/initialize/donate`，或伪造 Hook `sender/hookData` | Hook 拒绝；无额度、仓位或费状态变化 |
 | R08 I | SBT holder、无证 holder、SBT 全局 paused、SBT revoke；Registry 未配置 SBT；AA 合约钱包直接调用且有/无 SBT | 普通 Swap/LP 仅在 `verify=true && paused=false` 可执行；未配置时回滚 `SbtNotConfigured()`；直接调用能力不代替持证；paused 不等于已撤证 |
-| R09 U/I | 按全新部署清单部署六个业务代理，尝试空初始化数据、错误 Hook 地址、错误 Registry/Router/LP 交叉绑定 | 空初始化数据被代理拒绝；Hook 低 14 位必须为 `0x3FFF`；所有双向绑定 getter 一致；错误绑定时发布流程停止且不启用资产 |
+| R09 U/I | 按全新部署清单部署六个业务代理，尝试空初始化数据、错误 PoolManager/Registry/Ledger 地址、错误 Registry/Hook/Router/LP 交叉绑定 | 空初始化数据被代理拒绝；Hook 低 14 位必须为 `0x3FFF`；Router 初始化不绑定 Hook，Hook 的 Router/LP 交叉绑定及治理 Anchor 其余绑定必须一致；错误绑定时发布流程停止且不启用资产 |
 
 ### 3.1.1 新版准入目标的增量用例（本地夹具已覆盖部分路径；真实发行方仍需留证）
 
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
 | A01 U/I | 用 Backed 行为 mock 的 wTSLAx Currency 和唯一生产 Adapter 接入 Hook；另用普通 ERC-20 或错误/错绑 Adapter 配置尝试登记；来源 multiplier 变化后交换两方向 | Hook 对每条股票 delta 调用来源 Token 转换方法并按当次返回值计股；错误配置拒绝或保持 `UNREVIEWED`；PoolManager raw 份额不自行变化，用户始终收付 wTSLAx |
-| A02 U/I | 来源转换参数变化实际改变法律股数单位；同一 TSV 计量日 ADTV、可选配额及 used 仍为旧单位 | 未完成法律单位/计量日切换时暂停并拒绝；完成批准与统一单位报告后恢复；历史 used 不静默清零，既有仓位仍按原 Token 强退 |
+| A02 U/I | 月中来源转换参数变化实际改变法律股数单位；例如 2 拆 1 前日 quota=100 股，当前计量日 ADTV、quota 和 used 仍为旧单位 | 未完成法律单位/计量日切换时暂停并拒绝；不自动把旧 quota 乘 2，也不追溯换算本月历史数据或 used；新计量日以批准的新单位 ADTV/可选 quota 就绪后恢复；既有仓位仍按原 Token 强退 |
 | A03 I | 模拟发送方扣 `x + fee`、接收方正好收到 `x` 的 Token，分别走 Swap 和 LP 的 PoolManager 入金/出金及强退 | 每条路径均因发送方 raw 差额不等于 `x` 而全回滚；用户余额、PoolManager、仓位、Receipt、used 恢复为 `S_pre` |
 | A04 U/I | 仅 UI getter 存在但未绑定经审核的直接换算 Adapter；Adapter 返回零、currency 不匹配或 ERC-165/版本不符；`balanceOf(PoolManager)` 会 Rebase | 不兼容股票 Token 不得批准或 Swap；正 raw 换算结果为零、来源方法 revert 时整笔回滚；准入不能仅凭函数名或单次余额读取 |
 | A05 U/I | 在 wTSLAx 股票池直接买入/卖出，覆盖 exact-in/out 与价格边界部分成交；使用未登记或不同的 PoolKey 发起 Swap | 只收付已登记的池内 Currency wTSLAx，按每笔实际 V4 wTSLAx delta 记一次 Tesla 额度；池键不匹配或未知时回滚；当前交易路径不执行包装或赎回 |
@@ -93,14 +93,14 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | S02 U/I | `wTSLAx` 输入 `3e18` shares，来源 Token `getUnderlyingAmountByShares` 返回 `2.7e18` | 技术股数 `2.7e18`；Adapter 返回值、版本及事件值与独立计算一致，不生成 rateId/快照 |
 | S03 U/I | 在股票／非股票池分别让股票作输入且存在 LP/协议费、股票作输出 | 输入按实际 V4 caller delta 的**含费总支出**计，输出按净收到计；每笔只记一条股票腿，不能按 `amountSpecified` 或用户预估数记账 |
 | S04 I | exact input 完全成交；价格边界仅部分成交且仍达到 minOut；部分成交低于 minOut | 前两者只按实际 delta 直接收付 Currency 和计股；最后者全回滚 |
-| S05 I | 股票输入和 quote 输入的 exact output 完全成交、超 maxIn、价格边界部分输出 | 仅完全输出且输入在上限内成功；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分输出即使仍有非零量也回滚 |
-| S06 U/I | 未持证调用、`msg.sender != participant`、participant/payer/recipient 不同、参数越界、deadline 过期；AA 钱包以自身地址直接调用 | 非 participant 调用拒绝；EOA 与 AA 钱包均须以 participant 身份直接调用；同一请求在后续独立调用中按新 Swap 校验，不做应用层 nonce 去重 |
-| S07 I | 一笔 unlock 尝试第二次 swap、第二个 PoolId、额外 modify、Hook 直接调用、空活跃上下文或错 PoolId | 全部拒绝；一次成功 Swap 恰一次记账，结束清空单笔上下文 |
+| S05 I | 股票输入和 quote 输入的 exact output 完全成交、超 maxIn、价格边界部分输出、实际输入恰为 `2^127` | 仅完全输出且输入在上限内且可由 `int128` 结算时成功；输入恰为 `2^127` 在 token 结算前以 `InputAmountTooLarge()` 拒绝；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分输出即使仍有非零量也回滚 |
+| S06 U/I | 未持证调用、参数越界、deadline 过期；AA 钱包以自身地址直接调用 | 未持证调用拒绝；EOA 与 AA 钱包均以自身地址作为 participant/payer/recipient 直接调用；同一请求在后续独立调用中按新 Swap 校验，不做应用层 nonce 去重 |
+| S07 I | 非 PoolManager 直接调用 Router.unlockCallback；非 Router 直接通过 PoolManager.swap；Router 收到不可交易池；Hook 收到不匹配的 PoolKey；Swap 回调期间重入 Router；直接调用 Hook 或尝试非 Swap 的 modify/donate | 全部拒绝；一次成功 Router Swap 恰一次记账；Swap 不依赖或清理活跃上下文 |
 | S08 U/I | Backed 来源换算对正 raw 返回零、来源方法 revert、极大 raw 返回溢出/异常值 | Hook 调用失败或返回零时整笔回滚；正成交不以零股计入额度 |
 | S09 I | `afterSwap` 调用 Adapter 时来源换算方法 revert 或返回零 | 整笔 Swap 回滚；没有旧快照、Ledger 复核或 Router 结算后的二次复验 |
 | S10 I | 普通 ERC-20 fee-on-transfer、rebasing、无返回值/返回 false、静默少转；wTSLAx 发送方额外扣费 | 有效标准返回值且双方 raw 差额精确才可通过；金额不等即回滚，不留下池欠款 |
 | S11 I | 用户持有 wTSLAx，但 issuer multiplier 在报价后变化；分别测试 raw 滑点通过/失败 | 成功交易以 `afterSwap` 实际 delta 调用来源换算方法并按当时返回值计股；raw 限额按请求执行；前端股数预估不作为链上边界 |
-| S12 I | Router/LP Manager 非法回调、错 Swap 上下文/LP operationId/poolCurrency/owner/recipient、重入及故意遗留本次 wTSLAx 余额 | 全部拒绝或回滚；成功时上下文清空，Router/LP Manager 不留本笔资产 |
+| S12 I | Router/LP Manager 非法回调、错 LP callback context/request hash/poolCurrency/owner/recipient、重入及故意遗留本次 wTSLAx 余额 | 全部拒绝或回滚；成功时 LP 活跃上下文与请求哈希清空；Router/LP Manager 不留本笔资产 |
 
 ### 3.4 LP、Receipt、暂停和强退
 
@@ -110,7 +110,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | L02 I | 两个 owner、相同池/相同 tick 区间各建仓 | 不同 salt 的 V4 仓位不可混合；任一 owner 无法修改另一个仓位 |
 | L03 U/I | Receipt `transferFrom/safeTransferFrom/approve/setApprovalForAll`，非 owner 操作，owner SBT 被撤或全局 paused | 全部拒绝用户 LP；Receipt 不能流转；强退资格单独判断 |
 | L04 I | `collectFees` 在正流动性仓位有费/无费；最后一次 `closePosition` 有累计费 | 有费按返回 callerDelta 交付；无费回滚；close 单次负 liquidity 同时拿本金和费，不在零仓位追加领费 |
-| L05 I | LP bounds 的两侧 raw Currency 付款上限、收款下限；报价后池价或 multiplier 变化 | 各侧按实际 callerDelta 校验 raw 边界，任一失败全回滚；前端股数展示不被误认为链上独立限价 |
+| L05 I | LP bounds 的两侧 raw Currency 付款上限、收款下限；报价后池价或 multiplier 变化；输入 delta 恰为 `int128.min`；COLLECT 返回负 delta | 各侧按实际 callerDelta 校验 raw 边界，任一失败全回滚；`int128.min` 在 token 转账前拒绝，COLLECT 的负 delta 拒绝；前端股数展示不被误认为链上独立限价 |
 | L06 I | `REVOKE_EXIT_EXECUTOR` 对确实无 SBT 的原 owner；SBT 只是 paused；`FORCE_EXIT_ADMIN` 有/无 reason/evidence | 仅规定的两类调用者满足各自条件时能强退；paused 但仍持证不能作为撤证理由 |
 | L07 I | 停牌、EmergencyPause、Token/Pool DISABLED、报告缺失时强退，并提交两侧 raw `minPoolOut` | 业务门禁不阻挡既有仓位全额强退；两侧实际到账均满足调用时下限才成功，资产仍只发到**原 owner** |
 | L08 I | 发行方 wTSLAx 拒绝向原 owner 转账，或另一侧普通 Token 拒转；分别安排失败发生在第一/第二腿 | 方案 A：V4 移除、资产转账、Receipt burn、TSV 仓位和事件均回滚到 `S_pre`；旧仓位可重试，无持久失败事件 |

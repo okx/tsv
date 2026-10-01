@@ -5,3 +5,10 @@ tsvlpmanagerv1|settle|zero-delta-min-output-bypass	NEW	1	f597879	A zero output b
 tsvregistryv1|registertoken|mutable-token-implementation	NEW	1	f597879	Token proxy behavior may change after approval	LEAD
 tsvregistryv1|relistsecurity|stale-market-status-on-relist	NEW	1	f597879	Relisting can reuse an old open market status	LEAD
 tsvdatainboxv1|accept|sequence-saturation-lock	NEW	1	f597879	A maximum report sequence can block later reports	LEAD
+tsvswaprouterv1|initialize-unlockcallback|external-poolmanager-trust	NEW	1	9f696db	Callback trusts the configured PoolManager	LEAD
+tsvswaprouterv1|_settle|mutable-token-implementation	NEW	1	9f696db	Settlement trusts approved token behavior	LEAD
+tsvswaprouterv1|validate-swap|redundant-trade-day-read	NEW	1	9f696db	Router reads the trade day twice	LEAD
+tsvswaprouterv1|validate|redundant-pool-key-check	NEW	1	9f696db	Router repeats the PoolKey equality check	LEAD
+tsvswaprouterv1|swapexactinput-swapexactoutput|duplicated-swap-mode	NEW	1	9f696db	Swap mode appears in both the selector and request	LEAD
+tsvswaprouterv1|unlockcallback|signed-delta-settlement-boundary	NEW	1	9f696db	The minimum signed input delta cannot be settled	LEAD
+tsvswaprouterv1|unlockcallback-swap|redundant-callback-return-data	NEW	1	9f696db	Callback returns a delta only used by the outer event	LEAD
