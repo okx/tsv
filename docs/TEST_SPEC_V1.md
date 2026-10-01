@@ -36,7 +36,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | `Day D` | 按测试输入选择日期和 UTC 起点；`tradeDayId`、ADTV 与 quota 规则见[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度) |
 | `Identity` | Governor、Guardian、RecoveryCouncil、Executor、各业务角色各自为单独地址；测试只改变地址和角色，不依赖多签内部签名门槛 |
 
-每个预期回滚的完整路径在发送交易前保存 `S_pre`：用户/Router/LP Manager/PoolManager 的相关 ERC-20 余额、V4 PoolId 状态和仓位流动性、TSV position/Receipt owner、`usedWad`、Router nonce、报告 reportId/序号、暂停计数和治理状态。回滚后逐项断言等于 `S_pre`；仅断言 revert selector 不足以证明原子性。成功路径逐项检查金额、股数、事件、V4 delta 清零及 Router/LP Manager 本次暂存余额回到基线。
+每个预期回滚的完整路径在发送交易前保存 `S_pre`：用户/Router/LP Manager/PoolManager 的相关 ERC-20 余额、V4 PoolId 状态和仓位流动性、TSV position/Receipt owner、`usedWad`、报告 reportId/序号、暂停计数和治理状态。回滚后逐项断言等于 `S_pre`；仅断言 revert selector 不足以证明原子性。成功路径逐项检查金额、股数、事件、V4 delta 清零及 Router/LP Manager 本次暂存余额回到基线。
 
 ## 3. 必须实现的确定性测试
 
@@ -62,7 +62,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | --- | --- | --- |
 | A01 U/I | 用 `ERC8056TestToken(STDx)` 登记直接结算股票并绑定其 Adapter；另用普通 ERC-20 或错误/错绑 Adapter 配置尝试登记；multiplier 变化后交换两方向 | 合法配置可按成交时 multiplier 快照和独立逐笔公式计股；错误配置拒绝或保持 `UNREVIEWED`；PoolManager raw 余额无自行变化，用户始终收付 `STDx` |
 | A02 U/I | `STDx` 静态比例在拆股时变更；同一 TSV 计量日 ADTV、可选配额及 used 为旧单位，随后尝试新交易 | 未完成版本化折算/日边界切换时暂停并拒绝；完成批准与统一单位报告后恢复；历史 used 不静默清零，既有仓位仍按原 Token 强退 |
-| A03 I | 模拟发送方扣 `x + fee`、接收方正好收到 `x` 的 Token，分别走 Swap 和 LP 的 PoolManager 入金/出金及强退 | 每条路径均因发送方 raw 差额不等于 `x` 而全回滚；用户余额、PoolManager、仓位、Receipt、used、nonce 恢复为 `S_pre` |
+| A03 I | 模拟发送方扣 `x + fee`、接收方正好收到 `x` 的 Token，分别走 Swap 和 LP 的 PoolManager 入金/出金及强退 | 每条路径均因发送方 raw 差额不等于 `x` 而全回滚；用户余额、PoolManager、仓位、Receipt、used 恢复为 `S_pre` |
 | A04 U/I | 仅 UI getter 存在但无可复算逐笔权益公式；`balanceOf(PoolManager)` 会 Rebase 且无合格发行方 Wrapped；股数 Adapter 在交易中变更版本 | 前两种 Token 不得批准，后一种交易全回滚；准入不能仅凭函数名或单次余额读取 |
 | A05 U/I | 在 wTSLAx 股票池直接买入/卖出，覆盖 exact-in/out 与价格边界部分成交；使用未登记或不同的 PoolKey 发起 Swap | 只收付已登记的池内 Currency wTSLAx，按每笔实际 V4 wTSLAx delta 记一次 Tesla 额度；池键不匹配或未知时回滚；当前交易路径不执行包装或赎回 |
 | A06 I | LP 直接以 wTSLAx 开仓、加仓、领费、部分减仓、关闭和强退；wTSLAx 拒转或发送方额外扣费 | 每步只按实际 raw Currency delta 收付；退出向原 owner 交付 wTSLAx；失败方案 A 全回滚；LP 操作不增加 `usedWad` |
@@ -93,13 +93,13 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | S03 U/I | 在股票／非股票池分别让股票作输入且存在 LP/协议费、股票作输出 | 输入按实际 V4 caller delta 的**含费总支出**计，输出按净收到计；每笔只记一条股票腿，不能按 `amountSpecified` 或用户预估数记账 |
 | S04 I | exact input 完全成交；价格边界仅部分成交且仍达到 minOut；部分成交低于 minOut | 前两者只按实际 delta 直接收付 Currency 和计股；最后者全回滚 |
 | S05 I | 股票输入和 quote 输入的 exact output 完全成交、超 maxIn、价格边界部分输出 | 仅完全输出且输入在上限内成功；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分输出即使仍有非零量也回滚 |
-| S06 U/I | 未持证调用、`msg.sender != participant`、participant/payer/recipient 不同、参数越界、deadline 过期、nonce 重放；AA 钱包以自身地址直接调用 | 非 participant 调用拒绝；失败不消耗 nonce；成功后同 nonce 重放拒绝；EOA 与 AA 钱包均须以 participant 身份直接调用 |
-| S07 I | 一笔 unlock 尝试第二次 swap、第二个 PoolId、额外 modify、Hook 直接调用、伪造 operationId | 全部拒绝；一次成功 Swap 恰一次记账，结束清空上下文 |
+| S06 U/I | 未持证调用、`msg.sender != participant`、participant/payer/recipient 不同、参数越界、deadline 过期；AA 钱包以自身地址直接调用 | 非 participant 调用拒绝；EOA 与 AA 钱包均须以 participant 身份直接调用；同一请求在后续独立调用中按新 Swap 校验，不做应用层 nonce 去重 |
+| S07 I | 一笔 unlock 尝试第二次 swap、第二个 PoolId、额外 modify、Hook 直接调用、空活跃上下文或错 PoolId | 全部拒绝；一次成功 Swap 恰一次记账，结束清空单笔上下文 |
 | S08 U/I | 静态换算接近一个 `legalSharesWad` 最小单位、TSLAx FLOOR 导致零股、`mulDiv` 边界和溢出 | 静态按 CEIL、动态按 FLOOR；零股拒绝；不发生溢出式低估 |
-| S09 I | beforeSwap 快照后改变动态 Adapter 版本/底层 multiplier，或在结算后 `isCurrent` 为假 | 整笔回滚；同一笔不混用两个 rateId，历史 used 不重算 |
+| S09 I | `afterSwap` 取得快照并记账后，在 Router 结算期间改变动态 Adapter 版本/底层 multiplier，或最终 `isCurrent` 为假 | 整笔回滚；同一笔不混用两个 rateId，历史 used 不重算 |
 | S10 I | 普通 ERC-20 fee-on-transfer、rebasing、无返回值/返回 false、静默少转；wTSLAx 发送方额外扣费 | 有效标准返回值且双方 raw 差额精确才可通过；金额不等即回滚，不留下池欠款 |
-| S11 I | 用户持有 wTSLAx，但 issuer multiplier 在报价后变化；分别测试 raw 滑点通过/失败及执行时快照变化 | 成功交易仅按执行时实际 wTSLAx delta 计股，raw 限额按请求执行；快照在同笔变化则回滚；前端展示的股数预估不作为链上边界 |
-| S12 I | Router/LP Manager 非法回调、错 operationId/poolCurrency/owner/recipient、重入及故意遗留本次 wTSLAx 余额 | 全部拒绝或回滚；成功时上下文清空，Router/LP Manager 不留本笔资产 |
+| S11 I | 用户持有 wTSLAx，但 issuer multiplier 在报价后变化；分别测试 raw 滑点通过/失败及 `afterSwap` 快照变化 | 成功交易仅按 `afterSwap` 实际 wTSLAx delta 与当时快照计股，raw 限额按请求执行；快照在 Router 结算结束前变化则回滚；前端展示的股数预估不作为链上边界 |
+| S12 I | Router/LP Manager 非法回调、错 Swap 上下文/LP operationId/poolCurrency/owner/recipient、重入及故意遗留本次 wTSLAx 余额 | 全部拒绝或回滚；成功时上下文清空，Router/LP Manager 不留本笔资产 |
 
 ### 3.4 LP、Receipt、暂停和强退
 
@@ -128,7 +128,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | G05 I | RecoveryCouncil 排期精确恢复、试图排普通升级/批次；Governor 排恢复；Guardian 取消受保护 ID | 只有 Council 的精确单项操作被保护；其余拒绝；受保护 ID 不可被 Guardian 取消，但未经当前 Guardian 对 operationId 批准不得执行，撤回批准后也不得执行 |
 | G06 I | 恢复中任一 Controller/Authority/角色步骤失败，以及完整成功轮换 | 失败全部回滚；成功同笔切换根权限，旧 Governor 立即失去业务 admin/普通 proposer/事故升级权，旧 Guardian 失去冻结/取消权 |
 | G07 I | Timelock 普通操作自调用 grantRole/revokeRole/renounceRole 修改受保护三角色，或直接调用恢复 setter | 全部拒绝；没有角色旁路 |
-| G08 I | 每个 TSV 代理升级前后保存 PoolKey、额度、报告/Swap nonce、暂停、position、Receipt；旧 `TokenConfig` 字段槽位不重排；升级后执行 wTSLAx 直结 Swap | 状态及权限位一致；已使用 nonce 保留、旧 `version="1"` 授权失效、新 `version="2"` 授权有效；禁止不兼容 layout 的候选实现进入发布清单 |
+| G08 I | 每个 TSV 代理升级前后保存 PoolKey、额度、报告、暂停、position、Receipt；旧 `TokenConfig` 字段槽位不重排；升级后执行 wTSLAx 直结 Swap | 状态及权限位一致；新 Router/Hook 布局不含 Swap nonce 或 `operationId` 状态；旧 `version="1"` 授权失效、新 `version="2"` 授权有效；禁止不兼容 layout 的候选实现进入发布清单 |
 | G09 I | D-35 GovernanceAnchor 提议同时切换 Timelock、BusinessAuthority、事故控制器；独立 Guardian 批准/撤回、坏互绑地址、未提名 Anchor、缺六代理允许名单、重复 epoch、旧根继续调用；候选代码哈希与升级布局由发布清单单独核验 | 仅完整的三地址组原子切换成功；失败不改变任何代理的治理根；成功后旧根失权，新根同时接管普通升级、事故升级和业务角色，原 PoolId、额度、仓位及强退能力不变 |
 
 ## 4. 三个外部协议的专项集成

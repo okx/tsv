@@ -109,7 +109,6 @@ struct SwapRequest {
     uint128 amountSpecified;
     uint128 limitAmount;
     uint160 sqrtPriceLimitX96;
-    uint256 nonce;
     uint64 deadline;
 }
 

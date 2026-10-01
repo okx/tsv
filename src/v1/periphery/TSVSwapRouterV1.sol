@@ -21,21 +21,14 @@ contract TSVSwapRouterV1 is TSVGoverned {
     error Unauthorized();
     error InvalidRequest();
     error InvalidPool();
-    error NonceUnavailable();
     error Expired();
     error SlippageExceeded();
     error SettlementMismatch();
     error Reentrancy();
 
     struct Active {
-        bytes32 operationId;
-        bytes32 requestHash;
         bytes32 poolId;
         address participant;
-        address currency0;
-        address currency1;
-        bool zeroForOne;
-        bool exactInput;
     }
 
     IPoolManager public poolManager;
@@ -44,10 +37,8 @@ contract TSVSwapRouterV1 is TSVGoverned {
     TSVHookV1 public hook;
     bool private entered;
     Active private active;
-    mapping(address => mapping(uint256 => bool)) public nonceUnavailable;
 
     event SwapExecuted(
-        bytes32 indexed operationId,
         bytes32 indexed poolId,
         address indexed participant,
         bool zeroForOne,
@@ -101,26 +92,23 @@ contract TSVSwapRouterV1 is TSVGoverned {
         return _swap(request);
     }
 
-    function activeSwapOperation(bytes32 operationId)
-        external
-        view
-        returns (bytes32 poolId, address participant, bool zeroForOne, bool exactInput)
-    {
-        if (active.operationId != operationId || operationId == 0) return (0, address(0), false, false);
-        return (active.poolId, active.participant, active.zeroForOne, active.exactInput);
+    function activeSwapContext() external view returns (bool isActive, bytes32 poolId, address participant) {
+        if (!entered || active.poolId == 0) return (false, 0, address(0));
+        return (true, active.poolId, active.participant);
     }
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
-        if (msg.sender != address(poolManager) || active.operationId == 0 || keccak256(data) != active.requestHash) {
+        if (msg.sender != address(poolManager) || !entered || active.poolId == 0) revert Unauthorized();
+        SwapRequest memory request = abi.decode(data, (SwapRequest));
+        if (PoolId.unwrap(request.key.toId()) != active.poolId || request.participant != active.participant) {
             revert Unauthorized();
         }
-        SwapRequest memory request = abi.decode(data, (SwapRequest));
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams(
             request.zeroForOne,
             request.exactInput ? -int256(uint256(request.amountSpecified)) : int256(uint256(request.amountSpecified)),
             request.sqrtPriceLimitX96
         );
-        BalanceDelta delta = poolManager.swap(request.key, params, abi.encode(active.operationId));
+        BalanceDelta delta = poolManager.swap(request.key, params, bytes(""));
         int128 inDelta = request.zeroForOne ? delta.amount0() : delta.amount1();
         int128 outDelta = request.zeroForOne ? delta.amount1() : delta.amount0();
         if (inDelta >= 0 || outDelta <= 0) revert SlippageExceeded();
@@ -134,36 +122,23 @@ contract TSVSwapRouterV1 is TSVGoverned {
 
         _settle(request.key.currency0, delta.amount0(), request.participant);
         _settle(request.key.currency1, delta.amount1(), request.participant);
-        hook.assertCurrentAndClear(active.operationId);
+        hook.assertCurrentAndClear();
         return abi.encode(actualIn, actualOut, delta);
     }
 
     function _swap(SwapRequest calldata request) private returns (uint256 actualIn, uint256 actualOut) {
-        bytes32 poolId = _validateAndConsume(request);
-        bytes32 operationId =
-            keccak256(abi.encode(block.chainid, address(this), request.participant, request.nonce, poolId));
-        active = Active(
-            operationId,
-            keccak256(abi.encode(request)),
-            poolId,
-            request.participant,
-            Currency.unwrap(request.key.currency0),
-            Currency.unwrap(request.key.currency1),
-            request.zeroForOne,
-            request.exactInput
-        );
+        bytes32 poolId = _validate(request);
+        active = Active(poolId, request.participant);
         bytes memory result = poolManager.unlock(abi.encode(request));
         BalanceDelta delta;
         (actualIn, actualOut, delta) = abi.decode(result, (uint256, uint256, BalanceDelta));
         (bool exists, uint32 day) = ledger.currentTradeDay();
         if (!exists) revert InvalidPool();
-        emit SwapExecuted(
-            operationId, poolId, request.participant, request.zeroForOne, delta.amount0(), delta.amount1(), day
-        );
+        emit SwapExecuted(poolId, request.participant, request.zeroForOne, delta.amount0(), delta.amount1(), day);
         delete active;
     }
 
-    function _validateAndConsume(SwapRequest calldata request) private returns (bytes32 poolId) {
+    function _validate(SwapRequest calldata request) private view returns (bytes32 poolId) {
         if (block.timestamp > request.deadline) revert Expired();
         if (
             request.participant == address(0) || request.participant != msg.sender
@@ -178,8 +153,6 @@ contract TSVSwapRouterV1 is TSVGoverned {
         if (keccak256(abi.encode(pool.key)) != keccak256(abi.encode(request.key))) revert InvalidPool();
         (bool dayExists,) = ledger.currentTradeDay();
         if (!dayExists) revert InvalidPool();
-        if (nonceUnavailable[request.participant][request.nonce]) revert NonceUnavailable();
-        nonceUnavailable[request.participant][request.nonce] = true;
     }
 
     function _settle(Currency currency, int128 delta, address participant) private {

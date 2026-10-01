@@ -41,6 +41,6 @@
 
 ## 3. 本地验证记录
 
-2026-10-01 本地完整套件记录为 **62 个通过、0 个失败、0 个跳过**。覆盖包括 participant 直接调用与 nonce、双侧异常扣费回滚、SBT 故障、六代理 CREATE/CREATE2 地址预测、Anchor 双批准迁移和旧根失权、事故升级名单拒绝列表外代理与伪造候选 Anchor，以及 256 组 ERC-8056 反算 fuzz。via-IR 构建将 Registry 控制在 EIP-170 限制以内。
+2026-10-01 Swap 上下文简化前，本地完整套件记录为 **62 个通过、0 个失败、0 个跳过**。覆盖包括 participant 直接调用与旧 Router nonce、双侧异常扣费回滚、SBT 故障、六代理 CREATE/CREATE2 地址预测、Anchor 双批准迁移和旧根失权、事故升级名单拒绝列表外代理与伪造候选 Anchor，以及 256 组 ERC-8056 反算 fuzz。此记录不验证当前移除 Swap `operationId`/请求 nonce 后的代码；改动后的测试尚未运行。合约未部署，因此当前 Router/Hook 布局按新实现直接定义，不保留旧 Swap 专用槽。
 
 这些记录证明当时本地源码的执行结果，不替代真实 wTSLAx、SBT、发行方代理、固定区块 fork、目标链部署和独立审计。当前测试命令及每项目标覆盖见[测试规格](./TEST_SPEC_V1.md)。

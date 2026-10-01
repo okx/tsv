@@ -255,7 +255,7 @@ contract TSVProtocolLocalTest is Test {
         assertTrue(registry.isTradable(poolId));
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         uint256 beforeUsed = ledger.used(SECURITY, DAY);
-        SwapRequest memory request = _swapRequest(stockInput, 1e18, 1);
+        SwapRequest memory request = _swapRequest(stockInput, 1e18);
         vm.prank(alice);
         (uint256 actualIn, uint256 actualOut) = router.swapExactInput(request);
         assertGt(actualIn, 0);
@@ -288,7 +288,7 @@ contract TSVProtocolLocalTest is Test {
 
     function testRealV4StockOutputCountsNetReceived() public {
         bool stockIsCurrency0 = address(stock) == Currency.unwrap(key.currency0);
-        SwapRequest memory request = _swapRequest(!stockIsCurrency0, 1e18, 2);
+        SwapRequest memory request = _swapRequest(!stockIsCurrency0, 1e18);
         vm.prank(alice);
         (, uint256 actualOut) = router.swapExactInput(request);
         assertEq(ledger.used(SECURITY, DAY), actualOut);
@@ -302,11 +302,10 @@ contract TSVProtocolLocalTest is Test {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
         vm.prank(alice);
-        router.swapExactInput(_swapRequest(quoteIsCurrency0, 1e18, 701));
+        router.swapExactInput(_swapRequest(quoteIsCurrency0, 1e18));
         assertEq(quote.balanceOf(alice), quoteBefore);
         assertEq(quote.balanceOf(address(manager)), managerQuoteBefore);
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
-        assertFalse(router.nonceUnavailable(alice, 701));
     }
 
     function testSwapRevertsIfPoolLosesMoreThanOutputDelta() public {
@@ -317,30 +316,23 @@ contract TSVProtocolLocalTest is Test {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
         vm.prank(alice);
-        router.swapExactInput(_swapRequest(stockInput, 1e18, 702));
+        router.swapExactInput(_swapRequest(stockInput, 1e18));
         assertEq(quote.balanceOf(alice), quoteBefore);
         assertEq(quote.balanceOf(address(manager)), managerQuoteBefore);
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
-        assertFalse(router.nonceUnavailable(alice, 702));
     }
 
     function testSwapMustBeSubmittedByParticipant() public {
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
-        SwapRequest memory request = _swapRequest(stockInput, 1e18, 903);
+        SwapRequest memory request = _swapRequest(stockInput, 1e18);
 
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
         router.swapExactInput(request);
-        assertFalse(router.nonceUnavailable(alice, 903));
 
         vm.prank(alice);
         (uint256 actualIn, uint256 actualOut) = router.swapExactInput(request);
         assertGt(actualIn, 0);
         assertGt(actualOut, 0);
-        assertTrue(router.nonceUnavailable(alice, 903));
-
-        vm.expectRevert(TSVSwapRouterV1.NonceUnavailable.selector);
-        vm.prank(alice);
-        router.swapExactInput(request);
     }
 
     function testContractWalletCanDirectlySubmitSwap() public {
@@ -352,7 +344,7 @@ contract TSVProtocolLocalTest is Test {
         wallet.approveToken(address(quote), address(router));
 
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
-        SwapRequest memory request = _swapRequest(stockInput, 1e18, 904);
+        SwapRequest memory request = _swapRequest(stockInput, 1e18);
         request.participant = address(wallet);
         request.payer = address(wallet);
         request.recipient = address(wallet);
@@ -360,7 +352,6 @@ contract TSVProtocolLocalTest is Test {
         (uint256 actualIn, uint256 actualOut) = wallet.swapExactInput(router, request);
         assertGt(actualIn, 0);
         assertGt(actualOut, 0);
-        assertTrue(router.nonceUnavailable(address(wallet), 904));
     }
 
     function testERC8056StockSwapBothWaysUsesDynamicUiMultiplier() public {
@@ -389,7 +380,7 @@ contract TSVProtocolLocalTest is Test {
         uint256 managerRawBefore = stock.balanceOf(address(manager));
         uint256 aliceUIBefore = stock.balanceOfUI(alice);
         vm.prank(alice);
-        (uint256 stockIn, uint256 quoteOut) = router.swapExactInput(_swapRequest(stockIsCurrency0, 1e18, 801));
+        (uint256 stockIn, uint256 quoteOut) = router.swapExactInput(_swapRequest(stockIsCurrency0, 1e18));
         assertGt(stockIn, 0);
         assertGt(quoteOut, 0);
         assertEq(aliceRawBefore - stock.balanceOf(alice), stockIn);
@@ -402,7 +393,7 @@ contract TSVProtocolLocalTest is Test {
         aliceUIBefore = stock.balanceOfUI(alice);
         usedBefore = ledger.used(SECURITY, DAY);
         vm.prank(alice);
-        (uint256 quoteIn, uint256 stockOut) = router.swapExactInput(_swapRequest(!stockIsCurrency0, 1e18, 802));
+        (uint256 quoteIn, uint256 stockOut) = router.swapExactInput(_swapRequest(!stockIsCurrency0, 1e18));
         assertGt(quoteIn, 0);
         assertGt(stockOut, 0);
         assertEq(stock.balanceOf(alice) - aliceRawBefore, stockOut);
@@ -498,7 +489,7 @@ contract TSVProtocolLocalTest is Test {
 
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         vm.prank(alice);
-        router.swapExactInput(_swapRequest(stockInput, 1e18, 90));
+        router.swapExactInput(_swapRequest(stockInput, 1e18));
         uint256 usedAfterSwap = ledger.used(SECURITY, DAY);
         assertGt(usedAfterSwap, usedBefore);
         vm.startPrank(alice);
@@ -513,7 +504,7 @@ contract TSVProtocolLocalTest is Test {
 
     function testExactOutputRequiresFullDelivery() public {
         bool stockIsCurrency0 = address(stock) == Currency.unwrap(key.currency0);
-        SwapRequest memory request = _swapRequest(stockIsCurrency0, 1e18, 3);
+        SwapRequest memory request = _swapRequest(stockIsCurrency0, 1e18);
         request.exactInput = false;
         request.limitAmount = 2e18;
         uint256 usedBefore = ledger.used(SECURITY, DAY);
@@ -529,7 +520,7 @@ contract TSVProtocolLocalTest is Test {
         vm.warp(block.timestamp + 1);
 
         bool quoteIsCurrency0 = address(quote) == Currency.unwrap(key.currency0);
-        SwapRequest memory request = _swapRequest(quoteIsCurrency0, 1e18, 4);
+        SwapRequest memory request = _swapRequest(quoteIsCurrency0, 1e18);
         request.exactInput = false;
         request.limitAmount = 2e18;
         uint256 quoteBefore = quote.balanceOf(alice);
@@ -602,7 +593,7 @@ contract TSVProtocolLocalTest is Test {
         assertFalse(registry.isEligible(alice));
         vm.prank(alice);
         vm.expectRevert();
-        router.swapExactInput(_swapRequest(true, 1e18, 1));
+        router.swapExactInput(_swapRequest(true, 1e18));
         vm.expectRevert();
         lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
         sbt.setHolder(alice, false);
@@ -681,7 +672,7 @@ contract TSVProtocolLocalTest is Test {
         c.reviewHash = keccak256("review");
     }
 
-    function _swapRequest(bool zeroForOne, uint128 amount, uint256 nonce) private view returns (SwapRequest memory r) {
+    function _swapRequest(bool zeroForOne, uint128 amount) private view returns (SwapRequest memory r) {
         r.key = key;
         r.participant = alice;
         r.payer = alice;
@@ -691,7 +682,6 @@ contract TSVProtocolLocalTest is Test {
         r.amountSpecified = amount;
         r.limitAmount = 1;
         r.sqrtPriceLimitX96 = zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1;
-        r.nonce = nonce;
         r.deadline = uint64(block.timestamp + 100);
     }
 

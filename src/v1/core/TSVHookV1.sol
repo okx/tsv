@@ -15,10 +15,7 @@ import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
 
 interface IActiveSwapContextV1 {
-    function activeSwapOperation(bytes32 operationId)
-        external
-        view
-        returns (bytes32 poolId, address participant, bool zeroForOne, bool exactInput);
+    function activeSwapContext() external view returns (bool isActive, bytes32 poolId, address participant);
 }
 
 interface IActiveLPContextV1 {
@@ -54,7 +51,8 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     TSVVolumeLedgerV1 public ledger;
     address public router;
     address public lpManager;
-    mapping(bytes32 => SwapState) private swapStates;
+    // The V1 swap path allows exactly one active Router swap.
+    SwapState private activeSwapState;
 
     function initialize(
         address authority,
@@ -166,19 +164,15 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
     {
-        if (sender != router || hookData.length != 32) revert UnauthorizedCallback();
-        bytes32 operationId = abi.decode(hookData, (bytes32));
+        if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
         bytes32 poolId = PoolId.unwrap(key.toId());
-        (bytes32 activeId, address participant,,) = IActiveSwapContextV1(router).activeSwapOperation(operationId);
+        (bool isActive, bytes32 activePoolId, address participant) = IActiveSwapContextV1(router).activeSwapContext();
         if (
-            activeId != poolId || participant == address(0) || swapStates[operationId].poolId != 0
+            !isActive || activePoolId != poolId || participant == address(0) || activeSwapState.poolId != 0
                 || !registry.isTradable(poolId)
         ) revert InvalidOperation();
         _requireExactKey(key, poolId);
-        SwapState storage state = swapStates[operationId];
-        state.poolId = poolId;
-        state.rate0 = _snapshot(Currency.unwrap(key.currency0));
-        state.rate1 = _snapshot(Currency.unwrap(key.currency1));
+        activeSwapState.poolId = poolId;
         return (IHooks.beforeSwap.selector, BeforeSwapDelta.wrap(0), 0);
     }
 
@@ -189,25 +183,26 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         BalanceDelta delta,
         bytes calldata hookData
     ) external override onlyPoolManager returns (bytes4, int128) {
-        if (sender != router || hookData.length != 32) revert UnauthorizedCallback();
-        bytes32 operationId = abi.decode(hookData, (bytes32));
-        SwapState storage state = swapStates[operationId];
+        if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
+        SwapState storage state = activeSwapState;
         if (state.poolId == 0 || state.poolId != PoolId.unwrap(key.toId()) || state.accounted) {
             revert InvalidOperation();
         }
+        state.rate0 = _snapshot(Currency.unwrap(key.currency0));
+        state.rate1 = _snapshot(Currency.unwrap(key.currency1));
         ledger.recordSwap(state.poolId, delta.amount0(), delta.amount1(), state.rate0, state.rate1);
         state.accounted = true;
         return (IHooks.afterSwap.selector, 0);
     }
 
-    function assertCurrentAndClear(bytes32 operationId) external {
+    function assertCurrentAndClear() external {
         if (msg.sender != router) revert UnauthorizedCallback();
-        SwapState storage state = swapStates[operationId];
+        SwapState storage state = activeSwapState;
         if (!state.accounted || state.poolId == 0) revert InvalidOperation();
         PoolConfig memory pool = registry.getPool(state.poolId);
         _assertCurrent(Currency.unwrap(pool.key.currency0), state.rate0);
         _assertCurrent(Currency.unwrap(pool.key.currency1), state.rate1);
-        delete swapStates[operationId];
+        delete activeSwapState;
     }
 
     function beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)

@@ -214,7 +214,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - 一次 LP 开仓、部分减仓、关闭和强退的 Receipt/余额变化。
 - 一个拒绝用例：SBT 无资格、SBT paused、缺 ADTV、TokenStatus 非 APPROVED、旧 TSLAx 结算配置。
 
-所有失败用例都必须证明用户、PoolManager、仓位、Receipt、usedWad 和 nonce 回到交易前状态。
+所有失败用例都必须证明用户、PoolManager、仓位、Receipt 和 usedWad 回到交易前状态。
 
 ## 8. 交付物和停止条件
 
@@ -259,7 +259,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 ### 9.3 执行后核验
 
 - 核对 Anchor `epoch` 增加 1、六代理的 `businessAuthority()` / `upgradeTimelock()` / `emergencyUpgradeController()` 同时切换；旧 Timelock/Controller 对任一代理升级应回滚，新 Timelock 的受控测试排期应能执行。
-- 核对 Registry 的 Token/Pool/暂停、Ledger 用量、Router nonce、LP 仓位和 Receipt 未变化；测试原 owner 强退仍可按 `minOut` 原子执行。
+- 核对 Registry 的 Token/Pool/暂停、Ledger 用量、LP 仓位和 Receipt 未变化；测试原 owner 强退仍可按 `minOut` 原子执行。
 - 旧 Timelock 已排期操作不转移到新 Timelock。旧操作虽可能还能在旧合约内执行，但不能再通过六代理的 UUPS 授权。继续监控旧合约事件和外部依赖。
 - 更新部署 manifest、索引器治理地址和事故 runbook，再按业务审批解除暂停。
 

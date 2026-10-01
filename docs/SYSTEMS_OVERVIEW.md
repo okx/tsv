@@ -84,10 +84,10 @@ flowchart LR
 
 ### 2.1 Swap：授权、执行、计量、结算
 
-1. **提交请求。**用户通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。Router 要求 `msg.sender == participant == payer == recipient`，并绑定 PoolKey、金额边界、nonce 和 deadline。
+1. **提交请求。**用户通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。Router 要求 `msg.sender == participant == payer == recipient`，并绑定 PoolKey、金额边界和 deadline。
 2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：它调用 Registry 的 `isEligible` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户也会经 Registry 查询资格和池状态。
-3. **在 V4 中执行。**Router 通过官方 [PoolManager](../lib/v4-core/src/PoolManager.sol) 发起 Swap。PoolManager 调用 [TSVHookV1](../src/v1/core/TSVHookV1.sol)；Hook 校验调用上下文、池和运行状态，并在交易前保存股票腿的 LegalShareAdapter 快照。
-4. **按实际成交量计量。**Hook 根据 PoolManager 返回的实际 Swap delta 调用 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)。Ledger 用交易时快照将股票 Currency 的 raw 数量换算为 `legalSharesWad`，按 `(securityId, tradeDayId)` 更新全平台共享用量，并检查当日有效上限。
+3. **在 V4 中执行。**Router 通过官方 [PoolManager](../lib/v4-core/src/PoolManager.sol) 发起 Swap。PoolManager 调用 [TSVHookV1](../src/v1/core/TSVHookV1.sol)；Hook 校验唯一活跃上下文、池和运行状态。Router 非重入锁保证同一时刻只有一笔 Swap，不使用 Swap `operationId`。
+4. **按实际成交量计量。**`afterSwap` 收到实际 delta 后读取股票腿的 LegalShareAdapter 快照，并将实际 raw 数量与该快照交给 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)，换算为 `legalSharesWad`，按 `(securityId, tradeDayId)` 更新全平台共享用量，并检查当日有效上限。Router 完成资产结算后，Hook 再确认快照仍有效并清理单笔上下文。
 5. **原子结算。**Router 直接以池内 ERC-20 Currency 和用户结算。交易门禁、计股、额度检查或精确余额校验任一失败，整笔交易回滚，成交和账本不会只成功一半。
 
 当前 V1 是单池直接结算路径；用户直接支付和接收 `PoolKey` 中的池内 Currency。Tesla 目标池直接使用 wTSLAx，TSLAx 不在 TSV 同笔交易中包装或赎回。股票腿和普通报价币腿的计量方式不同：报价币不占证券额度；一个合格池最多有一侧是股票。
@@ -126,7 +126,6 @@ struct SwapRequest {
     uint128 amountSpecified;
     uint128 limitAmount;
     uint160 sqrtPriceLimitX96;
-    uint256 nonce;
     uint64 deadline;
 }
 ```
@@ -142,7 +141,6 @@ struct SwapRequest {
 | `amountSpecified` | `uint128` | 使用池内 Currency 的 raw 最小单位，不是股数。精确输入时表示目标/上限输入量；精确输出时表示必须完整得到的输出量。必须大于零且不超过 `int128.max`。 |
 | `limitAmount` | `uint128` | 交易滑点界限，单位同样是池内 Currency 的 raw 最小单位。精确输入时为最小输出量；精确输出时为最大输入量；必须大于零。 |
 | `sqrtPriceLimitX96` | `uint160` | V4 的价格停止边界，表示 Q64.96 格式的平方根价格。PoolManager 按交易方向校验该边界；到达边界可能令精确输入部分成交，但精确输出若未达到目标会回滚。 |
-| `nonce` | `uint256` | participant 名下的一次性序号；成功交易后消费，回滚的交易不会消费 nonce。 |
 | `deadline` | `uint64` | Unix 秒时间戳。执行时若 `block.timestamp > deadline`，请求过期并回滚。 |
 
 #### 嵌套结构参数
@@ -195,13 +193,12 @@ Receipt 是 LP 仓位凭证，不可转让；普通 LP 操作检查用户 SBT �
 
 | 合约 | 直接查询入口 | 含义 |
 | --- | --- | --- |
-| SwapRouter | `nonceUnavailable(address participant, uint256 nonce)` | 查询该 participant 的 nonce 是否已经被成功 Swap 消费。 |
 | SwapRouter | `poolManager()`、`registry()`、`ledger()`、`hook()` | 查询 Router 绑定的组件地址。 |
 | LPManager | `getPosition(uint256 positionId) returns (Position memory)` | 读取仓位 owner、PoolKey、ticks、salt、流动性和 active 状态。 |
 | LPManager | `ownerOf(uint256 tokenId)`、`balanceOf(address owner)`、`tokenURI(uint256 tokenId)`、`name()`、`symbol()`、`getApproved(uint256 tokenId)`、`isApprovedForAll(address owner, address operator)`、`supportsInterface(bytes4 interfaceId)` | ERC-721 Receipt 标准查询；`tokenURI` 对有效 Receipt 返回空字符串；Receipt 不可转让，approve 查询通常为零/false。 |
 | LPManager | `poolManager()`、`registry()`、`nextPositionId()`、`nextOperationNonce()` | 查询绑定的 PoolManager、Registry、下一个仓位编号和下一个 LP 操作序号。 |
 | LPManager（协议上下文） | `activeLPContext(bytes32 operationId)` | 仅在 LP Manager 的活跃 PoolManager 操作上下文中供 Hook 核对，不是普通用户读取入口。 |
-| SwapRouter（协议上下文） | `activeSwapOperation(bytes32 operationId) returns (bytes32 poolId, address participant, bool zeroForOne, bool exactInput)` | 仅在 Router 的活跃 Swap 上下文中供 Hook 核对，不是普通用户读取入口。 |
+| SwapRouter（协议上下文） | `activeSwapContext() returns (bool isActive, bytes32 poolId, address participant)` | 仅在 Router 的单笔活跃 Swap 上下文中供 Hook 核对，不是普通用户操作入口。 |
 
 Receipt 的 `approve(address,uint256)`、`setApprovalForAll(address,bool)`、`transferFrom(address,address,uint256)`、`safeTransferFrom(address,address,uint256)` 和 `safeTransferFrom(address,address,uint256,bytes)` 均可在 ABI 层调用，但会回滚 `NonTransferable()`；它们不是可成功执行的业务操作。
 
@@ -779,7 +776,7 @@ TimelockController 继承的 `updateDelay(uint256 newDelay)` selector 也存在�
 
 ### 7.4 ABI 范围说明
 
-本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Router 调用 Hook 的 `assertCurrentAndClear(bytes32)`；Hook 调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`；以及 Timelock/Anchor 在恢复和初次绑定期间调用的 `bindBusinessAuthority(...)`、`bindEmergencyController(...)`、`bindGovernanceAnchor(...)`、`activateGovernanceAnchor(...)`、`nominateGovernanceAnchor(...)`、`syncGuardian(...)`、`recoverGovernor(...)`、`setGovernor(...)`、`setGuardian(...)`。Adapter 的快照/换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Timelock 执行时的人类治理目标函数已在 §4.2 单独标为 Timelock 目标调用。
+本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Router 调用 Hook 的 `assertCurrentAndClear()`；Hook 调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`；以及 Timelock/Anchor 在恢复和初次绑定期间调用的 `bindBusinessAuthority(...)`、`bindEmergencyController(...)`、`bindGovernanceAnchor(...)`、`activateGovernanceAnchor(...)`、`nominateGovernanceAnchor(...)`、`syncGuardian(...)`、`recoverGovernor(...)`、`setGovernor(...)`、`setGuardian(...)`。Adapter 的快照/换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Timelock 执行时的人类治理目标函数已在 §4.2 单独标为 Timelock 目标调用。
 
 LP Receipt 继承的转移/授权 selector 虽在 ABI 中存在，但会回滚，见 §2.6。部署工厂 `TSVHookProxyFactory.predict(address implementation, bytes initData, bytes32 salt)` / `deploy(address implementation, bytes initData, bytes32 salt)` 属于部署工具，不属于交易、运营或治理业务入口。
 

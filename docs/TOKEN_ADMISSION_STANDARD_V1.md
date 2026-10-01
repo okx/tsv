@@ -31,7 +31,7 @@ V4 的 `sync/settle/take` 和 Hook delta 都使用 Currency 的 raw 单位。改
 
 ## 3. 股票成交股数
 
-每个股票 Currency 绑定**一套**经审查、版本化的 `LegalShareAdapter`；非股票配对币不绑定。Adapter 以 `beforeSwap` 快照和成功 Swap 股票腿的**实际 V4 raw delta**正向换算为非零 `legalSharesWad`。输入腿按当前已选的含费 caller 总支出、输出腿按净收到计股；LP、单纯 ERC-20 转账或发行方在 TSV 外的包装/赎回不计为 TSV Swap。此技术口径仍须发行方与法务书面确认，不能直接称为 SEC 批准。
+每个股票 Currency 绑定**一套**经审查、版本化的 `LegalShareAdapter`；非股票配对币不绑定。Adapter 以 `afterSwap` 读取的快照和成功 Swap 股票腿的**实际 V4 raw delta**正向换算为非零 `legalSharesWad`。输入腿按当前已选的含费 caller 总支出、输出腿按净收到计股；LP、单纯 ERC-20 转账或发行方在 TSV 外的包装/赎回不计为 TSV Swap。此技术口径仍须发行方与法务书面确认，不能直接称为 SEC 批准。
 
 `LegalShareAdapter` 可以使用固定参数，也可以读取发行方链上状态；Registry 不要求登记某种比例类型。Adapter 按获批公式和舍入规则提供交易快照、正向 `toLegalShares` 及只读 `rawForLegalShares`。快照不可读取、公式不可复算、读取 gas 过高、结果为零或交易内快照变化时，交易回滚；历史成交不因后续系数变化重算。用户股数输入仍由前端换算为现有 raw 参数。
 

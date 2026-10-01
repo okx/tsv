@@ -104,7 +104,7 @@ Registry 使用 `mapping(address poolCurrency => TokenConfig)`；不再维护用
 
 ## 3. 法定股数 Adapter
 
-`ILegalShareAdapter` 的规范接口为 `poolCurrency()`、`adapterVersion()`、`snapshot(address poolCurrency)`、`toLegalShares(address poolCurrency, uint256 rawAmount, RateSnapshot calldata)`、`rawForLegalShares(address poolCurrency, uint256 legalSharesWad, RateSnapshot calldata, RawBoundMode)` 和 `isCurrent(address poolCurrency, RateSnapshot calldata)`。注册模型不区分固定比例或链上动态公式；Registry 只绑定一个负责计股公式与舍入的 Adapter。Hook 在 `beforeSwap` 自己读取快照，`afterSwap` 用同一快照换算，Router 结算结束前要求 `isCurrent == true`。`numerator/denominator` 均大于零，所有乘除用 512 位 `mulDiv`；结果零、溢出或 `isCurrent == false` 均回滚。事件记录 `rateId`、版本、原始数量、舍入模式和换算结果。
+`ILegalShareAdapter` 的规范接口为 `poolCurrency()`、`adapterVersion()`、`snapshot(address poolCurrency)`、`toLegalShares(address poolCurrency, uint256 rawAmount, RateSnapshot calldata)`、`rawForLegalShares(address poolCurrency, uint256 legalSharesWad, RateSnapshot calldata, RawBoundMode)` 和 `isCurrent(address poolCurrency, RateSnapshot calldata)`。注册模型不区分固定比例或链上动态公式；Registry 只绑定一个负责计股公式与舍入的 Adapter。Hook 在 `afterSwap` 收到实际 delta 后读取快照，并用同一快照换算；Router 结算结束前要求 `isCurrent == true`。`numerator/denominator` 均大于零，所有乘除用 512 位 `mulDiv`；结果零、溢出或 `isCurrent == false` 均回滚。事件记录 `rateId`、版本、原始数量、舍入模式和换算结果。
 
 **D-36 接口状态。**`TokenConfig` 不存储比例值或比例类型；Registry 绑定经审查的 Adapter 地址、版本、运行代码哈希及策略／权益依据哈希。Adapter 可用不可变比例或发行方认可的链上状态计算；Registry 的配置或 Adapter 自报哈希均不能证明法律事实。`ERC8056LegalShareAdapter` 已实现本地标准 Token 的 `uiMultiplier()` 快照、正向计股和 raw 边界反算；其他发行方公式若无法用现有快照结构完整表达，须先评审并版本化扩展 ABI。前端直接读取发行方持仓权益并换算成现有 raw Swap/LP 参数，Router 和 LP Manager 不增加股数输入入口：
 
@@ -162,7 +162,6 @@ struct SwapRequest {
     uint128 amountSpecified;   // V4 输入/输出 Currency 的原始单位；须 <= int128.max
     uint128 limitAmount;       // exactInput 为最小输出；exactOutput 为最大输入
     uint160 sqrtPriceLimitX96;
-    uint256 nonce;
     uint64 deadline;
 }
 
@@ -172,23 +171,23 @@ function swapExactOutput(SwapRequest calldata request)
     external returns (uint256 actualIn, uint256 actualOut);
 ```
 
-两个入口分别要求 `exactInput == true/false`。Router 要求 `msg.sender == participant == payer == recipient != 0`，participant 通过 Registry 的 SBT 检查，并且 `(participant,nonce)` 尚未使用；成功 Swap 消费该 nonce，失败或回滚的交易不会消费。nonce 阻止同一 participant 复用相同 nonce 发起另一笔 Swap，并参与生成 operationId。合约钱包直接调用时，由钱包自身验证其 UserOperation/所有者授权；Router 不接受第三方代提交或用户签名。
+两个入口分别要求 `exactInput == true/false`。Router 要求 `msg.sender == participant == payer == recipient != 0`，participant 通过 Registry 的 SBT 检查。Router 不接受第三方代提交或用户签名，也不提供应用层请求 nonce；同一 participant 后续再次直接提交相同参数会作为一笔新的 Swap 校验并执行。合约钱包直接调用时，由钱包自身验证其 UserOperation/所有者授权。
 
 `amountSpecified > 0` 且不超过 `int128.max`；`limitAmount > 0`；deadline 未过。准入池最多一侧为股票，两种池内 Currency 的普通滑点由 `limitAmount` 约束。
 
 执行顺序固定如下：
 
-1. Router 非重入，核对 `msg.sender == participant == payer == recipient`、SBT `!paused() && verify(participant, tokenId)`、nonce、完整 PoolKey、Pool/Token/security 暂停、市场状态和 Ledger 当前数据。`sqrtPriceLimitX96` 须处于 V4 允许范围且方向正确。
-2. Router 生成 `operationId = keccak256(abi.encode(block.chainid, address(this), participant, nonce, poolId))`，保存只供本次调用读取的活跃上下文 `(operationId,poolId,participant,mode)`，调用 `PoolManager.unlock(abi.encode(operationId,request))`。`unlockCallback` 只接受 PoolManager，核对回调数据哈希与活跃上下文。一次 unlock 只调用一次 `swap`，`hookData = abi.encode(operationId)`。
-3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，所有回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、Hook/Router 上下文完全匹配，重新核对池、暂停和市场状态；SBT 资格由 Router 在进入 unlock 前检查。Hook 仅对股票 Currency 从 Registry 绑定的 `legalShareAdapter` 自行读取 `RateSnapshot` 并存入本次暂态上下文；配对币使用零快照且不调用股数 Adapter。返回零 Hook delta 与零费率覆盖。`afterSwap` 要求同一 PoolId、operationId 与未消费快照，从实际 `BalanceDelta` 解析 caller 输入/输出，任何一腿为零即回滚；股票腿按 §3 换算，在 Ledger 一次原子调用中记账，标记该上下文已计量但暂不删除快照；返回零 Hook delta。Hook 另提供 `assertCurrentAndClear(bytes32 operationId)`，仅当前 Router 可在已计量且结算完成时调用；未调用则 Router 操作不得成功结束。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
+1. Router 非重入，核对 `msg.sender == participant == payer == recipient`、SBT `!paused() && verify(participant, tokenId)`、完整 PoolKey、Pool/Token/security 暂停、市场状态和 Ledger 当前数据。`sqrtPriceLimitX96` 须处于 V4 允许范围且方向正确。
+2. Router 保存本次活跃上下文 `(poolId,participant)`，调用 `PoolManager.unlock(abi.encode(request))`。`unlockCallback` 只接受 PoolManager，并核对回调请求中的 PoolId 和 participant 与活跃上下文相同。一次 unlock 只调用一次 `swap`，`hookData` 为空；Router 的非重入状态保证同一时刻只有一笔活跃 Swap。
+3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，所有回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、Router 存在活跃上下文且 PoolId 匹配，重新核对池、暂停和市场状态，并仅记录本次池上下文；SBT 资格由 Router 在进入 unlock 前检查。`afterSwap` 要求相同 PoolId 且本次上下文尚未记账，从实际 `BalanceDelta` 解析两侧 raw 成交量，任何一腿为零即回滚；此时从 Registry 绑定的股票 `legalShareAdapter` 读取快照，并用实际成交 delta 和该快照换算，在 Ledger 一次原子调用中记账。配对币使用零快照且不调用股数 Adapter。Hook 标记上下文已计量但暂不删除；返回零 Hook delta 与零费率覆盖。Hook 提供无参数的 `assertCurrentAndClear()`，仅当前 Router 可在已计量且结算完成时调用；未调用则 Router 操作不得成功结束。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
 4. Router 对实际 delta 再验 `actualIn > 0 && actualOut > 0`。exact input 要求 `actualIn <= amountSpecified && actualOut >= limitAmount`，允许价格边界造成的部分成交；exact output 要求 `actualOut == amountSpecified && actualIn <= limitAmount`，任何部分成交回滚。按**实际**负 delta 直接从 participant 拉取对应 Currency，按实际正 delta 直接 `take` 同一 Currency 给 participant；两侧均核对发送方扣减、PoolManager 余额变化、接收方增加和 `settle()` 返回值。
-5. Router 调用 Hook `assertCurrentAndClear(operationId)`，Hook 确认已经计量且两侧股数快照仍当前后删除上下文；Router 清除自身上下文并消耗 nonce。任一检查失败整笔回滚。当前路径没有包装、赎回、底层 shares 转移或其他结算分流。
+5. Router 调用 Hook `assertCurrentAndClear()`，Hook 确认已经计量且股票腿快照在 Router 结算后仍当前，然后删除单笔活跃上下文；Router 清除自身上下文。任一检查失败整笔回滚。当前路径没有包装、赎回、底层 shares 转移或其他结算分流。
 
 **当前直接结算路径。**Registry 只登记实际池内 Currency；Router 使用单池 `swapExactInput/swapExactOutput` 与 raw `amountSpecified/limitAmount`，对实际负 delta 通过 `TSVDirectSettlementLib` 从 payer 拉取池内 Currency 并 `sync/settle`，对正 delta 直接 `take` 同一 Currency 给 recipient；每次核对发送方恰扣、接收方恰增。当前 ABI 不含结算模式或用户结算 Adapter。旧 `IssuerShareSettlementAdapter` 与接口仅在 `src/v1/legacy/` 保留，供隔离单元测试对照，不参与新 Swap。
 
-Swap 成功事件包含 `operationId,participant,poolId,zeroForOne,actualAmount0,actualAmount1,tradeDayId`。Hook/Ledger 的 `SwapAccounted` 对每个股票腿分别记录 `securityId,poolCurrency,inputSide,rawAmount,legalSharesWad,rateId,legalAdapterVersion,roundingMode`。交易哈希与 logIndex 由索引器取链上 receipt，不写进合约事件。升级若改变请求执行语义，须同步更新 ABI、客户端和回归用例；兼容升级保留 nonce 状态。
+Swap 成功事件包含 `participant,poolId,zeroForOne,actualAmount0,actualAmount1,tradeDayId`。Hook/Ledger 的 `SwapAccounted` 对每个股票腿分别记录 `securityId,poolCurrency,inputSide,rawAmount,legalSharesWad,rateId,legalAdapterVersion,roundingMode`。交易哈希与 logIndex 由索引器取链上 receipt，不写进合约事件。同一用户再次直接提交相同请求是独立 Swap，不做应用层幂等去重。
 
-**前端股数展示与 Swap 报价。**前端从 Registry 读取该股票 Currency 当前绑定的 `LegalShareAdapter`、版本和快照，通过只读正向／反向换算，结合发行方确认的账户权益规则显示用户持有股数和 raw 报价。前端以换算后的 raw 数量构造 `SwapRequest.amountSpecified`、`limitAmount`、价格限制和 deadline。账户总持仓的舍入规则可能与单笔 raw 成交换算不同，尤其是 TSLAx，前端须分别展示，不得把两者混用。V1 Router 无股数输入参数；报价后价格、余额或发行方系数变化可能改变实际股数，链上只保证已提交的 raw 与结算边界。成交股数由 Hook 按实际 V4 股票腿 delta 和执行时快照正向换算并记入 VolumeLedger，前端估值不写入额度。
+**前端股数展示与 Swap 报价。**前端从 Registry 读取该股票 Currency 当前绑定的 `LegalShareAdapter`、版本和快照，通过只读正向／反向换算，结合发行方确认的账户权益规则显示用户持有股数和 raw 报价。前端以换算后的 raw 数量构造 `SwapRequest.amountSpecified`、`limitAmount`、价格限制和 deadline。账户总持仓的舍入规则可能与单笔 raw 成交换算不同，尤其是 TSLAx，前端须分别展示，不得把两者混用。V1 Router 无股数输入参数；报价后价格、余额或发行方系数变化可能改变实际股数，链上只保证已提交的 raw 与结算边界。成交股数由 Hook 按 `afterSwap` 实际 V4 股票腿 delta 和此时读取的快照正向换算并记入 VolumeLedger，前端估值不写入额度。
 
 ## 6. LP、Receipt 与强退
 
@@ -326,7 +325,7 @@ function recoverGovernor(address expectedOldGovernor, address newGovernor, bytes
 
 `bindBusinessAuthority` 只能由 Timelock 自身普通排期调用，且只成功一次。`setUpgradeTarget/unfreezeEmergencyUpgrades` 只能由 Timelock 普通排期调用；`setUpgradeTarget` 只接受当前已绑定 Anchor，或候选迁移中仍与旧 Timelock 互相绑定的 Anchor 所列出的六个业务代理。`setGovernor/setGuardian/recoverGovernor` 同时检查 `msg.sender == Timelock` 和 `Timelock.recoveryContextActive()`，必须比较 expected old 地址；`recoverAuthorities` 是唯一协调入口。`recoveryContextActive()` 只在受保护恢复调用栈内为真，返回前清零。`freezeEmergencyUpgrades` 要求当前未冻结且 `freezeSalt != 0`；`executeEmergencyUpgrade` 要求当前未冻结。控制器部署时 `frozen=true, freezeEpoch=0, freezeId=0`，首次普通排期解冻使用 `expectedFreezeId=0` 与非零证据哈希；以后每次 Guardian 冻结都生成非零新 ID。以上身份均是地址，不检查地址背后的多签配置。
 
-代理升级、Adapter 更换和资产批准均须保留已有 PoolKey、已用日额度、Router nonce、暂停记录、LP 仓位/Receipt owner 与原 owner 交付路径。存储使用固定命名空间或经验证的追加布局；部署和每次升级须检查 layout、Hook 权限位、代理实现、角色、接口和历史仓位强退可达性。
+代理升级、Adapter 更换和资产批准均须保留已有 PoolKey、已用日额度、暂停记录、LP 仓位/Receipt owner 与原 owner 交付路径。存储使用固定命名空间或经验证的追加布局；部署和每次升级须检查 layout、Hook 权限位、代理实现、角色、接口和历史仓位强退可达性。
 
 ## 10. 规范事件与错误
 
@@ -348,7 +347,7 @@ QuotaAccepted(bytes32 indexed securityId,uint32 indexed tradeDayId,uint8 action,
 DayStartScheduled(uint32 indexed effectiveDayId,uint32 indexed transitionDayId,uint32 oldOffsetSeconds,uint32 newOffsetSeconds,uint64 effectiveStartUTC,address indexed operator,bytes32 reasonHash)
 DayStartCancelled(uint32 indexed effectiveDayId,address indexed operator,bytes32 reasonHash)
 SwapAccounted(bytes32 indexed poolId,bytes32 indexed securityId,address indexed poolCurrency,bool inputSide,uint32 tradeDayId,uint256 rawAmount,uint256 legalSharesWad,bytes32 rateId,uint32 legalAdapterVersion,uint8 roundingMode)
-SwapExecuted(bytes32 indexed operationId,bytes32 indexed poolId,address indexed participant,bool zeroForOne,int128 amount0,int128 amount1,uint32 tradeDayId)
+SwapExecuted(bytes32 indexed poolId,address indexed participant,bool zeroForOne,int128 amount0,int128 amount1,uint32 tradeDayId)
 PositionOpened(uint256 indexed positionId,address indexed owner,bytes32 indexed poolId,uint128 liquidity)
 PositionChanged(uint256 indexed positionId,uint128 oldLiquidity,uint128 newLiquidity)
 FeesCollected(uint256 indexed positionId,uint256 amount0,uint256 amount1)
@@ -366,7 +365,7 @@ BusinessGovernorRecovered(address indexed oldGovernor,address indexed newGoverno
 AuthoritiesRecovered(address indexed oldGovernor,address indexed newGovernor,address indexed newGuardian,bytes32 evidenceHash)
 ```
 
-Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecuted`，普通取消沿用 `Cancelled`；`AccessControl` 角色变更沿用 OZ `RoleGranted/RoleRevoked`，Receipt mint/burn 沿用 ERC-721 `Transfer`。`AuthoritiesRecovered` 由 Timelock 发出，`BusinessGovernorRecovered` 由 Authority 发出；Guardian 未变化时 `newGuardian` 等于原地址。跨合约共用 custom errors 至少固定：`Unauthorized()`、`InvalidConfig()`、`InvalidPool()`、`InvalidStatus()`、`SbtNotConfigured()`、`NonceUnavailable()`、`Expired()`、`MissingReport()`、`InvalidPeriod()`、`StaleSnapshot()`、`ZeroSwapAmount()`、`NoFees()`、`SlippageExceeded()`、`SettlementMismatch()`、`QuotaExceeded(bytes32 securityId,uint32 tradeDayId)`、`Paused(uint8 scope,bytes32 target)`、`InvalidPosition()`、`DeliveryFailed()`、`UpgradeFrozen()`、`ProtectedOperation(bytes32 operationId)`。外部发行方 revert 应原样冒泡或包装成带底层 selector 的 `DeliveryFailed`，但不能吞掉失败继续结算。
+Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecuted`，普通取消沿用 `Cancelled`；`AccessControl` 角色变更沿用 OZ `RoleGranted/RoleRevoked`，Receipt mint/burn 沿用 ERC-721 `Transfer`。`AuthoritiesRecovered` 由 Timelock 发出，`BusinessGovernorRecovered` 由 Authority 发出；Guardian 未变化时 `newGuardian` 等于原地址。跨合约共用 custom errors 至少固定：`Unauthorized()`、`InvalidConfig()`、`InvalidPool()`、`InvalidStatus()`、`SbtNotConfigured()`、`Expired()`、`MissingReport()`、`InvalidPeriod()`、`StaleSnapshot()`、`ZeroSwapAmount()`、`NoFees()`、`SlippageExceeded()`、`SettlementMismatch()`、`QuotaExceeded(bytes32 securityId,uint32 tradeDayId)`、`Paused(uint8 scope,bytes32 target)`、`InvalidPosition()`、`DeliveryFailed()`、`UpgradeFrozen()`、`ProtectedOperation(bytes32 operationId)`。外部发行方 revert 应原样冒泡或包装成带底层 selector 的 `DeliveryFailed`，但不能吞掉失败继续结算。
 
 ## 11. 部署输入和验收向量
 
@@ -407,8 +406,8 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 | VolumeLedger | `bindWriters(address hook,address dataInbox)` | Governor 仅可首次绑定；两个地址均须有代码。部署初始化入口，不可替换已绑定写入者 |
 | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId,bytes32 reasonHash)`、`cancelPendingDayStart(bytes32 reasonHash)` | 仅 Governor；未来边界排期、单次偏差上限与过渡日锁定按 §7 |
 | VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()`、`remaining(bytes32 securityId,uint32 tradeDayId)`、`used(bytes32 securityId,uint32 tradeDayId)` | 只读；初始化后 `currentTradeDay.exists == true`；ADTV 缺失时 `remaining` 返回无效标志 |
-| Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用、`assertCurrentAndClear(bytes32 operationId)` | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；finalize 仅当前 Router，且必须为已计量操作 |
-| Router | §5 两个 Swap 入口、`activeSwapOperation(bytes32)` | Swap 仅 participant 直接调用；nonce 仅在成功 Swap 后消费；上下文只读接口只在活跃操作内返回有效值 |
+| Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用、`assertCurrentAndClear()` | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；finalize 仅当前 Router，且必须为已计量操作 |
+| Router | §5 两个 Swap 入口、`activeSwapContext()` | Swap 仅 participant 直接调用；单笔活跃上下文由非重入锁约束，只在活跃调用期间供 Hook 读取 |
 | LP Manager | §6 七个 LP/建池入口、`activeLPContext(bytes32)`、ERC-721 `ownerOf/balanceOf/tokenURI/supportsInterface` | 建池仅 POOL_CREATOR；普通 LP 仅原 owner；强退两类专职角色；Receipt 的 mint/burn 仅由 LP 生命周期内部执行；所有转移和 approve 系列入口回滚；上下文只读，`tokenURI` 对有效 Receipt 返回空字符串 |
 | UpgradeTimelock/事故控制器/BusinessAuthority | `bindBusinessAuthority`、`bindEmergencyController`、§9 的 schedule/execute/cancel、冻结/解冻/即时升级、受保护恢复 | 精确 caller、目标、operationId、freezeId 和恢复上下文按 §9 |
 
