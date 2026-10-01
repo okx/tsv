@@ -3,7 +3,7 @@
 版本：1.0，2026-10-01  
 目标链：X Layer，chainId `196`
 
-本文是当前 V1 的**全新部署**清单。它解决的是部署顺序、地址绑定、配置完整性和发布后验收，不提供旧 TSV 实例迁移算法。
+本文是当前 V1 的**全新部署**清单。交易、运营和治理系统的业务流程见[三系统总览](./SYSTEMS_OVERVIEW.md)；本文负责部署顺序、地址绑定、配置完整性和发布后验收，不提供旧 TSV 实例迁移算法。
 
 ## 1. 部署边界
 
@@ -142,6 +142,8 @@ Hook.initialize(..., actualRouter, actualLpManager)
 2. `VolumeLedger.bindWriters(hook, dataInbox)`
 3. `GovernanceAnchor.bindProxies([registry, volumeLedger, dataInbox, hook, swapRouter, lpManager])`
 
+4. Anchor 六代理绑定成功后，由 Timelock 分别调用 `setUpgradeTarget(proxy, true)`，将六个业务代理加入事故升级名单。Controller 会拒绝 Anchor 列表以外的地址；首次部署的 Timelock 必须已经绑定该 Anchor。Controller 保持 `frozen = true`，直到事故升级单独通过启用验收。
+
 然后逐项读取：
 
 - Registry 的 `hook/lpManager/dataInbox`
@@ -186,22 +188,17 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - `REVOKE_EXIT_EXECUTOR_ROLE`
 - `FORCE_EXIT_ADMIN_ROLE`
 
-每个角色至少配置一个独立地址，并把地址写入 manifest。不得把“聚合器地址”直接当作用户资格地址；用户交易中的 `participant` 仍必须通过 Router 的签名和 SBT 校验。
+每个角色至少配置一个独立地址，并把地址写入 manifest。Router 要求用户交易由 `participant` 本人直接发起，并通过 Router 的 SBT 校验。
 
 ## 6. 资产、报告和池配置
 
-对每个资产按以下顺序执行：
+资产准入证据和实例边界以[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准；本节只列上线时的执行顺序：
 
-1. 登记 `securityId` 和 Tier。
-2. 登记 Pool Currency、`userToken == poolCurrency`、`DIRECT_ERC20` 和 LegalShareAdapter。
-3. 保持资产为 `UNREVIEWED`，完成代码、余额稳定性、精确转账、权益公式和法律证据审查。
-4. 提交资产批准证据并切换为 `APPROVED`。
-5. 提交 `INITIAL_OPEN` 或 `INITIAL_HALTED` 市场状态。
-6. 提交当前适用月份的 ADTV；日配额只在需要覆盖某一计量日硬上限时提交。
-7. 由 `POOL_CREATOR` 调用 `LPManager.initializePool`。该入口必须在同一交易中完成 Registry pending、V4 initialize 和 Registry active 三个步骤。
-8. 读取 PoolKey、PoolId、Hook 地址、初始价格和状态，写入 manifest。
-
-股票 Currency 与股票 Currency 不得组成交易对。Tesla 实例的池和用户只收付 wTSLAx，不能把 TSLAx 或 legacy Adapter 填入 `TokenConfig`。
+1. 登记 `securityId`、Tier、池内 Currency 和适用的 LegalShareAdapter；Token 初始保持 `UNREVIEWED`。
+2. 通过准入审查后，提交批准证据并将 Token 切换为 `APPROVED`。
+3. 提交初始市场状态和当前适用月份 ADTV；仅在需要覆盖某计量日硬上限时提交 quota。
+4. 由 `POOL_CREATOR` 调用 `LPManager.initializePool`。Registry pending、V4 initialize 和 Registry active 必须在同一交易完成。
+5. 核对 PoolKey、PoolId、Hook 地址、初始价格及状态，并写入 manifest。
 
 ## 7. 发布后最小验收
 
@@ -241,3 +238,31 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - 任一资产仍为 `UNREVIEWED` 却尝试建池
 - 使用了旧代理、旧 Receipt、旧 SBT Adapter 或 legacy Adapter
 - Router/LP/Hook 的循环地址未经过预测和实际地址比对
+
+## 9. 治理根迁移
+
+本节适用于六个业务代理已绑定同一固定 `TSVGovernanceAnchor` 后的治理根换址，不适用于首次部署。当前实现要求 RecoveryCouncil 提议，**当前 Guardian** 独立批准；治理三合约本身不是代理，每次换址都要部署新的 Timelock、BusinessAuthority 和 EmergencyUpgradeController。链上尚未部署，以下步骤须先在固定区块 fork 和发布候选实例上完整演练。
+
+### 9.1 迁移前准备
+
+1. 从 Anchor 读取 `epoch`、`guardianEpoch`、`guardian`、`recoveryCouncil`、当前三地址及 `proxies(0..5)`；六代理顺序固定为 Registry、Ledger、DataInbox、Hook、Router、LPManager。核对每个代理的 `governanceAnchor()` 和实际 ERC-1967 实现地址。
+2. 保存旧根的待执行 Timelock 操作与事故控制器状态。需要停交易时，先由独立 `EMERGENCY_PAUSER_ROLE` 暂停并保存交易哈希。迁移不会自动暂停或清理业务角色。
+3. 部署候选三合约，使候选 Timelock 的 Governor、Guardian、RecoveryCouncil 与候选 Authority/Controller 一致；新 Controller 保持 `frozen=true`。
+4. 候选 Timelock 自身排期并执行 `bindBusinessAuthority`、`bindEmergencyController`、`nominateGovernanceAnchor(anchor)`。再通过候选 Timelock 为六代理逐个执行 `setUpgradeTarget(proxy,true)`。读取核对所有绑定、角色、代码哈希和允许名单；候选代码哈希写入发布 manifest。Anchor 只验证可调用状态与相互绑定，不替代代码审计。
+
+### 9.2 双批准与原子执行
+
+1. RecoveryCouncil 调用 `anchor.proposeRoot(newTimelock,newAuthority,newController,salt,evidenceHash)`，记录返回的 proposal ID、当前两个 epoch、三地址和证据。
+2. 当前 Guardian 独立核对同一个 ID 后调用 `approveRoot(id)`。Guardian 可在执行前调用 `revokeRootApproval(id)`；Council 可调用 `cancelRoot(id)`。两种身份须独立控制。
+3. 任意执行者调用 `executeRoot(id)`。Anchor 再次检查三合约绑定、当前 Guardian/Council、候选 Controller 冻结和六代理升级允许名单，然后原子切换三地址并激活新 Timelock 的 Anchor 绑定。任一校验失败则全部回滚。
+
+### 9.3 执行后核验
+
+- 核对 Anchor `epoch` 增加 1、六代理的 `businessAuthority()` / `upgradeTimelock()` / `emergencyUpgradeController()` 同时切换；旧 Timelock/Controller 对任一代理升级应回滚，新 Timelock 的受控测试排期应能执行。
+- 核对 Registry 的 Token/Pool/暂停、Ledger 用量、Router nonce、LP 仓位和 Receipt 未变化；测试原 owner 强退仍可按 `minOut` 原子执行。
+- 旧 Timelock 已排期操作不转移到新 Timelock。旧操作虽可能还能在旧合约内执行，但不能再通过六代理的 UUPS 授权。继续监控旧合约事件和外部依赖。
+- 更新部署 manifest、索引器治理地址和事故 runbook，再按业务审批解除暂停。
+
+### 9.4 Governor / Guardian 身份恢复
+
+身份恢复不是三合约换址。RecoveryCouncil 只能排期精确的 `recoverAuthorities(newGovernor,newGuardian,evidenceHash)`；当前 Guardian 必须对该 Timelock operation ID 调用 `approveRecovery(id)`，否则任何 executor 都无法执行。Guardian 不能取消受保护排期，但可调用 `revokeRecoveryApproval(id)`。更换 Guardian 的同一交易会同步 Anchor Guardian 并递增 `guardianEpoch`，旧 Anchor 迁移提案因此失效。若 Council 与 Guardian 同时失联，当前 Anchor 没有链上后门恢复入口。

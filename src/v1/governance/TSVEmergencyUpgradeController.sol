@@ -7,6 +7,17 @@ interface ITSVImplementationView {
     function tsvImplementation() external view returns (address);
 }
 
+interface ITimelockAnchorView {
+    function governanceAnchor() external view returns (address);
+    function nominatedAnchor() external view returns (address);
+}
+
+interface IAnchorProxyListView {
+    function timelock() external view returns (address);
+    function proxiesBound() external view returns (bool);
+    function proxies(uint256 index) external view returns (address);
+}
+
 /// @notice Narrow immediate upgrade route for a pre-approved set of TSV proxies.
 contract TSVEmergencyUpgradeController {
     error Unauthorized();
@@ -45,8 +56,8 @@ contract TSVEmergencyUpgradeController {
     }
 
     function setUpgradeTarget(address proxy, bool allowed) external {
-        if (msg.sender != upgradeTimelock || proxy.code.length == 0) revert Unauthorized();
-        // A target must expose the fixed proxy-owned inspection selector.
+        if (msg.sender != upgradeTimelock) revert Unauthorized();
+        if (proxy.code.length == 0 || !_isBoundBusinessProxy(proxy)) revert InvalidOperation();
         ITSVImplementationView(proxy).tsvImplementation();
         upgradeTargetAllowed[proxy] = allowed;
         emit UpgradeTargetChanged(proxy, allowed);
@@ -64,8 +75,9 @@ contract TSVEmergencyUpgradeController {
         if (msg.sender != governor) revert Unauthorized();
         if (frozen) revert UpgradeFrozen();
         if (
-            !upgradeTargetAllowed[proxy] || newImplementation.code.length == 0 || incidentId == 0
-                || upgradeActionId == 0 || usedUpgradeActionId[upgradeActionId] || reasonCode == 0 || evidenceHash == 0
+            !upgradeTargetAllowed[proxy] || !_isBoundBusinessProxy(proxy) || newImplementation.code.length == 0
+                || incidentId == 0 || upgradeActionId == 0 || usedUpgradeActionId[upgradeActionId] || reasonCode == 0
+                || evidenceHash == 0
         ) revert InvalidOperation();
         address oldImplementation = ITSVImplementationView(proxy).tsvImplementation();
         if (oldImplementation == newImplementation || oldImplementation.code.length == 0) revert InvalidOperation();
@@ -118,5 +130,26 @@ contract TSVEmergencyUpgradeController {
         if (msg.sender != upgradeTimelock || !IRecoveryContext(upgradeTimelock).recoveryContextActive()) {
             revert Unauthorized();
         }
+    }
+
+    function _isBoundBusinessProxy(address proxy) private view returns (bool) {
+        ITimelockAnchorView timelock = ITimelockAnchorView(upgradeTimelock);
+        address anchor = timelock.governanceAnchor();
+        if (anchor == address(0)) {
+            anchor = timelock.nominatedAnchor();
+            if (anchor.code.length == 0) return false;
+            address currentTimelock = IAnchorProxyListView(anchor).timelock();
+            if (currentTimelock == address(0) || ITimelockAnchorView(currentTimelock).governanceAnchor() != anchor) {
+                return false;
+            }
+        }
+        if (anchor.code.length == 0) return false;
+
+        IAnchorProxyListView proxyList = IAnchorProxyListView(anchor);
+        if (!proxyList.proxiesBound()) return false;
+        for (uint256 i; i < 6; ++i) {
+            if (proxyList.proxies(i) == proxy) return true;
+        }
+        return false;
     }
 }

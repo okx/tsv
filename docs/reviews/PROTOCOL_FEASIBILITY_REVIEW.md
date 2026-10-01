@@ -4,7 +4,7 @@
 评审对象：[CONTRACT_ARCHITECTURE.md](../CONTRACT_ARCHITECTURE.md) v0.3  
 评审方式：独立评审身份只读核对本仓库三个外部协议源码；未运行编译、测试或链上部署验证。本文记录评审发现，不修改原架构决策。
 
-阅读定位：下文结论针对 **v0.3 历史架构稿**，不是当前文档的编码就绪判定。针对这些发现以及后续问答形成的 V1 具体 ABI、算法和状态规则，见[编码规格 v1.3](../CODING_SPEC_V1.md)；实际发行方代理和法律权益依据仍需生产核验。
+阅读定位：下文结论针对 **v0.3 历史架构稿**，不是当前文档的编码就绪判定。当前交易、运营和治理流程见[三系统总览](../SYSTEMS_OVERVIEW.md)；针对这些发现以及后续问答形成的 V1 具体 ABI、算法和状态规则，见[编码规格](../CODING_SPEC_V1.md)；实际发行方代理和法律权益依据仍需生产核验。
 
 本评审中 `0x3AE0` 是当时的 Hook 地址设计；后续已改为预留全部 14 位的 `0x3FFF`。当前位型与零 delta 行为以编码规格为准。
 
@@ -106,7 +106,7 @@ TSV Hook、Router、LP Manager 组合在 Uniswap V4 Core 上的总体方向**有
 
 后续问答另确认：同一适用月份内 ADTV 不变时不重复上链，日配额只在需要覆盖硬上限时提交；当前实现使用适用期间、签名有效期和自动 UTC 日切，不再依赖 SIP 日历窗口。新期间仍须提交新报告，更正须递增版本。用户同时确认 V1 资产范围为固定余额原币和经单位映射审查的 Wrapped Token；动态权益必须由 Adapter 按可验证快照计算，否则该实例不得准入。
 
-2026-09-30 的进一步设计将上一句“固定比率不能覆盖动态权益”的限制改为**有条件的动态 Adapter 方案**，现行规则见[代币准入标准](../TOKEN_ADMISSION_STANDARD_V1.md)及[TSLAx 实例](../TSLAX_INTEGRATION.md)。对本节审查的 TSLAx AutoFee 路径，V4 PoolManager 只持有 raw 余额稳定的发行方 Wrapped；Hook 在成交时读取发行方确认、链上可复算的法定股数函数。此扩展不推翻 F-01 对 AutoFee 原币直接入池的阻断结论。后续准入标准另允许 raw 余额稳定的 UI Multiplier 原币经审查直接入池并动态计股；实际发行方权益公式、舍入单位和 raw 精确转账未确认前，Wrapped 实例仍不能生产准入。
+2026-09-30 的进一步设计将上一句“固定比率不能覆盖动态权益”的限制改为**有条件的动态 Adapter 方案**，现行规则及 wTSLAx 实例边界统一见[代币准入标准](../TOKEN_ADMISSION_STANDARD_V1.md)。对本节审查的 TSLAx AutoFee 路径，V4 PoolManager 只持有 raw 余额稳定的发行方 Wrapped；Hook 在成交时读取发行方确认、链上可复算的法定股数函数。此扩展不推翻 F-01 对 AutoFee 原币直接入池的阻断结论。后续准入标准另允许 raw 余额稳定的 UI Multiplier 原币经审查直接入池并动态计股；实际发行方权益公式、舍入单位和 raw 精确转账未确认前，Wrapped 实例仍不能生产准入。
 
 随后的架构文档 v0.7/v0.8 曾讨论用户在同一交易中使用 TSLAx 并由 TSV 调用 wTSLAx 包装/赎回；该路径已被后续决策删除，只作为历史讨论保留。当前 Router/LP Manager 只直接收付池内 wTSLAx，V4 PoolManager 也只持有 wTSLAx。
 

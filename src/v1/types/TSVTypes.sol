@@ -3,16 +3,6 @@ pragma solidity 0.8.26;
 
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 
-enum AssetClass {
-    QUOTE_ERC20,
-    FIXED_BALANCE_STOCK,
-    ISSUER_WRAPPED_DYNAMIC,
-    ONCHAIN_DYNAMIC
-}
-enum SettlementMode {
-    DIRECT_ERC20,
-    ISSUER_SHARE_WRAPPED
-}
 enum TokenStatus {
     UNREVIEWED,
     APPROVED,
@@ -45,10 +35,6 @@ enum RoundingMode {
     FLOOR,
     CEIL
 }
-enum LegalShareMode {
-    STATIC_RATIO,
-    ONCHAIN_DYNAMIC
-}
 enum RawBoundMode {
     MIN_RAW_FOR_AT_LEAST_SHARES,
     MAX_RAW_FOR_AT_MOST_SHARES
@@ -63,25 +49,14 @@ enum LPOperationMode {
 }
 
 struct TokenConfig {
-    address userToken;
     address poolCurrency;
-    uint8 userDecimals;
     uint8 poolDecimals;
-    AssetClass assetClass;
     bytes32 securityId;
-    SettlementMode settlementMode;
-    address settlementAdapter;
-    uint32 settlementVersion;
     address legalShareAdapter;
     uint32 legalAdapterVersion;
-    uint256 sharesPerWholeTokenWad;
-    bytes32 ratioEvidenceHash;
     TokenStatus status;
-    bytes32 userRuntimeCodeHash;
     bytes32 poolRuntimeCodeHash;
-    bytes32 settlementAdapterCodeHash;
     bytes32 legalAdapterCodeHash;
-    bytes32 userImplementationHash;
     bytes32 poolImplementationHash;
     bytes32 reviewHash;
     bytes32 restrictionsHash;
@@ -103,13 +78,6 @@ struct PoolConfig {
     bytes32 securityId1;
     PoolStatus status;
     uint32 version;
-}
-
-struct AssetBounds {
-    uint256 maxSharesIn;
-    uint256 minSharesOut;
-    uint256 maxDisplayedDebit;
-    uint256 minDisplayedCredit;
 }
 
 struct RateSnapshot {
@@ -136,14 +104,11 @@ struct SwapRequest {
     address participant;
     address payer;
     address recipient;
-    address authorizedCaller;
     bool zeroForOne;
     bool exactInput;
     uint128 amountSpecified;
     uint128 limitAmount;
     uint160 sqrtPriceLimitX96;
-    AssetBounds bounds0;
-    AssetBounds bounds1;
     uint256 nonce;
     uint64 deadline;
 }
@@ -153,7 +118,5 @@ struct LPBounds {
     uint256 maxPoolIn1;
     uint256 minPoolOut0;
     uint256 minPoolOut1;
-    AssetBounds bounds0;
-    AssetBounds bounds1;
     uint64 deadline;
 }

@@ -13,7 +13,9 @@
 - **原审计发现 3 项条件性问题**：S-01 已修复；S-03 已为强退加入两侧最小收款检查；S-02 按用户决定由链下监控发现代币实现变化后触发 pause。
 - **测试**：最新重构后 `forge test --force --summary` 编译成功，52 项通过，0 失败。
 - **运营控制**：强退的两侧 raw `minPoolOut` 由运营调用方按执行时策略设定；隐私交易仍用于降低公开 mempool 的抢跑风险。
+- **后续实现变更**：本报告生成后，Swap Router 已改为 participant 直接调用；用户签名验签与第三方代提交路径已从当前实现移除。现行本地测试复跑结果为 23 项集成测试与 39 项单元测试通过，合计 62 项通过、0 失败；原审计中涉及 Router 签名授权的记载只描述旧源码，不代表当前 ABI。该回归不替代独立安全复审。
 - **审查边界**：本报告的原始代码审计结论针对重构前源码；本次抽库、合并 SBT/Receipt 和隔离旧结算路径已完成编译、测试及部署尺寸核验，但尚未替代独立完整安全复审。V1 已明确采用全新六代理实例组，不复用旧 Router/LP/Receipt/SBT Adapter 地址；部署顺序、Hook 循环地址和 SBT 配置校验以[全新部署清单](docs/DEPLOYMENT_CHECKLIST_V1.md)为准。
+- **文档定位**：交易、运营和治理的当前流程以[三系统总览](docs/SYSTEMS_OVERVIEW.md)为入口；本报告保留 2026-10-01 审计快照及其风险处置记录。
 - **本次审查不能证明“没有资金漏洞”**。静态审查和本地测试不能替代目标链部署核验、模糊/不变量测试、fork 测试及独立审计。
 
 优先处理：
@@ -27,7 +29,7 @@
 
 | 入口 | 权限与信任边界 | 资金相关路径 |
 |---|---|---|
-| `TSVSwapRouterV1.swapExactInput/Output` | 本人调用或 EIP-712 授权调用者；SBT、nonce、截止时间、池准入校验 | Router → PoolManager 解锁 → Hook 记账 → ERC20 双向结算 |
+| `TSVSwapRouterV1.swapExactInput/Output` | `msg.sender == participant == payer == recipient`；SBT、nonce、截止时间、池准入校验 | Router → PoolManager 解锁 → Hook 记账 → ERC20 双向结算 |
 | `TSVLPManagerV1` 开仓、调整、退出 | Receipt 持有人；强退需要专门角色 | Manager 代表 LP 持有 V4 仓位，资产结算给原持有人 |
 | `TSVDataInboxV1.submit*` | `msg.sender` 直接持有对应报告角色；sequence、reportId 和截止时间 | 影响市场状态、ADTV 与交易额度，不直接转移资产；报告不使用 EIP-712 或签名参数 |
 | 治理与 UUPS 升级 | Business Authority、Timelock、Emergency Controller | 可改变准入、权限和合约实现，属于最高信任边界 |
@@ -103,9 +105,9 @@ constructor(address implementation, bytes memory data) ERC1967Proxy(implementati
 
 - Router 与 LP Manager 对 ERC20 付款方和 PoolManager/收款方均校验实际余额变化恰好等于名义金额；现有测试覆盖发送方额外扣费回滚。
 - Hook 限定 PoolManager、Router、LP Manager 和已登记 PoolKey；直接从 PoolManager 发起 Swap 的测试回滚。
-- Swap 校验实际输入/输出、精确输出完整交付、签名授权、deadline、nonce 和参与者资格。
+- Swap 校验直接调用者、实际输入/输出、精确输出完整交付、deadline、nonce 和参与者资格。
 - LP Receipt 禁止转让；常规退出需原持有人，强退资产也发送给记录的原持有人。
-- 报告入口检查 `msg.sender` 角色、递增 sequence、reportId 重放和提交截止时间；Router 用户授权仍单独使用 EIP-712/ERC-1271。
+- 报告入口检查 `msg.sender` 角色、递增 sequence、reportId 重放和提交截止时间；Swap 由 participant 直接调用 Router。
 - 法律股数转换的静态及 ERC-8056 multiplier 路径有对应单元测试；登记路径当前只接受直接 ERC20 结算。旧 issuer-wrapped settlement adapter 不在当前 Router/LP 的可达资金路径中。
 
 S-02 运营控制依赖链下监控及时性；强退 minOut 是链上强制执行的调用参数，但具体风险下限由运营设定。隐私交易通道不能替代链上边界检查。
@@ -115,12 +117,12 @@ S-02 运营控制依赖链下监控及时性；强退 minOut 是链上强制执�
 | 维度 | 状态 | 覆盖与限制 |
 |---|---|---|
 | D1 注入 | ⏭️ 跳过 | 无 SQL、命令执行、模板或解释器调用面 |
-| D2 身份认证 | ✅ 已覆盖 | EIP-712 Swap 授权、报告直接角色检查、时效、nonce |
+| D2 身份认证 | ✅ 已覆盖 | Router 直接调用者、报告直接角色检查、时效、nonce |
 | D3 授权 | ✅ 已覆盖 | Swap/LP owner、PoolManager callback、报告角色、治理与 UUPS 权限 |
 | D4 反序列化 | ✅ 已覆盖 | 审查 ABI 解码与回调请求哈希绑定；未发现不可信任的复杂序列化对象入口 |
 | D5 文件操作 | ⏭️ 跳过 | 合约无文件系统操作 |
 | D6 SSRF | ⏭️ 跳过 | 合约无 HTTP/URL 请求 |
-| D7 密码学 | ⚠️ 部分 | 审查 Router EIP-712、SignatureChecker、nonce 和报告重放；DataInbox 不再有报告验签；未做密钥/凭据模式扫描及完整日志敏感数据扫描 |
+| D7 密码学 | ⚠️ 部分 | 当前 Swap 与报告入口不执行签名验签；未做密钥/凭据模式扫描及完整日志敏感数据扫描 |
 | D8 配置 | ✅ 已覆盖 | Foundry 编译配置、代理初始化、代币 runtime/implementation hash 准入逻辑 |
 | D9 业务逻辑 | ✅ 已覆盖 | Swap、LP、双边结算、额度、日切、强退与动态股数转换 |
 | D10 供应链 | ⚠️ 部分 | OpenZeppelin 5.5.0 有 soldeer.lock checksum；没有在线 CVE 核验。`lib/v4-core` 本地源码未锁定 Git commit |

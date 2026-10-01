@@ -8,16 +8,12 @@ import {
     TokenConfig,
     SecurityConfig,
     PoolConfig,
-    AssetClass,
-    SettlementMode,
     TokenStatus,
     PoolStatus,
     MarketStatus,
     MarketAction,
     PauseScope,
-    LegalShareMode,
-    RateSnapshot,
-    RoundingMode
+    RateSnapshot
 } from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
@@ -66,7 +62,6 @@ contract TSVRegistryV1 is TSVGoverned {
     mapping(bytes32 => bytes32) private symbolToSecurity;
     mapping(uint8 => TierPolicy) private tiers;
     mapping(address => TokenConfig) private tokens;
-    mapping(address => address) private currencyByUserToken;
     mapping(address => uint32) public activePoolCountByCurrency;
     mapping(bytes32 => PoolConfig) private pools;
     mapping(bytes32 => MarketStatus) private marketStatuses;
@@ -81,28 +76,14 @@ contract TSVRegistryV1 is TSVGoverned {
     event SecurityDelisted(bytes32 indexed securityId, bytes32 evidenceHash);
     event SecurityTierChanged(bytes32 indexed securityId, uint8 oldTierId, uint8 newTierId, bytes32 evidenceHash);
     event TierPolicyChanged(uint8 indexed tierId, uint16 tierBps, uint32 maxListed, bytes32 evidenceHash);
-    event TokenRegistered(
-        address indexed poolCurrency,
-        address indexed userToken,
-        bytes32 indexed securityId,
-        uint8 settlementMode,
-        uint32 settlementVersion,
-        bytes32 evidenceHash
-    );
+    event TokenRegistered(address indexed poolCurrency, bytes32 indexed securityId, bytes32 evidenceHash);
     event TokenStatusChanged(address indexed poolCurrency, uint8 oldStatus, uint8 newStatus, bytes32 evidenceHash);
-    event SettlementAdapterChanged(
-        address indexed poolCurrency,
-        address oldAdapter,
-        address newAdapter,
-        uint32 settlementVersion,
-        bytes32 evidenceHash
-    );
     event LegalShareAdapterChanged(
         address indexed poolCurrency,
         address oldAdapter,
         address newAdapter,
         uint32 legalAdapterVersion,
-        bytes32 policyHash
+        bytes32 evidenceHash
     );
     event PoolInitialized(
         bytes32 indexed poolId, uint160 sqrtPriceX96, address indexed creator, bytes32 priceBasisHash
@@ -228,53 +209,32 @@ contract TSVRegistryV1 is TSVGoverned {
 
     function registerToken(TokenConfig calldata config, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
         if (
-            config.userToken == address(0) || config.poolCurrency == address(0)
-                || config.status != TokenStatus.UNREVIEWED || config.settlementVersion != 1 || evidenceHash == 0
-                || tokens[config.poolCurrency].poolCurrency != address(0)
-                || currencyByUserToken[config.userToken] != address(0) || config.poolDecimals > 18
+            config.poolCurrency == address(0) || config.status != TokenStatus.UNREVIEWED || evidenceHash == 0
+                || tokens[config.poolCurrency].poolCurrency != address(0) || config.poolDecimals > 18
         ) revert InvalidConfig();
         if (
-            config.userToken.codehash != config.userRuntimeCodeHash
-                || config.poolCurrency.codehash != config.poolRuntimeCodeHash
-                || IERC20DecimalsV1(config.userToken).decimals() != config.userDecimals
+            config.poolCurrency.codehash != config.poolRuntimeCodeHash
                 || IERC20DecimalsV1(config.poolCurrency).decimals() != config.poolDecimals
         ) revert InvalidConfig();
-        if (
-            config.userToken != config.poolCurrency || config.settlementMode != SettlementMode.DIRECT_ERC20
-                || config.settlementAdapter != address(0) || config.settlementAdapterCodeHash != 0
-                || config.sharesPerWholeTokenWad != 0 || config.ratioEvidenceHash != 0
-        ) revert InvalidConfig();
-        if (config.assetClass == AssetClass.QUOTE_ERC20) {
+        if (config.securityId == 0) {
             if (
-                config.securityId != 0 || config.legalShareAdapter != address(0) || config.legalAdapterCodeHash != 0
+                config.legalShareAdapter != address(0) || config.legalAdapterCodeHash != 0
                     || config.legalAdapterVersion != 0 || config.legalSharePolicyHash != 0
             ) revert InvalidConfig();
         } else {
             if (
-                (config.assetClass != AssetClass.FIXED_BALANCE_STOCK && config.assetClass != AssetClass.ONCHAIN_DYNAMIC)
-                    || config.securityId == 0 || !securities[config.securityId].listed
+                !securities[config.securityId].listed || config.legalShareAdapter.code.length == 0
                     || config.legalAdapterVersion != 1 || config.legalSharePolicyHash == 0
                     || config.legalShareAdapter.codehash != config.legalAdapterCodeHash
                     || ILegalShareAdapter(config.legalShareAdapter).poolCurrency() != config.poolCurrency
                     || ILegalShareAdapter(config.legalShareAdapter).adapterVersion() != 1
-                    || ILegalShareAdapter(config.legalShareAdapter).legalShareMode()
-                        != _legalShareMode(config.assetClass)
             ) {
                 revert InvalidConfig();
             }
-            _validateLegalShareSnapshot(
-                config.legalShareAdapter,
-                config.poolCurrency,
-                config.poolDecimals,
-                _legalShareMode(config.assetClass),
-                config.legalAdapterVersion
-            );
+            _validateLegalShareSnapshot(config.legalShareAdapter, config.poolCurrency, config.legalAdapterVersion);
         }
         tokens[config.poolCurrency] = config;
-        currencyByUserToken[config.userToken] = config.poolCurrency;
-        emit TokenRegistered(
-            config.poolCurrency, config.userToken, config.securityId, uint8(config.settlementMode), 1, evidenceHash
-        );
+        emit TokenRegistered(config.poolCurrency, config.securityId, evidenceHash);
     }
 
     function setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)
@@ -293,18 +253,12 @@ contract TSVRegistryV1 is TSVGoverned {
             if (
                 config.reviewHash == 0 || (config.securityId != 0 && config.legalSharePolicyHash == 0)
                     || config.poolCurrency.codehash != config.poolRuntimeCodeHash
-                    || config.userToken.codehash != config.userRuntimeCodeHash
             ) revert InvalidConfig();
             if (config.securityId != 0 && !securities[config.securityId].listed) revert InvalidStatus();
         }
         TokenStatus old = config.status;
         config.status = status;
         emit TokenStatusChanged(currency, uint8(old), uint8(status), evidenceHash);
-    }
-
-    /// @dev Evidence must include an off-chain review of existing position exit compatibility.
-    function replaceSettlementAdapter(address, address, bytes32) external view onlyRole(SYMBOL_ADMIN_ROLE) {
-        revert InvalidConfig();
     }
 
     function replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)
@@ -317,31 +271,21 @@ contract TSVRegistryV1 is TSVGoverned {
                 || newAdapter.code.length == 0 || evidenceHash == 0 || !_assetPausedForReplacement(currency)
         ) revert InvalidConfig();
         uint32 nextVersion = config.legalAdapterVersion + 1;
-        LegalShareMode mode = ILegalShareAdapter(newAdapter).legalShareMode();
         if (
             ILegalShareAdapter(newAdapter).poolCurrency() != currency
                 || ILegalShareAdapter(newAdapter).adapterVersion() != nextVersion
         ) revert InvalidConfig();
-        if (mode != LegalShareMode.STATIC_RATIO && mode != LegalShareMode.ONCHAIN_DYNAMIC) {
-            revert InvalidConfig();
-        }
-        _validateLegalShareSnapshot(newAdapter, currency, config.poolDecimals, mode, nextVersion);
+        _validateLegalShareSnapshot(newAdapter, currency, nextVersion);
         address oldAdapter = config.legalShareAdapter;
         config.legalShareAdapter = newAdapter;
         config.legalAdapterCodeHash = newAdapter.codehash;
         config.legalAdapterVersion = nextVersion;
-        config.assetClass =
-            mode == LegalShareMode.STATIC_RATIO ? AssetClass.FIXED_BALANCE_STOCK : AssetClass.ONCHAIN_DYNAMIC;
         config.legalSharePolicyHash = evidenceHash;
         emit LegalShareAdapterChanged(currency, oldAdapter, newAdapter, nextVersion, evidenceHash);
     }
 
     function getToken(address currency) external view returns (TokenConfig memory) {
         return tokens[currency];
-    }
-
-    function currencyOf(address userToken) external view returns (address) {
-        return currencyByUserToken[userToken];
     }
 
     function registerPendingPool(PoolKey calldata key) external returns (bytes32 poolId) {
@@ -491,25 +435,12 @@ contract TSVRegistryV1 is TSVGoverned {
         tier.listedCount++;
     }
 
-    function _legalShareMode(AssetClass assetClass) private pure returns (LegalShareMode) {
-        return
-            assetClass == AssetClass.FIXED_BALANCE_STOCK ? LegalShareMode.STATIC_RATIO : LegalShareMode.ONCHAIN_DYNAMIC;
-    }
-
-    function _validateLegalShareSnapshot(
-        address adapter,
-        address currency,
-        uint8 decimals_,
-        LegalShareMode mode,
-        uint32 version
-    ) private view {
+    function _validateLegalShareSnapshot(address adapter, address currency, uint32 version) private view {
         RateSnapshot memory rate = ILegalShareAdapter(adapter).snapshot(currency);
         if (
             rate.numerator == 0 || rate.denominator == 0 || rate.adapterVersion != version
                 || !ILegalShareAdapter(adapter).isCurrent(currency, rate)
         ) revert InvalidConfig();
-        if (mode == LegalShareMode.STATIC_RATIO && rate.denominator != 10 ** decimals_) revert InvalidConfig();
-        if (mode == LegalShareMode.STATIC_RATIO && rate.rounding != RoundingMode.CEIL) revert InvalidConfig();
     }
 
     function _assetPausedForReplacement(address currency) private view returns (bool) {

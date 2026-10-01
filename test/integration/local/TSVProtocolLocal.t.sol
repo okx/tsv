@@ -11,16 +11,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
-import {
-    TokenConfig,
-    AssetClass,
-    SettlementMode,
-    TokenStatus,
-    MarketAction,
-    RateSnapshot,
-    LPBounds,
-    SwapRequest
-} from "tsv-v1/types/TSVTypes.sol";
+import {TokenConfig, TokenStatus, MarketAction, RateSnapshot, LPBounds, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVBusinessAuthority} from "tsv-v1/governance/TSVBusinessAuthority.sol";
 import {TSVUpgradeTimelock} from "tsv-v1/governance/TSVUpgradeTimelock.sol";
@@ -35,7 +26,6 @@ import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 import {StaticLegalShareAdapter} from "tsv-v1/adapters/StaticLegalShareAdapter.sol";
 import {ERC8056LegalShareAdapter} from "tsv-v1/adapters/ERC8056LegalShareAdapter.sol";
-import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../helpers/v1/MockIssuerTokens.sol";
 import {ERC8056TestToken} from "../../../lib/TestToken/erc8056/ERC8056TestToken.sol";
 
 interface ITestTokenMetadata {
@@ -102,19 +92,11 @@ contract V1LocalSBT {
     }
 }
 
-contract V1Test1271Wallet {
+contract V1TestParticipantWallet {
     address public immutable admin;
-    bytes32 public expectedHash;
-    bytes public expectedSignature;
 
     constructor(address admin_) {
         admin = admin_;
-    }
-
-    function setAuthorization(bytes32 digest, bytes calldata signature) external {
-        require(msg.sender == admin);
-        expectedHash = digest;
-        expectedSignature = signature;
     }
 
     function approveToken(address token, address spender) external {
@@ -122,37 +104,17 @@ contract V1Test1271Wallet {
         IERC20(token).approve(spender, type(uint256).max);
     }
 
-    function isValidSignature(bytes32 digest, bytes calldata signature) external view returns (bytes4) {
-        if (digest == expectedHash && keccak256(signature) == keccak256(expectedSignature)) return 0x1626ba7e;
-        return 0xffffffff;
+    function swapExactInput(TSVSwapRouterV1 router, SwapRequest calldata request)
+        external
+        returns (uint256 actualIn, uint256 actualOut)
+    {
+        require(msg.sender == admin);
+        return router.swapExactInput(request);
     }
 }
 
 contract TSVProtocolLocalTest is Test {
     using PoolIdLibrary for PoolKey;
-
-    struct SignedSwap {
-        address participant;
-        address payer;
-        address recipient;
-        address authorizedCaller;
-        bytes32 poolId;
-        bool zeroForOne;
-        bool exactInput;
-        uint128 amountSpecified;
-        uint128 limitAmount;
-        uint160 sqrtPriceLimitX96;
-        uint256 maxSharesIn0;
-        uint256 minSharesOut0;
-        uint256 maxDisplayedDebit0;
-        uint256 minDisplayedCredit0;
-        uint256 maxSharesIn1;
-        uint256 minSharesOut1;
-        uint256 maxDisplayedDebit1;
-        uint256 minDisplayedCredit1;
-        uint256 nonce;
-        uint64 deadline;
-    }
 
     address private constant HOOK_ADDRESS = address(uint160(0x3FFF));
     bytes32 private constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
@@ -295,7 +257,7 @@ contract TSVProtocolLocalTest is Test {
         uint256 beforeUsed = ledger.used(SECURITY, DAY);
         SwapRequest memory request = _swapRequest(stockInput, 1e18, 1);
         vm.prank(alice);
-        (uint256 actualIn, uint256 actualOut) = router.swapExactInput(request, "");
+        (uint256 actualIn, uint256 actualOut) = router.swapExactInput(request);
         assertGt(actualIn, 0);
         assertGt(actualOut, 0);
         uint256 used = ledger.used(SECURITY, DAY) - beforeUsed;
@@ -328,7 +290,7 @@ contract TSVProtocolLocalTest is Test {
         bool stockIsCurrency0 = address(stock) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(!stockIsCurrency0, 1e18, 2);
         vm.prank(alice);
-        (, uint256 actualOut) = router.swapExactInput(request, "");
+        (, uint256 actualOut) = router.swapExactInput(request);
         assertEq(ledger.used(SECURITY, DAY), actualOut);
     }
 
@@ -340,7 +302,7 @@ contract TSVProtocolLocalTest is Test {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
         vm.prank(alice);
-        router.swapExactInput(_swapRequest(quoteIsCurrency0, 1e18, 701), "");
+        router.swapExactInput(_swapRequest(quoteIsCurrency0, 1e18, 701));
         assertEq(quote.balanceOf(alice), quoteBefore);
         assertEq(quote.balanceOf(address(manager)), managerQuoteBefore);
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
@@ -355,44 +317,50 @@ contract TSVProtocolLocalTest is Test {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
         vm.prank(alice);
-        router.swapExactInput(_swapRequest(stockInput, 1e18, 702), "");
+        router.swapExactInput(_swapRequest(stockInput, 1e18, 702));
         assertEq(quote.balanceOf(alice), quoteBefore);
         assertEq(quote.balanceOf(address(manager)), managerQuoteBefore);
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
         assertFalse(router.nonceUnavailable(alice, 702));
     }
 
-    function testAuthorizedERC1271SwapBindsRequestAndNonce() public {
-        V1Test1271Wallet wallet = new V1Test1271Wallet(address(this));
+    function testSwapMustBeSubmittedByParticipant() public {
+        bool stockInput = address(stock) == Currency.unwrap(key.currency0);
+        SwapRequest memory request = _swapRequest(stockInput, 1e18, 903);
+
+        vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
+        router.swapExactInput(request);
+        assertFalse(router.nonceUnavailable(alice, 903));
+
+        vm.prank(alice);
+        (uint256 actualIn, uint256 actualOut) = router.swapExactInput(request);
+        assertGt(actualIn, 0);
+        assertGt(actualOut, 0);
+        assertTrue(router.nonceUnavailable(alice, 903));
+
+        vm.expectRevert(TSVSwapRouterV1.NonceUnavailable.selector);
+        vm.prank(alice);
+        router.swapExactInput(request);
+    }
+
+    function testContractWalletCanDirectlySubmitSwap() public {
+        V1TestParticipantWallet wallet = new V1TestParticipantWallet(address(this));
         sbt.setHolder(address(wallet), true);
         stock.mint(address(wallet), 1e21);
         quote.mint(address(wallet), 1e21);
         wallet.approveToken(address(stock), address(router));
         wallet.approveToken(address(quote), address(router));
-        router.setAuthorizedCaller(address(this), true);
 
-        SwapRequest memory request = _swapRequest(address(stock) == Currency.unwrap(key.currency0), 1e18, 903);
+        bool stockInput = address(stock) == Currency.unwrap(key.currency0);
+        SwapRequest memory request = _swapRequest(stockInput, 1e18, 904);
         request.participant = address(wallet);
         request.payer = address(wallet);
         request.recipient = address(wallet);
-        request.authorizedCaller = address(this);
-        bytes memory signature = hex"123456";
-        wallet.setAuthorization(_authorizationDigest(request), signature);
 
-        SwapRequest memory altered = request;
-        altered.limitAmount = 2;
-        vm.expectRevert(TSVSwapRouterV1.InvalidSignature.selector);
-        router.swapExactInput(altered, signature);
-        assertFalse(router.nonceUnavailable(address(wallet), 903));
-
-        request.limitAmount = 1;
-        (uint256 actualIn, uint256 actualOut) = router.swapExactInput(request, signature);
+        (uint256 actualIn, uint256 actualOut) = wallet.swapExactInput(router, request);
         assertGt(actualIn, 0);
         assertGt(actualOut, 0);
-        assertTrue(router.nonceUnavailable(address(wallet), 903));
-
-        vm.expectRevert(TSVSwapRouterV1.NonceUnavailable.selector);
-        router.swapExactInput(request, signature);
+        assertTrue(router.nonceUnavailable(address(wallet), 904));
     }
 
     function testERC8056StockSwapBothWaysUsesDynamicUiMultiplier() public {
@@ -421,7 +389,7 @@ contract TSVProtocolLocalTest is Test {
         uint256 managerRawBefore = stock.balanceOf(address(manager));
         uint256 aliceUIBefore = stock.balanceOfUI(alice);
         vm.prank(alice);
-        (uint256 stockIn, uint256 quoteOut) = router.swapExactInput(_swapRequest(stockIsCurrency0, 1e18, 801), "");
+        (uint256 stockIn, uint256 quoteOut) = router.swapExactInput(_swapRequest(stockIsCurrency0, 1e18, 801));
         assertGt(stockIn, 0);
         assertGt(quoteOut, 0);
         assertEq(aliceRawBefore - stock.balanceOf(alice), stockIn);
@@ -434,7 +402,7 @@ contract TSVProtocolLocalTest is Test {
         aliceUIBefore = stock.balanceOfUI(alice);
         usedBefore = ledger.used(SECURITY, DAY);
         vm.prank(alice);
-        (uint256 quoteIn, uint256 stockOut) = router.swapExactInput(_swapRequest(!stockIsCurrency0, 1e18, 802), "");
+        (uint256 quoteIn, uint256 stockOut) = router.swapExactInput(_swapRequest(!stockIsCurrency0, 1e18, 802));
         assertGt(quoteIn, 0);
         assertGt(stockOut, 0);
         assertEq(stock.balanceOf(alice) - aliceRawBefore, stockOut);
@@ -530,7 +498,7 @@ contract TSVProtocolLocalTest is Test {
 
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         vm.prank(alice);
-        router.swapExactInput(_swapRequest(stockInput, 1e18, 90), "");
+        router.swapExactInput(_swapRequest(stockInput, 1e18, 90));
         uint256 usedAfterSwap = ledger.used(SECURITY, DAY);
         assertGt(usedAfterSwap, usedBefore);
         vm.startPrank(alice);
@@ -550,7 +518,7 @@ contract TSVProtocolLocalTest is Test {
         request.limitAmount = 2e18;
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         vm.prank(alice);
-        (uint256 actualIn, uint256 actualOut) = router.swapExactOutput(request, "");
+        (uint256 actualIn, uint256 actualOut) = router.swapExactOutput(request);
         assertEq(actualOut, 1e18);
         assertLe(actualIn, 2e18);
         assertEq(ledger.used(SECURITY, DAY) - usedBefore, actualIn);
@@ -570,7 +538,7 @@ contract TSVProtocolLocalTest is Test {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
 
         vm.prank(alice);
-        (uint256 quoteIn, uint256 stockOut) = router.swapExactOutput(request, "");
+        (uint256 quoteIn, uint256 stockOut) = router.swapExactOutput(request);
 
         assertLe(quoteIn, request.limitAmount);
         assertEq(stockOut, request.amountSpecified);
@@ -634,7 +602,7 @@ contract TSVProtocolLocalTest is Test {
         assertFalse(registry.isEligible(alice));
         vm.prank(alice);
         vm.expectRevert();
-        router.swapExactInput(_swapRequest(true, 1e18, 1), "");
+        router.swapExactInput(_swapRequest(true, 1e18, 1));
         vm.expectRevert();
         lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
         sbt.setHolder(alice, false);
@@ -685,35 +653,6 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
     }
 
-    function testLegacyIssuerWrappedSettlementPathIsRejected() public {
-        bytes32 security = keccak256("TSLA");
-        registry.listSecurity(security, keccak256("TSLAx"), 1, keccak256("list-tsla"));
-        V1MockIssuerShares tsla = new V1MockIssuerShares();
-        tsla.setMultiplier(0.9e18, 7);
-        V1MockIssuerWrapped wtsla = new V1MockIssuerWrapped(tsla);
-        TokenConfig memory c;
-        c.userToken = address(tsla);
-        c.poolCurrency = address(wtsla);
-        c.userDecimals = 18;
-        c.poolDecimals = 18;
-        c.assetClass = AssetClass.ISSUER_WRAPPED_DYNAMIC;
-        c.securityId = security;
-        c.settlementMode = SettlementMode.ISSUER_SHARE_WRAPPED;
-        c.settlementAdapter = address(0xA4444);
-        c.settlementVersion = 1;
-        c.ratioEvidenceHash = keccak256("ratio-tsla");
-        c.status = TokenStatus.UNREVIEWED;
-        c.userRuntimeCodeHash = address(tsla).codehash;
-        c.poolRuntimeCodeHash = address(wtsla).codehash;
-        c.reviewHash = keccak256("review-tsla");
-        // V1 settles the pool Currency directly. An issuer-side TSLAx ->
-        // wTSLAx settlement adapter is intentionally outside the admission ABI.
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(c, keccak256("register-tsla"));
-        assertEq(registry.currencyOf(address(tsla)), address(0));
-        assertEq(registry.currencyOf(address(wtsla)), address(0));
-    }
-
     function _installProxy(address target, address implementation) private {
         vm.etch(target, type(TSVERC1967Proxy).runtimeCode);
         vm.store(target, IMPLEMENTATION_SLOT, bytes32(uint256(uint160(implementation))));
@@ -728,24 +667,15 @@ contract TSVProtocolLocalTest is Test {
         view
         returns (TokenConfig memory c)
     {
-        c.userToken = token;
         c.poolCurrency = token;
         uint8 tokenDecimals = ITestTokenMetadata(token).decimals();
-        c.userDecimals = tokenDecimals;
         c.poolDecimals = tokenDecimals;
-        c.assetClass = securityId == 0 ? AssetClass.QUOTE_ERC20 : AssetClass.ONCHAIN_DYNAMIC;
         c.securityId = securityId;
-        c.settlementMode = SettlementMode.DIRECT_ERC20;
-        c.settlementVersion = 1;
         c.legalShareAdapter = legalAdapter;
         c.legalAdapterVersion = securityId == 0 ? 0 : 1;
-        // Dynamic ERC-8056 stock uses the adapter's live multiplier; Registry
-        // must not carry a second static ratio copy.
-        c.sharesPerWholeTokenWad = 0;
-        c.ratioEvidenceHash = bytes32(0);
+        // Stock classification follows securityId and the bound adapter.
         c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("erc8056-policy");
         c.status = TokenStatus.UNREVIEWED;
-        c.userRuntimeCodeHash = token.codehash;
         c.poolRuntimeCodeHash = token.codehash;
         c.legalAdapterCodeHash = legalAdapter.codehash;
         c.reviewHash = keccak256("review");
@@ -763,44 +693,6 @@ contract TSVProtocolLocalTest is Test {
         r.sqrtPriceLimitX96 = zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1;
         r.nonce = nonce;
         r.deadline = uint64(block.timestamp + 100);
-    }
-
-    function _authorizationDigest(SwapRequest memory request) private view returns (bytes32) {
-        bytes32 domain = keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes("TSVSwapRouter")),
-                keccak256(bytes("2")),
-                block.chainid,
-                address(router)
-            )
-        );
-        bytes32 typeHash = keccak256(
-            "SwapAuthorization(address participant,address payer,address recipient,address authorizedCaller,bytes32 poolId,bool zeroForOne,bool exactInput,uint128 amountSpecified,uint128 limitAmount,uint160 sqrtPriceLimitX96,uint256 maxSharesIn0,uint256 minSharesOut0,uint256 maxDisplayedDebit0,uint256 minDisplayedCredit0,uint256 maxSharesIn1,uint256 minSharesOut1,uint256 maxDisplayedDebit1,uint256 minDisplayedCredit1,uint256 nonce,uint64 deadline)"
-        );
-        SignedSwap memory signed;
-        signed.participant = request.participant;
-        signed.payer = request.payer;
-        signed.recipient = request.recipient;
-        signed.authorizedCaller = request.authorizedCaller;
-        signed.poolId = PoolId.unwrap(request.key.toId());
-        signed.zeroForOne = request.zeroForOne;
-        signed.exactInput = request.exactInput;
-        signed.amountSpecified = request.amountSpecified;
-        signed.limitAmount = request.limitAmount;
-        signed.sqrtPriceLimitX96 = request.sqrtPriceLimitX96;
-        signed.maxSharesIn0 = request.bounds0.maxSharesIn;
-        signed.minSharesOut0 = request.bounds0.minSharesOut;
-        signed.maxDisplayedDebit0 = request.bounds0.maxDisplayedDebit;
-        signed.minDisplayedCredit0 = request.bounds0.minDisplayedCredit;
-        signed.maxSharesIn1 = request.bounds1.maxSharesIn;
-        signed.minSharesOut1 = request.bounds1.minSharesOut;
-        signed.maxDisplayedDebit1 = request.bounds1.maxDisplayedDebit;
-        signed.minDisplayedCredit1 = request.bounds1.minDisplayedCredit;
-        signed.nonce = request.nonce;
-        signed.deadline = request.deadline;
-        bytes32 structHash = keccak256(abi.encode(typeHash, signed));
-        return keccak256(abi.encodePacked(hex"1901", domain, structHash));
     }
 
     function _submitReports() private {

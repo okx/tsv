@@ -9,14 +9,7 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
-import {
-    TokenConfig,
-    AssetBounds,
-    SettlementMode,
-    LPBounds,
-    LPContext,
-    LPOperationMode
-} from "tsv-v1/types/TSVTypes.sol";
+import {LPBounds, LPContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVDirectSettlementLib} from "tsv-v1/libraries/TSVDirectSettlementLib.sol";
@@ -201,19 +194,6 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         return activeContext;
     }
 
-    function activeAssetOperation(bytes32 operationId, address currency)
-        external
-        view
-        returns (bytes32 poolId, address owner, address recipient, bool forceExit_)
-    {
-        if (operationId != activeOperationId || operationId == 0) return (0, address(0), address(0), false);
-        Position storage p = positions[activeContext.positionId];
-        if (currency != Currency.unwrap(p.key.currency0) && currency != Currency.unwrap(p.key.currency1)) {
-            return (0, address(0), address(0), false);
-        }
-        return (activeContext.poolId, p.owner, p.owner, activeContext.mode == LPOperationMode.FORCE_EXIT);
-    }
-
     function approve(address, uint256) public pure override {
         revert NonTransferable();
     }
@@ -262,7 +242,6 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
             delta.amount0(),
             request.bounds.maxPoolIn0,
             request.bounds.minPoolOut0,
-            request.bounds.bounds0,
             p.owner,
             request.mode
         );
@@ -271,7 +250,6 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
             delta.amount1(),
             request.bounds.maxPoolIn1,
             request.bounds.minPoolOut1,
-            request.bounds.bounds1,
             p.owner,
             request.mode
         );
@@ -302,20 +280,13 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         int128 delta,
         uint256 maxIn,
         uint256 minOut,
-        AssetBounds memory bounds,
         address owner,
         LPOperationMode mode
     ) private {
         address token = Currency.unwrap(currency);
-        TokenConfig memory config = registry.getToken(token);
-        if (config.settlementMode != SettlementMode.DIRECT_ERC20 || config.userToken != token) revert InvalidPool();
         uint256 amount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         if (delta < 0 && (mode == LPOperationMode.FORCE_EXIT || amount > maxIn)) revert SlippageExceeded();
         if ((delta > 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();
-        if (
-            bounds.maxSharesIn != 0 || bounds.minSharesOut != 0 || bounds.maxDisplayedDebit != 0
-                || bounds.minDisplayedCredit != 0
-        ) revert SlippageExceeded();
         if (delta < 0) {
             TSVDirectSettlementLib.settleFrom(poolManager, currency, token, owner, amount);
         } else if (delta > 0) {

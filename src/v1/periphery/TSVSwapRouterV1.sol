@@ -1,61 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
-import {TokenConfig, PoolConfig, AssetBounds, SettlementMode, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {PoolConfig, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVDirectSettlementLib} from "tsv-v1/libraries/TSVDirectSettlementLib.sol";
 
-/// @notice One-pool authorized swap entry; users settle each PoolKey currency directly.
-contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
+/// @notice One-pool credential-gated swap entry; the participant settles each PoolKey currency directly.
+contract TSVSwapRouterV1 is TSVGoverned {
     using PoolIdLibrary for PoolKey;
     using BalanceDeltaLibrary for BalanceDelta;
 
     error Unauthorized();
     error InvalidRequest();
     error InvalidPool();
-    error InvalidSignature();
     error NonceUnavailable();
     error Expired();
     error SlippageExceeded();
     error SettlementMismatch();
     error Reentrancy();
-
-    bytes32 public constant SWAP_TYPEHASH = keccak256(
-        "SwapAuthorization(address participant,address payer,address recipient,address authorizedCaller,bytes32 poolId,bool zeroForOne,bool exactInput,uint128 amountSpecified,uint128 limitAmount,uint160 sqrtPriceLimitX96,uint256 maxSharesIn0,uint256 minSharesOut0,uint256 maxDisplayedDebit0,uint256 minDisplayedCredit0,uint256 maxSharesIn1,uint256 minSharesOut1,uint256 maxDisplayedDebit1,uint256 minDisplayedCredit1,uint256 nonce,uint64 deadline)"
-    );
-
-    struct Authorization {
-        address participant;
-        address payer;
-        address recipient;
-        address authorizedCaller;
-        bytes32 poolId;
-        bool zeroForOne;
-        bool exactInput;
-        uint128 amountSpecified;
-        uint128 limitAmount;
-        uint160 sqrtPriceLimitX96;
-        uint256 maxSharesIn0;
-        uint256 minSharesOut0;
-        uint256 maxDisplayedDebit0;
-        uint256 minDisplayedCredit0;
-        uint256 maxSharesIn1;
-        uint256 minSharesOut1;
-        uint256 maxDisplayedDebit1;
-        uint256 minDisplayedCredit1;
-        uint256 nonce;
-        uint64 deadline;
-    }
 
     struct Active {
         bytes32 operationId;
@@ -75,7 +45,6 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
     bool private entered;
     Active private active;
     mapping(address => mapping(uint256 => bool)) public nonceUnavailable;
-    mapping(address => bool) public authorizedCallerAllowed;
 
     event SwapExecuted(
         bytes32 indexed operationId,
@@ -86,8 +55,6 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
         int128 amount1,
         uint32 tradeDayId
     );
-    event SwapNonceCancelled(address indexed participant, uint256 indexed nonce);
-    event AuthorizedCallerChanged(address indexed caller, bool allowed);
 
     function initialize(
         address authority,
@@ -99,7 +66,6 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
         address hook_
     ) external initializer {
         __TSVGoverned_init(authority, timelock, controller);
-        __EIP712_init("TSVSwapRouter", "2");
         if (
             poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0
                 || hook_ == address(0)
@@ -117,34 +83,22 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
         entered = false;
     }
 
-    function setAuthorizedCaller(address caller, bool allowed) external onlyGovernor {
-        if (caller == address(0)) revert InvalidRequest();
-        authorizedCallerAllowed[caller] = allowed;
-        emit AuthorizedCallerChanged(caller, allowed);
-    }
-
-    function cancelSwapNonce(uint256 nonce) external {
-        if (nonceUnavailable[msg.sender][nonce]) revert NonceUnavailable();
-        nonceUnavailable[msg.sender][nonce] = true;
-        emit SwapNonceCancelled(msg.sender, nonce);
-    }
-
-    function swapExactInput(SwapRequest calldata request, bytes calldata participantSignature)
+    function swapExactInput(SwapRequest calldata request)
         external
         nonReentrant
         returns (uint256 actualIn, uint256 actualOut)
     {
         if (!request.exactInput) revert InvalidRequest();
-        return _swap(request, participantSignature);
+        return _swap(request);
     }
 
-    function swapExactOutput(SwapRequest calldata request, bytes calldata participantSignature)
+    function swapExactOutput(SwapRequest calldata request)
         external
         nonReentrant
         returns (uint256 actualIn, uint256 actualOut)
     {
         if (request.exactInput) revert InvalidRequest();
-        return _swap(request, participantSignature);
+        return _swap(request);
     }
 
     function activeSwapOperation(bytes32 operationId)
@@ -154,18 +108,6 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
     {
         if (active.operationId != operationId || operationId == 0) return (0, address(0), false, false);
         return (active.poolId, active.participant, active.zeroForOne, active.exactInput);
-    }
-
-    function activeAssetOperation(bytes32 operationId, address currency)
-        external
-        view
-        returns (bytes32 poolId, address owner, address recipient, bool forceExit)
-    {
-        if (
-            active.operationId != operationId || operationId == 0
-                || (currency != active.currency0 && currency != active.currency1)
-        ) return (0, address(0), address(0), false);
-        return (active.poolId, active.participant, active.participant, false);
     }
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
@@ -196,11 +138,8 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
         return abi.encode(actualIn, actualOut, delta);
     }
 
-    function _swap(SwapRequest calldata request, bytes calldata signature)
-        private
-        returns (uint256 actualIn, uint256 actualOut)
-    {
-        bytes32 poolId = _validateAndConsume(request, signature);
+    function _swap(SwapRequest calldata request) private returns (uint256 actualIn, uint256 actualOut) {
+        bytes32 poolId = _validateAndConsume(request);
         bytes32 operationId =
             keccak256(abi.encode(block.chainid, address(this), request.participant, request.nonce, poolId));
         active = Active(
@@ -224,15 +163,13 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
         delete active;
     }
 
-    function _validateAndConsume(SwapRequest calldata request, bytes calldata signature)
-        private
-        returns (bytes32 poolId)
-    {
+    function _validateAndConsume(SwapRequest calldata request) private returns (bytes32 poolId) {
         if (block.timestamp > request.deadline) revert Expired();
         if (
-            request.participant == address(0) || request.participant != request.payer
-                || request.participant != request.recipient || request.amountSpecified == 0
-                || request.amountSpecified > uint128(type(int128).max) || request.limitAmount == 0
+            request.participant == address(0) || request.participant != msg.sender
+                || request.participant != request.payer || request.participant != request.recipient
+                || request.amountSpecified == 0 || request.amountSpecified > uint128(type(int128).max)
+                || request.limitAmount == 0
         ) revert InvalidRequest();
         if (!registry.isEligible(request.participant)) revert Unauthorized();
         poolId = PoolId.unwrap(request.key.toId());
@@ -241,65 +178,17 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
         if (keccak256(abi.encode(pool.key)) != keccak256(abi.encode(request.key))) revert InvalidPool();
         (bool dayExists,) = ledger.currentTradeDay();
         if (!dayExists) revert InvalidPool();
-        _validateBounds(Currency.unwrap(request.key.currency0), request.bounds0);
-        _validateBounds(Currency.unwrap(request.key.currency1), request.bounds1);
         if (nonceUnavailable[request.participant][request.nonce]) revert NonceUnavailable();
-        if (request.authorizedCaller == address(0)) {
-            if (msg.sender != request.participant || signature.length != 0) revert Unauthorized();
-        } else {
-            if (
-                msg.sender != request.authorizedCaller || !authorizedCallerAllowed[msg.sender]
-                    || !SignatureChecker.isValidSignatureNow(
-                        request.participant, _hashTypedDataV4(_requestStructHash(request, poolId)), signature
-                    )
-            ) revert InvalidSignature();
-        }
         nonceUnavailable[request.participant][request.nonce] = true;
-    }
-
-    function _validateBounds(address currency, AssetBounds calldata bounds) private view {
-        TokenConfig memory config = registry.getToken(currency);
-        if (
-            config.settlementMode != SettlementMode.DIRECT_ERC20 || config.userToken != currency
-                || bounds.maxSharesIn != 0 || bounds.minSharesOut != 0 || bounds.maxDisplayedDebit != 0
-                || bounds.minDisplayedCredit != 0
-        ) revert InvalidRequest();
     }
 
     function _settle(Currency currency, int128 delta, address participant) private {
         address token = Currency.unwrap(currency);
-        TokenConfig memory config = registry.getToken(token);
-        if (config.settlementMode != SettlementMode.DIRECT_ERC20 || config.userToken != token) revert InvalidPool();
         uint256 amount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         if (delta < 0) {
             TSVDirectSettlementLib.settleFrom(poolManager, currency, token, participant, amount);
         } else {
             TSVDirectSettlementLib.takeTo(poolManager, currency, token, participant, amount);
         }
-    }
-
-    function _requestStructHash(SwapRequest calldata request, bytes32 poolId) private pure returns (bytes32) {
-        Authorization memory auth;
-        auth.participant = request.participant;
-        auth.payer = request.payer;
-        auth.recipient = request.recipient;
-        auth.authorizedCaller = request.authorizedCaller;
-        auth.poolId = poolId;
-        auth.zeroForOne = request.zeroForOne;
-        auth.exactInput = request.exactInput;
-        auth.amountSpecified = request.amountSpecified;
-        auth.limitAmount = request.limitAmount;
-        auth.sqrtPriceLimitX96 = request.sqrtPriceLimitX96;
-        auth.maxSharesIn0 = request.bounds0.maxSharesIn;
-        auth.minSharesOut0 = request.bounds0.minSharesOut;
-        auth.maxDisplayedDebit0 = request.bounds0.maxDisplayedDebit;
-        auth.minDisplayedCredit0 = request.bounds0.minDisplayedCredit;
-        auth.maxSharesIn1 = request.bounds1.maxSharesIn;
-        auth.minSharesOut1 = request.bounds1.minSharesOut;
-        auth.maxDisplayedDebit1 = request.bounds1.maxDisplayedDebit;
-        auth.minDisplayedCredit1 = request.bounds1.minDisplayedCredit;
-        auth.nonce = request.nonce;
-        auth.deadline = request.deadline;
-        return keccak256(abi.encode(SWAP_TYPEHASH, auth));
     }
 }

@@ -1,6 +1,6 @@
 # TSV V1 代币准入标准
 
-状态：**目标规范；ERC8056 本地标准夹具已接入，发行方 wTSLAx 生产证据仍待完成**，2026-10-01。V1 每个池内 Currency **只允许直接 ERC-20 结算**：Swap 和 LP 用户支付、接收的 Token 与 `PoolKey` 中该侧 Currency 是同一个地址。TSLAx 是 xStock 系列的一个实例；其发行方 Wrapped `wTSLAx` 可按本标准审查为池内股票 Currency，TSLAx 原币不进入 TSV 的 Swap/LP 入口。`ERC8056TestToken` 是本地标准股票测试代币，用于验证 raw 稳定、UI multiplier 动态计股和直接结算；它不等同于任何真实发行方资产。具体生产差异见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
+状态：**目标规范；ERC8056 本地标准夹具已接入，发行方 wTSLAx 生产证据仍待完成**，2026-10-01。系统流程与交易/运营/治理边界见[三系统总览](./SYSTEMS_OVERVIEW.md)。V1 每个池内 Currency **只允许直接 ERC-20 结算**：Swap 和 LP 用户支付、接收的 Token 与 `PoolKey` 中该侧 Currency 是同一个地址。TSLAx 是 xStock 系列的一个实例；其发行方 Wrapped `wTSLAx` 可按本标准审查为池内股票 Currency，TSLAx 原币不进入 TSV 的 Swap/LP 入口。`ERC8056TestToken` 是本地标准股票测试代币，用于验证 raw 稳定、UI multiplier 动态计股和直接结算；它不等同于任何真实发行方资产。具体生产差异见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
 
 ## 1. 两项独立准入判断
 
@@ -9,13 +9,13 @@
 
 结算和计股分别审查。同一 Token 可以 raw 余额稳定、但每 raw 单位代表的股票权益随链上系数变化；这类 Token 可直接入池并用动态计股 Adapter。`1e18 legalSharesWad = 1 股`。每个池最多一侧为股票 Currency；同证券不同池的成功 Swap 汇入同一 `securityId` 日账本。
 
-| 资产场景 | 唯一用户 Token / 池内 Currency | 计股方式 | V1 目标结论 |
+| 资产场景 | 池内 Currency（用户直接收付） | 计股来源 | V1 目标结论 |
 | --- | --- | --- | --- |
-| 普通非股票 ERC-20 | 同地址 | 无 | 经 raw 稳定与精确转账审查后作为配对币 |
-| 固定比例股票 ERC-20 | 同地址 | `STATIC_RATIO` | 还需发行方/法务批准逐笔股数公式 |
-| raw 稳定的 UI Multiplier 股票 | 同地址 | `ONCHAIN_DYNAMIC` | `ERC8056TestToken` + `ERC8056LegalShareAdapter` 已作为本地标准夹具；真实发行方仍需逐实例批准系数、公式和公司行动规则 |
-| 发行方 `wTSLAx` | wTSLAx / wTSLAx | `ONCHAIN_DYNAMIC` | 生产目标是用户直接收付 wTSLAx，按批准的发行方权益公式对实际 V4 delta 计股；真实代理和法律证据仍待准入 |
-| TSLAx 可变余额原币 | 不适用 | 不适用 | 不直接入池，也不作为 TSV 用户结算 Token；用户如需持有 TSLAx，可在 TSV 之外使用发行方自己的包装/赎回流程 |
+| 普通非股票 ERC-20 | 该 ERC-20 地址 | 无 | 经 raw 稳定与精确转账审查后作为配对币 |
+| 固定比例股票 ERC-20 | 该 ERC-20 地址 | 经批准的固定公式 Adapter | 还需发行方/法务批准逐笔股数公式 |
+| raw 稳定的 UI Multiplier 股票 | 该 ERC-20 地址 | 读取链上系数的 Adapter | 本地 `STDx` 夹具的边界见第 7 节；夹具不能代表生产资产，真实发行方仍需逐实例批准系数、公式和公司行动规则 |
+| 发行方 `wTSLAx` | wTSLAx / wTSLAx | 发行方/法务批准的 Adapter | 生产目标是用户直接收付 wTSLAx，按批准的发行方权益公式对实际 V4 delta 计股；真实代理和法律证据仍待准入 |
+| TSLAx 可变余额原币 | 不适用 | 不适用 | 不直接入池；用户如需持有 TSLAx，可在 TSV 之外使用发行方自己的包装/赎回流程 |
 | Rebase 原币，无合格稳定 Wrapped | 不适用 | 不适用 | V1 不准入 |
 
 “raw 余额稳定”指**没有明确转账/铸造/销毁到该地址时**，`balanceOf()` 不会自行改变；正常转账时余额变化当然允许。wTSLAx 虽名为 Wrapped，V4 持有和用户直接收付的仍是它的稳定 ERC-20 份额；其权益系数动态变化不要求 TSV 同笔接触 TSLAx 原币。其他 xStock 必须逐实例审查，不能自动套用 Tesla 的 shares 接口或公式。
@@ -33,11 +33,11 @@ V4 的 `sync/settle/take` 和 Hook delta 都使用 Currency 的 raw 单位。改
 
 每个股票 Currency 绑定**一套**经审查、版本化的 `LegalShareAdapter`；非股票配对币不绑定。Adapter 以 `beforeSwap` 快照和成功 Swap 股票腿的**实际 V4 raw delta**正向换算为非零 `legalSharesWad`。输入腿按当前已选的含费 caller 总支出、输出腿按净收到计股；LP、单纯 ERC-20 转账或发行方在 TSV 外的包装/赎回不计为 TSV Swap。此技术口径仍须发行方与法务书面确认，不能直接称为 SEC 批准。
 
-`STATIC_RATIO` 使用经批准的固定逐笔比例及舍入。`ONCHAIN_DYNAMIC` 从发行方实际链上状态读取当前系数、版本/nonce，按获批公式换算；不依赖心跳交易，也不允许用户自报比率。wTSLAx 和其他 UI Multiplier Token 可分别使用动态 Adapter，公式和舍入不必相同。快照不可读取、公式不可复算、读取 gas 过高、零股或同一交易内版本不一致，交易回滚；历史成交不因后续系数变化重算。`ILegalShareAdapter` 同时提供正向 `toLegalShares` 和只读 `rawForLegalShares`，但用户股数输入仍由前端换算为现有 raw 参数。
+`LegalShareAdapter` 可以使用固定参数，也可以读取发行方链上状态；Registry 不要求登记某种比例类型。Adapter 按获批公式和舍入规则提供交易快照、正向 `toLegalShares` 及只读 `rawForLegalShares`。快照不可读取、公式不可复算、读取 gas 过高、结果为零或交易内快照变化时，交易回滚；历史成交不因后续系数变化重算。用户股数输入仍由前端换算为现有 raw 参数。
 
 ### 3.1 D-36 双向 Adapter 规范与实现边界
 
-当前 Registry **不把 `sharesPerWholeTokenWad` 或 `ratioEvidenceHash` 作为计股来源**；这两个旧字段仅为 ABI/存储兼容保留，登记时必须为零。Registry 绑定已审查 Adapter 的地址、版本、运行代码哈希、计股模式、策略摘要和权益依据。静态比例是静态 Adapter 的不可变参数；动态 Adapter 读取发行方状态。两者在同一快照下提供：
+当前 `TokenConfig` 不含独立比例字段或固定/动态比例分类。Registry 用 `securityId == 0` 表示非股票配对币；非零 `securityId` 表示股票资产，必须绑定已审查 Adapter 的地址、版本、运行代码哈希、策略摘要和权益依据。Adapter 自身定义公式，并在同一快照下提供：
 
 - 正向 `raw → legalSharesWad`：仅此结果有权写入 `usedWad` 与 `SwapAccounted`。
 - 只读反向 `legalSharesWad → raw`：供前端显示和估计 raw 上下限；分别定义“达到至少目标股数的最小 raw”和“不超过股数上限的最大 raw”。整数舍入可能没有精确逆解，前端展示不是链上股数保证。
@@ -50,14 +50,71 @@ raw 余额不变而股数权益系数变化时，V4 技术结算可以仍正确�
 
 同一 `securityId` 下的多个 Token 可能由不同发行方在不同时间完成拆股实现。每个 Token 的参数可分别更新，但在该证券的新法律股数单位尚未对所有**继续交易**的 Token 验证前，相关 Token 必须保持暂停。需要延期的 Token 可继续停用；其余 Token 在下一个计量日且新单位报告就绪后恢复。仅有参数 epoch 差异、没有法律单位变化时，可按各自快照继续交易。
 
-如果 Adapter 只是读取发行方合约的 multiplier，拆股时不要求人工写入新比例或替换 Adapter 地址。Adapter 应返回发行方参数的 snapshot/nonce；但自动读取新参数并不等于自动批准法律单位切换。发行方若可在计量日内改变法律单位，准入方必须有足够提前量暂停该 `securityId`，否则该资产不得作为 V1 的可持续交易资产准入。无法验证参数版本、生效边界或法律映射时保持暂停。
+如果 Adapter 读取发行方合约的 multiplier，同一法律股数单位内的参数更新可由新快照反映，不要求人工写入比例。Adapter 应在 `rateId`/快照中绑定可验证的发行方参数及版本；但自动读取新参数并不等于自动批准法律单位切换。发行方若可在计量日内改变法律单位，准入方必须有足够提前量暂停该 `securityId`，否则该资产不得作为 V1 的可持续交易资产准入。无法验证参数版本、生效边界或法律映射时保持暂停。
 
-固定比例拆并股若只更新 Adapter 参数，可保留 Adapter 地址并由 Adapter 返回新的 rate epoch；若确实需要替换 Adapter，则必须暂停、递增版本并重新批准。运营须在恢复前提交以新法律单位计量的适用 ADTV，并清理或重设不兼容的 quota。若 PoolManager raw 余额本身随公司行动变化，该 Currency 不符合第 2 节，单纯更换计股 Adapter 或参数不足以准入。
+固定比例 Adapter 使用不可变参数；公式变化时须经审查后部署新 Adapter，并通过 Registry 以递增版本替换。若该 Currency 有活跃池，合约只接受 `GLOBAL` 紧急暂停或命中该 Currency 的 `TOKEN` 紧急暂停；`SECURITY` 或 `POOL` 暂停单独不能满足 Adapter 替换检查。若变化同时改变法律股数单位，还须暂停整个 `securityId`，等到下一个计量日并提交新单位 ADTV、清理或重设不兼容 quota 后再恢复。若 PoolManager raw 余额本身随公司行动变化，该 Currency 不符合第 2 节，单纯更换计股 Adapter 不足以准入。
+
+
+### 4.1 法律股数单位切换的运营步骤
+
+V1 只在正向拆股、反向拆股/合股确实改变 `legalSharesWad` 的法律单位时执行单位切换流程。普通 multiplier 更新若仍表示相同法律单位，可以使用新快照继续计量；日内新旧法律单位不能混用。合约没有公司行动报告、`unitEpoch` 或自动发现外部单位变化的入口，运营通过既有状态与报告入口执行：
+
+1. 记录发行方公告、法律及市场生效时间、受影响 `securityId`/Token、旧新映射和依据摘要；确认事件实际改变法律计量单位。
+2. 在新单位生效前，由 `EMERGENCY_PAUSER_ROLE` 对整个证券新增 `SECURITY` 暂停，阻止其所有池和 Token 的 Swap 与普通 LP 操作。单位或映射不确定时保持暂停。
+3. 若活跃 Currency 需要更换 Adapter，还须对每个要替换的 Currency 新增 `TOKEN` 暂停，或改用 `GLOBAL` 暂停；仅有 `SECURITY`/`POOL` 暂停时，`replaceLegalShareAdapter` 会回滚。无活跃池的 Currency 不受这项替换门槛限制。
+4. 由 `SYMBOL_ADMIN_ROLE` 按 Registry 规则登记新 Adapter 和递增版本；核对同一 Currency、有效快照、舍入及权益依据。动态 Adapter 若自动读取新参数，也要确认其生效时间和新 `rateId`。
+5. 对新的 `legalSharesWad` 单位准备适用 ADTV，并按需提交新的计量日 quota。报告仍由 `VOLUME_ORACLE_ROLE` 经 DataInbox 直接提交；若市场状态也被置为 HALTED，再由 `HALT_REPORTER_ROLE` 按市场报告入口恢复。V1 不新增公司行动报告函数或报告字段。
+6. 至少等到下一个 UTC 计量日开始后，复核所有准备恢复交易的 Token 已映射到同一新法律单位，Adapter 快照与报告单位一致，原子结算和原 owner 强退路径可用。未完成审查的 Token 保持 `DISABLED` 或继续暂停。
+7. 记录交易哈希、报告 ID、Adapter 版本、快照/rateId、监控与审批证据。历史 `usedWad`、成交事件和 LP 仓位不重算；旧仓位仍按原始池内 Currency 交付原 owner。
+
+每个事件的链下审计记录至少应包含：
+
+| 字段 | 记录内容 |
+| --- | --- |
+| `corporateActionId`、`actionType` | 唯一事件 ID；`FORWARD_SPLIT` 或 `REVERSE_SPLIT` |
+| `securityId`、`affectedTokens` | 法律证券及受影响 Token/Adapter；未准备恢复的 Token 单独标记 |
+| `announcedAt`、`legalEffectiveAt`、`marketEffectiveAt` | 发行方公告、法律生效和市场生效时间 |
+| `tsvEffectiveTradeDay` | TSV 计划使用的新单位计量日 |
+| `old/newAdapterVersion`、`old/newRateId` | 公式版本与参数快照变化；Adapter 不变时也记录 rateId 变化 |
+| `pauseScope`、`status` | 实际暂停范围和事件处理状态 |
+| `evidenceHash`、交易哈希、报告 ID | 公告、审批、链上暂停/恢复、Adapter 和报告操作的可追溯依据 |
+
+以上是运营审计记录，不是 `DataInbox` 当前 ABI 的字段；是否增设链上公司行动报告属于未来版本决策。
+
+此流程依赖发行方提前通知和链下监控，不能拦截未预告的日内法律单位变化。若资产无法提供足够预告期或无法及时暂停，不得以“Adapter 自动读 multiplier”作为持续准入依据。公司行动范围限于拆股/合股；分红、配股、并购、换股、分拆、赎回、退市、名称变化和一般代理升级不自动触发新的链上计量逻辑。旧方案曾讨论事后换算同日 `usedWad`，该方法不能修正已基于错误单位执行的链上限额，V1 不采用。
 
 ## 5. 注册、持续准入与当前迁移
 
-目标注册以 `poolCurrency` 为主键，保存证券身份、股数模式与 Adapter/版本/依据；`userToken` 若保留在 ABI 中，必须恒等于 `poolCurrency`，`settlementMode` 必须为 `DIRECT_ERC20`，`settlementAdapter` 必须为零。**不登记 `(poolCurrency,userToken)` 多路径映射，不提供路径选择、路径专用签名或 LP 路径字段。**`UNREVIEWED→APPROVED→DISABLED→APPROVED` 的复审仍需证据与版本；停用阻止新 Swap/用户 LP，既有仓位强退按其原始资产交付规则处理。
+目标注册以 `poolCurrency` 为唯一 Token 地址和 Registry 主键，保存证券身份及股数 Adapter/版本/依据；`securityId == 0` 的配对币不绑定股数 Adapter，非零 `securityId` 的股票必须绑定股数 Adapter。用户直接支付和接收该池内 Currency；当前 ABI 不含独立用户 Token、结算模式或结算 Adapter 字段，也不提供多路径映射、路径选择、路径专用签名或 LP 路径字段。`UNREVIEWED→APPROVED→DISABLED→APPROVED` 的复审仍需证据与版本；停用阻止新 Swap/用户 LP，既有仓位强退按其原始资产交付规则处理。
 
-旧 `TSLAx → wTSLAx` 的包装结算配置在当前准入测试中明确拒绝。目标生产操作直接登记 `wTSLAx` 为 `userToken == poolCurrency`，清理结算 Adapter 和底层显示限额；本部署没有旧 LP 仓位或旧账本，因此不实现旧结算兼容分支，也不提供 TSLAx 退出路径。
+旧 `TSLAx → wTSLAx` 包装结算不属于当前注册 ABI。目标生产操作直接将 `wTSLAx` 登记为 `poolCurrency`；本部署没有旧 LP 仓位或旧账本，因此不实现旧结算兼容分支，也不提供 TSLAx 退出路径。
 
 已批准 Token 的代理实现、法律公式、转账或限制规则变化时，由链下监控发现并先暂停相关新交易，再以新证据复审。V1 不在链上读取发行方代理实现地址或 codehash，也不把链上旧批准自动视为已失效；监控、告警、暂停、复审和重新批准必须形成可审计运维记录。生产准入还必须核对实际发行方代理、法定股数定义、制裁/暂停、最坏 gas、强退可用性和独立测试证据；详见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
+
+
+## 6. Tesla 实例：TSLAx 与 wTSLAx
+
+TSLAx 是 xStock 系列中的 Tesla 实例。本节只限定 Tesla，不把其接口或公式推广到其他 xStock。
+
+| 资产 | TSV 用途 | 准入重点 |
+| --- | --- | --- |
+| TSLAx | 底层权益与计股依据来源，不进入 TSV Swap/LP 收付 | `sharesOf(account)`、`getCurrentMultiplier()`、显示余额公式、代理实现/权限及发行方确认的法定股数依据 |
+| wTSLAx | 目标池内 Currency，用户直接支付或收到的 Token | raw `balanceOf()` 稳定、两侧精确转账、份额托管、暂停/制裁及原 LP owner 强退可达性 |
+
+V1 不在 Swap/LP 中调用 `TSLAx.transferSharesFrom`、`wTSLAx.mint` 或 `wTSLAx.redeem`。目标 Registry 以 wTSLAx 地址作为唯一 `poolCurrency` 并绑定已审的 LegalShareAdapter；池另一侧必须是已批准的非股票 Currency。用户若要将 TSLAx 包装为 wTSLAx，或将退出所得 wTSLAx 赎回为 TSLAx，均在 TSV 之外完成。
+
+参考 Backed Wrapped 实现的展示关系为 `displayRaw = floor(wrappedShares × currentMultiplier / 1e18)`。这只是发行方源码中的技术关系，不能单独证明一单位显示数量等于一股。发行方与法务须确认逐笔换算、舍入、输入含费/输出净到账口径，以及账户持仓权益定义。真实 wTSLAx 代理 ABI、实现和管理员、multiplier getter 的最坏 gas、转账限制与原 owner 收款能力仍是生产准入门槛；本地行为 mock 不构成真实实例证据。
+
+## 7. ERC-8056 与本地 `STDx` 夹具
+
+[ERC-8056](https://eips.ethereum.org/EIPS/eip-8056) 是 ERC-20 UI multiplier 扩展标准，目前为 Draft。仓库中的 [`ERC8056TestToken`](../lib/TestToken/erc8056/ERC8056TestToken.sol)（测试符号 `STDx`）是本地夹具，不是已部署的发行方 Token，也不构成证券权益证明。
+
+该夹具的 raw `balanceOf()`、转账和 V4 结算不随 multiplier 改写。`ERC8056LegalShareAdapter` 读取 `decimals()`、`uiMultiplier()`、`newUIMultiplier()` 和 `effectiveAt()` 形成交易快照；它不调用 `supportsInterface`，也不依赖标准的可选 UI 转换/余额接口。生产准入仍须按实际采用的 ERC-8056 版本核对 ERC-165 声明和 multiplier 行为；该 Draft 的接口 ID 为核心 `0xa60bf13d`、待生效系数 `0x4bd27648`，可选转换 `0x57854fc3`、可选 UI 余额 `0xd890fd71`。在发行方/法务批准 UI 单位对应一股的前提下，逐笔技术公式为：
+
+```text
+legalSharesWad = floor(rawAmount × uiMultiplier / 10^decimals)
+```
+
+V4 价格、滑点边界、Swap/LP 参数和余额均继续使用 raw 数量；用户 Swap/LP 直接支付或收取 `STDx`。multiplier 只参与已批准的股数计量，不改变结算数量。新 multiplier 生效形成新 `rateId`；如果它改变的是法律股数单位，则按第 4.1 节暂停流程处理。准入真实 ERC-8056 Token 还须独立核对接口/权限/代理、raw 稳定、双侧精确转账、multiplier 生效规则、有界 gas、法律单位和对应 ADTV/quota。
+
+本地适配器和覆盖测试见 [`ERC8056LegalShareAdapter`](../src/v1/adapters/ERC8056LegalShareAdapter.sol) 与 [`TSVProtocolLocal.t.sol`](../test/integration/local/TSVProtocolLocal.t.sol)。本地测试覆盖不能替代真实 Token 的逐实例准入。

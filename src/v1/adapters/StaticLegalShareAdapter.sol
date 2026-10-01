@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {RateSnapshot, RoundingMode, LegalShareMode, RawBoundMode} from "tsv-v1/types/TSVTypes.sol";
+import {RateSnapshot, RoundingMode, RawBoundMode} from "tsv-v1/types/TSVTypes.sol";
 import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
 import {LegalShareMath} from "tsv-v1/libraries/LegalShareMath.sol";
 
@@ -21,10 +21,6 @@ contract StaticLegalShareAdapter is ILegalShareAdapter {
         sharesPerWholeTokenWad = ratio_;
         denominator = 10 ** decimals_;
         rateId = keccak256(abi.encode(currency_, ratio_, decimals_, version_));
-    }
-
-    function legalShareMode() external pure returns (LegalShareMode) {
-        return LegalShareMode.STATIC_RATIO;
     }
 
     function snapshot(address currency) public view returns (RateSnapshot memory rate) {

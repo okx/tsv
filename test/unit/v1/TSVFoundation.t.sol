@@ -9,8 +9,6 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {
     TokenConfig,
-    AssetClass,
-    SettlementMode,
     TokenStatus,
     MarketAction,
     PauseScope,
@@ -151,10 +149,8 @@ contract TSVFoundationTest is Test {
         stock = new V1MockToken("STDx", 18);
         quote = new V1MockToken("QUOTE6", 6);
         stockAdapter = new StaticLegalShareAdapter(address(stock), 18, 1e18, 1);
-        registry.registerToken(
-            _config(stock, AssetClass.FIXED_BALANCE_STOCK, SECURITY, address(stockAdapter)), keccak256("stock")
-        );
-        registry.registerToken(_config(quote, AssetClass.QUOTE_ERC20, 0, address(0)), keccak256("quote"));
+        registry.registerToken(_config(stock, SECURITY, address(stockAdapter)), keccak256("stock"));
+        registry.registerToken(_config(quote, 0, address(0)), keccak256("quote"));
         registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("approve-stock"));
         registry.setTokenStatus(address(quote), TokenStatus.APPROVED, keccak256("approve-quote"));
 
@@ -191,9 +187,7 @@ contract TSVFoundationTest is Test {
     function testRegistryRejectsSameSecurityBothSides() public {
         V1MockToken secondStock = new V1MockToken("Second", 18);
         StaticLegalShareAdapter secondAdapter = new StaticLegalShareAdapter(address(secondStock), 18, 1e18, 1);
-        registry.registerToken(
-            _config(secondStock, AssetClass.FIXED_BALANCE_STOCK, SECURITY, address(secondAdapter)), keccak256("second")
-        );
+        registry.registerToken(_config(secondStock, SECURITY, address(secondAdapter)), keccak256("second"));
         registry.setTokenStatus(address(secondStock), TokenStatus.APPROVED, keccak256("approve-second"));
         address a = address(stock) < address(secondStock) ? address(stock) : address(secondStock);
         address b = address(stock) < address(secondStock) ? address(secondStock) : address(stock);
@@ -202,26 +196,28 @@ contract TSVFoundationTest is Test {
         registry.registerPendingPool(bad);
     }
 
-    function testRegistryDoesNotKeepASecondStaticRatioSource() public {
+    function testRegistryUsesAdapterAsTheOnlyShareFormula() public {
         V1MockToken other = new V1MockToken("Other", 18);
         StaticLegalShareAdapter adapter = new StaticLegalShareAdapter(address(other), 18, 2e18, 1);
-        TokenConfig memory config = _config(other, AssetClass.FIXED_BALANCE_STOCK, SECURITY, address(adapter));
+        TokenConfig memory config = _config(other, SECURITY, address(adapter));
         registry.registerToken(config, keccak256("wrong-ratio"));
         TokenConfig memory stored = registry.getToken(address(other));
-        assertEq(stored.sharesPerWholeTokenWad, 0);
-        assertEq(stored.ratioEvidenceHash, bytes32(0));
+        assertEq(stored.securityId, SECURITY);
+        assertEq(stored.legalShareAdapter, address(adapter));
         assertEq(stored.legalSharePolicyHash, config.legalSharePolicyHash);
+        TokenConfig memory quoteConfig = registry.getToken(address(quote));
+        assertEq(quoteConfig.securityId, bytes32(0));
+        assertEq(quoteConfig.legalShareAdapter, address(0));
         RateSnapshot memory rate = adapter.snapshot(address(other));
         assertEq(rate.numerator, 2e18);
     }
 
-    function testRegistryRejectsStaticDenominatorMismatch() public {
+    function testRegistryDelegatesRateDefinitionToAdapter() public {
         V1MockToken other = new V1MockToken("Other", 18);
         StaticLegalShareAdapter adapter = new StaticLegalShareAdapter(address(other), 6, 1e18, 1);
-        TokenConfig memory config = _config(other, AssetClass.FIXED_BALANCE_STOCK, SECURITY, address(adapter));
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config, keccak256("wrong-denominator"));
-        assertEq(registry.currencyOf(address(other)), address(0));
+        registry.registerToken(_config(other, SECURITY, address(adapter)), keccak256("adapter-rate"));
+        assertEq(adapter.snapshot(address(other)).denominator, 1e6);
+        assertEq(registry.getToken(address(other)).legalShareAdapter, address(adapter));
     }
 
     function testLegalAdapterReplacementRequiresPauseAndNextVersion() public {
@@ -372,10 +368,7 @@ contract TSVFoundationTest is Test {
         registry.listSecurity(secondSecurity, keccak256("STDy"), 1, keccak256("listing-b"));
         V1MockToken second = new V1MockToken("STDy", 18);
         StaticLegalShareAdapter secondAdapter = new StaticLegalShareAdapter(address(second), 18, 1e18, 1);
-        registry.registerToken(
-            _config(second, AssetClass.FIXED_BALANCE_STOCK, secondSecurity, address(secondAdapter)),
-            keccak256("register-b")
-        );
+        registry.registerToken(_config(second, secondSecurity, address(secondAdapter)), keccak256("register-b"));
         registry.setTokenStatus(address(second), TokenStatus.APPROVED, keccak256("approve-b"));
         address a = address(stock) < address(second) ? address(stock) : address(second);
         address b = address(stock) < address(second) ? address(second) : address(stock);
@@ -487,26 +480,18 @@ contract TSVFoundationTest is Test {
         timelock.execute(address(timelock), 0, payload, 0, salt);
     }
 
-    function _config(V1MockToken token, AssetClass assetClass, bytes32 securityId, address legalAdapter)
+    function _config(V1MockToken token, bytes32 securityId, address legalAdapter)
         private
         view
         returns (TokenConfig memory c)
     {
-        c.userToken = address(token);
         c.poolCurrency = address(token);
-        c.userDecimals = token.decimals();
         c.poolDecimals = token.decimals();
-        c.assetClass = assetClass;
         c.securityId = securityId;
-        c.settlementMode = SettlementMode.DIRECT_ERC20;
-        c.settlementVersion = 1;
         c.legalShareAdapter = legalAdapter;
         c.legalAdapterVersion = securityId == 0 ? 0 : 1;
-        c.sharesPerWholeTokenWad = 0;
-        c.ratioEvidenceHash = 0;
         c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("share-policy");
         c.status = TokenStatus.UNREVIEWED;
-        c.userRuntimeCodeHash = address(token).codehash;
         c.poolRuntimeCodeHash = address(token).codehash;
         c.legalAdapterCodeHash = legalAdapter.codehash;
         c.reviewHash = keccak256("review");

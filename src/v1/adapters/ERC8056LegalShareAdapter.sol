@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {RateSnapshot, RoundingMode, LegalShareMode, RawBoundMode} from "tsv-v1/types/TSVTypes.sol";
+import {RateSnapshot, RoundingMode, RawBoundMode} from "tsv-v1/types/TSVTypes.sol";
 import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
 import {LegalShareMath} from "tsv-v1/libraries/LegalShareMath.sol";
 
@@ -26,10 +26,6 @@ contract ERC8056LegalShareAdapter is ILegalShareAdapter {
         if (decimals_ > 18) revert InvalidRate();
         poolCurrency = currency_;
         adapterVersion = version_;
-    }
-
-    function legalShareMode() external pure returns (LegalShareMode) {
-        return LegalShareMode.ONCHAIN_DYNAMIC;
     }
 
     function snapshot(address currency) public view returns (RateSnapshot memory rate) {

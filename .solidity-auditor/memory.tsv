@@ -1,0 +1,3 @@
+#solidity-auditor-memory v1	key	status	scans	sha	title	kind
+tsvregistryv1|replacelegalshareadapter|intra-day-unit-mix	NEW	1	797e7b8	Daily quota mixes old and new share units	FINDING
+tsvregistryv1|registertoken|mutable-adapter-implementation	NEW	1	797e7b8	Upgradeable adapter can bypass the daily volume cap	LEAD

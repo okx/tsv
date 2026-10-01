@@ -17,6 +17,50 @@ contract V1Counter {
     }
 }
 
+contract V1GovernanceProxyLinksMock {
+    address public immutable governanceAnchor;
+    address public registry;
+    address public ledger;
+    address public dataInbox;
+    address public hook;
+    address public router;
+    address public lpManager;
+    address public poolManager;
+
+    constructor(address anchor_) {
+        governanceAnchor = anchor_;
+    }
+
+    function setLinks(
+        address registry_,
+        address ledger_,
+        address dataInbox_,
+        address hook_,
+        address router_,
+        address lpManager_,
+        address poolManager_
+    ) external {
+        registry = registry_;
+        ledger = ledger_;
+        dataInbox = dataInbox_;
+        hook = hook_;
+        router = router_;
+        lpManager = lpManager_;
+        poolManager = poolManager_;
+    }
+}
+
+contract V1FakeGovernanceAnchorMock {
+    address public immutable timelock;
+    bool public constant proxiesBound = true;
+    mapping(uint256 => address) public proxies;
+
+    constructor(address timelock_, address claimedProxy) {
+        timelock = timelock_;
+        proxies[0] = claimedProxy;
+    }
+}
+
 contract TSVGovernanceTest is Test {
     TSVUpgradeTimelock internal timelock;
     TSVBusinessAuthority internal authority;
@@ -84,6 +128,7 @@ contract TSVGovernanceTest is Test {
             address(first),
             abi.encodeCall(TSVRegistryV1.initialize, (address(anchor), address(timelock), address(controller)))
         );
+        _bindRegistryProxy(proxy);
         _execute(
             address(controller),
             abi.encodeCall(TSVEmergencyUpgradeController.setUpgradeTarget, (address(proxy), true)),
@@ -130,6 +175,72 @@ contract TSVGovernanceTest is Test {
         );
         assertEq(proxy.tsvImplementation(), address(third));
         assertTrue(controller.frozen());
+    }
+
+    function testEmergencyUpgradeTargetMustBeOneOfTheSixBoundProxies() public {
+        TSVRegistryV1 implementation = new TSVRegistryV1();
+        TSVERC1967Proxy proxy = new TSVERC1967Proxy(
+            address(implementation),
+            abi.encodeCall(TSVRegistryV1.initialize, (address(anchor), address(timelock), address(controller)))
+        );
+        _bindRegistryProxy(proxy);
+
+        TSVERC1967Proxy unboundProxy = new TSVERC1967Proxy(
+            address(implementation),
+            abi.encodeCall(TSVRegistryV1.initialize, (address(anchor), address(timelock), address(controller)))
+        );
+        bytes memory unboundTargetCall =
+            abi.encodeCall(TSVEmergencyUpgradeController.setUpgradeTarget, (address(unboundProxy), true));
+        bytes32 unboundTargetSalt = keccak256("unbound-target");
+        timelock.schedule(address(controller), 0, unboundTargetCall, 0, unboundTargetSalt, 0);
+        vm.expectRevert(TSVEmergencyUpgradeController.InvalidOperation.selector);
+        timelock.execute(address(controller), 0, unboundTargetCall, 0, unboundTargetSalt);
+
+        address[] memory executors = new address[](1);
+        executors[0] = address(this);
+        TSVUpgradeTimelock candidateTimelock = new TSVUpgradeTimelock(
+            address(this), makeAddr("candidate-guardian"), makeAddr("candidate-council"), executors
+        );
+        TSVBusinessAuthority candidateAuthority = new TSVBusinessAuthority(address(this), address(candidateTimelock));
+        TSVEmergencyUpgradeController candidateController =
+            new TSVEmergencyUpgradeController(address(this), candidateTimelock.guardian(), address(candidateTimelock));
+        _executeOn(
+            candidateTimelock,
+            address(candidateTimelock),
+            abi.encodeCall(TSVUpgradeTimelock.bindBusinessAuthority, (address(candidateAuthority))),
+            keccak256("candidate-authority"),
+            0
+        );
+        _executeOn(
+            candidateTimelock,
+            address(candidateTimelock),
+            abi.encodeCall(TSVUpgradeTimelock.bindEmergencyController, (address(candidateController))),
+            keccak256("candidate-controller"),
+            0
+        );
+        V1FakeGovernanceAnchorMock fakeAnchor = new V1FakeGovernanceAnchorMock(address(timelock), address(unboundProxy));
+        _executeOn(
+            candidateTimelock,
+            address(candidateTimelock),
+            abi.encodeCall(TSVUpgradeTimelock.nominateGovernanceAnchor, (address(fakeAnchor))),
+            keccak256("candidate-fake-anchor"),
+            0
+        );
+        bytes memory fakeAnchorTargetCall =
+            abi.encodeCall(TSVEmergencyUpgradeController.setUpgradeTarget, (address(unboundProxy), true));
+        bytes32 fakeAnchorTargetSalt = keccak256("fake-anchor-target");
+        candidateTimelock.schedule(address(candidateController), 0, fakeAnchorTargetCall, 0, fakeAnchorTargetSalt, 0);
+        vm.expectRevert(TSVEmergencyUpgradeController.InvalidOperation.selector);
+        candidateTimelock.execute(address(candidateController), 0, fakeAnchorTargetCall, 0, fakeAnchorTargetSalt);
+
+        _execute(
+            address(controller),
+            abi.encodeCall(TSVEmergencyUpgradeController.setUpgradeTarget, (address(proxy), true)),
+            keccak256("bound-target"),
+            0
+        );
+        assertTrue(controller.upgradeTargetAllowed(address(proxy)));
+        assertFalse(controller.upgradeTargetAllowed(address(unboundProxy)));
     }
 
     function testProtectedRecoveryChangesRootAndCannotBeCancelled() public {
@@ -239,8 +350,79 @@ contract TSVGovernanceTest is Test {
     }
 
     function _execute(address target, bytes memory data, bytes32 salt, uint256 delay) private {
-        timelock.schedule(target, 0, data, 0, salt, delay);
+        _executeOn(timelock, target, data, salt, delay);
+    }
+
+    function _executeOn(
+        TSVUpgradeTimelock targetTimelock,
+        address target,
+        bytes memory data,
+        bytes32 salt,
+        uint256 delay
+    ) private {
+        targetTimelock.schedule(target, 0, data, 0, salt, delay);
         if (delay != 0) vm.warp(block.timestamp + delay);
-        timelock.execute(target, 0, data, 0, salt);
+        targetTimelock.execute(target, 0, data, 0, salt);
+    }
+
+    function _bindRegistryProxy(TSVERC1967Proxy registryProxy) private {
+        V1GovernanceProxyLinksMock ledger = new V1GovernanceProxyLinksMock(address(anchor));
+        V1GovernanceProxyLinksMock inbox = new V1GovernanceProxyLinksMock(address(anchor));
+        V1GovernanceProxyLinksMock hook = new V1GovernanceProxyLinksMock(address(anchor));
+        V1GovernanceProxyLinksMock router = new V1GovernanceProxyLinksMock(address(anchor));
+        V1GovernanceProxyLinksMock lpManager = new V1GovernanceProxyLinksMock(address(anchor));
+        address poolManager = makeAddr("proxy-list-pool-manager");
+
+        ledger.setLinks(
+            address(registryProxy),
+            address(ledger),
+            address(inbox),
+            address(hook),
+            address(router),
+            address(lpManager),
+            poolManager
+        );
+        inbox.setLinks(
+            address(registryProxy),
+            address(ledger),
+            address(inbox),
+            address(hook),
+            address(router),
+            address(lpManager),
+            poolManager
+        );
+        hook.setLinks(
+            address(registryProxy),
+            address(ledger),
+            address(inbox),
+            address(hook),
+            address(router),
+            address(lpManager),
+            poolManager
+        );
+        router.setLinks(
+            address(registryProxy),
+            address(ledger),
+            address(inbox),
+            address(hook),
+            address(router),
+            address(lpManager),
+            poolManager
+        );
+        lpManager.setLinks(
+            address(registryProxy),
+            address(ledger),
+            address(inbox),
+            address(hook),
+            address(router),
+            address(lpManager),
+            poolManager
+        );
+
+        TSVRegistryV1(address(registryProxy)).bindComponents(address(hook), address(lpManager), address(inbox));
+        address[6] memory proxies = [
+            address(registryProxy), address(ledger), address(inbox), address(hook), address(router), address(lpManager)
+        ];
+        anchor.bindProxies(proxies);
     }
 }
