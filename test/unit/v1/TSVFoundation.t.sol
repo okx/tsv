@@ -19,6 +19,9 @@ import {
 } from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVBusinessAuthority, IRecoveryContext} from "tsv-v1/governance/TSVBusinessAuthority.sol";
+import {TSVUpgradeTimelock} from "tsv-v1/governance/TSVUpgradeTimelock.sol";
+import {TSVEmergencyUpgradeController} from "tsv-v1/governance/TSVEmergencyUpgradeController.sol";
+import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
@@ -72,8 +75,11 @@ contract TSVFoundationTest is Test {
     uint32 private constant DAY = 20261001;
     uint64 private constant MONTH = 202609;
 
-    V1MockTimelock internal timelock;
+    TSVUpgradeTimelock internal timelock;
     TSVBusinessAuthority internal authority;
+    TSVGovernanceAnchor internal anchor;
+    address internal guardian;
+    address internal council;
     TSVRegistryV1 internal registry;
     TSVVolumeLedgerV1 internal ledger;
     TSVDataInboxV1 internal inbox;
@@ -85,13 +91,30 @@ contract TSVFoundationTest is Test {
 
     function setUp() public {
         vm.warp(1_790_827_201);
-        timelock = new V1MockTimelock();
+        guardian = makeAddr("guardian");
+        council = makeAddr("council");
+        address[] memory executors = new address[](1);
+        executors[0] = address(this);
+        timelock = new TSVUpgradeTimelock(address(this), guardian, council, executors);
         authority = new TSVBusinessAuthority(address(this), address(timelock));
+        TSVEmergencyUpgradeController controller =
+            new TSVEmergencyUpgradeController(address(this), guardian, address(timelock));
+        _executeGovernance(
+            abi.encodeCall(TSVUpgradeTimelock.bindBusinessAuthority, (address(authority))), keccak256("bind-authority")
+        );
+        _executeGovernance(
+            abi.encodeCall(TSVUpgradeTimelock.bindEmergencyController, (address(controller))),
+            keccak256("bind-controller")
+        );
+        anchor = new TSVGovernanceAnchor(address(timelock), address(authority), address(controller));
+        _executeGovernance(
+            abi.encodeCall(TSVUpgradeTimelock.bindGovernanceAnchor, (address(anchor))), keccak256("bind-anchor")
+        );
         registry = TSVRegistryV1(
             address(
                 new ERC1967Proxy(
                     address(new TSVRegistryV1()),
-                    abi.encodeCall(TSVRegistryV1.initialize, (address(authority), address(timelock), address(0xCAFE)))
+                    abi.encodeCall(TSVRegistryV1.initialize, (address(anchor), address(timelock), address(controller)))
                 )
             )
         );
@@ -101,7 +124,7 @@ contract TSVFoundationTest is Test {
                     address(new TSVVolumeLedgerV1()),
                     abi.encodeCall(
                         TSVVolumeLedgerV1.initialize,
-                        (address(authority), address(timelock), address(0xCAFE), address(registry), 14_400)
+                        (address(anchor), address(timelock), address(controller), address(registry), 14_400)
                     )
                 )
             )
@@ -112,7 +135,7 @@ contract TSVFoundationTest is Test {
                     address(new TSVDataInboxV1()),
                     abi.encodeCall(
                         TSVDataInboxV1.initialize,
-                        (address(authority), address(timelock), address(0xCAFE), address(registry), address(ledger))
+                        (address(anchor), address(timelock), address(controller), address(registry), address(ledger))
                     )
                 )
             )
@@ -444,12 +467,24 @@ contract TSVFoundationTest is Test {
     function testBusinessGovernorRecoveryChangesDynamicAdmin() public {
         address next = makeAddr("new-governor");
         assertTrue(registry.hasRole(0, address(this)));
-        timelock.setActive(true);
-        timelock.recover(authority, address(this), next);
+        bytes memory payload =
+            abi.encodeCall(TSVUpgradeTimelock.recoverAuthorities, (next, guardian, keccak256("recovery")));
+        bytes32 salt = keccak256("foundation-recovery");
+        vm.prank(council);
+        timelock.schedule(address(timelock), 0, payload, 0, salt, 0);
+        bytes32 id = timelock.hashOperation(address(timelock), 0, payload, 0, salt);
+        vm.prank(guardian);
+        timelock.approveRecovery(id);
+        timelock.execute(address(timelock), 0, payload, 0, salt);
         assertFalse(registry.hasRole(0, address(this)));
         assertTrue(registry.hasRole(0, next));
         vm.expectRevert();
         registry.setTierPolicy(2, 25, 1, keccak256("tier2"));
+    }
+
+    function _executeGovernance(bytes memory payload, bytes32 salt) private {
+        timelock.schedule(address(timelock), 0, payload, 0, salt, 0);
+        timelock.execute(address(timelock), 0, payload, 0, salt);
     }
 
     function _config(V1MockToken token, AssetClass assetClass, bytes32 securityId, address legalAdapter)

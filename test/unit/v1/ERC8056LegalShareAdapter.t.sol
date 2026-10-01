@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC8056TestToken} from "../../../lib/TestToken/erc8056/ERC8056TestToken.sol";
 import {ERC8056LegalShareAdapter} from "tsv-v1/adapters/ERC8056LegalShareAdapter.sol";
 import {RateSnapshot, RoundingMode, RawBoundMode} from "tsv-v1/types/TSVTypes.sol";
@@ -69,5 +70,23 @@ contract ERC8056LegalShareAdapterTest is Test {
         vm.warp(block.timestamp + 1);
         vm.expectRevert(ERC8056LegalShareAdapter.InvalidRate.selector);
         adapter.toLegalShares(address(token), 1e18, initial);
+    }
+
+    function testFuzzRawBoundsAreTight(uint256 multiplierSeed, uint256 targetSeed) public {
+        uint256 multiplier = bound(multiplierSeed, 1e12, 10e18);
+        uint256 target = bound(targetSeed, 1, 1e24);
+        token.setUIMultiplier(multiplier, block.timestamp + 1);
+        vm.warp(block.timestamp + 1);
+        RateSnapshot memory rate = adapter.snapshot(address(token));
+
+        uint256 minRaw =
+            adapter.rawForLegalShares(address(token), target, rate, RawBoundMode.MIN_RAW_FOR_AT_LEAST_SHARES);
+        assertGe(adapter.toLegalShares(address(token), minRaw, rate), target);
+        if (minRaw > 0) assertLt(Math.mulDiv(minRaw - 1, multiplier, 1e18), target);
+
+        uint256 maxRaw =
+            adapter.rawForLegalShares(address(token), target, rate, RawBoundMode.MAX_RAW_FOR_AT_MOST_SHARES);
+        assertLe(Math.mulDiv(maxRaw, multiplier, 1e18), target);
+        assertGt(adapter.toLegalShares(address(token), maxRaw + 1, rate), target);
     }
 }

@@ -6,7 +6,11 @@ import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.s
 
 /// @notice Stable selector for implementation inspection even when logic is broken.
 contract TSVERC1967Proxy is ERC1967Proxy {
-    constructor(address implementation, bytes memory data) ERC1967Proxy(implementation, data) {}
+    error EmptyInitializationData();
+
+    constructor(address implementation, bytes memory data) ERC1967Proxy(implementation, data) {
+        if (data.length == 0) revert EmptyInitializationData();
+    }
 
     function tsvImplementation() external view returns (address) {
         return ERC1967Utils.getImplementation();

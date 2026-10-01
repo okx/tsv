@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "tsv-v1-deployment-1",
+  "status": "TEMPLATE",
+  "network": {
+    "name": "xlayer",
+    "chainId": 196,
+    "poolManager": {
+      "address": "",
+      "runtimeCodeHash": "",
+      "v4Version": ""
+    }
+  },
+  "build": {
+    "gitCommit": "",
+    "solidity": "0.8.26",
+    "evmVersion": "cancun",
+    "optimizerRuns": 200,
+    "viaIR": true,
+    "openzeppelinVersion": "5.5.0",
+    "v4CoreCommit": "",
+    "smartWalletSbtCommit": "",
+    "backedTokenCommit": ""
+  },
+  "governance": {
+    "businessAuthority": "",
+    "governanceAnchor": "",
+    "upgradeTimelock": "",
+    "emergencyUpgradeController": "",
+    "governor": "",
+    "guardian": "",
+    "recoveryCouncil": "",
+    "executors": []
+  },
+  "businessProxies": {
+    "registry": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
+    "volumeLedger": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
+    "dataInbox": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
+    "hook": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
+    "swapRouter": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
+    "lpManager": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" }
+  },
+  "hookDeployment": {
+    "factory": "",
+    "salt": "",
+    "predictedProxy": "",
+    "actualProxy": "",
+    "requiredPermissionFlags": "0x3FFF",
+    "actualPermissionFlags": "",
+    "tsvImplementation": ""
+  },
+  "bindings": {
+    "timelockAnchor": "",
+    "anchorProxyOrder": [],
+    "registryHook": "",
+    "registryLpManager": "",
+    "registryDataInbox": "",
+    "ledgerHook": "",
+    "ledgerDataInbox": "",
+    "routerPoolManager": "",
+    "routerRegistry": "",
+    "routerLedger": "",
+    "routerHook": "",
+    "lpPoolManager": "",
+    "lpRegistry": "",
+    "hookPoolManager": "",
+    "hookRegistry": "",
+    "hookLedger": "",
+    "hookRouter": "",
+    "hookLpManager": ""
+  },
+  "sbt": {
+    "address": "",
+    "tokenId": 0,
+    "runtimeCodeHash": "",
+    "evidenceHash": ""
+  },
+  "roles": {
+    "symbolAdmins": [],
+    "poolCreators": [],
+    "haltReporters": [],
+    "volumeOracles": [],
+    "emergencyPausers": [],
+    "emergencyResumers": [],
+    "revokeExitExecutors": [],
+    "forceExitAdmins": []
+  },
+  "assets": [],
+  "pools": [],
+  "reports": {
+    "initialMarketReports": [],
+    "adtvReports": [],
+    "quotaOverrides": []
+  },
+  "releaseEvidence": {
+    "deploymentTransactions": [],
+    "initializationTransactions": [],
+    "configurationTransactions": [],
+    "postDeploymentChecks": [],
+    "indexerStartBlock": null,
+    "operatorApprovals": []
+  }
+}

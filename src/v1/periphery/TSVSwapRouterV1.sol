@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
@@ -14,12 +12,11 @@ import {TokenConfig, PoolConfig, AssetBounds, SettlementMode, SwapRequest} from 
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
-import {TSVSBTAdapterV1} from "tsv-v1/periphery/TSVSBTAdapterV1.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
+import {TSVDirectSettlementLib} from "tsv-v1/libraries/TSVDirectSettlementLib.sol";
 
 /// @notice One-pool authorized swap entry; users settle each PoolKey currency directly.
 contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
-    using SafeERC20 for IERC20;
     using PoolIdLibrary for PoolKey;
     using BalanceDeltaLibrary for BalanceDelta;
 
@@ -74,7 +71,6 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
     IPoolManager public poolManager;
     TSVRegistryV1 public registry;
     TSVVolumeLedgerV1 public ledger;
-    TSVSBTAdapterV1 public sbtAdapter;
     TSVHookV1 public hook;
     bool private entered;
     Active private active;
@@ -100,19 +96,17 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
         address poolManager_,
         address registry_,
         address ledger_,
-        address sbtAdapter_,
         address hook_
     ) external initializer {
         __TSVGoverned_init(authority, timelock, controller);
         __EIP712_init("TSVSwapRouter", "2");
         if (
             poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0
-                || sbtAdapter_.code.length == 0 || hook_ == address(0)
+                || hook_ == address(0)
         ) revert InvalidRequest();
         poolManager = IPoolManager(poolManager_);
         registry = TSVRegistryV1(registry_);
         ledger = TSVVolumeLedgerV1(ledger_);
-        sbtAdapter = TSVSBTAdapterV1(sbtAdapter_);
         hook = TSVHookV1(hook_);
     }
 
@@ -240,7 +234,7 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
                 || request.participant != request.recipient || request.amountSpecified == 0
                 || request.amountSpecified > uint128(type(int128).max) || request.limitAmount == 0
         ) revert InvalidRequest();
-        if (!sbtAdapter.isEligible(request.participant)) revert Unauthorized();
+        if (!registry.isEligible(request.participant)) revert Unauthorized();
         poolId = PoolId.unwrap(request.key.toId());
         if (!registry.isTradable(poolId)) revert InvalidPool();
         PoolConfig memory pool = registry.getPool(poolId);
@@ -278,28 +272,9 @@ contract TSVSwapRouterV1 is TSVGoverned, EIP712Upgradeable {
         if (config.settlementMode != SettlementMode.DIRECT_ERC20 || config.userToken != token) revert InvalidPool();
         uint256 amount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         if (delta < 0) {
-            poolManager.sync(currency);
-            uint256 payerBefore = IERC20(token).balanceOf(participant);
-            uint256 poolBefore = IERC20(token).balanceOf(address(poolManager));
-            IERC20(token).safeTransferFrom(participant, address(poolManager), amount);
-            uint256 payerAfter = IERC20(token).balanceOf(participant);
-            uint256 poolAfter = IERC20(token).balanceOf(address(poolManager));
-            if (
-                payerAfter > payerBefore || payerBefore - payerAfter != amount || poolAfter < poolBefore
-                    || poolAfter - poolBefore != amount || poolManager.settle() != amount
-            ) revert SettlementMismatch();
+            TSVDirectSettlementLib.settleFrom(poolManager, currency, token, participant, amount);
         } else {
-            uint256 poolBefore = IERC20(token).balanceOf(address(poolManager));
-            uint256 recipientBefore = IERC20(token).balanceOf(participant);
-            poolManager.take(currency, participant, amount);
-            uint256 poolAfter = IERC20(token).balanceOf(address(poolManager));
-            uint256 recipientAfter = IERC20(token).balanceOf(participant);
-            if (
-                poolAfter > poolBefore || poolBefore - poolAfter != amount || recipientAfter < recipientBefore
-                    || recipientAfter - recipientBefore != amount
-            ) {
-                revert SettlementMismatch();
-            }
+            TSVDirectSettlementLib.takeTo(poolManager, currency, token, participant, amount);
         }
     }
 

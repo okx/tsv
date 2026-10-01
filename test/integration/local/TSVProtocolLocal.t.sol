@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PoolManager} from "v4-core/PoolManager.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
@@ -22,19 +23,18 @@ import {
 } from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVBusinessAuthority} from "tsv-v1/governance/TSVBusinessAuthority.sol";
+import {TSVUpgradeTimelock} from "tsv-v1/governance/TSVUpgradeTimelock.sol";
+import {TSVEmergencyUpgradeController} from "tsv-v1/governance/TSVEmergencyUpgradeController.sol";
+import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
-import {TSVSBTAdapterV1} from "tsv-v1/periphery/TSVSBTAdapterV1.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
-import {TSVReceiptV1} from "tsv-v1/periphery/TSVReceiptV1.sol";
 import {StaticLegalShareAdapter} from "tsv-v1/adapters/StaticLegalShareAdapter.sol";
 import {ERC8056LegalShareAdapter} from "tsv-v1/adapters/ERC8056LegalShareAdapter.sol";
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
-import {IssuerShareSettlementAdapter} from "tsv-v1/adapters/IssuerShareSettlementAdapter.sol";
 import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../helpers/v1/MockIssuerTokens.sol";
 import {ERC8056TestToken} from "../../../lib/TestToken/erc8056/ERC8056TestToken.sol";
 
@@ -74,26 +74,87 @@ contract V1LocalERC20 is ERC20 {
 
 contract V1LocalSBT {
     mapping(address => bool) public holds;
-    bool public paused;
+    bool private paused_;
+    bool public failVerify;
+    bool public failPaused;
 
     function setHolder(address owner, bool value) external {
         holds[owner] = value;
     }
 
     function setPaused(bool value) external {
-        paused = value;
+        paused_ = value;
+    }
+
+    function setFailReads(bool verify_, bool pausedRead_) external {
+        failVerify = verify_;
+        failPaused = pausedRead_;
+    }
+
+    function paused() external view returns (bool) {
+        require(!failPaused, "paused read failed");
+        return paused_;
     }
 
     function verify(address owner, uint256) external view returns (bool) {
+        require(!failVerify, "verify read failed");
         return holds[owner];
+    }
+}
+
+contract V1Test1271Wallet {
+    address public immutable admin;
+    bytes32 public expectedHash;
+    bytes public expectedSignature;
+
+    constructor(address admin_) {
+        admin = admin_;
+    }
+
+    function setAuthorization(bytes32 digest, bytes calldata signature) external {
+        require(msg.sender == admin);
+        expectedHash = digest;
+        expectedSignature = signature;
+    }
+
+    function approveToken(address token, address spender) external {
+        require(msg.sender == admin);
+        IERC20(token).approve(spender, type(uint256).max);
+    }
+
+    function isValidSignature(bytes32 digest, bytes calldata signature) external view returns (bytes4) {
+        if (digest == expectedHash && keccak256(signature) == keccak256(expectedSignature)) return 0x1626ba7e;
+        return 0xffffffff;
     }
 }
 
 contract TSVProtocolLocalTest is Test {
     using PoolIdLibrary for PoolKey;
 
+    struct SignedSwap {
+        address participant;
+        address payer;
+        address recipient;
+        address authorizedCaller;
+        bytes32 poolId;
+        bool zeroForOne;
+        bool exactInput;
+        uint128 amountSpecified;
+        uint128 limitAmount;
+        uint160 sqrtPriceLimitX96;
+        uint256 maxSharesIn0;
+        uint256 minSharesOut0;
+        uint256 maxDisplayedDebit0;
+        uint256 minDisplayedCredit0;
+        uint256 maxSharesIn1;
+        uint256 minSharesOut1;
+        uint256 maxDisplayedDebit1;
+        uint256 minDisplayedCredit1;
+        uint256 nonce;
+        uint64 deadline;
+    }
+
     address private constant HOOK_ADDRESS = address(uint160(0x3FFF));
-    address private constant RECEIPT_ADDRESS = address(uint160(0xBEEF0));
     bytes32 private constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     bytes32 private constant SECURITY = keccak256("SEC_A");
     uint32 private constant DAY = 20261001;
@@ -102,11 +163,9 @@ contract TSVProtocolLocalTest is Test {
     TSVRegistryV1 internal registry;
     TSVVolumeLedgerV1 internal ledger;
     TSVDataInboxV1 internal inbox;
-    TSVSBTAdapterV1 internal sbtAdapter;
     TSVHookV1 internal hook;
     TSVSwapRouterV1 internal router;
     TSVLPManagerV1 internal lpManager;
-    TSVReceiptV1 internal receipt;
     V1LocalSBT internal sbt;
     ERC8056TestToken internal stock;
     V1LocalERC20 internal quote;
@@ -118,11 +177,18 @@ contract TSVProtocolLocalTest is Test {
         vm.warp(1_790_827_201);
         alice = makeAddr("alice");
         manager = new PoolManager(address(this));
-        TSVBusinessAuthority authority = new TSVBusinessAuthority(address(this), address(0xA11CE));
+        address[] memory executors = new address[](1);
+        executors[0] = address(this);
+        address guardian = makeAddr("guardian");
+        TSVUpgradeTimelock timelock = new TSVUpgradeTimelock(address(this), guardian, makeAddr("council"), executors);
+        TSVBusinessAuthority authority = new TSVBusinessAuthority(address(this), address(timelock));
+        TSVEmergencyUpgradeController controller =
+            new TSVEmergencyUpgradeController(address(this), guardian, address(timelock));
+        TSVGovernanceAnchor anchor = new TSVGovernanceAnchor(address(timelock), address(authority), address(controller));
         registry = TSVRegistryV1(
             _newProxy(
                 address(new TSVRegistryV1()),
-                abi.encodeCall(TSVRegistryV1.initialize, (address(authority), address(0xA11CE), address(0xCAFE)))
+                abi.encodeCall(TSVRegistryV1.initialize, (address(anchor), address(timelock), address(controller)))
             )
         );
         ledger = TSVVolumeLedgerV1(
@@ -130,7 +196,7 @@ contract TSVProtocolLocalTest is Test {
                 address(new TSVVolumeLedgerV1()),
                 abi.encodeCall(
                     TSVVolumeLedgerV1.initialize,
-                    (address(authority), address(0xA11CE), address(0xCAFE), address(registry), 14_400)
+                    (address(anchor), address(timelock), address(controller), address(registry), 14_400)
                 )
             )
         );
@@ -139,33 +205,25 @@ contract TSVProtocolLocalTest is Test {
                 address(new TSVDataInboxV1()),
                 abi.encodeCall(
                     TSVDataInboxV1.initialize,
-                    (address(authority), address(0xA11CE), address(0xCAFE), address(registry), address(ledger))
+                    (address(anchor), address(timelock), address(controller), address(registry), address(ledger))
                 )
             )
         );
         sbt = new V1LocalSBT();
         sbt.setHolder(alice, true);
-        sbtAdapter = TSVSBTAdapterV1(
-            _newProxy(
-                address(new TSVSBTAdapterV1()),
-                abi.encodeCall(
-                    TSVSBTAdapterV1.initialize, (address(authority), address(0xA11CE), address(0xCAFE), address(sbt), 1)
-                )
-            )
-        );
+        registry.setSbtConfig(address(sbt), 1, keccak256("sbt-config"));
         router = TSVSwapRouterV1(
             _newProxy(
                 address(new TSVSwapRouterV1()),
                 abi.encodeCall(
                     TSVSwapRouterV1.initialize,
                     (
-                        address(authority),
-                        address(0xA11CE),
-                        address(0xCAFE),
+                        address(anchor),
+                        address(timelock),
+                        address(controller),
                         address(manager),
                         address(registry),
                         address(ledger),
-                        address(sbtAdapter),
                         HOOK_ADDRESS
                     )
                 )
@@ -176,27 +234,16 @@ contract TSVProtocolLocalTest is Test {
                 address(new TSVLPManagerV1()),
                 abi.encodeCall(
                     TSVLPManagerV1.initialize,
-                    (
-                        address(authority),
-                        address(0xA11CE),
-                        address(0xCAFE),
-                        address(manager),
-                        address(registry),
-                        address(sbtAdapter),
-                        RECEIPT_ADDRESS
-                    )
+                    (address(anchor), address(timelock), address(controller), address(manager), address(registry))
                 )
             )
         );
-        receipt = TSVReceiptV1(RECEIPT_ADDRESS);
-        _installProxy(RECEIPT_ADDRESS, address(new TSVReceiptV1()));
-        receipt.initialize(address(authority), address(0xA11CE), address(0xCAFE), address(lpManager));
         hook = TSVHookV1(HOOK_ADDRESS);
         _installProxy(HOOK_ADDRESS, address(new TSVHookV1()));
         hook.initialize(
-            address(authority),
-            address(0xA11CE),
-            address(0xCAFE),
+            address(anchor),
+            address(timelock),
+            address(controller),
             address(manager),
             address(registry),
             address(ledger),
@@ -242,7 +289,7 @@ contract TSVProtocolLocalTest is Test {
     function testRealV4OnePoolSwapAccountsActualDelta() public {
         bytes32 poolId = PoolId.unwrap(key.toId());
         assertEq(uint160(address(hook)) & uint160(0x3FFF), uint160(0x3FFF));
-        assertEq(receipt.ownerOf(positionId), alice);
+        assertEq(lpManager.ownerOf(positionId), alice);
         assertTrue(registry.isTradable(poolId));
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         uint256 beforeUsed = ledger.used(SECURITY, DAY);
@@ -253,6 +300,28 @@ contract TSVProtocolLocalTest is Test {
         assertGt(actualOut, 0);
         uint256 used = ledger.used(SECURITY, DAY) - beforeUsed;
         assertEq(used, actualIn);
+    }
+
+    function testLpManagerHostsNonTransferableReceipt() public {
+        assertEq(lpManager.ownerOf(positionId), alice);
+        assertEq(lpManager.balanceOf(alice), 1);
+        assertTrue(lpManager.supportsInterface(0x80ac58cd));
+
+        vm.expectRevert(TSVLPManagerV1.NonTransferable.selector);
+        vm.prank(alice);
+        lpManager.transferFrom(alice, address(this), positionId);
+
+        vm.expectRevert(TSVLPManagerV1.NonTransferable.selector);
+        vm.prank(alice);
+        lpManager.safeTransferFrom(alice, address(this), positionId);
+
+        vm.expectRevert(TSVLPManagerV1.NonTransferable.selector);
+        vm.prank(alice);
+        lpManager.approve(address(this), positionId);
+
+        vm.expectRevert(TSVLPManagerV1.NonTransferable.selector);
+        vm.prank(alice);
+        lpManager.setApprovalForAll(address(this), true);
     }
 
     function testRealV4StockOutputCountsNetReceived() public {
@@ -276,6 +345,54 @@ contract TSVProtocolLocalTest is Test {
         assertEq(quote.balanceOf(address(manager)), managerQuoteBefore);
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
         assertFalse(router.nonceUnavailable(alice, 701));
+    }
+
+    function testSwapRevertsIfPoolLosesMoreThanOutputDelta() public {
+        bool stockInput = address(stock) == Currency.unwrap(key.currency0);
+        quote.setSenderFee(address(manager), 100);
+        uint256 quoteBefore = quote.balanceOf(alice);
+        uint256 managerQuoteBefore = quote.balanceOf(address(manager));
+        uint256 usedBefore = ledger.used(SECURITY, DAY);
+        vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
+        vm.prank(alice);
+        router.swapExactInput(_swapRequest(stockInput, 1e18, 702), "");
+        assertEq(quote.balanceOf(alice), quoteBefore);
+        assertEq(quote.balanceOf(address(manager)), managerQuoteBefore);
+        assertEq(ledger.used(SECURITY, DAY), usedBefore);
+        assertFalse(router.nonceUnavailable(alice, 702));
+    }
+
+    function testAuthorizedERC1271SwapBindsRequestAndNonce() public {
+        V1Test1271Wallet wallet = new V1Test1271Wallet(address(this));
+        sbt.setHolder(address(wallet), true);
+        stock.mint(address(wallet), 1e21);
+        quote.mint(address(wallet), 1e21);
+        wallet.approveToken(address(stock), address(router));
+        wallet.approveToken(address(quote), address(router));
+        router.setAuthorizedCaller(address(this), true);
+
+        SwapRequest memory request = _swapRequest(address(stock) == Currency.unwrap(key.currency0), 1e18, 903);
+        request.participant = address(wallet);
+        request.payer = address(wallet);
+        request.recipient = address(wallet);
+        request.authorizedCaller = address(this);
+        bytes memory signature = hex"123456";
+        wallet.setAuthorization(_authorizationDigest(request), signature);
+
+        SwapRequest memory altered = request;
+        altered.limitAmount = 2;
+        vm.expectRevert(TSVSwapRouterV1.InvalidSignature.selector);
+        router.swapExactInput(altered, signature);
+        assertFalse(router.nonceUnavailable(address(wallet), 903));
+
+        request.limitAmount = 1;
+        (uint256 actualIn, uint256 actualOut) = router.swapExactInput(request, signature);
+        assertGt(actualIn, 0);
+        assertGt(actualOut, 0);
+        assertTrue(router.nonceUnavailable(address(wallet), 903));
+
+        vm.expectRevert(TSVSwapRouterV1.NonceUnavailable.selector);
+        router.swapExactInput(request, signature);
     }
 
     function testERC8056StockSwapBothWaysUsesDynamicUiMultiplier() public {
@@ -379,6 +496,24 @@ contract TSVProtocolLocalTest is Test {
         assertEq(lpManager.getPosition(positionId).liquidity, liquidityBefore);
     }
 
+    function testLpExitRevertsIfPoolLosesMoreThanOutputDelta() public {
+        quote.setSenderFee(address(manager), 100);
+        uint256 ownerBefore = quote.balanceOf(alice);
+        uint256 managerBefore = quote.balanceOf(address(manager));
+        uint128 liquidityBefore = lpManager.getPosition(positionId).liquidity;
+        LPBounds memory bounds;
+        bounds.deadline = uint64(block.timestamp + 100);
+
+        vm.expectRevert(TSVLPManagerV1.SettlementMismatch.selector);
+        vm.prank(alice);
+        lpManager.decreaseLiquidity(positionId, 1e19, bounds);
+
+        assertEq(quote.balanceOf(alice), ownerBefore);
+        assertEq(quote.balanceOf(address(manager)), managerBefore);
+        assertEq(lpManager.getPosition(positionId).liquidity, liquidityBefore);
+        assertEq(lpManager.ownerOf(positionId), alice);
+    }
+
     function testDirectLpLifecycleDoesNotRecordLiquidityAsTradeVolume() public {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         LPBounds memory bounds;
@@ -405,7 +540,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY), usedAfterSwap);
         assertFalse(lpManager.getPosition(positionId).active);
         vm.expectRevert();
-        receipt.ownerOf(positionId);
+        lpManager.ownerOf(positionId);
     }
 
     function testExactOutputRequiresFullDelivery() public {
@@ -413,10 +548,36 @@ contract TSVProtocolLocalTest is Test {
         SwapRequest memory request = _swapRequest(stockIsCurrency0, 1e18, 3);
         request.exactInput = false;
         request.limitAmount = 2e18;
+        uint256 usedBefore = ledger.used(SECURITY, DAY);
         vm.prank(alice);
         (uint256 actualIn, uint256 actualOut) = router.swapExactOutput(request, "");
         assertEq(actualOut, 1e18);
         assertLe(actualIn, 2e18);
+        assertEq(ledger.used(SECURITY, DAY) - usedBefore, actualIn);
+    }
+
+    function testExactOutputStockPurchaseRecordsNetShares() public {
+        stock.setUIMultiplier(2e18, block.timestamp + 1);
+        vm.warp(block.timestamp + 1);
+
+        bool quoteIsCurrency0 = address(quote) == Currency.unwrap(key.currency0);
+        SwapRequest memory request = _swapRequest(quoteIsCurrency0, 1e18, 4);
+        request.exactInput = false;
+        request.limitAmount = 2e18;
+        uint256 quoteBefore = quote.balanceOf(alice);
+        uint256 stockBefore = stock.balanceOf(alice);
+        uint256 displayedBefore = stock.balanceOfUI(alice);
+        uint256 usedBefore = ledger.used(SECURITY, DAY);
+
+        vm.prank(alice);
+        (uint256 quoteIn, uint256 stockOut) = router.swapExactOutput(request, "");
+
+        assertLe(quoteIn, request.limitAmount);
+        assertEq(stockOut, request.amountSpecified);
+        assertEq(quoteBefore - quote.balanceOf(alice), quoteIn);
+        assertEq(stock.balanceOf(alice) - stockBefore, stockOut);
+        assertEq(stock.balanceOfUI(alice) - displayedBefore, stockOut * 2);
+        assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockOut * 2);
     }
 
     function testDirectPoolManagerSwapCannotBypassHook() public {
@@ -441,12 +602,12 @@ contract TSVProtocolLocalTest is Test {
         assertGt(quote.balanceOf(alice), quoteBefore);
         assertFalse(lpManager.getPosition(positionId).active);
         vm.expectRevert();
-        receipt.ownerOf(positionId);
+        lpManager.ownerOf(positionId);
     }
 
     function testForceExitAdminCanActWhenAlsoRevokeExecutorAndOwnerStillHasSbt() public {
         lpManager.grantRole(lpManager.FORCE_EXIT_ADMIN_ROLE(), address(this));
-        assertTrue(sbtAdapter.hasCredential(alice));
+        assertTrue(registry.hasCredential(alice));
         lpManager.forceExit(positionId, 1, 1, keccak256("incident"), keccak256("evidence"));
         assertFalse(lpManager.getPosition(positionId).active);
     }
@@ -464,11 +625,13 @@ contract TSVProtocolLocalTest is Test {
         assertEq(quote.balanceOf(alice), beforeQuote);
         assertEq(ledger.used(SECURITY, DAY), beforeUsed);
         assertEq(lpManager.getPosition(positionId).liquidity, beforeLiquidity);
-        assertEq(receipt.ownerOf(positionId), alice);
+        assertEq(lpManager.ownerOf(positionId), alice);
     }
 
     function testSbtPauseBlocksUserSwapButNotForceExit() public {
+        assertTrue(registry.isEligible(alice));
         sbt.setPaused(true);
+        assertFalse(registry.isEligible(alice));
         vm.prank(alice);
         vm.expectRevert();
         router.swapExactInput(_swapRequest(true, 1e18, 1), "");
@@ -476,6 +639,28 @@ contract TSVProtocolLocalTest is Test {
         lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
         sbt.setHolder(alice, false);
         lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+    }
+
+    function testSbtReadFailuresDoNotBecomeRevocationSignals() public {
+        sbt.setFailReads(true, false);
+        vm.expectRevert();
+        registry.hasCredential(alice);
+        vm.expectRevert();
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+        assertEq(lpManager.ownerOf(positionId), alice);
+
+        sbt.setFailReads(false, true);
+        vm.expectRevert();
+        registry.isEligible(alice);
+        assertEq(lpManager.ownerOf(positionId), alice);
+    }
+
+    function testRegistryRejectsSbtWithoutRequiredSelectors() public {
+        address oldSbt = address(registry.participantSbt());
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setSbtConfig(address(quote), 1, keccak256("bad-sbt"));
+        assertEq(address(registry.participantSbt()), oldSbt);
+        assertTrue(registry.isEligible(alice));
     }
 
     function testForceExitEnforcesBothMinimumOutputsAtomically() public {
@@ -494,7 +679,7 @@ contract TSVProtocolLocalTest is Test {
         TSVLPManagerV1.Position memory position = lpManager.getPosition(positionId);
         assertTrue(position.active);
         assertEq(position.liquidity, liquidityBefore);
-        assertEq(receipt.ownerOf(positionId), alice);
+        assertEq(lpManager.ownerOf(positionId), alice);
         assertEq(stock.balanceOf(alice), stockBefore);
         assertEq(quote.balanceOf(alice), quoteBefore);
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
@@ -506,9 +691,6 @@ contract TSVProtocolLocalTest is Test {
         V1MockIssuerShares tsla = new V1MockIssuerShares();
         tsla.setMultiplier(0.9e18, 7);
         V1MockIssuerWrapped wtsla = new V1MockIssuerWrapped(tsla);
-        IssuerShareSettlementAdapter issuerAdapter =
-            new IssuerShareSettlementAdapter(address(tsla), address(wtsla), address(router), address(lpManager));
-        BackedAutoFeeLegalShareAdapter legal = new BackedAutoFeeLegalShareAdapter(address(tsla), address(wtsla), 1);
         TokenConfig memory c;
         c.userToken = address(tsla);
         c.poolCurrency = address(wtsla);
@@ -517,16 +699,12 @@ contract TSVProtocolLocalTest is Test {
         c.assetClass = AssetClass.ISSUER_WRAPPED_DYNAMIC;
         c.securityId = security;
         c.settlementMode = SettlementMode.ISSUER_SHARE_WRAPPED;
-        c.settlementAdapter = address(issuerAdapter);
+        c.settlementAdapter = address(0xA4444);
         c.settlementVersion = 1;
-        c.legalShareAdapter = address(legal);
-        c.legalAdapterVersion = 1;
         c.ratioEvidenceHash = keccak256("ratio-tsla");
         c.status = TokenStatus.UNREVIEWED;
         c.userRuntimeCodeHash = address(tsla).codehash;
         c.poolRuntimeCodeHash = address(wtsla).codehash;
-        c.settlementAdapterCodeHash = address(issuerAdapter).codehash;
-        c.legalAdapterCodeHash = address(legal).codehash;
         c.reviewHash = keccak256("review-tsla");
         // V1 settles the pool Currency directly. An issuer-side TSLAx ->
         // wTSLAx settlement adapter is intentionally outside the admission ABI.
@@ -587,6 +765,44 @@ contract TSVProtocolLocalTest is Test {
         r.deadline = uint64(block.timestamp + 100);
     }
 
+    function _authorizationDigest(SwapRequest memory request) private view returns (bytes32) {
+        bytes32 domain = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("TSVSwapRouter")),
+                keccak256(bytes("2")),
+                block.chainid,
+                address(router)
+            )
+        );
+        bytes32 typeHash = keccak256(
+            "SwapAuthorization(address participant,address payer,address recipient,address authorizedCaller,bytes32 poolId,bool zeroForOne,bool exactInput,uint128 amountSpecified,uint128 limitAmount,uint160 sqrtPriceLimitX96,uint256 maxSharesIn0,uint256 minSharesOut0,uint256 maxDisplayedDebit0,uint256 minDisplayedCredit0,uint256 maxSharesIn1,uint256 minSharesOut1,uint256 maxDisplayedDebit1,uint256 minDisplayedCredit1,uint256 nonce,uint64 deadline)"
+        );
+        SignedSwap memory signed;
+        signed.participant = request.participant;
+        signed.payer = request.payer;
+        signed.recipient = request.recipient;
+        signed.authorizedCaller = request.authorizedCaller;
+        signed.poolId = PoolId.unwrap(request.key.toId());
+        signed.zeroForOne = request.zeroForOne;
+        signed.exactInput = request.exactInput;
+        signed.amountSpecified = request.amountSpecified;
+        signed.limitAmount = request.limitAmount;
+        signed.sqrtPriceLimitX96 = request.sqrtPriceLimitX96;
+        signed.maxSharesIn0 = request.bounds0.maxSharesIn;
+        signed.minSharesOut0 = request.bounds0.minSharesOut;
+        signed.maxDisplayedDebit0 = request.bounds0.maxDisplayedDebit;
+        signed.minDisplayedCredit0 = request.bounds0.minDisplayedCredit;
+        signed.maxSharesIn1 = request.bounds1.maxSharesIn;
+        signed.minSharesOut1 = request.bounds1.minSharesOut;
+        signed.maxDisplayedDebit1 = request.bounds1.maxDisplayedDebit;
+        signed.minDisplayedCredit1 = request.bounds1.minDisplayedCredit;
+        signed.nonce = request.nonce;
+        signed.deadline = request.deadline;
+        bytes32 structHash = keccak256(abi.encode(typeHash, signed));
+        return keccak256(abi.encodePacked(hex"1901", domain, structHash));
+    }
+
     function _submitReports() private {
         uint64 now_ = uint64(block.timestamp);
         MarketReport memory market = MarketReport(
@@ -601,9 +817,8 @@ contract TSVProtocolLocalTest is Test {
             keccak256("source")
         );
         inbox.submitMarketStatus(market);
-        AdtvReport memory adtv = AdtvReport(
-            SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, 1, keccak256("adtv"), keccak256("source")
-        );
+        AdtvReport memory adtv =
+            AdtvReport(SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, 1, keccak256("adtv"), keccak256("source"));
         inbox.submitAdtv(adtv);
     }
 }

@@ -26,6 +26,11 @@ interface IERC20DecimalsV1 {
     function decimals() external view returns (uint8);
 }
 
+interface ISmartWalletSbtV1 {
+    function verify(address user, uint256 tokenId) external view returns (bool);
+    function paused() external view returns (bool);
+}
+
 /// @notice Single TSV venue asset, security, pool and pause registry.
 contract TSVRegistryV1 is TSVGoverned {
     using PoolIdLibrary for PoolKey;
@@ -33,6 +38,7 @@ contract TSVRegistryV1 is TSVGoverned {
     error InvalidConfig();
     error InvalidStatus();
     error InvalidPool();
+    error SbtNotConfigured();
     error Paused(uint8 scope, bytes32 target);
 
     struct TierPolicy {
@@ -67,6 +73,8 @@ contract TSVRegistryV1 is TSVGoverned {
     mapping(bytes32 => uint64) public marketSequence;
     mapping(uint256 => EmergencyPause) public emergencyPauses;
     mapping(uint8 => mapping(bytes32 => uint256)) public activePauseCount;
+    ISmartWalletSbtV1 public participantSbt;
+    uint256 public sbtTokenId;
 
     event ComponentsBound(address indexed hook, address indexed lpManager, address indexed dataInbox);
     event SecurityListed(bytes32 indexed securityId, bytes32 symbolHash, uint8 tierId, bytes32 evidenceHash);
@@ -105,6 +113,9 @@ contract TSVRegistryV1 is TSVGoverned {
     );
     event EmergencyPauseOpened(uint256 indexed recordId, uint8 scope, bytes32 indexed target, bytes32 reasonCode);
     event EmergencyPauseClosed(uint256 indexed recordId, bytes32 reasonCode);
+    event SbtConfigChanged(
+        address indexed oldSbt, address indexed newSbt, uint256 oldTokenId, uint256 newTokenId, bytes32 evidenceHash
+    );
 
     function initialize(address authority, address timelock, address controller) external initializer {
         __TSVGoverned_init(authority, timelock, controller);
@@ -134,6 +145,35 @@ contract TSVRegistryV1 is TSVGoverned {
 
     function tierPolicy(uint8 tierId) external view returns (TierPolicy memory) {
         return tiers[tierId];
+    }
+
+    function setSbtConfig(address sbt_, uint256 tokenId_, bytes32 evidenceHash) external onlyGovernor {
+        if (sbt_.code.length == 0 || evidenceHash == 0) revert InvalidConfig();
+        // Validate both selectors at configuration time. This keeps a bad SBT
+        // address from remaining latent until the first user operation.
+        try ISmartWalletSbtV1(sbt_).paused() returns (bool) {}
+        catch {
+            revert InvalidConfig();
+        }
+        try ISmartWalletSbtV1(sbt_).verify(address(this), tokenId_) returns (bool) {}
+        catch {
+            revert InvalidConfig();
+        }
+        address oldSbt = address(participantSbt);
+        uint256 oldTokenId = sbtTokenId;
+        participantSbt = ISmartWalletSbtV1(sbt_);
+        sbtTokenId = tokenId_;
+        emit SbtConfigChanged(oldSbt, sbt_, oldTokenId, tokenId_, evidenceHash);
+    }
+
+    function hasCredential(address owner) public view returns (bool) {
+        if (address(participantSbt) == address(0)) revert SbtNotConfigured();
+        return participantSbt.verify(owner, sbtTokenId);
+    }
+
+    function isEligible(address owner) external view returns (bool) {
+        if (address(participantSbt) == address(0)) revert SbtNotConfigured();
+        return !participantSbt.paused() && hasCredential(owner);
     }
 
     function listSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, bytes32 evidenceHash)

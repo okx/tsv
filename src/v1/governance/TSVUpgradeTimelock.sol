@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {TSVBusinessAuthority} from "tsv-v1/governance/TSVBusinessAuthority.sol";
 import {TSVEmergencyUpgradeController} from "tsv-v1/governance/TSVEmergencyUpgradeController.sol";
+import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 
 /// @notice Per-operation delay with a separately protected authority recovery route.
 contract TSVUpgradeTimelock is TimelockController {
@@ -16,11 +17,17 @@ contract TSVUpgradeTimelock is TimelockController {
     address public immutable recoveryCouncil;
     TSVBusinessAuthority public businessAuthority;
     TSVEmergencyUpgradeController public emergencyController;
+    TSVGovernanceAnchor public governanceAnchor;
+    address public nominatedAnchor;
     mapping(bytes32 => bool) public protectedRecovery;
+    mapping(bytes32 => bool) public guardianApprovedRecovery;
+    mapping(bytes32 => address) public recoveryApprovalGuardian;
     bytes32 private activeRecoveryId;
 
     event BusinessAuthorityBound(address indexed authority);
     event EmergencyControllerBound(address indexed controller);
+    event GovernanceAnchorBound(address indexed anchor);
+    event RecoveryApprovalChanged(bytes32 indexed operationId, bool approved);
     event AuthoritiesRecovered(
         address indexed oldGovernor, address indexed newGovernor, address indexed newGuardian, bytes32 evidenceHash
     );
@@ -60,6 +67,52 @@ contract TSVUpgradeTimelock is TimelockController {
         ) revert InvalidRecovery();
         emergencyController = TSVEmergencyUpgradeController(controller);
         emit EmergencyControllerBound(controller);
+    }
+
+    function bindGovernanceAnchor(address anchor) external {
+        if (
+            msg.sender != address(this) || address(governanceAnchor) != address(0) || anchor.code.length == 0
+                || TSVGovernanceAnchor(anchor).timelock() != this
+                || address(TSVGovernanceAnchor(anchor).authority()) != address(businessAuthority)
+                || address(TSVGovernanceAnchor(anchor).controller()) != address(emergencyController)
+        ) revert InvalidRecovery();
+        governanceAnchor = TSVGovernanceAnchor(anchor);
+        emit GovernanceAnchorBound(anchor);
+    }
+
+    function activateGovernanceAnchor(address anchor) external {
+        if (
+            msg.sender != anchor || nominatedAnchor != anchor || address(governanceAnchor) != address(0)
+                || anchor.code.length == 0 || TSVGovernanceAnchor(anchor).timelock() != this
+                || address(TSVGovernanceAnchor(anchor).authority()) != address(businessAuthority)
+                || address(TSVGovernanceAnchor(anchor).controller()) != address(emergencyController)
+        ) revert InvalidRecovery();
+        nominatedAnchor = address(0);
+        governanceAnchor = TSVGovernanceAnchor(anchor);
+        emit GovernanceAnchorBound(anchor);
+    }
+
+    function nominateGovernanceAnchor(address anchor) external {
+        if (msg.sender != address(this) || address(governanceAnchor) != address(0) || anchor.code.length == 0) {
+            revert InvalidRecovery();
+        }
+        nominatedAnchor = anchor;
+    }
+
+    function approveRecovery(bytes32 operationId) external {
+        if (msg.sender != guardian || !protectedRecovery[operationId] || !isOperationPending(operationId)) {
+            revert InvalidRecovery();
+        }
+        guardianApprovedRecovery[operationId] = true;
+        recoveryApprovalGuardian[operationId] = msg.sender;
+        emit RecoveryApprovalChanged(operationId, true);
+    }
+
+    function revokeRecoveryApproval(bytes32 operationId) external {
+        if (msg.sender != guardian || !guardianApprovedRecovery[operationId]) revert InvalidRecovery();
+        guardianApprovedRecovery[operationId] = false;
+        delete recoveryApprovalGuardian[operationId];
+        emit RecoveryApprovalChanged(operationId, false);
     }
 
     function recoveryContextActive() external view returns (bool) {
@@ -108,7 +161,11 @@ contract TSVUpgradeTimelock is TimelockController {
         bytes32 id = hashOperation(target, value, payload, predecessor, salt);
         if (protectedRecovery[id]) {
             _validateRecovery(target, value, payload, predecessor);
-            if (activeRecoveryId != 0) revert InvalidRecovery();
+            if (activeRecoveryId != 0 || !guardianApprovedRecovery[id] || recoveryApprovalGuardian[id] != guardian) {
+                revert InvalidRecovery();
+            }
+            guardianApprovedRecovery[id] = false;
+            delete recoveryApprovalGuardian[id];
             activeRecoveryId = id;
             super.execute(target, value, payload, predecessor, salt);
             activeRecoveryId = 0;
@@ -180,6 +237,9 @@ contract TSVUpgradeTimelock is TimelockController {
             _grantRole(CANCELLER_ROLE, newGuardian);
             _revokeRole(CANCELLER_ROLE, oldGuardian);
             guardian = newGuardian;
+            if (address(governanceAnchor) != address(0)) {
+                governanceAnchor.syncGuardian(oldGuardian, newGuardian);
+            }
         }
         emit AuthoritiesRecovered(oldGovernor, newGovernor, newGuardian, evidenceHash);
     }

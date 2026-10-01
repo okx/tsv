@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
@@ -19,12 +19,10 @@ import {
 } from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {TSVSBTAdapterV1} from "tsv-v1/periphery/TSVSBTAdapterV1.sol";
-import {TSVReceiptV1} from "tsv-v1/periphery/TSVReceiptV1.sol";
+import {TSVDirectSettlementLib} from "tsv-v1/libraries/TSVDirectSettlementLib.sol";
 
 /// @notice The sole V4 position owner for TSV LPs; each position has a unique V4 salt.
-contract TSVLPManagerV1 is TSVGoverned {
-    using SafeERC20 for IERC20;
+contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     using PoolIdLibrary for PoolKey;
     using BalanceDeltaLibrary for BalanceDelta;
 
@@ -36,6 +34,7 @@ contract TSVLPManagerV1 is TSVGoverned {
     error SlippageExceeded();
     error SettlementMismatch();
     error Reentrancy();
+    error NonTransferable();
 
     struct Position {
         address owner;
@@ -57,8 +56,6 @@ contract TSVLPManagerV1 is TSVGoverned {
 
     IPoolManager public poolManager;
     TSVRegistryV1 public registry;
-    TSVSBTAdapterV1 public sbtAdapter;
-    TSVReceiptV1 public receipt;
     uint256 public nextPositionId;
     uint256 public nextOperationNonce;
     mapping(uint256 => Position) private positions;
@@ -77,19 +74,13 @@ contract TSVLPManagerV1 is TSVGoverned {
         address timelock,
         address controller,
         address poolManager_,
-        address registry_,
-        address sbtAdapter_,
-        address receipt_
+        address registry_
     ) external initializer {
         __TSVGoverned_init(authority, timelock, controller);
-        if (
-            poolManager_.code.length == 0 || registry_.code.length == 0 || sbtAdapter_.code.length == 0
-                || receipt_ == address(0)
-        ) revert InvalidPool();
+        __ERC721_init("TSV LP Receipt", "TSVLP");
+        if (poolManager_.code.length == 0 || registry_.code.length == 0) revert InvalidPool();
         poolManager = IPoolManager(poolManager_);
         registry = TSVRegistryV1(registry_);
-        sbtAdapter = TSVSBTAdapterV1(sbtAdapter_);
-        receipt = TSVReceiptV1(receipt_);
         nextPositionId = 1;
         nextOperationNonce = 1;
     }
@@ -134,7 +125,7 @@ contract TSVLPManagerV1 is TSVGoverned {
         );
         _modify(positionId, LPOperationMode.OPEN, int256(uint256(liquidity)), bounds);
         positions[positionId].liquidity = liquidity;
-        receipt.mint(msg.sender, positionId);
+        _mint(msg.sender, positionId);
         emit PositionOpened(positionId, msg.sender, PoolId.unwrap(key.toId()), liquidity);
     }
 
@@ -175,20 +166,28 @@ contract TSVLPManagerV1 is TSVGoverned {
         _close(positionId, p, false, 0);
     }
 
-    function forceExit(uint256 positionId, bytes32 reasonCode, bytes32 evidenceHash) external nonReentrant {
+    function forceExit(
+        uint256 positionId,
+        uint256 minPoolOut0,
+        uint256 minPoolOut1,
+        bytes32 reasonCode,
+        bytes32 evidenceHash
+    ) external nonReentrant {
         Position storage p = positions[positionId];
         if (!p.active || p.liquidity == 0 || reasonCode == 0 || evidenceHash == 0) revert InvalidPosition();
         if (
             !hasRole(FORCE_EXIT_ADMIN_ROLE, msg.sender)
-                && (!hasRole(REVOKE_EXIT_EXECUTOR_ROLE, msg.sender) || sbtAdapter.hasCredential(p.owner))
+                && (!hasRole(REVOKE_EXIT_EXECUTOR_ROLE, msg.sender) || registry.hasCredential(p.owner))
         ) {
             revert Unauthorized();
         }
         bytes32 poolId = PoolId.unwrap(p.key.toId());
         if (!registry.isKnownPool(poolId)) revert InvalidPool();
-        LPBounds memory empty;
-        empty.deadline = uint64(block.timestamp);
-        BalanceDelta delta = _modify(positionId, LPOperationMode.FORCE_EXIT, -int256(uint256(p.liquidity)), empty);
+        LPBounds memory bounds;
+        bounds.minPoolOut0 = minPoolOut0;
+        bounds.minPoolOut1 = minPoolOut1;
+        bounds.deadline = uint64(block.timestamp);
+        BalanceDelta delta = _modify(positionId, LPOperationMode.FORCE_EXIT, -int256(uint256(p.liquidity)), bounds);
         if (delta.amount0() < 0 || delta.amount1() < 0) revert SettlementMismatch();
         _close(positionId, p, true, reasonCode);
     }
@@ -213,6 +212,37 @@ contract TSVLPManagerV1 is TSVGoverned {
             return (0, address(0), address(0), false);
         }
         return (activeContext.poolId, p.owner, p.owner, activeContext.mode == LPOperationMode.FORCE_EXIT);
+    }
+
+    function approve(address, uint256) public pure override {
+        revert NonTransferable();
+    }
+
+    function setApprovalForAll(address, bool) public pure override {
+        revert NonTransferable();
+    }
+
+    function transferFrom(address, address, uint256) public pure override {
+        revert NonTransferable();
+    }
+
+    function safeTransferFrom(address, address, uint256, bytes memory) public pure override {
+        revert NonTransferable();
+    }
+
+    function _update(address to, uint256 tokenId, address auth) internal override returns (address from) {
+        from = _ownerOf(tokenId);
+        if (from != address(0) && to != address(0)) revert NonTransferable();
+        return super._update(to, tokenId, auth);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721Upgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
@@ -281,43 +311,26 @@ contract TSVLPManagerV1 is TSVGoverned {
         if (config.settlementMode != SettlementMode.DIRECT_ERC20 || config.userToken != token) revert InvalidPool();
         uint256 amount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         if (delta < 0 && (mode == LPOperationMode.FORCE_EXIT || amount > maxIn)) revert SlippageExceeded();
-        if (delta > 0 && amount < minOut) revert SlippageExceeded();
+        if ((delta > 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();
         if (
             bounds.maxSharesIn != 0 || bounds.minSharesOut != 0 || bounds.maxDisplayedDebit != 0
                 || bounds.minDisplayedCredit != 0
         ) revert SlippageExceeded();
         if (delta < 0) {
-            poolManager.sync(currency);
-            uint256 ownerBefore = IERC20(token).balanceOf(owner);
-            uint256 poolBefore = IERC20(token).balanceOf(address(poolManager));
-            IERC20(token).safeTransferFrom(owner, address(poolManager), amount);
-            uint256 ownerAfter = IERC20(token).balanceOf(owner);
-            uint256 poolAfter = IERC20(token).balanceOf(address(poolManager));
-            if (
-                ownerAfter > ownerBefore || ownerBefore - ownerAfter != amount || poolAfter < poolBefore
-                    || poolAfter - poolBefore != amount || poolManager.settle() != amount
-            ) revert SettlementMismatch();
+            TSVDirectSettlementLib.settleFrom(poolManager, currency, token, owner, amount);
         } else if (delta > 0) {
-            uint256 poolBefore = IERC20(token).balanceOf(address(poolManager));
-            uint256 ownerBefore = IERC20(token).balanceOf(owner);
-            poolManager.take(currency, owner, amount);
-            uint256 poolAfter = IERC20(token).balanceOf(address(poolManager));
-            uint256 ownerAfter = IERC20(token).balanceOf(owner);
-            if (
-                poolAfter > poolBefore || poolBefore - poolAfter != amount || ownerAfter < ownerBefore
-                    || ownerAfter - ownerBefore != amount
-            ) revert SettlementMismatch();
+            TSVDirectSettlementLib.takeTo(poolManager, currency, token, owner, amount);
         }
     }
 
     function _requireUserPool(bytes32 poolId, uint64 deadline) private view {
         if (block.timestamp > deadline) revert Expired();
-        if (!sbtAdapter.isEligible(msg.sender) || !registry.isTradable(poolId)) revert Unauthorized();
+        if (!registry.isEligible(msg.sender) || !registry.isTradable(poolId)) revert Unauthorized();
     }
 
     function _requireOwner(uint256 positionId, uint64 deadline) private view returns (Position storage p) {
         p = positions[positionId];
-        if (!p.active || p.liquidity == 0 || p.owner != msg.sender || receipt.ownerOf(positionId) != p.owner) {
+        if (!p.active || p.liquidity == 0 || p.owner != msg.sender || ownerOf(positionId) != p.owner) {
             revert InvalidPosition();
         }
         _requireUserPool(PoolId.unwrap(p.key.toId()), deadline);
@@ -334,7 +347,7 @@ contract TSVLPManagerV1 is TSVGoverned {
         address owner = p.owner;
         p.liquidity = 0;
         p.active = false;
-        receipt.burn(positionId);
+        _burn(positionId);
         emit PositionClosed(positionId, owner, forced, reasonCode);
     }
 

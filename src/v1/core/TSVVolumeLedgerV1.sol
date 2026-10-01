@@ -8,6 +8,7 @@ import {AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
+import {TradeDayLib} from "tsv-v1/libraries/TradeDayLib.sol";
 
 /// @notice Aggregates per-security volume by UTC trade day across every pool of this TSV venue.
 contract TSVVolumeLedgerV1 is TSVGoverned {
@@ -122,7 +123,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
 
     function acceptAdtv(AdtvReport calldata report) external onlyDataInbox {
         if (
-            report.securityId == 0 || report.adtvWad == 0 || !_validMonth(report.sourceMonth)
+            report.securityId == 0 || report.adtvWad == 0 || !TradeDayLib.validMonth(report.sourceMonth)
                 || !registry.getSecurity(report.securityId).listed
         ) revert InvalidReport();
         AdtvValue storage current = adtv[report.securityId][report.sourceMonth];
@@ -168,9 +169,9 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
             if (block.timestamp < _dayStartUTC(priorEffectiveDayId)) revert InvalidPeriod();
             hasPendingDayStart = false;
         }
-        uint256 ordinal = _dateToOrdinal(effectiveDayId);
+        uint256 ordinal = TradeDayLib.dateToOrdinal(effectiveDayId);
         if (ordinal == 0) revert InvalidPeriod();
-        uint32 transitionDayId = _ordinalToDate(ordinal - 1);
+        uint32 transitionDayId = TradeDayLib.ordinalToDate(ordinal - 1);
 
         uint32 oldOffset = _offsetFor(effectiveDayId);
         if (newOffsetSeconds == oldOffset) revert InvalidPeriod();
@@ -185,7 +186,8 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
 
         // The transition day has not started under the existing schedule, so no historical cycle changes.
         if (block.timestamp >= _dayStartUTC(transitionDayId)) revert InvalidPeriod();
-        uint64 newEffectiveStart = _timestamp64(_dateToOrdinal(effectiveDayId) * SECONDS_PER_DAY + newOffsetSeconds);
+        uint64 newEffectiveStart =
+            TradeDayLib.timestamp64(TradeDayLib.dateToOrdinal(effectiveDayId) * SECONDS_PER_DAY + newOffsetSeconds);
         dayStartCheckpoints.push(DayStartCheckpoint(effectiveDayId, newOffsetSeconds, reasonHash));
         hasPendingDayStart = true;
         emit DayStartScheduled(
@@ -196,7 +198,8 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     function cancelPendingDayStart(bytes32 reasonHash) external onlyGovernor {
         uint256 count = dayStartCheckpoints.length;
         if (!hasPendingDayStart || reasonHash == 0 || count == 0) revert InvalidPeriod();
-        uint32 transitionDayId = _ordinalToDate(_dateToOrdinal(dayStartCheckpoints[count - 1].effectiveDayId) - 1);
+        uint32 transitionDayId =
+            TradeDayLib.ordinalToDate(TradeDayLib.dateToOrdinal(dayStartCheckpoints[count - 1].effectiveDayId) - 1);
         if (block.timestamp >= _dayStartUTC(transitionDayId)) revert InvalidPeriod();
         uint32 effectiveDayId = dayStartCheckpoints[count - 1].effectiveDayId;
         dayStartCheckpoints.pop();
@@ -218,10 +221,10 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
 
     function currentTradeDay() public view returns (bool exists, uint32 tradeDayId) {
         uint256 ordinal = block.timestamp / SECONDS_PER_DAY;
-        uint32 today = _ordinalToDate(ordinal);
+        uint32 today = TradeDayLib.ordinalToDate(ordinal);
         if (block.timestamp >= _dayStartUTC(today)) return (true, today);
         if (ordinal == 0) revert InvalidPeriod();
-        return (true, _ordinalToDate(ordinal - 1));
+        return (true, TradeDayLib.ordinalToDate(ordinal - 1));
     }
 
     function used(bytes32 securityId, uint32 tradeDayId) external view returns (uint256) {
@@ -310,7 +313,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     }
 
     function _hardCap(bytes32 securityId, uint32 day) private view returns (uint256) {
-        uint32 sourceMonth = _previousMonth(day);
+        uint32 sourceMonth = TradeDayLib.previousMonth(day);
         uint256 monthlyAdtv = adtv[securityId][sourceMonth].value;
         if (monthlyAdtv == 0) return 0;
         uint8 tierId = registry.getSecurity(securityId).tierId;
@@ -319,8 +322,8 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     }
 
     function _dayStartUTC(uint32 dayId) private view returns (uint64) {
-        uint256 ordinal = _dateToOrdinal(dayId);
-        return _timestamp64(ordinal * SECONDS_PER_DAY + _offsetFor(dayId));
+        uint256 ordinal = TradeDayLib.dateToOrdinal(dayId);
+        return TradeDayLib.timestamp64(ordinal * SECONDS_PER_DAY + _offsetFor(dayId));
     }
 
     function _offsetFor(uint32 dayId) private view returns (uint32) {
@@ -332,63 +335,5 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
             else high = mid;
         }
         return low == 0 ? initialDayStartOffsetSeconds : dayStartCheckpoints[low - 1].offsetSeconds;
-    }
-
-    function _dateToOrdinal(uint32 date) private pure returns (uint256 ordinal) {
-        uint256 year = date / 10_000;
-        uint256 month = (date / 100) % 100;
-        uint256 day = date % 100;
-        if (year < 1970 || year > 9999 || month == 0 || month > 12 || day == 0) revert InvalidPeriod();
-        uint256 daysInMonth = _daysInMonth(year, month);
-        if (day > daysInMonth) revert InvalidPeriod();
-        uint256 adjustedYear = month <= 2 ? year - 1 : year;
-        uint256 era = adjustedYear / 400;
-        uint256 yearOfEra = adjustedYear - era * 400;
-        uint256 adjustedMonth = month > 2 ? month - 3 : month + 9;
-        uint256 dayOfYear = (153 * adjustedMonth + 2) / 5 + day - 1;
-        uint256 dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear;
-        ordinal = era * 146_097 + dayOfEra - 719_468;
-    }
-
-    function _ordinalToDate(uint256 ordinal) private pure returns (uint32) {
-        uint256 z = ordinal + 719_468;
-        uint256 era = z / 146_097;
-        uint256 dayOfEra = z - era * 146_097;
-        uint256 yearOfEra = (dayOfEra - dayOfEra / 1_460 + dayOfEra / 36_524 - dayOfEra / 146_096) / 365;
-        uint256 year = yearOfEra + era * 400;
-        uint256 dayOfYear = dayOfEra - (365 * yearOfEra + yearOfEra / 4 - yearOfEra / 100);
-        uint256 monthPrime = (5 * dayOfYear + 2) / 153;
-        uint256 day = dayOfYear - (153 * monthPrime + 2) / 5 + 1;
-        uint256 month = monthPrime < 10 ? monthPrime + 3 : monthPrime - 9;
-        year += month <= 2 ? 1 : 0;
-        if (year < 1970 || year > 9999) revert InvalidPeriod();
-        return uint32(year * 10_000 + month * 100 + day);
-    }
-
-    function _daysInMonth(uint256 year, uint256 month) private pure returns (uint256) {
-        if (month == 2) return _isLeapYear(year) ? 29 : 28;
-        if (month == 4 || month == 6 || month == 9 || month == 11) return 30;
-        return 31;
-    }
-
-    function _isLeapYear(uint256 year) private pure returns (bool) {
-        return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
-    }
-
-    function _previousMonth(uint32 day) private pure returns (uint32) {
-        uint256 year = day / 10_000;
-        uint256 month = (day / 100) % 100;
-        _dateToOrdinal(day);
-        if (month == 1) return uint32((year - 1) * 100 + 12);
-        return uint32(year * 100 + month - 1);
-    }
-
-    function _validMonth(uint32 monthId) private pure returns (bool) {
-        return monthId / 100 >= 1970 && monthId / 100 <= 9999 && monthId % 100 >= 1 && monthId % 100 <= 12;
-    }
-
-    function _timestamp64(uint256 timestamp) private pure returns (uint64) {
-        if (timestamp > type(uint64).max) revert InvalidPeriod();
-        return uint64(timestamp);
     }
 }

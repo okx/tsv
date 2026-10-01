@@ -6,7 +6,7 @@
 
 ## 1. 测试边界和证据
 
-测试对象是 TSV 自有 Registry、VolumeLedger、DataInbox、Hook、Router、LP Manager、Receipt、股数 Adapter 和治理合约；旧结算 Adapter 只允许出现在隔离的历史单元测试，不属于目标交易路径。外部行为必须分别参照仓库固定的三份源码：`lib/v4-core`、`lib/soul-bound-token-1155`、`lib/TestToken/backed-token-contract`。V4 `PoolManager` 不用自写模拟品代替关键集成用例；SmartWalletSbt 的 `verify/paused` 和发行方 wTSLAx 的 ERC-20 转账、托管及 `getCurrentMultiplier()` 须有源码实例用例，另用故障替身覆盖拒转、少转、重入和升级。
+测试对象是 TSV 自有 Registry（含全局 SBT 凭证策略）、VolumeLedger、DataInbox、Hook、Router、LP Manager（含 Receipt ERC-721）、股数 Adapter 和治理合约；旧结算 Adapter 只允许出现在隔离的历史单元测试，不属于目标交易路径。外部行为必须分别参照仓库固定的三份源码：`lib/v4-core`、`lib/soul-bound-token-1155`、`lib/TestToken/backed-token-contract`。V4 `PoolManager` 不用自写模拟品代替关键集成用例；SmartWalletSbt 的 `verify/paused` 和发行方 wTSLAx 的 ERC-20 转账、托管及 `getCurrentMultiplier()` 须有源码实例用例，另用故障替身覆盖拒转、少转、重入和升级。
 
 测试层级及完成条件：
 
@@ -53,7 +53,8 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | R05 I | POOL_CREATOR 提交有序 PoolKey、静态 fee、tickSpacing、sqrtPriceX96；随后尝试重复初始化 | 代理 Hook 地址位 `0x3FFF`；PENDING→ACTIVE 与 V4 Initialize 同笔完成；初始价格等于提交值；重复拒绝 |
 | R06 U/I | 非 POOL_CREATOR、错 Hook、两侧均为股票（相同或不同 `securityId`）、倒序 Currency、动态费、fee=1_000_000、tickSpacing=0/32768、越界价格 | 全部拒绝；Registry 不残留 PENDING；V4 不创建池 |
 | R07 I | 第三方直接调用 PoolManager `swap/modifyLiquidity/initialize/donate`，或伪造 Hook `sender/hookData` | Hook 拒绝；无额度、仓位或费状态变化 |
-| R08 I | SBT holder、无证 holder、SBT 全局 paused、SBT revoke；ERC-1271 合约钱包有/无 SBT | 普通 Swap/LP 仅在 `verify=true && paused=false` 可执行；签名能力不代替持证；paused 不等于已撤证 |
+| R08 I | SBT holder、无证 holder、SBT 全局 paused、SBT revoke；Registry 未配置 SBT；ERC-1271 合约钱包有/无 SBT | 普通 Swap/LP 仅在 `verify=true && paused=false` 可执行；未配置时回滚 `SbtNotConfigured()`；签名能力不代替持证；paused 不等于已撤证 |
+| R09 U/I | 按全新部署清单部署六个业务代理，尝试空初始化数据、错误 Hook 地址、错误 Registry/Router/LP 交叉绑定 | 空初始化数据被代理拒绝；Hook 低 14 位必须为 `0x3FFF`；所有双向绑定 getter 一致；错误绑定时发布流程停止且不启用资产 |
 
 ### 3.1.1 新版准入目标的增量用例（本地夹具已覆盖部分路径；真实发行方仍需留证）
 
@@ -67,6 +68,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | A06 I | LP 直接以 wTSLAx 开仓、加仓、领费、部分减仓、关闭和强退；wTSLAx 拒转或发送方额外扣费 | 每步只按实际 raw Currency delta 收付；退出向原 owner 交付 wTSLAx；失败方案 A 全回滚；LP 操作不增加 `usedWad` |
 | A07 U/I | 发行方 multiplier 改变、股数 Adapter 失效或 Token 被停用；用户仍持有 wTSLAx | 倍率正常变化时按新快照准确计股；公式失效/Token 停用时新 Swap 拒绝，不沿用旧比例；既有仓位强退按独立门禁处理，不自动改成 TSLAx |
 | A08 I | 目标部署从无旧 TSLAx 结算仓位直接启用 wTSLAx 直结；尝试调用旧 TSLAx 结算入口 | 新部署只允许 wTSLAx 直结；旧包装/赎回入口不存在或回滚；不生成旧仓位兼容状态 |
+| A09 U/I | `setSbtConfig` 指向无 `paused()` 或 `verify()` 的合约、零地址或无代码地址 | 配置原子回滚；已有 SBT 配置保持不变；未配置 Registry 的资格读取回滚 `SbtNotConfigured()` |
 
 ### 3.2 报告、自动日切与额度
 
@@ -90,7 +92,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | S02 U/I | `wTSLAx` 输入 `3e18` shares，multiplier=`0.9e18` | 技术股数 `2.7e18`；快照、rateId、FLOOR、版本及事件值与独立计算一致 |
 | S03 U/I | 在股票／非股票池分别让股票作输入且存在 LP/协议费、股票作输出 | 输入按实际 V4 caller delta 的**含费总支出**计，输出按净收到计；每笔只记一条股票腿，不能按 `amountSpecified` 或用户预估数记账 |
 | S04 I | exact input 完全成交；价格边界仅部分成交且仍达到 minOut；部分成交低于 minOut | 前两者只按实际 delta 直接收付 Currency 和计股；最后者全回滚 |
-| S05 I | exact output 完全成交、超 maxIn、价格边界部分输出 | 仅完全输出且输入在上限内成功；部分输出即使仍有非零量也回滚 |
+| S05 I | 股票输入和 quote 输入的 exact output 完全成交、超 maxIn、价格边界部分输出 | 仅完全输出且输入在上限内成功；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分输出即使仍有非零量也回滚 |
 | S06 U/I | 未持证调用、participant/payer/recipient 不同、未授权 caller、EOA/1271 签名错、参数篡改、deadline 过期、nonce 重放/取消；升级前签过但未执行的 `version="1"` 授权 | 各自拒绝；失败不消耗 nonce；成功/取消后重放拒绝；直连与代调用规则一致；升级后只接受 `version="2"` 新签名且历史已用 nonce 保留 |
 | S07 I | 一笔 unlock 尝试第二次 swap、第二个 PoolId、额外 modify、Hook 直接调用、伪造 operationId | 全部拒绝；一次成功 Swap 恰一次记账，结束清空上下文 |
 | S08 U/I | 静态换算接近一个 `legalSharesWad` 最小单位、TSLAx FLOOR 导致零股、`mulDiv` 边界和溢出 | 静态按 CEIL、动态按 FLOOR；零股拒绝；不发生溢出式低估 |
@@ -123,11 +125,11 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | G02 I | Governor 普通 schedule 分别指定 0 和正延迟，早于 ready/到 ready 执行；updateDelay | 0 可下一笔执行，正延迟前拒绝；无自定义最小/最大；updateDelay 恒回滚 |
 | G03 I | Guardian 取消 Waiting/Ready 普通操作；冻结事故入口；普通排期同时存在 | 普通操作取消，事故入口冻结；已有普通排期仍按自身 ready 规则可执行，冻结不暂停 Swap |
 | G04 I | Governor 未冻结时事故升级允许/不允许目标，重复 actionId，坏实现或坏 initData | 仅允许名单中有效 TSV 代理升级；所有失败回滚；成功记录旧新实现和证据 |
-| G05 I | RecoveryCouncil 排期精确恢复、试图排普通升级/批次；Governor 排恢复；Guardian 取消受保护 ID | 只有 Council 的精确单项操作被保护；其余拒绝；受保护 ID 不可被 Guardian 取消 |
+| G05 I | RecoveryCouncil 排期精确恢复、试图排普通升级/批次；Governor 排恢复；Guardian 取消受保护 ID | 只有 Council 的精确单项操作被保护；其余拒绝；受保护 ID 不可被 Guardian 取消，但未经当前 Guardian 对 operationId 批准不得执行，撤回批准后也不得执行 |
 | G06 I | 恢复中任一 Controller/Authority/角色步骤失败，以及完整成功轮换 | 失败全部回滚；成功同笔切换根权限，旧 Governor 立即失去业务 admin/普通 proposer/事故升级权，旧 Guardian 失去冻结/取消权 |
 | G07 I | Timelock 普通操作自调用 grantRole/revokeRole/renounceRole 修改受保护三角色，或直接调用恢复 setter | 全部拒绝；没有角色旁路 |
 | G08 I | 每个 TSV 代理升级前后保存 PoolKey、额度、报告/Swap nonce、暂停、position、Receipt；旧 `TokenConfig` 字段槽位不重排；升级后执行 wTSLAx 直结 Swap | 状态及权限位一致；已使用 nonce 保留、旧 `version="1"` 授权失效、新 `version="2"` 授权有效；禁止不兼容 layout 的候选实现进入发布清单 |
-| G09 I | D-35 GovernanceAnchor 提议同时切换 Timelock、BusinessAuthority、事故控制器；独立 Guardian 批准、坏互绑地址/代码哈希、重复 epoch、旧根继续调用、八代理中的任一升级布局错误 | 仅受保护且完整的三地址组原子切换成功；失败不改变任何代理的治理根；成功后旧根失权，新根同时接管普通升级、事故升级和业务角色，原 PoolId、额度、仓位及强退能力不变 |
+| G09 I | D-35 GovernanceAnchor 提议同时切换 Timelock、BusinessAuthority、事故控制器；独立 Guardian 批准/撤回、坏互绑地址、未提名 Anchor、缺六代理允许名单、重复 epoch、旧根继续调用；候选代码哈希与升级布局由发布清单单独核验 | 仅完整的三地址组原子切换成功；失败不改变任何代理的治理根；成功后旧根失权，新根同时接管普通升级、事故升级和业务角色，原 PoolId、额度、仓位及强退能力不变 |
 
 ## 4. 三个外部协议的专项集成
 

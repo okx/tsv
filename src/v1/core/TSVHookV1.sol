@@ -70,7 +70,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         if ((uint160(address(this)) & FLAG_MASK) != REQUIRED_HOOK_FLAGS) revert InvalidHookAddress();
         if (
             poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0
-                || router_ == address(0) || lpManager_ == address(0)
+                || router_.code.length == 0 || lpManager_.code.length == 0
         ) revert InvalidOperation();
         poolManager = IPoolManager(poolManager_);
         registry = TSVRegistryV1(registry_);

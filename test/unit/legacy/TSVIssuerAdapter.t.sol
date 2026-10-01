@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../helpers/v1/MockIssuerTokens.sol";
-import {IssuerShareSettlementAdapter, IActiveAssetOperation} from "tsv-v1/adapters/IssuerShareSettlementAdapter.sol";
+import {IssuerShareSettlementAdapter, IActiveAssetOperation} from "tsv-v1/legacy/IssuerShareSettlementAdapter.sol";
 
 contract TSVIssuerAdapterTest is Test, IActiveAssetOperation {
     bytes32 private constant OP = keccak256("operation");

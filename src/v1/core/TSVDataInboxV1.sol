@@ -5,6 +5,7 @@ import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
+import {ReportValidationLib} from "tsv-v1/libraries/ReportValidationLib.sol";
 
 contract TSVDataInboxV1 is TSVGoverned {
     error UnauthorizedReporter();
@@ -110,13 +111,17 @@ contract TSVDataInboxV1 is TSVGoverned {
         bytes32 sourceHash
     ) private {
         if (!hasRole(role, msg.sender)) revert UnauthorizedReporter();
-        if (
-            reportId == 0 || sourceHash == 0 || reportIdUsed[reportId]
-                || sequence <= lastSequence[kind][key] || sourceTimestamp < lastSourceTimestamp[kind][key]
-        ) {
-            revert InvalidReport();
-        }
-        if (sourceTimestamp > block.timestamp || block.timestamp > submitDeadline) revert Expired();
+        ReportValidationLib.validate(
+            lastSequence[kind][key],
+            lastSourceTimestamp[kind][key],
+            reportIdUsed[reportId],
+            sourceTimestamp,
+            submitDeadline,
+            sequence,
+            reportId,
+            sourceHash,
+            block.timestamp
+        );
         lastSequence[kind][key] = sequence;
         lastSourceTimestamp[kind][key] = sourceTimestamp;
         reportIdUsed[reportId] = true;

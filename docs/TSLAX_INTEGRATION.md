@@ -36,7 +36,7 @@ LP 开仓/加仓由原 owner 直接提供 wTSLAx；减仓、领费、关闭和�
 
 ## 4. 当前源码与目标实现的差异
 
-当前 `IssuerShareSettlementAdapter` 仍在源码中作为旧协议单元测试对照；Registry 的集成准入测试拒绝其 TSLAx→wTSLAx 用户路径。目标新交易只直接收付 wTSLAx，不能在 Router/LP 中调用包装/赎回或底层 shares 转移。
+`IssuerShareSettlementAdapter` 与 `IAssetSettlementAdapter` 仅保留在 `src/v1/legacy/`，由隔离的历史单元测试覆盖；Registry 的集成准入测试拒绝其 TSLAx→wTSLAx 用户路径。目标新交易只直接收付 wTSLAx，不能在 Router/LP 中调用包装/赎回或底层 shares 转移。
 
 本部署没有旧 LP 仓位，也没有需要承接的旧 SIP 日账，因此不实现历史仓位或历史账本兼容分支。旧 Adapter 仅作为源码对照，目标新 Swap/LP 不调用它。
 

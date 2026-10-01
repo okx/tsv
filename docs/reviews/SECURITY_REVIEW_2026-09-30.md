@@ -40,7 +40,7 @@ F-01（发行方动态 getter 的最坏 gas/异常状态）和 F-02（发行方�
 
 ### F-01 高（历史旧结算路径）：AutoFee 乘数读取无上限，能阻断旧 TSLAx 包装交易及旧 LP 原币退出
 
-- **位置：**[BackedAutoFeeTokenImplementation.sol](../../lib/TestToken/backed-token-contract/contracts/BackedAutoFeeTokenImplementation.sol#L265)、[BackedAutoFeeLegalShareAdapter.sol](../../src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol#L29)、[IssuerShareSettlementAdapter.sol](../../src/v1/adapters/IssuerShareSettlementAdapter.sol#L87)、[TSVLPManagerV1.sol](../../src/v1/periphery/TSVLPManagerV1.sol#L150)。
+- **位置：**[BackedAutoFeeTokenImplementation.sol](../../lib/TestToken/backed-token-contract/contracts/BackedAutoFeeTokenImplementation.sol#L265)、[BackedAutoFeeLegalShareAdapter.sol](../../src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol#L29)、[IssuerShareSettlementAdapter.sol](../../src/v1/legacy/IssuerShareSettlementAdapter.sol#L87)、[TSVLPManagerV1.sol](../../src/v1/periphery/TSVLPManagerV1.sol#L150)。
 - **关键源码：**
   ```solidity
   periodsPassed = (block.timestamp - lastTimeFeeApplied) / periodLength;

@@ -313,11 +313,11 @@
       inbox: ["DataInbox", "../../src/v1/core/TSVDataInboxV1.sol"],
       router: ["SwapRouter", "../../src/v1/periphery/TSVSwapRouterV1.sol"],
       lp: ["LPManager", "../../src/v1/periphery/TSVLPManagerV1.sol"],
-      receipt: ["Receipt", "../../src/v1/periphery/TSVReceiptV1.sol"],
-      sbtAdapter: ["SBT Adapter", "../../src/v1/periphery/TSVSBTAdapterV1.sol"],
+      receipt: ["LP Manager Receipt", "../../src/v1/periphery/TSVLPManagerV1.sol"],
+      sbtAdapter: ["Registry SBT strategy", "../../src/v1/core/TSVRegistryV1.sol"],
       legal: ["股数 Adapter", "../../src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol"],
       staticLegal: ["静态股数 Adapter", "../../src/v1/adapters/StaticLegalShareAdapter.sol"],
-      settlement: ["历史旧结算 Adapter", "../../src/v1/adapters/IssuerShareSettlementAdapter.sol"],
+      settlement: ["历史旧结算 Adapter", "../../src/v1/legacy/IssuerShareSettlementAdapter.sol"],
       governed: ["UUPS 权限", "../../src/v1/governance/TSVGoverned.sol"],
       timelock: ["Timelock", "../../src/v1/governance/TSVUpgradeTimelock.sol"],
       emergency: ["事故升级", "../../src/v1/governance/TSVEmergencyUpgradeController.sol"],
@@ -325,6 +325,7 @@
       types: ["公共类型", "../../src/v1/types/TSVTypes.sol"],
       localTest: ["本地 V4 测试", "../../test/integration/local/TSVProtocolLocal.t.sol"],
       unitTest: ["单元测试目录", "../../test/unit/v1/"],
+      legacyTest: ["历史结算单元测试", "../../test/unit/legacy/TSVIssuerAdapter.t.sol"],
       v4: ["V4 PoolManager", "../../lib/v4-core/src/PoolManager.sol"],
       v4Hooks: ["V4 Hooks", "../../lib/v4-core/src/libraries/Hooks.sol"],
       sbt: ["SmartWalletSbt", "../../lib/soul-bound-token-1155/src/SmartWalletSbt.sol"],
@@ -334,12 +335,12 @@
     const baseline = [
       ["B01", "候选代码有唯一 Git 基线", "记录候选提交、未跟踪文件处理方式、第三方源码版本；评审结论只针对该快照。", ["status"]],
       ["B02", "编译与部署输入固定", "记录 solc、EVM、优化参数、OZ 版本、Hook CREATE2 salt、代理实现和 runtime codehash。", ["spec", "factory"]],
-      ["B03", "目录调整没有改变部署契约", "对照上一候选版的 ABI、storage layout、Hook 地址权限位及部署清单。仅文件移动也要确认导入解析与工厂 initCode。", ["types", "factory", "hook"]],
+      ["B03", "全新部署契约与地址绑定", "V1 使用全新六代理实例组，不复用旧 Router/LP/Receipt/SBT Adapter 地址；核对当前 ABI、Hook 地址权限位、治理绑定、循环地址预测和非空初始化数据。后续 UUPS 升级另行执行 storage layout 检查。", ["types", "factory", "hook", "registry"]],
       ["B04", "评审范围与职责确定", "标明协议、Solidity 安全、发行方资产语义、业务/法务和部署运维各自签署人；独立评审者不能只参考实现注释。", ["spec", "tests"]]
     ];
     const paths = [
       ["STD-01", "ERC8056TestToken(STDx) 输入：exact input Swap", "用标准 ERC8056TestToken(STDx) 支付、收到普通 quote。核对 SBT、nonce、池状态、allowance、Router 到 PoolManager 的 sync/transferFrom/settle；股票腿按 V4 含费实际 raw delta 经 ERC8056LegalShareAdapter FLOOR 换算并扣日额度，quote 腿不计股数。multiplier 更新后重复核对快照和 used；少转或付款不足应整体回滚。", ["registry", "router", "hook", "ledger", "legal", "localTest"], "owner 持 STDx → Router.swapExactInput → V4 swap/Hook 记账 → STDx 直接 settle → quote take 给 owner"],
-      ["STD-02", "ERC8056TestToken(STDx) 输出：quote 输入与 exact output", "以普通 quote 付款、净收到 STDx；核对 quote 直接结算、PoolManager.take 向用户交付 STDx、股票输出净额按 multiplier 快照计股。再检查 exact output 必须足额、输入不超过 maxIn、部分输出或收款下限失败全回滚。", ["router", "hook", "ledger", "registry", "localTest", "unitTest"], "owner 持 quote → Router.swapExactInput / swapExactOutput → V4 实际双腿 delta → quote settle → STDx take 给 owner"],
+      ["STD-02", "ERC8056TestToken(STDx) 输出：quote 输入与 exact output", "以普通 quote 付款、净收到 STDx；核对 quote 直接结算、PoolManager.take 向用户交付 STDx、股票输出净额按 multiplier 快照计股，Ledger.used 按净收到的法定股数增加。再检查 exact output 必须足额、输入不超过 maxIn、部分输出或收款下限失败全回滚。", ["router", "hook", "ledger", "registry", "localTest", "unitTest"], "owner 持 quote → Router.swapExactInput / swapExactOutput → V4 实际双腿 delta → Hook.afterSwap → Ledger.recordSwap(股票输出净额) → quote settle → STDx take 给 owner"],
       ["STD-03", "ERC8056TestToken/quote 池 LP 全生命周期", "对 STDx/quote 池逐步检查 open/increase/decrease/collect/close：两侧都是直接 ERC-20 结算，无包装或赎回；multiplier 变化只影响股数展示/计量，不改变 raw 交付。每步核对 V4 liquidity、原 owner、Receipt、实收实付与费用；LP 本金和手续费不能增加 used。", ["lp", "receipt", "ledger", "v4", "localTest"], "owner → LPManager → PoolManager.modifyLiquidity → STDx/quote 两侧 sync/settle/take → position 与 Receipt"],
       ["STD-04", "标准股票测试代币强退与拒收回滚", "按对应执行人权限，在原 owner 撤证或事故状态下执行强退，STDx 和 quote 只能送回原 owner。分别让股票腿与 quote 腿拒绝向 owner 转账；核对 V4 流动性、Token 余额、TSV position、Receipt owner 和 used 均等于 S_pre，无持久失败事件；解除拒收后旧仓位可重试。", ["lp", "receipt", "localTest", "tests"], "执行人 → LPManager.forceExit → V4 移除 → STDx/quote 直接 take 给原 owner → 成功才 burn Receipt"],
       ["T01", "wTSLAx 直接结算的 exact input Swap", "从用户持有 wTSLAx、授权与 nonce 开始，核对 V4 含费实际 wTSLAx delta、发行方 multiplier 快照、额度扣减和 quote 交付；不得调用 TSLAx 包装/赎回或 IssuerShareSettlementAdapter。", ["router", "hook", "ledger", "backed", "wrapped"], "participant 持 wTSLAx → Router → PoolManager.unlock/swap → Hook.beforeSwap/afterSwap → Ledger → wTSLAx/quote 直接 settle/take"],
@@ -357,8 +358,8 @@
       ["X-SBT-1", "持证与暂停分别读取", "源码 verify 检查 balanceOf；paused 是独立全局状态。撤证、暂停和强退资格不能混淆。", ["sbt", "sbtAdapter", "lp"]],
       ["X-SBT-2", "真实 SBT 实例与 AA 钱包", "分别构建 SBT 源码产物，核对 ERC-1155 接收、撤证、暂停及 ERC-1271 钱包签名。行为 mock 只能提供辅助覆盖。", ["sbt", "tests"]],
       ["X-BACKED-1", "动态 multiplier 与股数", "从源码独立复算 display=floor(shares×multiplier/1e18)；检查 nonce、跨费率周期、接近零股及循环读取的最坏 gas。", ["backed", "legal", "tests"]],
-      ["X-BACKED-2", "历史 transferSharesFrom 授权单位", "这是旧结算 Adapter 的源码回归：确认 allowance 按显示单位消耗、底层移动内部 shares，并比较用户 sharesOf 和 balanceOf 的舍入。该调用不属于当前 TSV Swap/LP 路径。", ["backed", "settlement"]],
-      ["X-BACKED-3", "历史 Wrapper 铸造、赎回和交付", "这是旧结算 Adapter 的源码回归：确认 Wrapper 从 Adapter 拉 shares、1:1 铸造 Wrapped，以及 redeem 向指定 recipient 交付底层 shares。当前 TSV 不在同笔交易调用 mint/redeem；仍需核对暂停/制裁/拒转矩阵。", ["wrapped", "settlement"]],
+      ["X-BACKED-2", "历史 transferSharesFrom 授权单位", "这是 legacy 目录中的旧结算 Adapter 回归：确认 allowance 按显示单位消耗、底层移动内部 shares，并比较用户 sharesOf 和 balanceOf 的舍入。该调用不属于当前 TSV Swap/LP 路径。", ["backed", "settlement", "legacyTest"]],
+      ["X-BACKED-3", "历史 Wrapper 铸造、赎回和交付", "这是 legacy 目录中的旧结算 Adapter 回归：确认 Wrapper 从 Adapter 拉 shares、1:1 铸造 Wrapped，以及 redeem 向指定 recipient 交付底层 shares。当前 TSV 不在同笔交易调用 mint/redeem；仍需核对暂停/制裁/拒转矩阵。", ["wrapped", "settlement", "legacyTest"]],
       ["X-BACKED-4", "实际代理与本地源码一致性", "记录 X Layer chainId 196、固定 block、TSLAx/wTSLAx 代理地址、runtime 与实现 codehash、ABI 和配置；不符时资产保持 UNREVIEWED。", ["tests", "status", "backed", "wrapped"]]
     ];
     const security = [
@@ -386,7 +387,8 @@
         ["R05", "POOL_CREATOR 提交 PoolKey 和价格，同笔初始化"],
         ["R06", "错误 PoolKey、费率、价格、Hook 和权限拒绝"],
         ["R07", "直连 PoolManager 与伪造 Hook 上下文拒绝"],
-        ["R08", "SBT 持有、暂停、撤证与 ERC-1271 钱包"]
+        ["R08", "SBT 持有、暂停、撤证与 ERC-1271 钱包"],
+        ["R09", "SBT 未配置、ABI 校验与全新部署绑定"]
       ]},
       { id: "D", title: "报告、日历与额度", refs: ["inbox", "ledger", "registry", "tests"], items: [
         ["D01", "三类报告的直接角色提交"],

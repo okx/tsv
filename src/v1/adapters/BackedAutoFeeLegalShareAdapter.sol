@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {RateSnapshot, RoundingMode, LegalShareMode, RawBoundMode} from "tsv-v1/types/TSVTypes.sol";
 import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
+import {LegalShareMath} from "tsv-v1/libraries/LegalShareMath.sol";
 
 interface IBackedMultiplier {
     function getCurrentMultiplier()
@@ -58,8 +58,7 @@ contract BackedAutoFeeLegalShareAdapter is ILegalShareAdapter {
     {
         RateSnapshot memory expected = snapshot(currency);
         if (keccak256(abi.encode(rate)) != keccak256(abi.encode(expected))) revert InvalidRate();
-        amount = Math.mulDiv(rawAmount, rate.numerator, rate.denominator, Math.Rounding.Floor);
-        if (amount == 0) revert InvalidRate();
+        amount = LegalShareMath.toLegalSharesFloor(rawAmount, rate.numerator, rate.denominator);
     }
 
     function rawForLegalShares(address currency, uint256 legalSharesWad, RateSnapshot calldata rate, RawBoundMode mode)
@@ -69,35 +68,6 @@ contract BackedAutoFeeLegalShareAdapter is ILegalShareAdapter {
     {
         RateSnapshot memory expected = snapshot(currency);
         if (keccak256(abi.encode(rate)) != keccak256(abi.encode(expected))) revert InvalidRate();
-        if (legalSharesWad == 0) return 0;
-
-        if (mode == RawBoundMode.MIN_RAW_FOR_AT_LEAST_SHARES) {
-            rawAmount = Math.mulDiv(legalSharesWad, rate.denominator, rate.numerator, Math.Rounding.Ceil);
-            if (Math.mulDiv(rawAmount, rate.numerator, rate.denominator, Math.Rounding.Floor) < legalSharesWad) {
-                revert InvalidRate();
-            }
-            if (
-                rawAmount > 0
-                    && Math.mulDiv(rawAmount - 1, rate.numerator, rate.denominator, Math.Rounding.Floor)
-                        >= legalSharesWad
-            ) {
-                revert InvalidRate();
-            }
-        } else if (mode == RawBoundMode.MAX_RAW_FOR_AT_MOST_SHARES) {
-            if (legalSharesWad == type(uint256).max) revert InvalidRate();
-            rawAmount = Math.mulDiv(legalSharesWad + 1, rate.denominator, rate.numerator, Math.Rounding.Ceil) - 1;
-            if (Math.mulDiv(rawAmount, rate.numerator, rate.denominator, Math.Rounding.Floor) > legalSharesWad) {
-                revert InvalidRate();
-            }
-            if (
-                rawAmount < type(uint256).max
-                    && Math.mulDiv(rawAmount + 1, rate.numerator, rate.denominator, Math.Rounding.Floor)
-                        <= legalSharesWad
-            ) {
-                revert InvalidRate();
-            }
-        } else {
-            revert InvalidRate();
-        }
+        rawAmount = LegalShareMath.rawForLegalSharesFloor(legalSharesWad, rate.numerator, rate.denominator, mode);
     }
 }

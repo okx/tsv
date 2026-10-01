@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IAssetSettlementAdapter} from "tsv-v1/interfaces/IAssetSettlementAdapter.sol";
+import {IAssetSettlementAdapter} from "tsv-v1/legacy/IAssetSettlementAdapter.sol";
 
 interface IBackedShares is IERC20 {
     function sharesOf(address account) external view returns (uint256);

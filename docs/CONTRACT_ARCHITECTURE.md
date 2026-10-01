@@ -1,6 +1,6 @@
 # TSV Uniswap V4 合约代码架构设计
 
-状态：**目标架构；本地标准 ERC8056 直接动态计量路径已实现，生产 wTSLAx 仍需外部准入证据**；准入以[新版准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准。V1 新 Swap/LP **只直接收付池内 Currency**；Tesla 池的唯一用户收付资产是 wTSLAx，TSLAx 不经 TSV 同笔包装/赎回。源码仍保留 `IssuerShareSettlementAdapter` 供旧单元测试和负向兼容对照，但 Registry 不接受该旧用户结算组合。本部署没有旧仓位或旧账本迁移问题。  
+状态：**目标架构；本地标准 ERC8056 直接动态计量路径已实现，生产 wTSLAx 仍需外部准入证据**；准入以[新版准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准。V1 新 Swap/LP **只直接收付池内 Currency**；Tesla 池的唯一用户收付资产是 wTSLAx，TSLAx 不经 TSV 同笔包装/赎回。旧 `IssuerShareSettlementAdapter` 与接口已隔离在 `src/v1/legacy/`，不属于当前部署源码路径；Registry 不接受该旧用户结算组合。本部署采用全新六代理实例组，不复用旧 Router、LP Manager、Receipt 或 SBT Adapter 地址，也不迁移旧仓位或旧账本。部署顺序和发布验收见[全新部署清单](./DEPLOYMENT_CHECKLIST_V1.md)。
 依据：[TSV 合约系统 PRD 0.2](https://okg-block.sg.larksuite.com/docx/NsW1dF4VjoLRIyxJCALlGRVNg9f)  
 目标链：X Layer，chainId 196  
 范围：链上合约、关键链下服务接口、部署与治理边界；本文解释设计依据，V1 具体 ABI、字段、签名和状态规则以[编码规格](./CODING_SPEC_V1.md)为准。当前实现位于 `src/v1/`。
@@ -24,7 +24,7 @@
 | D-14 | Timelock 延迟仅约束常规合约升级 | 已确认，2026-09-29 问答 | 使用专用 UpgradeTimelock；业务角色和参数由治理多签直接管理，升级授权配置仍属升级治理域 |
 | D-15 | 设置独立 Guardian 即时冻结事故升级入口 | 已确认，2026-09-29 问答 | Guardian 可单方面冻结；解除冻结与 Guardian 轮换走 UpgradeTimelock，常规升级不因冻结自动失败 |
 | D-16 | 授予 Guardian UpgradeTimelock 的 `CANCELLER_ROLE` | 已确认，2026-09-29 问答 | Guardian 可取消普通升级治理排期；自定义 Timelock 禁止取消受保护的权限恢复排期 |
-| D-17 | 独立 RecoveryCouncil 负责受保护的治理权限恢复 | 已由用户授权设计决策，2026-09-29 | 自行指定恢复排期延迟后原子轮换治理多签/Guardian 及业务治理根地址；Guardian 不可取消此类恢复，RecoveryCouncil 不可提议普通升级 |
+| D-17 | 独立 RecoveryCouncil 负责受保护的治理权限恢复 | 已由用户授权设计决策，2026-09-29 | 自行指定恢复排期延迟，但执行须当前 Guardian 批准；Guardian 不可取消此类恢复，可撤回批准；Council 不可提议普通升级 |
 | D-18 | 业务管理员采用共享的非代理权限根 | 依据用户授权的设计决策，2026-09-29 | 业务合约动态读取 `TSVBusinessAuthority.governor()`；旧多签在受保护恢复执行后同时失去全部业务合约的管理员身份，日常业务操作仍可由多签直接即时提交 |
 | D-19 | 主市场停牌状态仅在变化时上链 | 已确认，2026-09-29 问答 | 标的登记时建立初始状态，此后 HALT/RESUME 等变化才提交；不发送定时链上心跳，不设 HALT 状态年龄超时 |
 | D-20 | 入池 Currency 必须 raw 余额稳定、转账双方 raw 差额精确；AutoFee Rebase 原币不得直接入池 | 原决策按新版准入标准精确定义，2026-09-30 | 普通 ERC-20、raw 稳定的 UI Multiplier 原币、经验证的发行方 Wrapped 均逐实例审查；股数比例是否动态另行判断，现有代码尚未支持全部组合 |
@@ -41,8 +41,8 @@
 | D-32 | Hook 代理地址预留全部 V4 回调与返回 delta 权限 | 用户选择的部署前扩展策略；V1 非零 delta 未启用 | 低 14 位设为 `0x3FFF`；现版四类 delta 均返回零，donate 回滚。未来非零 delta 须同版重做最终结算、成交量口径和 Hook 自身清算，不能只替换 Hook 实现 |
 | D-33 | 单个计量日的场所配额报告改为可选覆盖 | 用户确认，2026-09-30；已按 D-33 编码 | 适用 ADTV 与 Tier 算出硬上限；当日无配额覆盖时使用硬上限，有覆盖时取两者较小值；SET/CLEAR 不跨日继承 |
 | D-34 | 每个 UTC 日期都有独立的 TSV 计量日；UTC 起点可配置，并可仅对未来计量日排期变更 | 用户修订，2026-09-30；已按 D-34 编码 | 由区块时间和起点配置确定 `tradeDayId`，不再提交 TradeDayReport／日历窗口；旧 D-10 和日历前置条件失效。一次起点变更必然产生长于或短于 24 小时的过渡日，具体切换约束见编码规格 §7 |
-| D-35 | Timelock、BusinessAuthority、事故控制器保持非代理；治理根换址采用独立受限迁移 | 用户同意原则，2026-09-30；**目标方案，当前代码未实现** | 八个业务代理改为读取固定 GovernanceAnchor 的当前治理地址；迁移只更新治理地址组，不提供任意实现升级或任意调用。RecoveryCouncil 提议、Guardian 独立批准；双身份与新合约一致性校验后原子切换 |
-| D-36 | Registry 不再单独登记静态计股比例；股票 Currency 绑定经审查的双向 LegalShareAdapter | 用户提出，2026-09-30；**ERC8056 本地路径已编码，通用发行方路径仍待实现/审查** | Adapter 按同一交易时快照实现 raw→法定股数及带边界语义的反向换算；Registry 绑定资产、证券、Adapter 地址/版本、代码与权益依据，不把某个比例字段当成完整公式。实际成交只按 V4 delta 正向计股；拆股可切换整版计股策略或同一 Adapter 的参数/rate epoch，并对齐额度报告口径。同一 securityId 的不同 Token 可以在不同时间读取新参数，交易事件记录各自 snapshot/rateId，运营负责日账分段；只有参数/法律映射无法验证时暂停 |
+| D-35 | Timelock、BusinessAuthority、事故控制器保持非代理；治理根换址采用独立受限迁移 | **已编码、本地回归通过；目标链未部署** | 六个业务代理读取固定 GovernanceAnchor 的当前治理地址；RecoveryCouncil 提议、当前 Guardian 独立批准，新三地址组与六代理目标校验后原子切换；Council 的身份恢复也需当前 Guardian 对排期批准 |
+| D-36 | Registry 不再单独登记静态计股比例；股票 Currency 绑定经审查的双向 LegalShareAdapter | ERC8056 本地路径已编码；**法律单位日内切换禁用，发行方路径待逐实例审查** | Adapter 按同一交易时快照实现 raw→法定股数及边界反算；实际成交只按 V4 delta 正向计股。同一法律单位内不同 rateId 可共存；拆并股若改变法律股数单位，须提前暂停整个 securityId，至少到下一 UTC 计量日且新单位 ADTV/quota 与所有继续交易 Token 的映射就绪后恢复。链上无自动识别无预告单位切换的机制，此类资产不得准入 V1 |
 
 本文区分三类内容：**PRD 已定**、**本设计建议**、**待确认**。待确认项不得被部署脚本偷偷填成默认值；ABI 和代码验收以[编码规格](./CODING_SPEC_V1.md)与[测试规格](./TEST_SPEC_V1.md)为准。
 
@@ -74,12 +74,12 @@ flowchart LR
   U -->|签名授权| AG["批准的聚合器：代提交"]
   AG -->|提交用户请求| R
   OP["建池者 / 强退执行器"] --> LP
-  R -->|检查 participant| S["SBT Adapter"]
-  LP -->|检查仓位 owner| S
-  S -->|verify / paused| B["SmartWalletSbt"]
+  R -->|检查 participant| RG
+  LP -->|检查仓位 owner| RG
+  RG -->|verify / paused| B["SmartWalletSbt"]
   R --> PM["官方 V4 PoolManager"]
   LP --> PM
-  LP --> RC["不可转让 Receipt"]
+  LP --> RC["内置不可转让 ERC-721 Receipt"]
   PM -->|回调| H["TSV Hook 代理"]
   H -->|池状态| RG["Registry：池与准入"]
   H -->|权益快照| LA["LegalShareAdapter：股数"]
@@ -93,7 +93,7 @@ Router 和 LP Manager 直接以获准的 raw 稳定 Currency 与用户和 PoolMa
 ```mermaid
 flowchart LR
   HR["HALT_REPORTER"] -->|直接提交 INITIAL／HALT／RESUME| DI["DataInbox：角色与顺序"]
-  VO["VOLUME_ORACLE"] -->|签署 ADTV／可选日配额| DI
+  VO["VOLUME_ORACLE"] -->|直接提交 ADTV／可选日配额| DI
   DI -->|按 securityId 更新市场状态| RG["Registry：准入与运行状态"]
   DI -->|ADTV / 可选日配额| VL["VolumeLedger"]
   EP["EMERGENCY_PAUSER"] -->|新增 GLOBAL／SECURITY／TOKEN／POOL 暂停| RG
@@ -155,7 +155,7 @@ flowchart TD
 
 ### 2.3 治理与升级
 
-下图表示当前已实现的治理调用路径；D-35 的治理根换址目标在本节下方单独说明。
+下图表示治理调用路径；固定 Anchor 的三地址组迁移在本节下方说明。
 
 ```mermaid
 flowchart TB
@@ -165,52 +165,48 @@ flowchart TB
   GU["Guardian"] -->|取消尚未执行的普通排期| TL
   GU -->|冻结事故升级入口| EU
   CO["RecoveryCouncil"] -->|仅排期受保护的身份恢复| TL
-  TL -->|常规 UUPS 升级| PX["8 个 TSV 自有 UUPS 代理"]
+  TL -->|常规 UUPS 升级| PX["6 个 TSV 自有 UUPS 代理"]
   EU -->|未冻结且目标在允许名单| PX
   TL -->|受保护恢复 governor| BA["BusinessAuthority：非代理"]
   TL -->|排期解冻／调整事故目标名单| EU
 ```
 
-**可升级范围。**下列 8 个 TSV 自有合约的实现均继承 `TSVGoverned`，通过固定地址的 `TSVERC1967Proxy` 运行；升级只替换代理指向的实现，不重新创建代理，也不改变已有 PoolKey 中的 Hook 地址。
+**可升级范围。**下列 6 个 TSV 自有合约的实现均继承 `TSVGoverned`，通过固定地址的 `TSVERC1967Proxy` 运行；升级只替换代理指向的实现，不重新创建代理，也不改变已有 PoolKey 中的 Hook 地址。
 
 | UUPS 代理 | 升级时重点保留或核对的状态 |
 | --- | --- |
 | `TSVHook` | 最终代理地址的 `0x3FFF` V4 权限位、全部回调 ABI、PoolManager/Registry/Ledger/Router/LP Manager 绑定、Swap 计量与强退回调 |
-| `TSVRegistry` | 证券／Token／PoolKey 登记、市场状态、紧急暂停记录与活跃计数、角色授权 |
+| `TSVRegistry` | 证券／Token／PoolKey 登记、市场状态、紧急暂停记录与活跃计数、角色授权、全局 SBT 地址与 tokenId 策略 |
 | `TSVVolumeLedger` | 历史和当日 `usedWad`、ADTV、可选配额及 UTC 日切检查点；公司行动涉及单位变化时仍须依未冻结的 D-36 规则处理 |
 | `TSVDataInbox` | 已使用的 `reportId`、来源序号和来源时间戳；报告由 `msg.sender` 角色直接授权，不保存报告 EIP-712 域或签名版本 |
 | `TSVSwapRouter` | 用户 nonce、签名域、聚合器允许名单、payer／recipient 绑定和结算规则 |
-| `TSVLPManager` | 已有仓位、原 owner、PoolKey、流动性、原资产交付路径与强退可达性 |
-| `TSVReceipt` | tokenId 与仓位一一对应、owner、不可转让语义及仅 LP Manager 可 mint／burn |
-| `TSVSBTAdapter` | SBT 地址、共用 tokenId、资格和 SBT 暂停的读取规则 |
+| `TSVLPManager` | 已有仓位、原 owner、PoolKey、流动性、不可转让 ERC-721 Receipt、原资产交付路径与强退可达性 |
 
 **两条升级路径覆盖同一类 UUPS 代理，但授权流程不同。**常规路径由 Governor 向 UpgradeTimelock 排期，逐笔指定 `delaySeconds`；到期后由有权限的 Executor 提交**完全相同的排期调用**，Timelock 再调用目标代理的 `upgradeToAndCall`。即使延迟为 0，排期和执行仍是两笔交易。Guardian 可以在普通操作执行前取消。事故路径由 Governor 直接调用未冻结的 EmergencyUpgradeController，控制器只对已列入允许名单的代理转发 `upgradeToAndCall`，并记录事故、旧／新实现与代码哈希；代理没有入名单时不能走此路径。两个路径最终都经过代理的 UUPS 升级授权，升级后沿用原地址和存储；都须审查实现代码、存储布局、接口兼容及本表的不变量。一次升级涉及多个相互调用的代理时，还须规定版本兼容矩阵、升级顺序与中间状态，不能假定多笔交易自动原子完成。
 
 **不走这两条升级路径。**`TSVBusinessAuthority`、`TSVUpgradeTimelock`、`TSVEmergencyUpgradeController` 和 Hook CREATE2 工厂是非代理合约；`TSVERC1967Proxy` 的代理壳代码固定，只有其指向的业务实现可按上述路径升级。`LegalShareAdapter` 与发行方结算 Adapter 当前也是非代理实例，若需更换应走 Registry 的版本化 Adapter 替换与相关资产暂停／审查流程，而非对原地址 UUPS 升级；固定比例变化还受[公司行动缺口](./STATIC_RATIO_CORPORATE_ACTION_GAP.md)约束。官方 V4 PoolManager、发行方股票 Token／Wrapped 和发行方 SBT 不受 TSV 升级治理控制。Governor 的普通业务参数与角色操作不经过 UpgradeTimelock；Guardian 只冻结事故升级入口，RecoveryCouncil 只排期受保护的治理身份恢复。详细权限和事故条件见 §9。
 
-**治理合约地址迁移尚未实现。**当前 `TSVBusinessAuthority` 与事故控制器的 `upgradeTimelock` 是不可变地址；八个业务代理的 `upgradeTimelock`／`emergencyUpgradeController` 在初始化后没有更换入口。RecoveryCouncil 只能恢复 Governor／Guardian，不能替换 Timelock、BusinessAuthority 或控制器。因此“为某业务代理换实现”和“为全系统换治理基础合约”不是同一流程；后者须另行设计跨合约迁移、权限切换与既有仓位保障，不能仅对旧 Timelock 排期一笔调用就宣称完成。
+**治理合约地址迁移已编码。**`TSVBusinessAuthority` 与事故控制器仍固定绑定各自 Timelock；六业务代理只保存固定 `TSVGovernanceAnchor`，每次权限检查读取 Anchor 当前三地址。Council 提案、当前 Guardian 批准后，Anchor 可原子切换三地址组。因此“为某业务代理换实现”和“为全系统换治理基础合约”不是同一流程；后者必须执行 Anchor 的双批准迁移，不能仅对旧 Timelock 排期一笔调用。
 
-**D-35 治理根换址目标。**生产部署前增设固定地址、非代理的 `TSVGovernanceAnchor`；八个业务代理仅保存该 Anchor 地址，动态读取当前 `BusinessAuthority`、`UpgradeTimelock` 和事故控制器。Anchor 保存同一组当前治理合约地址、当前 Guardian、固定 RecoveryCouncil 和迁移 epoch。业务管理员检查和 `_authorizeUpgrade` 均以这组当前地址为准，不能保留旧地址旁路。替换治理合约只切换 Anchor 中的一组指针，不升级 Anchor 自身，也不修改八个代理的地址、PoolKey、成交账本、签名 nonce 或 LP 仓位。
+**D-35 治理根换址实现。**当前源码已增设固定地址、非代理的 `TSVGovernanceAnchor`；六个业务代理仅保存该 Anchor 地址，动态读取当前 `BusinessAuthority`、`UpgradeTimelock` 和事故控制器。Anchor 保存同一组当前治理合约地址、当前 Guardian、固定 RecoveryCouncil 和迁移 epoch。业务管理员检查和 `_authorizeUpgrade` 均以这组当前地址为准，不能保留旧地址旁路。替换治理合约只切换 Anchor 中的一组指针，不升级 Anchor 自身，也不修改六个代理的地址、PoolKey、成交账本、签名 nonce 或 LP 仓位。
 
-RecoveryCouncil 向 Anchor 提议**精确的新三地址组**，绑定当前迁移 epoch、Guardian 轮换序号、提案唯一 ID 与证据摘要；当前 Guardian 对同一提案独立批准；两项授权齐备后，任何地址可执行一次原子切换。Guardian 可在执行前撤回自己的批准，Council 可撤销自己的提案。Governor、旧 Timelock 和旧事故控制器均无权单独切换 Anchor。执行前 Anchor 核对新合约均有代码、互异、与自身绑定关系一致：新 Timelock 已绑定新 BusinessAuthority／事故控制器；三者报告相同的新 Governor，Timelock／控制器报告当前 Guardian，Timelock 报告固定 RecoveryCouncil；BusinessAuthority／控制器的不可变 Timelock 均指向新 Timelock；新控制器处于冻结状态，且已预先批准全部八个业务代理为升级目标。新 Timelock 的 proposer、canceller、Council executor 和自管理权限须与清单一致。任一核对失败则整笔回滚，epoch 不变；成功后旧 Timelock／控制器立即失去八个代理的升级调用权，旧 BusinessAuthority 不再决定业务管理员。旧合约内的待执行操作不会自动转移；新地址组应在切换前部署、审查和配置完成。
+RecoveryCouncil 向 Anchor 提议**精确的新三地址组**，绑定当前迁移 epoch、Guardian 轮换序号、提案唯一 ID 与证据摘要；当前 Guardian 对同一提案独立批准；两项授权齐备后，任何地址可执行一次原子切换。Guardian 可在执行前撤回自己的批准，Council 可撤销自己的提案。Governor、旧 Timelock 和旧事故控制器均无权单独切换 Anchor。执行前 Anchor 核对新合约均有代码、互异、与自身绑定关系一致：新 Timelock 已绑定新 BusinessAuthority／事故控制器；三者报告相同的新 Governor，Timelock／控制器报告当前 Guardian，Timelock 报告固定 RecoveryCouncil；BusinessAuthority／控制器的不可变 Timelock 均指向新 Timelock；新控制器处于冻结状态，且已预先批准全部六个业务代理为升级目标。新 Timelock 的 proposer、canceller、Council executor 和自管理权限须与清单一致，并通过自身排期预先 `nominateGovernanceAnchor(anchor)`；Anchor 切换时原子调用 `activateGovernanceAnchor(anchor)`。任一核对失败则整笔回滚，epoch 不变；成功后旧 Timelock／控制器立即失去六个代理的升级调用权，旧 BusinessAuthority 不再决定业务管理员。旧合约内的待执行操作不会自动转移；新地址组应在切换前部署、审查和配置完成。
 
-Guardian 的常规受保护轮换仍由当前 Timelock 完成，但须在同一 `recoverAuthorities` 交易中同步 Anchor 的当前 Guardian 并递增轮换序号；Anchor 只接受当前 Timelock 在受保护恢复上下文中的该调用。否则旧 Guardian 会保留根换址批准权。迁移提案按迁移 epoch 和 Guardian 轮换序号失效。Anchor 本身不提供任意调用、任意实现升级或单地址热替换入口；Council 与 Guardian 联合选择新 Governor 和新治理合约具有最高治理权，代码哈希、配置和证据仍须独立审查。两者同时失联或 Anchor 自身故障时，本方案没有链上恢复入口。**当前 Solidity 仍直接保存三地址，D-35 还需实现 Anchor、代理读取改造和迁移状态机；在这些改造完成前，不得把根换址列为已支持功能。**
+Governor/Guardian 的受保护身份恢复由 Council 排期、当前 Guardian 对具体 operationId 批准后执行；Guardian 轮换还须在同一 `recoverAuthorities` 交易中同步 Anchor 的当前 Guardian 并递增轮换序号；Anchor 只接受当前 Timelock 在受保护恢复上下文中的该调用。否则旧 Guardian 会保留根换址批准权。迁移提案按迁移 epoch 和 Guardian 轮换序号失效。Anchor 本身不提供任意调用、任意实现升级或单地址热替换入口；Council 与 Guardian 联合选择新 Governor 和新治理合约具有最高治理权，代码哈希、配置和证据仍须独立审查。两者同时失联或 Anchor 自身故障时，本方案没有链上恢复入口。**当前源码已支持迁移，但目标链部署、实际多签身份、候选代码审查和存储布局验收尚未完成。**
 
 合约职责如下。D-02 不要求把所有状态塞进一个 Solidity 合约，只要求所有池指向同一组可信实例，且账本对同一 `securityId/tradeDayId` 原子聚合。
 
 | 合约 | 持久状态 | 唯一写入者/核心职责 |
 | --- | --- | --- |
-| `TSVRegistry` | security、Tier、Token 准入、PoolKey、池状态、暂停记录、角色/地址配置 | 治理与授权运营；提供 `requirePoolForSwap/LP/Initialize` 等策略视图 |
+| `TSVRegistry` | security、Tier、Token 准入、PoolKey、池状态、暂停记录、角色/地址和全局 SBT 配置 | 治理与授权运营；提供准入、`isEligible/hasCredential` 等策略视图 |
 | `TSVVolumeLedger` | 月度 ADTV、交易日、本平台配额、security/day 成交量 | 数据入口更新参数；仅 Hook 在 `afterSwap` 增加成交量 |
 | `TSVDataInbox` | 数据源角色授权、reportId 去重、序号/时间戳 | 按 `msg.sender` 角色检查后调用 Registry/VolumeLedger；HALT 与 VOLUME 权限分离 |
 | `TSVHook` | 极少量配置状态；固定 `PoolManager/Registry/Ledger/Router/LPManager` 地址 | `before*` 拦截与 `afterSwap` 实际成交记账 |
 | `LegalShareAdapter` | 每资产固定或版本化的权益换算配置；动态实例读取发行方链上状态 | 把池内 Currency 数量转换为交易时法定股数；只读、不可由用户选择，公式更新先暂停相关池 |
 | `TSVSwapRouter` | 签名 nonce、执行上下文 | 用户授权、exact-in/out、直接 Currency 转账、PoolManager `unlock`、结算与成交事件 |
-| `TSVLPManager` | 独立仓位账本、owner 索引、强退上下文 | PoolManager `initialize/modifyLiquidity`、直接 Currency 交付、强退、费用、原子结算 |
-| `TSVReceipt` | 不可转让 ERC-721 凭证 | 只允许 LP Manager mint/burn；`tokenId = positionId` |
-| `TSVSBTAdapter` | 当前 SBT proxy 与共用 tokenId、配置版本 | 读取 `paused()` 和 `verify()`；读失败 fail-closed；治理多签统一迁移凭证配置 |
+| `TSVLPManager` | 仓位账本、owner 索引、强退上下文、不可转让 ERC-721 Receipt | PoolManager `initialize/modifyLiquidity`、Receipt mint/burn、直接 Currency 交付、强退、费用、原子结算 |
 | `TSVBusinessAuthority` | 当前治理多签地址、固定 UpgradeTimelock 地址 | 非代理权限根；全部业务合约动态查询同一 governor；仅受保护恢复可轮换地址，不代执行日常业务调用 |
-| `TSVUpgradeTimelock` | 已排期操作及各自执行时间、受保护恢复操作 ID、proposer/executor/canceller 角色 | 常规升级及升级授权配置逐笔指定延迟；无全局延迟下限或上限；Guardian 可取消普通排期，RecoveryCouncil 的权限恢复排期不可由 Guardian 取消 |
+| `TSVUpgradeTimelock` | 已排期操作及各自执行时间、受保护恢复操作 ID、proposer/executor/canceller 角色 | 常规升级及升级授权配置逐笔指定延迟；无全局延迟下限或上限；Guardian 可取消普通排期，RecoveryCouncil 的权限恢复排期不可由 Guardian 取消，但未经 Guardian 批准不得执行 |
 | `TSVEmergencyUpgradeController` | 治理多签、Guardian、代理允许名单、冻结状态、已用升级行动 ID | 多签仅可在未冻结时事故升级；Guardian 仅可冻结；解冻与角色轮换仅由 UpgradeTimelock 执行 |
 | `TSVERC1967Proxy` | ERC-1967 实现槽及 TSV 业务状态 | 代理地址稳定；固定 `tsvImplementation()` 查询实现，业务调用委托给 UUPS 实现 |
 
@@ -264,11 +260,11 @@ Wrapped Token 的转账可能实时读取底层制裁名单。准入时须逐项
 
 ### 4.1 SBT
 
-`TSVSBTAdapter.isEligible(owner)` 必须执行 `!paused() && verify(owner, configuredTokenId)`，捕获 SBT 外部读异常后拒绝。`hasCredential(owner)` 只读取当前凭证，不把 SBT 暂停解释为撤销。LP 自动强退复核“该 owner 曾有仓位且当前凭证缺失”；单纯 SBT `paused()` 不触发退出。SBT 重新签发早于强退执行时，自动强退任务应复核并取消；管理员独立强退仍由独立权限控制。
+`TSVRegistry.isEligible(owner)` 执行 `!paused() && verify(owner, configuredTokenId)`；SBT 外部读取失败会使调用回滚，从而拒绝 Swap 和普通 LP 操作。`hasCredential(owner)` 只读取当前凭证，不把 SBT 暂停解释为撤销；读取失败同样回滚，防止把读取故障误判成已撤证并触发自动强退。LP 自动强退复核“该 owner 曾有仓位且当前凭证缺失”；单纯 SBT `paused()` 不触发退出。SBT 重新签发早于强退执行时，自动强退任务应复核并取消；管理员独立强退仍由独立权限控制。
 
 AA 钱包作为 SBT 持有人还必须能够接收 ERC-1155 单件铸造：发行方 `issue/claim` 会调用钱包的 `onERC1155Received`，且返回值须为标准 selector。部署前用实际钱包实现与发行方 SBT 代理确认领证可达性；仅支持 ERC-1271 签名不能证明可以领证。不能领证的钱包不得进入当前资格路径，需先由发行方提供受支持的领证方式。
 
-SBT 地址、tokenId 在上线清单中固定。变更 SBT 地址或 tokenId 等同资格体系迁移；由治理多签通过共享 `TSVSBTAdapter` 的单一配置入口直接执行，须完成迁移检查并记录新旧配置与依据哈希。Router 与 LP Manager 始终读取同一 Adapter，避免分笔修改时读到不同凭证。事故即时升级亦须保留相同的迁移不变量。SBT 的 `verify()` 本身不会因 `paused()` 返回 false，因此必须显式检查暂停。
+SBT 地址、tokenId 在上线清单中固定。变更 SBT 地址或 tokenId 等同资格体系迁移；由治理多签通过 Registry 的 `setSbtConfig(address,uint256,bytes32)` 单一配置入口执行，须完成迁移检查并记录新旧配置与依据哈希。Router 与 LP Manager 都读取同一个 Registry 配置，避免分笔修改时读到不同凭证。事故即时升级亦须保留相同的迁移不变量。SBT 的 `verify()` 本身不会因 `paused()` 返回 false，因此资格判断必须显式检查暂停。
 
 ### 4.2 Swap 授权
 
@@ -330,11 +326,11 @@ ADTV 更正或 Tier 变更若降低当前硬上限至小于已提交的配额覆
 
 Token 下架或 Pool 停用应阻止新交易和用户 LP 操作，同时保留已登记池的强退可达性。`isKnownPool` 与 `isTradablePool` 必须分开，避免下架使历史仓位无法取回。强退仍依赖底层 Token 的可转账性；Token 发行方冻结结算是合约无法单方面修复的外部故障。
 
-## 7. LP 仓位与 Receipt
+## 7. LP 仓位与内置 Receipt
 
 `TSVLPManager` 是 PoolManager 仓位调用主体。每个 TSV positionId 对应唯一 `(PoolId, tickLower, tickUpper, salt)`；`salt = hash(chainId, LPManager proxy, positionId)`，杜绝不同用户相同 tick 范围不可逆混合。仓位账本保留不可变 `owner`、PoolKey、salt 和创建版本，流动性为可变值。建立 `owner => activePositionIds` 可枚举索引，供撤销监控枚举；删除采用 swap-and-pop 并发事件，查询接口分页，避免链上全量循环。
 
-`TSVReceipt` 是不可转让 ERC-721：一个仓位一个 tokenId；`transferFrom/safeTransferFrom/approve/setApprovalForAll` 均 revert，只有 LP Manager 可 mint/burn。用户操作必须同时要求 `msg.sender == ledger.owner` 和 `ownerOf(positionId) == ledger.owner`。Receipt 只是权益证明，PoolManager 的真实 owner 是 LP Manager；不可把 Receipt 当作官方 V4 PositionManager NFT。
+LP Manager 自身同时实现不可转让 ERC-721 Receipt：一个仓位一个 tokenId；`transferFrom/safeTransferFrom/approve/setApprovalForAll` 均 revert，mint/burn 仅由 LP 操作内部执行。用户操作要求 `msg.sender == position.owner == ownerOf(positionId)`。Receipt 只是权益证明，PoolManager 的真实 owner 是 LP Manager；不可把 Receipt 当作官方 V4 PositionManager NFT。Receipt ABI 位于 LP Manager 代理地址，不再部署独立 Receipt 代理。
 
 拟议操作：
 
@@ -394,7 +390,7 @@ ADTV 的新适用月份需要对应报告；日配额没有新的覆盖要求时
 
 ## 9. 治理、代理与升级
 
-Hook **代理地址**的低 14 位必须与回调权限位一致。TSV 自有代理建议使用轻量 `TSVERC1967Proxy`（继承 OpenZeppelin `ERC1967Proxy`，只增加不可由实现覆盖的 `tsvImplementation()` 只读函数）；在 CREATE2 工厂中挖掘其最终创建代码与初始化参数对应的 salt，并在部署后验证地址、implementation codehash、权限位及所有接口。`Hooks.validateHookPermissions` 的检查对象必须是最终 Hook **代理**地址，可在代理上下文的 `initialize` 中或部署核验脚本中执行；实现合约构造函数不得用其自身 `address(this)` 代替代理地址做该校验。Hook 实现使用 UUPS 模式，禁止 implementation 直接初始化；`initialize` 只在代理上下文执行，存入 PoolManager 等地址。§2.3 所列八个业务代理均归 TSV 升级治理域；升级必须保持已有代理地址和它们在其他合约中的引用稳定。发行方 SBT 代理不由 TSV 治理升级。`tsvImplementation()` 的 selector 在所有 TSV 实现中保留，不能声明同名冲突函数。
+Hook **代理地址**的低 14 位必须与回调权限位一致。TSV 自有代理建议使用轻量 `TSVERC1967Proxy`（继承 OpenZeppelin `ERC1967Proxy`，只增加不可由实现覆盖的 `tsvImplementation()` 只读函数）；在 CREATE2 工厂中挖掘其最终创建代码与初始化参数对应的 salt，并在部署后验证地址、implementation codehash、权限位及所有接口。`Hooks.validateHookPermissions` 的检查对象必须是最终 Hook **代理**地址，可在代理上下文的 `initialize` 中或部署核验脚本中执行；实现合约构造函数不得用其自身 `address(this)` 代替代理地址做该校验。Hook 实现使用 UUPS 模式，禁止 implementation 直接初始化；`initialize` 只在代理上下文执行，存入 PoolManager 等地址。§2.3 所列六个业务代理均归 TSV 升级治理域；升级必须保持已有代理地址和它们在其他合约中的引用稳定。发行方 SBT 代理不由 TSV 治理升级。`tsvImplementation()` 的 selector 在所有 TSV 实现中保留，不能声明同名冲突函数。
 
 **升级治理域。**部署 `TSVUpgradeTimelock`（继承仓库固定版本的 OpenZeppelin `TimelockController`），只赋予它 TSV 代理的常规 UUPS 升级权、事故升级控制器的授权配置和解冻权。其构造参数 `minDelay` 固定为 0，覆写 `updateDelay` 为恒定回滚，防止日后引入全局下限。治理多签以 `PROPOSER_ROLE` 在每笔常规升级的 `schedule` 调用中单独提交 `delaySeconds`；合约不额外规定最小值或最大值，0 表示排期后可立即执行，正数则须等到该笔操作的 ready 时间。执行仍需持有 `EXECUTOR_ROLE`，且排期与执行是两笔交易；普通升级的 payload、salt、排期时间、`delaySeconds` 与最早执行时间由原生事件留痕。无合约层面的审阅窗口承诺：选择 0 时，Guardian 即使持取消权，也可能来不及在执行前取消；选择极大值则可能长期无法执行。
 
@@ -414,11 +410,11 @@ Hook **代理地址**的低 14 位必须与回调权限位一致。TSV 自有代
 
 **受保护的权限恢复。**另设独立 `RecoveryCouncil` 多签，控制权与治理多签及 Guardian 分离。它获得 UpgradeTimelock 的 `PROPOSER_ROLE`，但自定义 `schedule` 覆写在 `msg.sender == RecoveryCouncil` 时只接受 `target == address(this)`、`value == 0`、无 predecessor、精确编码的 `recoverAuthorities(newGovernor, newGuardian, evidenceHash)` 调用；要求地址/证据有效、至少一个地址变化且由 RecoveryCouncil 为该笔操作指定 `delaySeconds`（可为 0），随后调用父合约 `schedule` 并将精确操作 ID 标记为 `protectedRecovery`。自定义 `scheduleBatch` 对 RecoveryCouncil 一律拒绝。它不能排期普通升级，也不能把任意调用塞进受保护批次。治理多签的 `schedule/scheduleBatch` 不得排期该恢复 selector；Timelock 的 `grantRole/revokeRole/renounceRole` 对 `DEFAULT_ADMIN_ROLE/PROPOSER_ROLE/CANCELLER_ROLE` 恒拒绝，通过受保护恢复内部方法轮换这些固定角色，防止普通排期自调用绕过恢复路径。
 
-受保护操作到期后由普通 executor 调用 `execute`；`TSVUpgradeTimelock` 仅在执行该精确操作 ID 时短暂设置 `recoveryContext`。`recoverAuthorities` 必须同时满足 `msg.sender == address(this)` 与 `recoveryContext == true`，在同一交易中更新事故控制器的 governor/Guardian 地址和 `TSVBusinessAuthority.governor()`，并同步授予新、撤销旧的 `PROPOSER_ROLE`/`CANCELLER_ROLE`；未变化的一侧保持原状。`TSVBusinessAuthority.recoverGovernor` 和事故控制器的 `setGovernor/setGuardian` 都只接受 UpgradeTimelock 的恢复上下文，防止普通排期绕过原子轮换。若其中任何调用失败，整笔恢复交易回滚，旧权限不出现半轮换状态。全部业务合约动态读取同一个 Authority，因此无需逐个代理修改管理员存储。恢复操作**不自动解冻**事故升级入口；新治理多签仍需另行排期解冻，延迟可逐笔指定为 0。Guardian 无法取消恢复自己的受保护操作，但可继续取消其他普通操作。
+受保护操作到期并经当前 Guardian 对 operationId 批准后，由普通 executor 调用 `execute`；`TSVUpgradeTimelock` 仅在执行该精确操作 ID 时短暂设置 `recoveryContext`。`recoverAuthorities` 必须同时满足 `msg.sender == address(this)` 与 `recoveryContext == true`，在同一交易中更新事故控制器的 governor/Guardian 地址和 `TSVBusinessAuthority.governor()`，并同步授予新、撤销旧的 `PROPOSER_ROLE`/`CANCELLER_ROLE`；未变化的一侧保持原状。`TSVBusinessAuthority.recoverGovernor` 和事故控制器的 `setGovernor/setGuardian` 都只接受 UpgradeTimelock 的恢复上下文，防止普通排期绕过原子轮换。若其中任何调用失败，整笔恢复交易回滚，旧权限不出现半轮换状态。全部业务合约动态读取同一个 Authority，因此无需逐个代理修改管理员存储。恢复操作**不自动解冻**事故升级入口；新治理多签仍需另行排期解冻，延迟可逐笔指定为 0。Guardian 无法取消受保护排期，但可拒绝或撤回自己的执行批准，也可继续取消其他普通操作。
 
-RecoveryCouncil 具备按单笔指定延迟更换治理多签和 Guardian 的高权限；合约只保存其独立地址并限制可排期的调用，不读取钱包内部成员或签名门槛。建议固定该地址，不给普通治理提供随意更换此根权限地址的入口。它不能通过受保护入口升级实现、修改业务参数、替普通升级指定延迟或直接解冻；恢复后新治理多签才可按正常业务权限修改参数。运维持续监控 `CallScheduled/Cancelled/CallExecuted`、`BusinessGovernorRecovered` 与恢复事件，核对目标、calldata 哈希、角色变化和事故依据。**剩余风险：**从排期到恢复执行前，失陷旧多签仍能执行即时业务操作或授予其他业务角色；若 Council 选 0 延迟，这段时间可以很短，但仍存在链上交易排序竞争。Guardian 的升级冻结和取消权不冻结业务操作。发现此类事故时应使用独立紧急暂停角色先阻断交易，再盘点并清理旧多签授予的运营角色和恶意配置；恢复本身只轮换根管理员，不自动恢复被改坏的业务数据，也不能追回已执行交易。若 RecoveryCouncil 本身失陷，链上仍无法保证治理安全；这一信任边界须在治理文件中明确。
+RecoveryCouncil 可按单笔指定延迟提议更换治理多签和 Guardian，但执行具体恢复排期还必须获得当前 Guardian 的独立批准；合约只保存其独立地址并限制可排期的调用，不读取钱包内部成员或签名门槛。建议固定该地址，不给普通治理提供随意更换此根权限地址的入口。它不能通过受保护入口升级实现、修改业务参数、替普通升级指定延迟或直接解冻；恢复后新治理多签才可按正常业务权限修改参数。运维持续监控 `CallScheduled/Cancelled/CallExecuted`、`BusinessGovernorRecovered` 与恢复事件，核对目标、calldata 哈希、角色变化和事故依据。**剩余风险：**从排期到恢复执行前，失陷旧多签仍能执行即时业务操作或授予其他业务角色；若 Council 选 0 延迟且 Guardian 同笔批准，这段时间可以很短，但仍存在链上交易排序竞争。Guardian 的升级冻结和取消权不冻结业务操作。发现此类事故时应使用独立紧急暂停角色先阻断交易，再盘点并清理旧多签授予的运营角色和恶意配置；恢复本身只轮换根管理员，不自动恢复被改坏的业务数据，也不能追回已执行交易。若 RecoveryCouncil 本身失陷，链上仍无法保证治理安全；这一信任边界须在治理文件中明确。
 
-当前 TSV UUPS 实现的 `_authorizeUpgrade` 只接受初始化时保存的 UpgradeTimelock 或事故控制器；D-35 目标改为只接受固定 Anchor 返回的当前两地址。事故控制器的可升级目标名单仅能经当前 UpgradeTimelock 的普通排期修改；治理多签和 Guardian 的常规轮换只通过受保护的 `recoverAuthorities` 原子执行，治理合约地址组的迁移则走 §2.3 的独立双身份流程。业务合约管理员可直接轮换业务角色，但不能借业务 `DEFAULT_ADMIN_ROLE` 或即时授予的 `UPGRADE_ADMIN` 角色开放第三条代理升级路径。控制器仅转发对允许名单中代理的升级调用，不提供任意目标调用。为了可靠记录旧实现，控制器通过代理自身固定的 `tsvImplementation()` 读取 ERC-1967 实现槽，升级前记录旧地址和 `extcodehash`，升级后再次读取并要求等于提交的新地址。该函数写在代理而非可变实现中，以保证修复实现故障时仍可读取。当前代码尚无治理合约地址组迁移入口，不能把 D-35 目标描述为现有能力。
+当前 TSV UUPS 实现的 `_authorizeUpgrade` 只接受固定 Anchor 返回的当前 UpgradeTimelock 或事故控制器。事故控制器的可升级目标名单仅能经当前 UpgradeTimelock 的普通排期修改；治理多签和 Guardian 的常规轮换只通过受保护的 `recoverAuthorities` 原子执行，治理合约地址组的迁移则走 §2.3 的独立双身份流程。业务合约管理员可直接轮换业务角色，但不能借业务 `DEFAULT_ADMIN_ROLE` 或即时授予的 `UPGRADE_ADMIN` 角色开放第三条代理升级路径。控制器仅转发对允许名单中代理的升级调用，不提供任意目标调用。为了可靠记录旧实现，控制器通过代理自身固定的 `tsvImplementation()` 读取 ERC-1967 实现槽，升级前记录旧实现地址，升级后再次读取并要求等于提交的新地址；代码哈希由发布清单独立核对。该函数写在代理而非可变实现中，以保证修复实现故障时仍可读取。治理合约地址组迁移入口已编码，生产使用仍须独立验收。
 
 两条路径都要维护相同的不变量：升级不改变 PoolKey.hooks、Hook 地址权限位、已有池的强退通道、额度、暂停、Router 签名 nonce、Receipt owner 和 LP 仓位。升级前后的实现须使用固定存储命名空间或经验证的追加式布局，保留 `proxiableUUID`/代理槽兼容；禁用实现合约的直接初始化和直接升级。Hook 的新实现须保持原回调权限清单及安全语义，禁止新增 PoolManager 自调用绕过计量。上述是代码验收和治理约束：拥有升级权限者能够替换代理逻辑，控制器无法证明新逻辑一定遵守业务不变量。常规升级须先完成独立审计、存储布局检查、接口兼容和 fork 演练，并发布实现地址、codehash、版本、变更摘要及排期事件。事故路径在可用时间内完成这些检查，并补做完整审计与公开事故报告；链上事故标记不能代替代码审查。多个代理逐个升级可能出现版本组合，升级计划须列兼容矩阵与顺序。若需要原子升级多个代理，应由控制器提供限定目标的批量入口，并要求整批成功或整体回滚。
 
@@ -469,7 +465,7 @@ RecoveryCouncil 具备按单笔指定延迟更换治理多签和 Guardian 的高
 
 ## 11. 当前仓库的实施状态
 
-V1 合约按职责位于 `src/v1/` 的 `core/`、`periphery/`、`adapters/`、`governance/`、`deployment/`、`types/` 和 `interfaces/`；测试位于 `test/unit/v1/` 与 `test/integration/local/`，共享夹具位于 `test/helpers/v1/`。旧原型代码和专属测试已清理。Registry、VolumeLedger、DataInbox、Hook、Router、LP Manager、Receipt、资产 Adapter 和治理合约的当前完成范围与尚未通过的外部协议、fork、性质测试门禁见[实现状态](./IMPLEMENTATION_STATUS_V1.md)。具体 ABI 与状态规则以[编码规格](./CODING_SPEC_V1.md)为准。
+V1 合约按职责位于 `src/v1/` 的 `core/`、`periphery/`、`adapters/`、`libraries/`、`legacy/`、`governance/`、`deployment/`、`types/` 和 `interfaces/`；测试位于 `test/unit/v1/`、`test/unit/legacy/` 与 `test/integration/local/`，共享夹具位于 `test/helpers/v1/`。SBT 资格配置与读取由 Registry 统一提供；ERC-721 Receipt 与 LP Manager 共用代理地址；旧发行方包装结算代码隔离于 `legacy/`，不属于当前核心部署。Registry、VolumeLedger、DataInbox、Hook、Router、LP Manager、资产 Adapter 和治理合约的当前完成范围与尚未通过的外部协议、fork、性质测试门禁见[实现状态](./IMPLEMENTATION_STATUS_V1.md)。具体 ABI 与状态规则以[编码规格](./CODING_SPEC_V1.md)为准。
 
 ## 12. 生产上线前待填写与确认
 
@@ -502,7 +498,7 @@ TSV/V4 Core 使用 Solidity `0.8.26`，SmartWalletSbt 使用 `^0.8.29`，Backed 
 
 1. 固定 v4-core 版本，核对 X Layer chainId、官方 PoolManager 地址和运行代码哈希；锁定 TSV 的 Solidity `0.8.26`、优化参数和依赖 commit。SBT `^0.8.29` 与 Backed `0.8.9` 使用各自独立构建产物；审查跨项目薄接口、实际 ABI、代理实现与 OZ 版本，不把外部实现加入同一编译单元。
 2. 部署治理多签、独立 Guardian、独立 RecoveryCouncil 和自定义 `TSVUpgradeTimelock`，将 OZ `minDelay` 固定为 0 并禁用 `updateDelay`。治理多签为普通 proposer，RecoveryCouncil 的 `schedule` 仅能排期固定权限恢复调用，Guardian 持 `CANCELLER_ROLE`，executor 单独配置。OpenZeppelin 构造时会同时给初始 proposer `CANCELLER_ROLE`；部署管理员须撤销治理多签的该角色，另给 RecoveryCouncil `PROPOSER_ROLE` 但不授予 canceller，并核对自定义入口阻止它排期普通升级。部署事故升级控制器与非代理 `TSVBusinessAuthority`，均绑定同一个初始治理多签和固定 UpgradeTimelock；事故控制器初始化为冻结状态。紧急暂停、紧急恢复、数据报告与强退密钥分别准备配置。
-3. 部署 Registry、VolumeLedger、DataInbox、SBTAdapter、Router、LPManager、Receipt 的实现和 `TSVERC1967Proxy`；实现合约禁用直接初始化，代理拒绝空初始化数据。每个代理都应在同一交易中使用初始化 calldata 创建，禁止先部署空代理再单独初始化；逐个核对代理实现、升级授权和初始化参数。
+3. 部署 Registry、VolumeLedger、DataInbox、Hook、Router、LPManager 六个业务代理及其实现；LP Manager 代理同时承载 Receipt ERC-721，SBT 地址与 tokenId 通过 Registry 的 `setSbtConfig` 单一入口配置。实现合约禁用直接初始化，代理拒绝空初始化数据。每个代理都应在同一交易中使用初始化 calldata 创建，禁止先部署空代理再单独初始化；逐个核对代理实现、升级授权和初始化参数，并在开放交易与 LP 前确认全局 SBT 配置已设置。
 4. 对最终 Hook 代理的创建代码及初始化参数挖掘 CREATE2 salt；在代理上下文初始化或部署脚本中调用等价于 `Hooks.validateHookPermissions` 的校验，核对**代理地址**低 14 位为 `0x3FFF`，并核对四类 delta 实际返回零、donate 回滚、afterAdd/afterRemove 回调不改变结算。部署后核对 implementation、初始化状态和 PoolManager 地址。实现构造函数只禁用直接初始化，不以实现地址校验 Hook 位。先完成 Hook 与 Registry/Ledger/Router/LPManager 的相互绑定，再授予 Hook 唯一成交写入权限。
 5. 经 UpgradeTimelock 排期一次性绑定 BusinessAuthority、设置事故控制器的代理允许名单和首轮解冻，按各笔排期指定的 `delaySeconds` 执行；核对每个代理的 `tsvImplementation()`、控制器地址、Guardian 和升级权限。核对普通提案可被 Guardian 取消、受保护恢复不能被取消、RecoveryCouncil 无法排期普通升级后，撤销临时外部 UpgradeTimelock 管理员。全部业务代理配置同一个 BusinessAuthority，并验证 `hasRole(DEFAULT_ADMIN_ROLE, governor) == true`、其他地址为 false，且直接授予/撤销此根角色会回滚；再配置紧急暂停、紧急恢复、数据报告与强退角色，核对 UpgradeTimelock 不持有这些业务角色。
 6. 注册证券、Tier、Token、普通配对资产和 PoolKey 参数；为每个股票 Currency 登记计股 Adapter、版本、发行方权益依据及最小股单位，拒绝 AutoFee 原币、非精确转账资产和 100%/动态费率池。wTSLAx 实例须核对 raw 稳定、双侧精确转账、底层权益公式、托管、读取 gas 上限、原 owner 收取 wTSLAx 的可达性及发行方代理权限；不要求目标 TSV 同笔包装或赎回。AA 钱包用实际发行方 SBT 核对 ERC-1155 接收能力。上传签名数据源、公示版本化准入与配置摘要；未齐备前保持 Swap fail-closed。
