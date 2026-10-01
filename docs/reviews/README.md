@@ -13,7 +13,7 @@
 ## 2026-10-02
 
 - [TSVSwapRouterV1 逻辑 Review](TSVSwapRouterV1_REVIEW_2026-10-02.md)：未确认可利用漏洞；记录交易日与 PoolKey 重复检查、请求字段冗余、Hook 拓扑元数据及结算回调返回值等整理建议。
-- [TSVLPManagerV1 逻辑 Review](TSVLPManagerV1_REVIEW_2026-10-02.md)：未确认可利用漏洞；区分了 Hook 需要的 LP 活跃上下文、弃用 storage 槽、结算边界、重复检查与当前 ABI 文档漂移。
+- [TSVLPManagerV1 逻辑 Review](TSVLPManagerV1_REVIEW_2026-10-02.md)：未确认可利用漏洞；区分了 Hook 需要的 LP 活跃上下文、弃用 storage 槽、结算边界、重复检查与当前 ABI 文档漂移。报告末尾记录了本次已执行的优化。
 - [TSVSwapRouterV1 三轮 Solidity Auditor 报告](solidity-auditor/20261002-003005/full-report.md)：12 个专项视角逐轮复核；未确认漏洞，记录 PoolManager 配置与代币代理行为线索及 Router 逻辑清理点。目录内附三轮记录、审查范围和旧记忆快照。
 
 ## 其他评审

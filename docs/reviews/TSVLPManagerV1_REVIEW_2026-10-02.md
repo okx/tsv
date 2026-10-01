@@ -101,3 +101,16 @@ LP delta 的输入侧若为 `type(int128).min`，`_settle()` 扩展到 `int256` 
 4. 可选增加 `int128.min` 的结算前拒绝，并明确 `collectFees` 是否允许任何负 delta。
 
 本报告是当前工作区源码的静态 Review，不代替独立安全审计或测试。本轮未修改 Solidity 源码，也未运行测试或构建。
+
+## 后续优化记录（2026-10-02）
+
+用户接受建议后，已在当前未部署的 V1 实现中完成以下调整：
+
+- 删除不再使用的 LP operation nonce / ID 存储字段；此版本尚未部署，无需兼容旧 storage layout。
+- 删除 `forceExit()` 收到 `_modify()` 返回值后的重复负 delta 检查；`_settle()` 仍在转账前拒绝所有强退负 delta，并保留 `SettlementMismatch()` 错误声明供既有 selector 断言使用。
+- 每次入口只派生一次 PoolId，并传给活跃上下文；Hook 的只读上下文返回改为窄结构 `LPHookContext`，不再返回未消费的 owner 或 positionId。
+- V4 仓位 salt 改为 `bytes32(positionId)`；同一 Manager 的 positionId 单调唯一。PoolKey 与 tick 范围仍参与 V4 仓位标识。
+- `_settle()` 在代币交互前拒绝 `int128.min`；`COLLECT` 模式拒绝负 delta；普通操作分别返回资格错误 `Unauthorized()` 与不可交易池错误 `InvalidPool()`。
+- 同步 [编码规格](../CODING_SPEC_V1.md)、[系统总览](../SYSTEMS_OVERVIEW.md) 和[测试规格](../TEST_SPEC_V1.md)中的 LP 上下文 ABI、salt 和结算边界描述。
+
+这是代码审阅后的工程整理，不是新一轮安全审计。未运行测试或构建；`git diff --check` 只用于检查补丁空白格式。
