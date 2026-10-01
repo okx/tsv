@@ -10,8 +10,16 @@ import {Currency} from "v4-core/types/Currency.sol";
 library TSVDirectSettlementLib {
     using SafeERC20 for IERC20;
 
+    /// @dev Reverts when the observed token balance change differs from the expected settlement amount.
     error SettlementMismatch();
 
+    /// @notice Settles a PoolManager debt by pulling an exact ERC-20 amount from the payer.
+    /// @dev Verifies payer debit, PoolManager credit, and the amount acknowledged by `settle`.
+    /// @param poolManager V4 PoolManager with the outstanding currency debt.
+    /// @param currency Currency whose debt is being settled.
+    /// @param token ERC-20 address corresponding to `currency`.
+    /// @param payer Address that approved the transfer.
+    /// @param amount Exact amount to transfer and settle.
     function settleFrom(IPoolManager poolManager, Currency currency, address token, address payer, uint256 amount)
         internal
     {
@@ -27,6 +35,12 @@ library TSVDirectSettlementLib {
         ) revert SettlementMismatch();
     }
 
+    /// @notice Takes an exact PoolManager credit and verifies both sides' balance changes.
+    /// @param poolManager V4 PoolManager holding the currency credit.
+    /// @param currency Currency being withdrawn.
+    /// @param token ERC-20 address corresponding to `currency`.
+    /// @param recipient Address receiving the transferred tokens.
+    /// @param amount Exact amount to take and deliver.
     function takeTo(IPoolManager poolManager, Currency currency, address token, address recipient, uint256 amount)
         internal
     {

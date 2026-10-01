@@ -14,7 +14,9 @@ import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 
+/// @dev Exposes the active LP operation context used to authorize Hook callbacks.
 interface IActiveLPContextV1 {
+    /// @notice Returns the LP Manager's active operation context for Hook validation.
     function activeLPContext() external view returns (LPHookContext memory);
 }
 
@@ -28,10 +30,15 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     uint160 public constant REQUIRED_HOOK_FLAGS = 0x3FFF;
     uint160 private constant FLAG_MASK = 0x3FFF;
 
+    /// @dev Reverts when the callback caller or context is not authorized.
     error UnauthorizedCallback();
+    /// @dev Reverts when the Hook proxy address does not contain the required V4 permission bits.
     error InvalidHookAddress();
+    /// @dev Reverts when the pool is unknown, mismatched, or unavailable for the requested operation.
     error InvalidPool();
+    /// @dev Reverts when the requested operation is not valid in the current state or callback context.
     error InvalidOperation();
+    /// @dev Reverts when the requested Hook callback is not supported.
     error UnsupportedCallback();
 
     IPoolManager public poolManager;
@@ -40,6 +47,15 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     address public router;
     address public lpManager;
 
+    /// @notice Initializes the Hook's trusted component addresses and verifies its V4 permission bits.
+    /// @param authority Business authority used by the governed base contract.
+    /// @param timelock Upgrade timelock used by the governed base contract.
+    /// @param controller Emergency upgrade controller used by the governed base contract.
+    /// @param poolManager_ V4 PoolManager that invokes Hook callbacks.
+    /// @param registry_ Registry used for pool, token, and market validation.
+    /// @param ledger_ Volume Ledger that records completed swaps.
+    /// @param router_ Only router permitted to execute swaps through this Hook.
+    /// @param lpManager_ Only LP Manager permitted to initialize pools and modify liquidity.
     function initialize(
         address authority,
         address timelock,
@@ -63,11 +79,16 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         lpManager = lpManager_;
     }
 
+    /// @dev Restricts V4 callback implementations to the configured PoolManager.
     modifier onlyPoolManager() {
         if (msg.sender != address(poolManager)) revert UnauthorizedCallback();
         _;
     }
 
+    /// @notice Allows initialization only for a pending pool created by the LP Manager.
+    /// @param sender Contract that initiated PoolManager.initialize.
+    /// @param key Full V4 pool key being initialized.
+    /// @return V4 callback selector acknowledging this Hook callback.
     function beforeInitialize(address sender, PoolKey calldata key, uint160)
         external
         view
@@ -79,6 +100,10 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return IHooks.beforeInitialize.selector;
     }
 
+    /// @notice Confirms that PoolManager completed initialization for a pending TSV pool.
+    /// @param sender Contract that initiated PoolManager.initialize.
+    /// @param key Full V4 pool key that was initialized.
+    /// @return V4 callback selector acknowledging this Hook callback.
     function afterInitialize(address sender, PoolKey calldata key, uint160, int24)
         external
         view
@@ -90,6 +115,12 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return IHooks.afterInitialize.selector;
     }
 
+    /// @notice Allows positive liquidity changes only for an authorized, tradable LP operation.
+    /// @param sender Contract that initiated PoolManager.modifyLiquidity.
+    /// @param key Full V4 pool key being modified.
+    /// @param params Tick range, salt, and liquidity change requested by the manager.
+    /// @param hookData Additional callback data; TSV requires it to be empty.
+    /// @return V4 callback selector acknowledging this Hook callback.
     function beforeAddLiquidity(
         address sender,
         PoolKey calldata key,
@@ -104,6 +135,10 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return IHooks.beforeAddLiquidity.selector;
     }
 
+    /// @notice Returns zero Hook delta after a validated liquidity addition.
+    /// @dev V1 does not apply a Hook delta to the liquidity caller or accrued fees.
+    /// @return V4 callback selector acknowledging this Hook callback.
+    /// @return Zero because V1 does not adjust liquidity deltas.
     function afterAddLiquidity(
         address,
         PoolKey calldata,
@@ -115,6 +150,12 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return (IHooks.afterAddLiquidity.selector, BalanceDelta.wrap(0));
     }
 
+    /// @notice Validates removal context and allows forced exits to bypass ordinary tradability checks.
+    /// @param sender Contract that initiated PoolManager.modifyLiquidity.
+    /// @param key Full V4 pool key being modified.
+    /// @param params Tick range, salt, and liquidity change requested by the manager.
+    /// @param hookData Additional callback data; TSV requires it to be empty.
+    /// @return V4 callback selector acknowledging this Hook callback.
     function beforeRemoveLiquidity(
         address sender,
         PoolKey calldata key,
@@ -133,6 +174,10 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return IHooks.beforeRemoveLiquidity.selector;
     }
 
+    /// @notice Returns zero Hook delta after a validated liquidity removal.
+    /// @dev V1 does not apply a Hook delta to the liquidity caller or accrued fees.
+    /// @return V4 callback selector acknowledging this Hook callback.
+    /// @return Zero because V1 does not adjust liquidity deltas.
     function afterRemoveLiquidity(
         address,
         PoolKey calldata,
@@ -144,6 +189,13 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return (IHooks.afterRemoveLiquidity.selector, BalanceDelta.wrap(0));
     }
 
+    /// @notice Allows the configured Router to swap only through an active, tradable registered pool.
+    /// @param sender Contract that initiated the swap; must equal the configured Router.
+    /// @param key Full V4 pool key being swapped.
+    /// @param hookData Additional callback data; TSV requires it to be empty.
+    /// @return V4 callback selector acknowledging this Hook callback.
+    /// @return Zero because V1 does not alter the swap delta.
+    /// @return Zero because V1 does not override the pool fee.
     function beforeSwap(address sender, PoolKey calldata key, IPoolManager.SwapParams calldata, bytes calldata hookData)
         external
         view
@@ -158,6 +210,13 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return (IHooks.beforeSwap.selector, BeforeSwapDelta.wrap(0), 0);
     }
 
+    /// @notice Converts actual stock-side swap deltas to legal shares and records them in the Ledger.
+    /// @param sender Contract that initiated the swap; must equal the configured Router.
+    /// @param key Full V4 pool key that was swapped.
+    /// @param delta Actual PoolManager balance delta for both currencies.
+    /// @param hookData Additional callback data; TSV requires it to be empty.
+    /// @return V4 callback selector acknowledging this Hook callback.
+    /// @return Zero because V1 does not alter the swap delta.
     function afterSwap(
         address sender,
         PoolKey calldata key,
@@ -174,6 +233,9 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return (IHooks.afterSwap.selector, 0);
     }
 
+    /// @notice Rejects donations because TSV V1 exposes no donation operation.
+    /// @dev All callback inputs are ignored because donations are unsupported.
+    /// @return Unreachable; the callback always reverts with `UnsupportedCallback`.
     function beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
         external
         pure
@@ -183,6 +245,9 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         revert UnsupportedCallback();
     }
 
+    /// @notice Rejects post-donation callbacks because TSV V1 does not support donations.
+    /// @dev All callback inputs are ignored because donations are unsupported.
+    /// @return Unreachable; the callback always reverts with `UnsupportedCallback`.
     function afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
         external
         pure
@@ -192,6 +257,9 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         revert UnsupportedCallback();
     }
 
+    /// @dev Requires initialization to originate from the LP Manager for an exactly registered pending key.
+    /// @param sender Contract that invoked the PoolManager operation.
+    /// @param key Pool key being initialized.
     function _requirePending(address sender, PoolKey calldata key) private view {
         if (
             sender != lpManager || address(key.hooks) != address(this)
@@ -200,11 +268,20 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         _requireExactKey(key, PoolId.unwrap(key.toId()));
     }
 
+    /// @dev Prevents a caller from reusing a registered pool ID with a different key.
+    /// @param key Pool key supplied to the current PoolManager callback.
+    /// @param poolId Identifier derived from that key.
     function _requireExactKey(PoolKey calldata key, bytes32 poolId) private view {
         PoolConfig memory pool = registry.getPool(poolId);
         if (keccak256(abi.encode(pool.key)) != keccak256(abi.encode(key))) revert InvalidPool();
     }
 
+    /// @dev Matches the PoolManager callback against the LP Manager's one-operation context.
+    /// @param sender Contract that invoked the liquidity modification.
+    /// @param key Pool key being modified.
+    /// @param params Tick range, salt, and liquidity delta from PoolManager.
+    /// @param hookData Additional callback data, which must be empty.
+    /// @return ctx Validated LP context for the current operation.
     function _checkLP(
         address sender,
         PoolKey calldata key,
@@ -221,6 +298,11 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         _requireExactKey(key, ctx.poolId);
     }
 
+    /// @dev Converts the absolute raw delta of a stock leg; non-stock and zero deltas account as zero.
+    /// @param securityId Security assigned to the pool leg, or zero for an ordinary Currency.
+    /// @param currency Pool Currency whose adapter performs the legal-share conversion.
+    /// @param delta Actual signed PoolManager delta for this leg.
+    /// @return Legal-share amount in WAD for the Ledger.
     function _sharesForLeg(bytes32 securityId, address currency, int128 delta) private view returns (uint256) {
         if (securityId == 0 || delta == 0) return 0;
         TokenConfig memory config = registry.getToken(currency);

@@ -21,48 +21,59 @@ import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegal
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../helpers/v1/MockIssuerTokens.sol";
 
+/// @dev Provides a basic ERC-20 token fixture for unit tests.
 contract V1MockToken is ERC20 {
     uint8 private immutable tokenDecimals;
 
+    /// @dev Creates a test token with the requested name and decimal precision.
     constructor(string memory name_, uint8 decimals_) ERC20(name_, name_) {
         tokenDecimals = decimals_;
     }
 
+    /// @dev Returns the token decimal precision used by the fixture.
     function decimals() public view override returns (uint8) {
         return tokenDecimals;
     }
 
+    /// @dev Returns the test multiplier used to convert displayed balances.
     function uiMultiplier() external pure returns (uint256) {
         return 1e18;
     }
 }
 
+/// @dev Provides a deliberately incomplete adapter fixture for validation tests.
 contract V1SnapshotOnlyAdapterMock {
     address public immutable poolCurrency;
     uint32 public immutable adapterVersion;
 
+    /// @dev Configures the currency and version exposed by the incomplete adapter fixture.
     constructor(address currency_, uint32 version_) {
         poolCurrency = currency_;
         adapterVersion = version_;
     }
 }
 
+/// @dev Provides a configurable governance recovery context for unit tests.
 contract V1MockTimelock is IRecoveryContext {
     bool public active;
 
+    /// @dev Configures whether the mock timelock exposes an active recovery context.
     function setActive(bool value) external {
         active = value;
     }
 
+    /// @dev Returns whether the mock recovery context is active.
     function recoveryContextActive() external view returns (bool) {
         return active;
     }
 
+    /// @dev Executes the mock protected governor recovery flow.
     function recover(TSVBusinessAuthority authority, address oldGovernor, address newGovernor) external {
         authority.recoverGovernor(oldGovernor, newGovernor, keccak256("recovery"));
     }
 }
 
+/// @dev Exercises core Registry, report, ledger and adapter behavior.
 contract TSVFoundationTest is Test {
     bytes32 private constant SECURITY = keccak256("SEC_A");
     uint32 private constant DAY = 20261001;
@@ -83,6 +94,7 @@ contract TSVFoundationTest is Test {
     PoolKey internal key;
     bytes32 internal poolId;
 
+    /// @dev Initializes the contracts, accounts and fixture state shared by this test suite.
     function setUp() public {
         vm.warp(1_790_827_201);
         guardian = makeAddr("guardian");
@@ -158,6 +170,7 @@ contract TSVFoundationTest is Test {
         registry.markPoolActive(poolId, uint160(1 << 96), address(this), keccak256("price"));
     }
 
+    /// @dev Verifies the backed adapter reads the issuer conversion when the swap occurs.
     function testBackedAdapterCallsIssuerConversionAtTheTimeOfSwap() public {
         V1MockIssuerShares underlying = new V1MockIssuerShares();
         V1MockIssuerWrapped wrapped = new V1MockIssuerWrapped(underlying);
@@ -170,6 +183,7 @@ contract TSVFoundationTest is Test {
         assertEq(adapter.toLegalShares(address(wrapped), 3e18), 2.4e18);
     }
 
+    /// @dev Verifies the backed adapter validates Currency and accepts a zero amount.
     function testBackedAdapterValidatesCurrencyAndAllowsZeroAmount() public {
         BackedAutoFeeLegalShareAdapter adapter =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
@@ -179,6 +193,7 @@ contract TSVFoundationTest is Test {
         adapter.toLegalShares(address(quote), 1e18);
     }
 
+    /// @dev Verifies the backed adapter rejects a wrapped-token asset mismatch.
     function testBackedAdapterRejectsWrappedAssetMismatch() public {
         V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
         V1MockIssuerWrapped otherWrapped = new V1MockIssuerWrapped(otherUnderlying);
@@ -186,6 +201,7 @@ contract TSVFoundationTest is Test {
         new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(otherWrapped), 1);
     }
 
+    /// @dev Verifies the backed adapter rejects zero conversion and reports its direct interface.
     function testBackedAdapterRejectsZeroConversionAndDeclaresDirectInterface() public {
         BackedAutoFeeLegalShareAdapter adapter =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
@@ -196,6 +212,7 @@ contract TSVFoundationTest is Test {
         assertTrue(adapter.supportsInterface(type(IDirectLegalShareAdapter).interfaceId));
     }
 
+    /// @dev Verifies the Registry rejects the same security on both pool legs.
     function testRegistryRejectsSameSecurityBothSides() public {
         V1MockIssuerShares secondUnderlying = new V1MockIssuerShares();
         V1MockIssuerWrapped secondStock = new V1MockIssuerWrapped(secondUnderlying);
@@ -210,6 +227,7 @@ contract TSVFoundationTest is Test {
         registry.registerPendingPool(bad);
     }
 
+    /// @dev Verifies the Registry accepts a direct adapter and stores its policy metadata.
     function testRegistryAcceptsDirectAdapterAndStoresPolicyMetadata() public {
         V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
         V1MockIssuerWrapped other = new V1MockIssuerWrapped(otherUnderlying);
@@ -226,6 +244,7 @@ contract TSVFoundationTest is Test {
         assertEq(quoteConfig.legalShareAdapter, address(0));
     }
 
+    /// @dev Verifies the Registry rejects an adapter without the direct-conversion interface.
     function testRegistryRejectsAdapterWithoutDirectInterface() public {
         V1MockToken other = new V1MockToken("Other", 18);
         V1SnapshotOnlyAdapterMock adapter = new V1SnapshotOnlyAdapterMock(address(other), 1);
@@ -234,6 +253,7 @@ contract TSVFoundationTest is Test {
         registry.registerToken(config, keccak256("adapter-rate"));
     }
 
+    /// @dev Verifies the Registry rejects a direct adapter bound to another Currency.
     function testRegistryRejectsDirectAdapterBoundToDifferentCurrency() public {
         V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
         V1MockIssuerWrapped other = new V1MockIssuerWrapped(otherUnderlying);
@@ -245,6 +265,7 @@ contract TSVFoundationTest is Test {
         registry.registerToken(config, keccak256("wrong-currency"));
     }
 
+    /// @dev Verifies legal-share adapter replacement requires a pause and the next version.
     function testLegalAdapterReplacementRequiresPauseAndNextVersion() public {
         assertEq(registry.activePoolCountByCurrency(address(stock)), 1);
         BackedAutoFeeLegalShareAdapter replacement =
@@ -268,6 +289,7 @@ contract TSVFoundationTest is Test {
         registry.clearEmergencyPause(pauseId, keccak256("done"));
     }
 
+    /// @dev Verifies a disabled pool is re-enabled only after market and asset checks pass.
     function testDisabledPoolOnlyReenablesAfterMarketAndAssetChecks() public {
         registry.disablePool(poolId, keccak256("disable"));
         assertEq(registry.activePoolCountByCurrency(address(stock)), 0);
@@ -279,6 +301,7 @@ contract TSVFoundationTest is Test {
         assertTrue(registry.isTradable(poolId));
     }
 
+    /// @dev Verifies reports and the Ledger use actual deltas and a shared quota.
     function testReportsAndLedgerUseRealDeltaAndSharedQuota() public {
         _submitMarket(MarketAction.INITIAL_OPEN, 1, keccak256("market-1"));
         _submitAdtv(1000e18);
@@ -307,6 +330,7 @@ contract TSVFoundationTest is Test {
         assertEq(ledger.used(SECURITY, DAY), 1e18);
     }
 
+    /// @dev Verifies one ADTV batch can include multiple securities.
     function testAdtvBatchAcceptsMultipleSecuritiesInOneSubmission() public {
         bytes32 secondSecurity = bytes32(type(uint256).max);
         registry.listSecurity(secondSecurity, keccak256("STD_y"), 1, keccak256("listing-y"));
@@ -327,6 +351,7 @@ contract TSVFoundationTest is Test {
         assertEq(last.version, 1);
     }
 
+    /// @dev Verifies an ADTV batch reverts atomically when one report is invalid.
     function testAdtvBatchIsAtomicWhenOneReportIsInvalid() public {
         bytes32 secondSecurity = bytes32(type(uint256).max);
         registry.listSecurity(secondSecurity, keccak256("STD_z"), 1, keccak256("listing-z"));
@@ -347,6 +372,7 @@ contract TSVFoundationTest is Test {
         assertEq(ledger.adtvOf(lastSecurity, uint32(MONTH)).version, 0);
     }
 
+    /// @dev Verifies daily quota overrides are optional and clearing one restores the hard cap.
     function testDailyQuotaIsOptionalAndClearRestoresTheHardCap() public {
         _submitAdtv(1000e18);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
@@ -369,6 +395,7 @@ contract TSVFoundationTest is Test {
         assertEq(left, 2.5e18);
     }
 
+    /// @dev Verifies invalid clears and above-cap quota values revert atomically.
     function testQuotaRejectsInvalidClearAndValuesAboveHardCapAtomically() public {
         _submitAdtv(1000e18);
         QuotaReport memory report = _quota(0, 2, 1, 1, keccak256("clear-without-set"));
@@ -388,6 +415,7 @@ contract TSVFoundationTest is Test {
         assertEq(inbox.lastSequence(2, SECURITY), 0);
     }
 
+    /// @dev Verifies the Registry rejects different stock securities in the same pool.
     function testRegistryRejectsDifferentSecurityStocksInSamePool() public {
         bytes32 secondSecurity = keccak256("SEC_B");
         registry.listSecurity(secondSecurity, keccak256("STDy"), 1, keccak256("listing-b"));
@@ -406,6 +434,7 @@ contract TSVFoundationTest is Test {
         registry.registerPendingPool(twoStocks);
     }
 
+    /// @dev Verifies market reports do not require a heartbeat and cannot be replayed.
     function testMarketReportDoesNotNeedHeartbeatAndReplayFails() public {
         _submitMarket(MarketAction.INITIAL_HALTED, 1, keccak256("market-1"));
         vm.warp(block.timestamp + 30 days);
@@ -418,6 +447,7 @@ contract TSVFoundationTest is Test {
         assertEq(uint8(registry.marketStatus(SECURITY)), 1);
     }
 
+    /// @dev Verifies report submission requires a caller with the direct reporter role.
     function testReportsRequireDirectRoleCaller() public {
         MarketReport memory report = _market(MarketAction.RESUME, 2, keccak256("unauthorized"));
         vm.prank(makeAddr("unregistered-reporter"));
@@ -425,6 +455,7 @@ contract TSVFoundationTest is Test {
         inbox.submitMarketStatus(report);
     }
 
+    /// @dev Verifies automatic trade-day calculations use Gregorian dates and the previous month.
     function testAutomaticTradeDayUsesGregorianDatesAndPreviousMonth() public {
         (bool exists, uint32 day) = ledger.currentTradeDay();
         assertTrue(exists);
@@ -435,6 +466,7 @@ contract TSVFoundationTest is Test {
         ledger.dayStartUTC(20260229);
     }
 
+    /// @dev Verifies a day-start change schedules the transition and locks at its start.
     function testDayStartScheduleCreatesLongTransitionAndLocksAtTransitionStart() public {
         uint32 effectiveDay = 20261004;
         uint64 oldTransitionStart = ledger.dayStartUTC(20261003);
@@ -459,6 +491,7 @@ contract TSVFoundationTest is Test {
         assertEq(day, effectiveDay);
     }
 
+    /// @dev Verifies a day-start change can be cancelled before transition without retaining a checkpoint.
     function testDayStartCanBeCancelledBeforeTransitionWithoutRetainingCheckpoint() public {
         ledger.scheduleDayStart(3_600, 20261004, keccak256("offset-change"));
         ledger.cancelPendingDayStart(keccak256("cancel-change"));
@@ -466,6 +499,7 @@ contract TSVFoundationTest is Test {
         assertEq(ledger.dayStartUTC(20261004), ledger.dayStartUTC(20261001) + 3 * 86_400);
     }
 
+    /// @dev Verifies another day-start change can be scheduled after the prior checkpoint takes effect.
     function testCanScheduleAnotherDayStartAfterPriorCheckpointTakesEffect() public {
         ledger.scheduleDayStart(20_000, 20261004, keccak256("first-change"));
         vm.warp(ledger.dayStartUTC(20261004));
@@ -476,6 +510,7 @@ contract TSVFoundationTest is Test {
         assertEq(ledger.dayStartUTC(20261010) - ledger.dayStartUTC(20261009), 80_800);
     }
 
+    /// @dev Verifies day-start scheduling rejects past boundaries, invalid dates, and shifts above four hours.
     function testDayStartRejectsPastBoundaryInvalidDateAndShiftAboveFourHours() public {
         vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
         ledger.scheduleDayStart(18_000, 20261002, keccak256("past-transition"));
@@ -486,6 +521,7 @@ contract TSVFoundationTest is Test {
         assertEq(ledger.dayStartCheckpointCount(), 0);
     }
 
+    /// @dev Verifies business Governor recovery updates the dynamically resolved admin.
     function testBusinessGovernorRecoveryChangesDynamicAdmin() public {
         address next = makeAddr("new-governor");
         assertTrue(registry.hasRole(0, address(this)));
@@ -504,11 +540,13 @@ contract TSVFoundationTest is Test {
         registry.setTierPolicy(2, 25, 1, keccak256("tier2"));
     }
 
+    /// @dev Schedules and executes a governance operation through the test timelock.
     function _executeGovernance(bytes memory payload, bytes32 salt) private {
         timelock.schedule(address(timelock), 0, payload, 0, salt, 0);
         timelock.execute(address(timelock), 0, payload, 0, salt);
     }
 
+    /// @dev Builds a token registration configuration for the supplied currency and security.
     function _config(address token, bytes32 securityId, address legalAdapter)
         private
         view
@@ -526,6 +564,7 @@ contract TSVFoundationTest is Test {
         c.reviewHash = keccak256("review");
     }
 
+    /// @dev Builds a market-state report with the supplied action and sequence metadata.
     function _market(MarketAction action, uint64 sequence, bytes32 reportId)
         private
         view
@@ -544,16 +583,19 @@ contract TSVFoundationTest is Test {
         );
     }
 
+    /// @dev Submits a market-state report to the data Inbox.
     function _submitMarket(MarketAction action, uint64 sequence, bytes32 reportId) private {
         MarketReport memory report = _market(action, sequence, reportId);
         inbox.submitMarketStatus(report);
     }
 
+    /// @dev Submits a monthly ADTV report for the configured security.
     function _submitAdtv(uint256 value) private {
         AdtvReport memory report = _adtv(SECURITY, value, 1, 1, keccak256("adtv"));
         inbox.submitAdtv(report);
     }
 
+    /// @dev Builds an ADTV report with the supplied value and replay-protection metadata.
     function _adtv(bytes32 securityId, uint256 value, uint64 version, uint64 sequence, bytes32 reportId)
         private
         view
@@ -572,11 +614,13 @@ contract TSVFoundationTest is Test {
         );
     }
 
+    /// @dev Submits a daily quota override report for the configured security.
     function _submitQuota(uint256 value) private {
         QuotaReport memory report = _quota(value, 1, 1, 1, keccak256("quota"));
         inbox.submitQuota(report);
     }
 
+    /// @dev Builds a daily quota report with the supplied action and replay-protection metadata.
     function _quota(uint256 value, uint8 action, uint64 version, uint64 sequence, bytes32 reportId)
         private
         view

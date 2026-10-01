@@ -9,14 +9,17 @@ import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 
+/// @dev Provides a state-changing target for timelock execution tests.
 contract V1Counter {
     uint256 public count;
 
+    /// @dev Increments the test counter to provide a state change for governance calls.
     function increment() external {
         count++;
     }
 }
 
+/// @dev Provides proxy component links for governance-anchor tests.
 contract V1GovernanceProxyLinksMock {
     address public immutable governanceAnchor;
     address public registry;
@@ -27,10 +30,12 @@ contract V1GovernanceProxyLinksMock {
     address public lpManager;
     address public poolManager;
 
+    /// @dev Binds the mock proxy links to the selected governance anchor.
     constructor(address anchor_) {
         governanceAnchor = anchor_;
     }
 
+    /// @dev Configures the component links exposed by the governance proxy fixture.
     function setLinks(
         address registry_,
         address ledger_,
@@ -50,17 +55,20 @@ contract V1GovernanceProxyLinksMock {
     }
 }
 
+/// @dev Provides a configurable governance anchor fixture.
 contract V1FakeGovernanceAnchorMock {
     address public immutable timelock;
     bool public constant proxiesBound = true;
     mapping(uint256 => address) public proxies;
 
+    /// @dev Configures the timelock and proxy address exposed by the fake anchor.
     constructor(address timelock_, address claimedProxy) {
         timelock = timelock_;
         proxies[0] = claimedProxy;
     }
 }
 
+/// @dev Exercises timelock scheduling, recovery and emergency-upgrade controls.
 contract TSVGovernanceTest is Test {
     TSVUpgradeTimelock internal timelock;
     TSVBusinessAuthority internal authority;
@@ -69,6 +77,7 @@ contract TSVGovernanceTest is Test {
     address internal guardian;
     address internal council;
 
+    /// @dev Initializes the contracts, accounts and fixture state shared by this test suite.
     function setUp() public {
         vm.warp(1_800_000_000);
         guardian = makeAddr("guardian");
@@ -99,6 +108,7 @@ contract TSVGovernanceTest is Test {
         );
     }
 
+    /// @dev Verifies operation-specific delays and Guardian cancellation.
     function testPerOperationDelayAndGuardianCancel() public {
         V1Counter counter = new V1Counter();
         bytes memory callData = abi.encodeCall(V1Counter.increment, ());
@@ -122,6 +132,7 @@ contract TSVGovernanceTest is Test {
         timelock.updateDelay(1);
     }
 
+    /// @dev Verifies emergency upgrades can be frozen while scheduled upgrades remain available.
     function testImmediateUpgradeCanFreezeWhileNormalUpgradeStillWorks() public {
         TSVRegistryV1 first = new TSVRegistryV1();
         TSVERC1967Proxy proxy = new TSVERC1967Proxy(
@@ -177,6 +188,7 @@ contract TSVGovernanceTest is Test {
         assertTrue(controller.frozen());
     }
 
+    /// @dev Verifies emergency upgrades target only one of the six bound proxies.
     function testEmergencyUpgradeTargetMustBeOneOfTheSixBoundProxies() public {
         TSVRegistryV1 implementation = new TSVRegistryV1();
         TSVERC1967Proxy proxy = new TSVERC1967Proxy(
@@ -243,6 +255,7 @@ contract TSVGovernanceTest is Test {
         assertFalse(controller.upgradeTargetAllowed(address(unboundProxy)));
     }
 
+    /// @dev Verifies protected recovery changes the governance root and cannot be cancelled.
     function testProtectedRecoveryChangesRootAndCannotBeCancelled() public {
         address newGovernor = makeAddr("new-governor");
         address newGuardian = makeAddr("new-guardian");
@@ -278,6 +291,7 @@ contract TSVGovernanceTest is Test {
         assertEq(anchor.guardianEpoch(), 1);
     }
 
+    /// @dev Verifies the Council cannot schedule upgrades and the Governor cannot change protected roles.
     function testCouncilCannotScheduleUpgradeAndGovernorCannotChangeProtectedRoles() public {
         V1Counter counter = new V1Counter();
         assertTrue(timelock.hasRole(timelock.EXECUTOR_ROLE(), council));
@@ -300,6 +314,7 @@ contract TSVGovernanceTest is Test {
         assertTrue(timelock.hasRole(timelock.EXECUTOR_ROLE(), council));
     }
 
+    /// @dev Verifies recovery rejects Council and conflicting root identities.
     function testRecoveryRejectsCouncilOrCrossedRootIdentities() public {
         bytes memory councilAsGovernor = abi.encodeCall(
             TSVUpgradeTimelock.recoverAuthorities, (council, makeAddr("other-guardian"), keccak256("evidence"))
@@ -316,6 +331,7 @@ contract TSVGovernanceTest is Test {
         timelock.schedule(address(timelock), 0, guardianAsGovernor, 0, keccak256("guardian-as-governor"), 0);
     }
 
+    /// @dev Verifies Guardian rotation invalidates prior proposal approvals.
     function testOldGuardianApprovalExpiresAfterGuardianRotation() public {
         address firstGuardian = makeAddr("first-new-guardian");
         bytes memory first = abi.encodeCall(
@@ -349,10 +365,12 @@ contract TSVGovernanceTest is Test {
         assertEq(timelock.guardian(), makeAddr("second-guardian"));
     }
 
+    /// @dev Schedules and executes a call through the test timelock.
     function _execute(address target, bytes memory data, bytes32 salt, uint256 delay) private {
         _executeOn(timelock, target, data, salt, delay);
     }
 
+    /// @dev Schedules and executes a call against the selected target contract.
     function _executeOn(
         TSVUpgradeTimelock targetTimelock,
         address target,
@@ -365,6 +383,7 @@ contract TSVGovernanceTest is Test {
         targetTimelock.execute(target, 0, data, 0, salt);
     }
 
+    /// @dev Binds the Registry proxy into the governance anchor fixture.
     function _bindRegistryProxy(TSVERC1967Proxy registryProxy) private {
         V1GovernanceProxyLinksMock ledger = new V1GovernanceProxyLinksMock(address(anchor));
         V1GovernanceProxyLinksMock inbox = new V1GovernanceProxyLinksMock(address(anchor));

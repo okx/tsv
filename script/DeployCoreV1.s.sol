@@ -18,47 +18,81 @@ import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 /// @notice Deploys six initialized business proxies with an actual CREATE2 Hook address.
 /// @dev Governance binding, SBT configuration and asset approvals remain separate governance transactions.
 contract DeployCoreV1 is Script {
+    /// @dev Reverts when the chain, external contracts, code hashes, or governance links are invalid.
     error InvalidDeploymentInput();
+    /// @dev Reverts when a deployed address or linked component differs from its prediction.
     error AddressPredictionMismatch();
+    /// @dev Reverts when no salt produces a Hook proxy address with all required V4 permission bits.
     error HookSaltNotFound();
 
     uint160 private constant HOOK_FLAGS = 0x3FFF;
     uint256 private constant MAX_SALT_ATTEMPTS = 500_000;
 
+    /// @dev Captures environment-provided dependencies and configuration for the core deployment.
     struct Input {
+        /// @dev V4 PoolManager used by the Hook, Router and LP Manager.
         address poolManager;
+        /// @dev Expected deployed bytecode hash for `poolManager`.
         bytes32 poolManagerCodeHash;
+        /// @dev Business authority bound to the governance root.
         TSVBusinessAuthority authority;
+        /// @dev Governance root used to resolve the active authority and control contracts.
         TSVGovernanceAnchor anchor;
+        /// @dev Timelock used for governed operations.
         TSVUpgradeTimelock timelock;
+        /// @dev Controller used for emergency implementation upgrades.
         TSVEmergencyUpgradeController controller;
+        /// @dev Participant SBT used by the Registry for credential checks.
         address sbt;
+        /// @dev Expected deployed bytecode hash for `sbt`.
         bytes32 sbtCodeHash;
+        /// @dev SBT token identifier required for participant eligibility.
         uint256 sbtTokenId;
+        /// @dev UTC seconds after midnight at which a trade day begins.
         uint32 dayStartOffset;
     }
 
+    /// @dev Collects deployed proxy addresses, implementation addresses and the Hook salt.
     struct Deployment {
+        /// @dev Deployed Registry proxy.
         TSVRegistryV1 registry;
+        /// @dev Deployed volume Ledger proxy.
         TSVVolumeLedgerV1 ledger;
+        /// @dev Deployed report Inbox proxy.
         TSVDataInboxV1 inbox;
+        /// @dev Deployed Swap Router proxy.
         TSVSwapRouterV1 router;
+        /// @dev Deployed LP Manager proxy.
         TSVLPManagerV1 lpManager;
+        /// @dev Deployed Hook proxy.
         TSVHookV1 hook;
+        /// @dev Factory used to deploy the Hook proxy.
         TSVHookProxyFactoryV1 hookFactory;
+        /// @dev CREATE2 salt that produced the Hook's V4 permission address.
         bytes32 hookSalt;
+        /// @dev Implementation addresses corresponding to each proxy.
         Implementations implementations;
     }
 
+    /// @dev Stores implementation addresses corresponding to the core proxy contracts.
     struct Implementations {
+        /// @dev Registry implementation address.
         address registry;
+        /// @dev Volume Ledger implementation address.
         address ledger;
+        /// @dev Data Inbox implementation address.
         address inbox;
+        /// @dev Swap Router implementation address.
         address router;
+        /// @dev LP Manager implementation address.
         address lpManager;
+        /// @dev Hook implementation address.
         address hook;
     }
 
+    /// @notice Deploys and initializes the six core proxy contracts and their implementations.
+    /// @dev Reads deployment inputs from the environment and checks the predicted CREATE2 Hook address.
+    /// @return d The deployed proxies, Hook factory, salt and implementation addresses.
     function run() external returns (Deployment memory d) {
         uint256 deployerKey = vm.envUint("TSV_DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
@@ -73,6 +107,9 @@ contract DeployCoreV1 is Script {
         _logDeployment(d);
     }
 
+    /// @dev Deploys the Registry, Ledger and Inbox proxies plus implementations for dependent components.
+    /// @param input Validated addresses and configuration used to initialize the core proxies.
+    /// @param d Deployment record populated with proxy and implementation addresses.
     function _deployBase(Input memory input, Deployment memory d) private {
         d.implementations.registry = address(new TSVRegistryV1());
         d.registry = TSVRegistryV1(
@@ -128,6 +165,11 @@ contract DeployCoreV1 is Script {
         d.hookFactory = new TSVHookProxyFactoryV1();
     }
 
+    /// @dev Predicts dependent proxy addresses, deploys Router, LP Manager and a flag-compatible Hook.
+    /// @param input Validated external dependencies and governance configuration.
+    /// @param d Deployment record populated by the base deployment stage.
+    /// @param deployerKey Private key used to broadcast the dependent deployments.
+    /// @param deployer Address whose next CREATE nonces determine Router and LP Manager addresses.
     function _deployDependent(Input memory input, Deployment memory d, uint256 deployerKey, address deployer) private {
         uint64 nextNonce = vm.getNonce(deployer);
         address predictedRouter = vm.computeCreateAddress(deployer, nextNonce);
@@ -196,6 +238,8 @@ contract DeployCoreV1 is Script {
         ) revert AddressPredictionMismatch();
     }
 
+    /// @dev Prints proxy addresses, implementation addresses, the Hook salt and required follow-up steps.
+    /// @param d Deployment record to log.
     function _logDeployment(Deployment memory d) private pure {
         console2.log("Registry", address(d.registry));
         console2.log("VolumeLedger", address(d.ledger));
@@ -217,6 +261,8 @@ contract DeployCoreV1 is Script {
         );
     }
 
+    /// @dev Loads addresses, code hashes, SBT identity and trade-day offset from environment variables.
+    /// @return input Deployment configuration read from the environment.
     function _loadInput() private view returns (Input memory input) {
         input.poolManager = vm.envAddress("TSV_POOL_MANAGER");
         input.poolManagerCodeHash = vm.envBytes32("TSV_POOL_MANAGER_CODEHASH");
@@ -232,6 +278,8 @@ contract DeployCoreV1 is Script {
         input.dayStartOffset = uint32(offset);
     }
 
+    /// @dev Verifies chain, code hashes and the pre-bound governance relationships before broadcasting.
+    /// @param input Deployment configuration to validate.
     function _checkInput(Input memory input) private view {
         if (
             block.chainid != vm.envUint("TSV_CHAIN_ID") || input.poolManager.code.length == 0
@@ -263,6 +311,12 @@ contract DeployCoreV1 is Script {
         }
     }
 
+    /// @dev Searches salts until the predicted proxy address has the required Uniswap V4 Hook permission bits.
+    /// @param factory Factory used to calculate deterministic proxy addresses.
+    /// @param implementation Hook implementation used by the proxy.
+    /// @param initData Initialization call encoded for the Hook proxy.
+    /// @return salt Salt that produces an address with all required Hook flags.
+    /// @return predicted Predicted Hook proxy address for the selected salt.
     function _mineHook(TSVHookProxyFactoryV1 factory, address implementation, bytes memory initData)
         private
         view

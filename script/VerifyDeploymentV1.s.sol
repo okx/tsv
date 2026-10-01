@@ -13,8 +13,11 @@ import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 
 /// @notice Read-only post-deployment check. Role, report, asset and issuer evidence remain manifest gates.
 contract VerifyDeploymentV1 is Script {
+    /// @dev Reverts when a deployment address, code hash, or governance link does not match the manifest.
     error VerificationFailed();
 
+    /// @notice Verifies governance bindings, proxy links, code hashes and implementation addresses.
+    /// @dev Reads the expected deployment manifest values from environment variables and reverts on mismatch.
     function run() external view {
         if (block.chainid != vm.envUint("TSV_CHAIN_ID")) revert VerificationFailed();
         TSVGovernanceAnchor anchor = TSVGovernanceAnchor(vm.envAddress("TSV_GOVERNANCE_ANCHOR"));
@@ -32,6 +35,9 @@ contract VerifyDeploymentV1 is Script {
         console2.log("TSV governance, six proxy links, code hashes and implementation addresses verified.");
     }
 
+    /// @dev Checks the Anchor's governance links and confirms all six proxies are bound to it.
+    /// @param anchor Governance anchor expected to control the deployed proxies.
+    /// @param a Proxy addresses in Registry, Ledger, Inbox, Hook, Router and LP Manager order.
     function _checkGovernance(TSVGovernanceAnchor anchor, address[6] memory a) private view {
         if (
             address(anchor).code.length == 0 || !anchor.proxiesBound()
@@ -52,6 +58,9 @@ contract VerifyDeploymentV1 is Script {
         }
     }
 
+    /// @dev Checks cross-contract links, external code hashes, SBT configuration and Hook permission bits.
+    /// @param anchor Governance anchor expected to control the deployed proxies.
+    /// @param a Proxy addresses in Registry, Ledger, Inbox, Hook, Router and LP Manager order.
     function _checkLinks(TSVGovernanceAnchor anchor, address[6] memory a) private view {
         TSVRegistryV1 registry = TSVRegistryV1(a[0]);
         TSVVolumeLedgerV1 ledger = TSVVolumeLedgerV1(a[1]);
@@ -78,6 +87,8 @@ contract VerifyDeploymentV1 is Script {
         ) revert VerificationFailed();
     }
 
+    /// @dev Compares each proxy's implementation and implementation code hash with the deployment manifest.
+    /// @param a Proxy addresses in Registry, Ledger, Inbox, Hook, Router and LP Manager order.
     function _checkImplementations(address[6] memory a) private view {
         address[6] memory expected = [
             vm.envAddress("TSV_REGISTRY_IMPLEMENTATION"),
@@ -95,6 +106,9 @@ contract VerifyDeploymentV1 is Script {
         }
     }
 
+    /// @dev Maps a proxy index to the environment variable containing its implementation code hash.
+    /// @param i Proxy index in Registry, Ledger, Inbox, Hook, Router and LP Manager order.
+    /// @return Environment variable name for the implementation code hash.
     function _hashEnvName(uint256 i) private pure returns (string memory) {
         if (i == 0) return "TSV_REGISTRY_IMPLEMENTATION_CODEHASH";
         if (i == 1) return "TSV_VOLUME_LEDGER_IMPLEMENTATION_CODEHASH";

@@ -6,20 +6,42 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IAssetSettlementAdapter} from "tsv-v1/legacy/IAssetSettlementAdapter.sol";
 
+/// @dev Defines the issuer share token methods used by the settlement adapter.
 interface IBackedShares is IERC20 {
+    /// @notice Returns the issuer's exact share units held by `account`.
     function sharesOf(address account) external view returns (uint256);
+
+    /// @notice Transfers exact issuer-share units using the issuer's share-aware transfer method.
     function transferSharesFrom(address from, address to, uint256 shares) external returns (bool);
+
+    /// @notice Converts issuer-share units into the token's displayed underlying amount.
     function getUnderlyingAmountByShares(uint256 shares) external view returns (uint256);
 }
 
+/// @dev Defines the wrapped issuer token methods used for asset conversion.
 interface IIssuerWrapped is IERC20 {
+    /// @notice Returns the issuer asset wrapped by this token.
     function asset() external view returns (address);
+
+    /// @notice Mints wrapped shares by pulling the corresponding underlying amount.
     function mint(uint256 shares, address receiver) external returns (uint256 assets);
+
+    /// @notice Burns wrapped shares and delivers their underlying representation.
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+
+    /// @notice Returns the total wrapped-share supply.
     function totalSupply() external view returns (uint256);
 }
 
+/// @dev Exposes the active asset operation used to authorize adapter settlement.
 interface IActiveAssetOperation {
+    /// @notice Returns the active router or LP operation context for a wrapped pool currency.
+    /// @param operationId Operation identifier supplied by the settlement adapter caller.
+    /// @param poolCurrency Wrapped currency whose operation context is requested.
+    /// @return poolId Pool associated with the active operation.
+    /// @return owner Original account whose assets are being moved.
+    /// @return recipient Account that must receive redeemed assets.
+    /// @return forceExit Whether the operation is an administrative forced exit.
     function activeAssetOperation(bytes32 operationId, address poolCurrency)
         external
         view
@@ -30,33 +52,56 @@ interface IActiveAssetOperation {
 contract IssuerShareSettlementAdapter is IAssetSettlementAdapter, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /// @dev Reverts when the caller does not have permission to perform the requested operation.
     error Unauthorized();
+    /// @dev Reverts when the requested operation is not valid in the current state or callback context.
     error InvalidOperation();
+    /// @dev Reverts when the observed token balance change differs from the expected settlement amount.
     error SettlementMismatch();
+    /// @dev Reverts when the actual amount falls outside the caller supplied bounds.
     error SlippageExceeded();
 
+    /// @dev Stores the amounts and snapshots prepared for an asset settlement operation.
     struct Prepared {
+        /// @dev Identifier of the active operation.
         bytes32 operationId;
+        /// @dev Account that initiated the active operation.
         address caller;
+        /// @dev Issuer-share amount prepared for settlement.
         uint256 shares;
+        /// @dev Adapter's wrapped-token balance captured before the operation.
         uint256 wrappedBefore;
+        /// @dev Adapter's issuer-share balance captured before the operation.
         uint256 underlyingSharesBefore;
     }
 
+    /// @dev Stores balances and conversion values captured before a token pull.
     struct PullSnapshot {
+        /// @dev Owner's issuer-share balance before the pull.
         uint256 ownerShares;
+        /// @dev Owner's displayed token balance before the pull.
         uint256 ownerDisplayed;
+        /// @dev Adapter's issuer-share balance before the pull.
         uint256 adapterShares;
+        /// @dev Vault's issuer-share balance before the pull.
         uint256 vaultShares;
+        /// @dev Wrapped-token total supply before the pull.
         uint256 wrapperSupply;
+        /// @dev Adapter's wrapped-token balance before the pull.
         uint256 adapterWrapped;
+        /// @dev Receiver's wrapped-token balance before the pull.
         uint256 receiverWrapped;
     }
 
+    /// @dev Stores balances and conversion values captured before a redemption.
     struct RedeemSnapshot {
+        /// @dev Recipient's issuer-share balance before redemption.
         uint256 recipientShares;
+        /// @dev Recipient's displayed token balance before redemption.
         uint256 recipientDisplayed;
+        /// @dev Vault's issuer-share balance before redemption.
         uint256 vaultShares;
+        /// @dev Wrapped-token total supply before redemption.
         uint256 wrapperSupply;
     }
 
@@ -66,6 +111,11 @@ contract IssuerShareSettlementAdapter is IAssetSettlementAdapter, ReentrancyGuar
     address public immutable lpManager;
     Prepared private prepared;
 
+    /// @notice Binds one issuer share token and wrapper to the Router and LP Manager that may use them.
+    /// @param underlying_ Issuer token exposing share-aware transfers and conversions.
+    /// @param wrapped_ Issuer wrapper used as the PoolManager Currency.
+    /// @param router_ Authorized swap caller.
+    /// @param lpManager_ Authorized liquidity caller.
     constructor(address underlying_, address wrapped_, address router_, address lpManager_) {
         if (
             underlying_.code.length == 0 || wrapped_.code.length == 0 || router_ == address(0)
@@ -78,14 +128,24 @@ contract IssuerShareSettlementAdapter is IAssetSettlementAdapter, ReentrancyGuar
         lpManager = lpManager_;
     }
 
+    /// @notice Returns the underlying issuer token used by the legacy path.
     function userToken() external view returns (address) {
         return address(underlying);
     }
 
+    /// @notice Returns the wrapper token used as the legacy pool Currency.
     function poolCurrency() external view returns (address) {
         return address(wrapped);
     }
 
+    /// @notice Pulls exact issuer shares, mints the same number of wrapped shares, and delivers them.
+    /// @dev Checks share balances, wrapper supply, displayed debit, and every token balance change.
+    /// @param owner Account whose shares are pulled.
+    /// @param receiver Account receiving wrapped shares; must be the authorized calling manager.
+    /// @param shares Exact number of shares to wrap.
+    /// @param maxDisplayedDebit Maximum displayed underlying debit allowed for `owner`.
+    /// @param operationId Active operation whose owner and pool currency must match.
+    /// @return wrappedDelivered Wrapped shares transferred to `receiver`.
     function pullAndWrap(
         address owner,
         address receiver,
@@ -139,6 +199,9 @@ contract IssuerShareSettlementAdapter is IAssetSettlementAdapter, ReentrancyGuar
         return shares;
     }
 
+    /// @notice Records the expected redemption amount before the caller transfers wrapped shares in.
+    /// @param shares Exact wrapped-share amount expected for redemption.
+    /// @param operationId Active operation whose recipient must receive the underlying shares.
     function prepareReceive(uint256 shares, bytes32 operationId) external nonReentrant {
         (, address recipient,) = _requireContext(operationId);
         if (prepared.operationId != 0 || operationId == 0 || shares == 0 || recipient == address(0)) {
@@ -149,6 +212,12 @@ contract IssuerShareSettlementAdapter is IAssetSettlementAdapter, ReentrancyGuar
         );
     }
 
+    /// @notice Redeems the prepared wrapped shares and verifies exact share delivery and displayed-credit bounds.
+    /// @param recipient Recipient bound by the active operation context.
+    /// @param shares Exact wrapped-share amount previously prepared and transferred to this adapter.
+    /// @param minDisplayedCredit Minimum displayed underlying balance increase; forced exits require zero.
+    /// @param operationId Active operation that authorized the redemption.
+    /// @return sharesDelivered Issuer shares delivered to `recipient`.
     function redeemAndDeliver(address recipient, uint256 shares, uint256 minDisplayedCredit, bytes32 operationId)
         external
         nonReentrant
@@ -185,6 +254,11 @@ contract IssuerShareSettlementAdapter is IAssetSettlementAdapter, ReentrancyGuar
         return shares;
     }
 
+    /// @dev Checks the caller is a configured manager and that its active context names valid owner and recipient.
+    /// @param operationId Operation ID to validate against the calling manager.
+    /// @return owner Original owner recorded by the active operation.
+    /// @return recipient Recipient recorded by the active operation.
+    /// @return forceExit Whether the operation uses the forced-exit path.
     function _requireContext(bytes32 operationId)
         private
         view

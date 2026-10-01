@@ -15,24 +15,41 @@ import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 
+/// @dev Exercises Hook proxy deployment and governance-anchor migration behavior.
 contract TSVHookFactoryTest is Test {
+    /// @dev Collects the deployments and dependencies shared by Hook factory tests.
     struct Base {
+        /// @dev Business authority for the fixture.
         TSVBusinessAuthority authority;
+        /// @dev Upgrade timelock for the fixture.
         TSVUpgradeTimelock timelock;
+        /// @dev Emergency upgrade controller for the fixture.
         TSVEmergencyUpgradeController controller;
+        /// @dev Governance anchor for the fixture.
         TSVGovernanceAnchor anchor;
+        /// @dev Registry proxy used by the core components.
         TSVRegistryV1 registry;
+        /// @dev Volume Ledger proxy used by the Hook and Inbox.
         TSVVolumeLedgerV1 ledger;
+        /// @dev Data Inbox proxy used for test report submission.
         TSVDataInboxV1 inbox;
+        /// @dev Swap Router implementation deployed for the fixture.
         address routerImpl;
+        /// @dev LP Manager implementation deployed for the fixture.
         address lpImpl;
+        /// @dev Hook implementation deployed for the fixture.
         address hookImpl;
+        /// @dev Factory used to deploy the Hook proxy at a V4-compatible address.
         TSVHookProxyFactoryV1 factory;
+        /// @dev Swap Router proxy used by the deployed Hook.
         TSVSwapRouterV1 router;
+        /// @dev LP Manager proxy used by the deployed Hook.
         TSVLPManagerV1 lp;
+        /// @dev Hook proxy deployed for the fixture.
         TSVHookV1 hook;
     }
 
+    /// @dev Verifies proxy rejects empty initialization data.
     function testProxyRejectsEmptyInitializationData() public {
         TSVHookV1 implementation = new TSVHookV1();
 
@@ -40,6 +57,7 @@ contract TSVHookFactoryTest is Test {
         new TSVERC1967Proxy(address(implementation), "");
     }
 
+    /// @dev Verifies mined proxy has V4 permissions and stable implementation getter.
     function testMinedProxyHasV4PermissionsAndStableImplementationGetter() public {
         TSVHookProxyFactoryV1 factory = new TSVHookProxyFactoryV1();
         TSVHookV1 implementation = new TSVHookV1();
@@ -75,6 +93,7 @@ contract TSVHookFactoryTest is Test {
         factory.deploy(address(implementation), initData, salt);
     }
 
+    /// @dev Verifies wrong permission salt reverts.
     function testWrongPermissionSaltReverts() public {
         TSVHookProxyFactoryV1 factory = new TSVHookProxyFactoryV1();
         TSVHookV1 implementation = new TSVHookV1();
@@ -90,6 +109,7 @@ contract TSVHookFactoryTest is Test {
         factory.deploy(address(implementation), initData, salt);
     }
 
+    /// @dev Verifies six proxy deployment uses actual predicted addresses.
     function testSixProxyDeploymentUsesActualPredictedAddresses() public {
         vm.warp(1_800_000_000);
         Base memory d = _deployBase();
@@ -148,6 +168,7 @@ contract TSVHookFactoryTest is Test {
         _testRootMigration(d, addresses);
     }
 
+    /// @dev Deploys the base contracts shared by the Hook factory scenario.
     function _deployBase() private returns (Base memory d) {
         d = _makeGovernance();
         d.registry = TSVRegistryV1(
@@ -194,6 +215,7 @@ contract TSVHookFactoryTest is Test {
         d.factory = new TSVHookProxyFactoryV1();
     }
 
+    /// @dev Deploys and initializes the Swap Router proxy for the fixture.
     function _deployRouter(Base memory d) private returns (TSVSwapRouterV1) {
         return TSVSwapRouterV1(
             address(
@@ -215,6 +237,7 @@ contract TSVHookFactoryTest is Test {
         );
     }
 
+    /// @dev Deploys and initializes the LP Manager proxy for the fixture.
     function _deployLp(Base memory d) private returns (TSVLPManagerV1) {
         return TSVLPManagerV1(
             address(
@@ -235,6 +258,7 @@ contract TSVHookFactoryTest is Test {
         );
     }
 
+    /// @dev Deploys and links the governance contracts required by the fixture.
     function _makeGovernance() private returns (Base memory d) {
         address[] memory executors = new address[](1);
         executors[0] = address(this);
@@ -245,6 +269,7 @@ contract TSVHookFactoryTest is Test {
         d.anchor = new TSVGovernanceAnchor(address(d.timelock), address(d.authority), address(d.controller));
     }
 
+    /// @dev Exercises a governance-anchor root migration across the deployed proxies.
     function _testRootMigration(Base memory d, address[6] memory addresses) private {
         _executeCandidate(
             d.timelock,
@@ -348,6 +373,7 @@ contract TSVHookFactoryTest is Test {
         assertEq(TSVERC1967Proxy(payable(address(d.registry))).tsvImplementation(), address(newImplementation));
     }
 
+    /// @dev Checks that guardian rotation invalidates a pending root proposal.
     function _assertGuardianRotationInvalidatesProposal(
         Base memory d,
         bytes32 proposalId,
@@ -372,6 +398,7 @@ contract TSVHookFactoryTest is Test {
         assertTrue(vm.revertToState(checkpoint));
     }
 
+    /// @dev Schedules and executes the selected governance candidate operation.
     function _executeCandidate(TSVUpgradeTimelock tl, address target, bytes memory payload, bytes32 salt) private {
         tl.schedule(target, 0, payload, 0, salt, 0);
         tl.execute(target, 0, payload, 0, salt);

@@ -9,8 +9,15 @@ import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 
 /// @notice Deploys the non-proxy governance trio and fixed Anchor. Binding is a separate Timelock operation.
 contract DeployGovernanceV1 is Script {
+    /// @dev Reverts when the chain ID or initial governance role addresses are invalid.
     error InvalidDeploymentInput();
 
+    /// @notice Deploys the governance contracts and fixed governance anchor.
+    /// @dev Validates distinct role addresses and chain ID; component binding is performed separately.
+    /// @return timelock Newly deployed upgrade timelock.
+    /// @return authority Newly deployed business authority.
+    /// @return controller Newly deployed emergency upgrade controller.
+    /// @return anchor Newly deployed governance anchor.
     function run()
         external
         returns (

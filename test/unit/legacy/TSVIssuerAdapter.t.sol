@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../helpers/v1/MockIssuerTokens.sol";
 import {IssuerShareSettlementAdapter, IActiveAssetOperation} from "tsv-v1/legacy/IssuerShareSettlementAdapter.sol";
 
+/// @dev Exercises issuer-share settlement and redemption behavior.
 contract TSVIssuerAdapterTest is Test, IActiveAssetOperation {
     bytes32 private constant OP = keccak256("operation");
     bytes32 private constant POOL = keccak256("pool");
@@ -14,6 +15,7 @@ contract TSVIssuerAdapterTest is Test, IActiveAssetOperation {
     address internal alice;
     bool internal forced;
 
+    /// @dev Initializes the contracts, accounts and fixture state shared by this test suite.
     function setUp() public {
         alice = makeAddr("alice");
         underlying = new V1MockIssuerShares();
@@ -25,6 +27,7 @@ contract TSVIssuerAdapterTest is Test, IActiveAssetOperation {
         underlying.approve(address(adapter), type(uint256).max);
     }
 
+    /// @dev Returns the active issuer-asset operation context used by the adapter.
     function activeAssetOperation(bytes32 operationId, address currency)
         external
         view
@@ -34,6 +37,7 @@ contract TSVIssuerAdapterTest is Test, IActiveAssetOperation {
         return (POOL, alice, alice, forced);
     }
 
+    /// @dev Verifies wrapping and redeeming preserve exact shares and enforce display bounds.
     function testWrapThenRedeemExactSharesAndDisplayBounds() public {
         uint256 ownerSharesBefore = underlying.sharesOf(alice);
         uint256 ownerDisplayedBefore = underlying.balanceOf(alice);
@@ -51,6 +55,7 @@ contract TSVIssuerAdapterTest is Test, IActiveAssetOperation {
         assertEq(wrapped.totalSupply(), 0);
     }
 
+    /// @dev Verifies an excessive displayed-debit limit reverts without moving shares.
     function testDisplayedDebitLimitRevertsWithoutMovingShares() public {
         uint256 beforeShares = underlying.sharesOf(alice);
         vm.expectRevert(IssuerShareSettlementAdapter.SlippageExceeded.selector);
@@ -59,6 +64,7 @@ contract TSVIssuerAdapterTest is Test, IActiveAssetOperation {
         assertEq(wrapped.totalSupply(), 0);
     }
 
+    /// @dev Verifies a refused forced delivery rolls back the entire operation.
     function testForcedDeliveryRefusalRollsBackWholeOperation() public {
         adapter.pullAndWrap(alice, address(this), 3e18, 2.7e18, OP);
         forced = true;
@@ -73,6 +79,7 @@ contract TSVIssuerAdapterTest is Test, IActiveAssetOperation {
         assertEq(underlying.sharesOf(address(wrapped)), 3e18);
     }
 
+    /// @dev Runs a redemption inside the adapter operation context and enforces atomic delivery.
     function redeemAtomically(uint256 shares) external {
         adapter.prepareReceive(shares, OP);
         wrapped.transfer(address(adapter), shares);

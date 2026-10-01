@@ -27,30 +27,39 @@ import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
 import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../helpers/v1/MockIssuerTokens.sol";
 
+/// @dev Exposes token metadata required by the local integration fixture.
 interface ITestTokenMetadata {
+    /// @dev Returns the token decimal precision used by the fixture.
     function decimals() external view returns (uint8);
 }
 
+/// @dev Provides a configurable ERC-20 fixture for local protocol tests.
 contract V1LocalERC20 is ERC20 {
     address public blockedRecipient;
     address public feeSender;
     uint16 public senderFeeBps;
+
+    /// @dev Initializes the local token fixture with matching name and symbol.
     constructor(string memory n) ERC20(n, n) {}
 
+    /// @dev Mints local test tokens to a recipient.
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
 
+    /// @dev Configures whether the local token rejects transfers to a recipient.
     function setBlockedRecipient(address to) external {
         blockedRecipient = to;
     }
 
+    /// @dev Configures the fee deducted from the sender by the local token.
     function setSenderFee(address sender, uint16 feeBps) external {
         require(feeBps <= 10_000);
         feeSender = sender;
         senderFeeBps = feeBps;
     }
 
+    /// @dev Applies the local token transfer behavior, including configured fees and restrictions.
     function _update(address from, address to, uint256 value) internal override {
         require(to == address(0) || to != blockedRecipient, "issuer blocked recipient");
         super._update(from, to, value);
@@ -61,48 +70,58 @@ contract V1LocalERC20 is ERC20 {
     }
 }
 
+/// @dev Provides configurable SBT pause and credential behavior for local tests.
 contract V1LocalSBT {
     mapping(address => bool) public holds;
     bool private paused_;
     bool public failVerify;
     bool public failPaused;
 
+    /// @dev Configures the holder and token identifier accepted by the local SBT fixture.
     function setHolder(address owner, bool value) external {
         holds[owner] = value;
     }
 
+    /// @dev Configures the pause state reported by the local SBT fixture.
     function setPaused(bool value) external {
         paused_ = value;
     }
 
+    /// @dev Configures whether SBT view calls revert in the local fixture.
     function setFailReads(bool verify_, bool pausedRead_) external {
         failVerify = verify_;
         failPaused = pausedRead_;
     }
 
+    /// @dev Returns the pause state reported by the local SBT fixture.
     function paused() external view returns (bool) {
         require(!failPaused, "paused read failed");
         return paused_;
     }
 
+    /// @dev Checks the configured participant credential in the local SBT fixture.
     function verify(address owner, uint256) external view returns (bool) {
         require(!failVerify, "verify read failed");
         return holds[owner];
     }
 }
 
+/// @dev Provides a contract-wallet participant for direct-call integration tests.
 contract V1TestParticipantWallet {
     address public immutable admin;
 
+    /// @dev Sets the account authorized to execute calls through the participant wallet.
     constructor(address admin_) {
         admin = admin_;
     }
 
+    /// @dev Approves the Swap Router to transfer a selected input token.
     function approveToken(address token, address spender) external {
         require(msg.sender == admin);
         IERC20(token).approve(spender, type(uint256).max);
     }
 
+    /// @dev Runs an exact-input swap through the test participant wallet.
     function swapExactInput(TSVSwapRouterV1 router, SwapRequest calldata request)
         external
         returns (uint256 actualIn, uint256 actualOut)
@@ -112,6 +131,7 @@ contract V1TestParticipantWallet {
     }
 }
 
+/// @dev Exercises the protocol against a local Uniswap V4 pool manager.
 contract TSVProtocolLocalTest is Test {
     using PoolIdLibrary for PoolKey;
 
@@ -135,6 +155,7 @@ contract TSVProtocolLocalTest is Test {
     address internal alice;
     uint256 internal positionId;
 
+    /// @dev Initializes the contracts, accounts and fixture state shared by this test suite.
     function setUp() public {
         vm.warp(1_790_827_201);
         alice = makeAddr("alice");
@@ -249,6 +270,7 @@ contract TSVProtocolLocalTest is Test {
         vm.stopPrank();
     }
 
+    /// @dev Verifies a real V4 pool swap accounts for the actual deltas.
     function testRealV4OnePoolSwapAccountsActualDelta() public {
         bytes32 poolId = PoolId.unwrap(key.toId());
         assertEq(uint160(address(hook)) & uint160(0x3FFF), uint160(0x3FFF));
@@ -265,6 +287,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(used, actualIn);
     }
 
+    /// @dev Verifies the LP Manager issues a non-transferable position receipt.
     function testLpManagerHostsNonTransferableReceipt() public {
         assertEq(lpManager.ownerOf(positionId), alice);
         assertEq(lpManager.balanceOf(alice), 1);
@@ -287,6 +310,7 @@ contract TSVProtocolLocalTest is Test {
         lpManager.setApprovalForAll(address(this), true);
     }
 
+    /// @dev Verifies real V4 stock output records the net amount received.
     function testRealV4StockOutputCountsNetReceived() public {
         bool stockIsCurrency0 = address(stock) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(!stockIsCurrency0, 1e18);
@@ -295,6 +319,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY), actualOut);
     }
 
+    /// @dev Verifies swaps revert when the payer loses more than the raw input delta.
     function testSwapRevertsIfPayerLosesMoreThanRawDelta() public {
         bool quoteIsCurrency0 = address(quote) == Currency.unwrap(key.currency0);
         quote.setSenderFee(alice, 100);
@@ -309,6 +334,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
     }
 
+    /// @dev Verifies swaps revert when the pool loses more than the output delta.
     function testSwapRevertsIfPoolLosesMoreThanOutputDelta() public {
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         quote.setSenderFee(address(manager), 100);
@@ -323,6 +349,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
     }
 
+    /// @dev Verifies swaps require an eligible direct caller.
     function testSwapRequiresEligibleDirectCaller() public {
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(stockInput, 1e18);
@@ -336,6 +363,7 @@ contract TSVProtocolLocalTest is Test {
         assertGt(actualOut, 0);
     }
 
+    /// @dev Verifies an eligible contract wallet can submit a swap directly.
     function testContractWalletCanDirectlySubmitSwap() public {
         V1TestParticipantWallet wallet = new V1TestParticipantWallet(address(this));
         sbt.setHolder(address(wallet), true);
@@ -352,6 +380,7 @@ contract TSVProtocolLocalTest is Test {
         assertGt(actualOut, 0);
     }
 
+    /// @dev Verifies backed stock swaps in both directions use live issuer conversion.
     function testBackedStockSwapBothWaysUsesLiveIssuerConversion() public {
         uint256 aliceRawBeforeUpdate = stock.balanceOf(alice);
         uint256 managerRawBeforeUpdate = stock.balanceOf(address(manager));
@@ -389,6 +418,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockOut * 2);
     }
 
+    /// @dev Verifies backed stock LP increases and decreases settle raw token amounts.
     function testBackedStockLPIncreaseAndDecreaseSettleRawAmounts() public {
         stockUnderlying.setMultiplier(2e18, 1);
 
@@ -422,6 +452,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(lpManager.getPosition(positionId).liquidity, 1e20);
     }
 
+    /// @dev Verifies LP increases revert when the owner loses more than the pool delta.
     function testLPIncreaseRevertsIfOwnerLosesMoreThanPoolDelta() public {
         quote.setSenderFee(alice, 100);
         LPBounds memory bounds;
@@ -441,6 +472,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(lpManager.getPosition(positionId).liquidity, liquidityBefore);
     }
 
+    /// @dev Verifies LP exits revert when the pool loses more than the output delta.
     function testLpExitRevertsIfPoolLosesMoreThanOutputDelta() public {
         quote.setSenderFee(address(manager), 100);
         uint256 ownerBefore = quote.balanceOf(alice);
@@ -459,6 +491,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(lpManager.ownerOf(positionId), alice);
     }
 
+    /// @dev Verifies position close enforces the minimum output for a zero-delta Currency.
     function testClosePositionEnforcesMinimumForZeroDeltaCurrency() public {
         LPBounds memory bounds;
         bounds.maxPoolIn0 = 1e22;
@@ -478,6 +511,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(lpManager.ownerOf(boundaryPositionId), alice);
     }
 
+    /// @dev Verifies the direct LP lifecycle does not record liquidity as trade volume.
     function testDirectLpLifecycleDoesNotRecordLiquidityAsTradeVolume() public {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         LPBounds memory bounds;
@@ -507,6 +541,7 @@ contract TSVProtocolLocalTest is Test {
         lpManager.ownerOf(positionId);
     }
 
+    /// @dev Verifies exact-output swaps deliver the full requested amount.
     function testExactOutputRequiresFullDelivery() public {
         bool stockIsCurrency0 = address(stock) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(stockIsCurrency0, 1e18);
@@ -519,6 +554,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY) - usedBefore, actualIn);
     }
 
+    /// @dev Verifies exact-output stock purchases record net shares received.
     function testExactOutputStockPurchaseRecordsNetShares() public {
         stockUnderlying.setMultiplier(2e18, 1);
 
@@ -541,12 +577,14 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockOut * 2);
     }
 
+    /// @dev Verifies direct PoolManager swaps cannot bypass the Hook.
     function testDirectPoolManagerSwapCannotBypassHook() public {
         vm.expectRevert();
         manager.unlock(abi.encode(key));
         assertEq(ledger.used(SECURITY, DAY), 0);
     }
 
+    /// @dev Implements the PoolManager unlock callback used to test direct swap access.
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         require(msg.sender == address(manager));
         PoolKey memory target = abi.decode(data, (PoolKey));
@@ -554,6 +592,7 @@ contract TSVProtocolLocalTest is Test {
         return "";
     }
 
+    /// @dev Verifies force exit returns the original owner assets after SBT revocation.
     function testForceExitWhenSbtRevokedReturnsOriginalOwnerAssets() public {
         uint256 stockBefore = stock.balanceOf(alice);
         uint256 quoteBefore = quote.balanceOf(alice);
@@ -566,6 +605,7 @@ contract TSVProtocolLocalTest is Test {
         lpManager.ownerOf(positionId);
     }
 
+    /// @dev Verifies a force-exit admin can act as revoke executor while the owner still holds an SBT.
     function testForceExitAdminCanActWhenAlsoRevokeExecutorAndOwnerStillHasSbt() public {
         lpManager.grantRole(lpManager.FORCE_EXIT_ADMIN_ROLE(), address(this));
         assertTrue(registry.hasCredential(alice));
@@ -573,6 +613,7 @@ contract TSVProtocolLocalTest is Test {
         assertFalse(lpManager.getPosition(positionId).active);
     }
 
+    /// @dev Verifies force exit by the original owner reverts atomically.
     function testForceExitRejectsOriginalOwnerRollsBackEverything() public {
         sbt.setHolder(alice, false);
         quote.setBlockedRecipient(alice);
@@ -589,6 +630,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(lpManager.ownerOf(positionId), alice);
     }
 
+    /// @dev Verifies an SBT pause blocks user swaps but allows force exit.
     function testSbtPauseBlocksUserSwapButNotForceExit() public {
         assertTrue(registry.isEligible(alice));
         sbt.setPaused(true);
@@ -602,6 +644,7 @@ contract TSVProtocolLocalTest is Test {
         lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
     }
 
+    /// @dev Verifies failed SBT reads are not treated as revocation.
     function testSbtReadFailuresDoNotBecomeRevocationSignals() public {
         sbt.setFailReads(true, false);
         vm.expectRevert();
@@ -616,6 +659,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(lpManager.ownerOf(positionId), alice);
     }
 
+    /// @dev Verifies the Registry rejects an SBT that lacks required selectors.
     function testRegistryRejectsSbtWithoutRequiredSelectors() public {
         address oldSbt = address(registry.participantSbt());
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
@@ -624,6 +668,7 @@ contract TSVProtocolLocalTest is Test {
         assertTrue(registry.isEligible(alice));
     }
 
+    /// @dev Verifies force exit enforces both minimum outputs atomically.
     function testForceExitEnforcesBothMinimumOutputsAtomically() public {
         sbt.setHolder(alice, false);
         uint256 stockBefore = stock.balanceOf(alice);
@@ -646,15 +691,18 @@ contract TSVProtocolLocalTest is Test {
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
     }
 
+    /// @dev Deploys and initializes a proxy for the supplied implementation and initializer data.
     function _installProxy(address target, address implementation) private {
         vm.etch(target, type(TSVERC1967Proxy).runtimeCode);
         vm.store(target, IMPLEMENTATION_SLOT, bytes32(uint256(uint160(implementation))));
     }
 
+    /// @dev Deploys an initialized proxy for the supplied implementation.
     function _newProxy(address implementation, bytes memory data) private returns (address) {
         return address(new TSVERC1967Proxy(implementation, data));
     }
 
+    /// @dev Builds a token registration configuration for the supplied currency and security.
     function _config(address token, bytes32 securityId, address legalAdapter)
         private
         view
@@ -674,10 +722,12 @@ contract TSVProtocolLocalTest is Test {
         c.reviewHash = keccak256("review");
     }
 
+    /// @dev Reads an account balance in the token display denomination.
     function _displayBalance(address account) private view returns (uint256) {
         return stockUnderlying.getUnderlyingAmountByShares(stock.balanceOf(account));
     }
 
+    /// @dev Builds a swap request for the selected pool and trade parameters.
     function _swapRequest(bool zeroForOne, uint128 amount) private view returns (SwapRequest memory r) {
         r.key = key;
         r.zeroForOne = zeroForOne;
@@ -687,6 +737,7 @@ contract TSVProtocolLocalTest is Test {
         r.deadline = uint64(block.timestamp + 100);
     }
 
+    /// @dev Submits the initial market and monthly ADTV reports required by the test.
     function _submitReports() private {
         uint64 now_ = uint64(block.timestamp);
         MarketReport memory market = MarketReport(
