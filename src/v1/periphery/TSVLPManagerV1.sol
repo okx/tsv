@@ -286,7 +286,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         address token = Currency.unwrap(currency);
         uint256 amount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         if (delta < 0 && (mode == LPOperationMode.FORCE_EXIT || amount > maxIn)) revert SlippageExceeded();
-        if ((delta > 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();
+        if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();
         if (delta < 0) {
             TSVDirectSettlementLib.settleFrom(poolManager, currency, token, owner, amount);
         } else if (delta > 0) {

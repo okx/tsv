@@ -122,7 +122,6 @@ contract TSVSwapRouterV1 is TSVGoverned {
 
         _settle(request.key.currency0, delta.amount0(), request.participant);
         _settle(request.key.currency1, delta.amount1(), request.participant);
-        hook.assertCurrentAndClear();
         return abi.encode(actualIn, actualOut, delta);
     }
 

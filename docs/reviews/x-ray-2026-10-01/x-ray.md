@@ -43,11 +43,11 @@ Participant
 └─ TSVSwapRouterV1.swapExactInput() / swapExactOutput()
    ├─ TSVRegistryV1.isEligible() + isTradable()   *credential, market, pool and pause gates*
    ├─ PoolManager.unlock()
-   │  ├─ TSVHookV1.beforeSwap() → adapter.snapshot()
+   │  ├─ TSVHookV1.beforeSwap() → validates Router context and pool
    │  ├─ PoolManager.swap()
    │  └─ TSVHookV1.afterSwap() → TSVVolumeLedgerV1.recordSwap()
    ├─ TSVDirectSettlementLib.settleFrom() / takeTo()   *exact payer, pool and recipient deltas*
-   └─ TSVHookV1.assertCurrentAndClear()   *verify snapshots, clear operation state*
+   └─ Router clears its active swap context after unlock returns
 ```
 
 ### LP position lifecycle
@@ -111,7 +111,7 @@ See [entry-points.md](entry-points.md) for the full permissionless and role-gate
 
 - **Swap request, callback, and currency settlement** &nbsp;&#91;[G-1](invariants.md#g-1), [G-5](invariants.md#g-5), [G-7](invariants.md#g-7), [G-8](invariants.md#g-8), [I-2](invariants.md#i-2), [X-1](invariants.md#x-1)&#93; — `TSVSwapRouterV1._validateAndConsume/unlockCallback` and `TSVDirectSettlementLib` bind caller, request bytes, V4 deltas, and payer/recipient balance changes; trace both exact-input and exact-output paths.
 
-- **V4 swap snapshot and accounting lifecycle** &nbsp;&#91;[G-9](invariants.md#g-9), [G-10](invariants.md#g-10), [G-11](invariants.md#g-11), [I-3](invariants.md#i-3)&#93; — `TSVHookV1.beforeSwap/afterSwap/assertCurrentAndClear` stores rate snapshots across the PoolManager callback and calls the Ledger once.
+- **V4 swap snapshot and accounting lifecycle** &nbsp;&#91;[G-9](invariants.md#g-9), [G-10](invariants.md#g-10), [G-11](invariants.md#g-11), [I-3](invariants.md#i-3)&#93; — `beforeSwap` validates the Router context; `afterSwap` snapshots rates and records actual deltas without Hook swap state. The Ledger validates snapshots when recording.
 
 - **Daily volume inputs and cap updates** &nbsp;&#91;[G-15](invariants.md#g-15), [I-8](invariants.md#i-8), [X-3](invariants.md#x-3), [E-1](invariants.md#e-1)&#93; — `TSVVolumeLedgerV1._hardCap/_consume` combines ADTV, Registry tier policy, and quota state; trace report corrections and tier changes against prior daily usage.
 
@@ -159,7 +159,7 @@ See [entry-points.md](entry-points.md) for the full permissionless and role-gate
 - **V4 PoolManager** — Router and LP manager trust unlock/callback sequencing; configured callbacks check the PoolManager address and operation context (`TSVSwapRouterV1.sol:113-116`; `TSVLPManagerV1.sol:228-240`; `TSVHookV1.sol:82-85`).
 - **SBT** — Registry depends on external `paused()` and `verify()` behavior; a pause affects all credential-gated operations (`TSVRegistryV1.sol:131-157`).
 - **Issuer tokens** — Exact balance-delta checks reject fee-on-transfer behavior during direct settlement; blacklist, pause, or implementation changes remain issuer-level behavior (`TSVDirectSettlementLib.sol:18-41`; per spec: `docs/SYSTEMS_OVERVIEW.md:715`).
-- **Legal-share adapters** — Hook snapshots adapter versions before swaps and Ledger checks currentness again when accounting; multiplier semantics originate from issuer token calls (`TSVHookV1.sol:264-275`; adapter implementations under `src/v1/adapters/`).
+- **Legal-share adapters** — Hook reads snapshots in `afterSwap`, and Ledger checks currentness while accounting; Router settlement does not recheck afterward. Multiplier semantics originate from issuer token calls (`TSVHookV1.sol:173-181`; adapter implementations under `src/v1/adapters/`).
 
 ---
 

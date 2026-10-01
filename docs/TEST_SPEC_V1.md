@@ -96,9 +96,9 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | S06 U/I | 未持证调用、`msg.sender != participant`、participant/payer/recipient 不同、参数越界、deadline 过期；AA 钱包以自身地址直接调用 | 非 participant 调用拒绝；EOA 与 AA 钱包均须以 participant 身份直接调用；同一请求在后续独立调用中按新 Swap 校验，不做应用层 nonce 去重 |
 | S07 I | 一笔 unlock 尝试第二次 swap、第二个 PoolId、额外 modify、Hook 直接调用、空活跃上下文或错 PoolId | 全部拒绝；一次成功 Swap 恰一次记账，结束清空单笔上下文 |
 | S08 U/I | 静态换算接近一个 `legalSharesWad` 最小单位、TSLAx FLOOR 导致零股、`mulDiv` 边界和溢出 | 静态按 CEIL、动态按 FLOOR；零股拒绝；不发生溢出式低估 |
-| S09 I | `afterSwap` 取得快照并记账后，在 Router 结算期间改变动态 Adapter 版本/底层 multiplier，或最终 `isCurrent` 为假 | 整笔回滚；同一笔不混用两个 rateId，历史 used 不重算 |
+| S09 I | `afterSwap` 读取快照时 Adapter 已过期，或 Ledger 复核时快照与当前值不同 | 整笔回滚；一次记账不混用两个 rateId，历史 used 不重算；Router 结算期间的后续变化不触发额外快照复验 |
 | S10 I | 普通 ERC-20 fee-on-transfer、rebasing、无返回值/返回 false、静默少转；wTSLAx 发送方额外扣费 | 有效标准返回值且双方 raw 差额精确才可通过；金额不等即回滚，不留下池欠款 |
-| S11 I | 用户持有 wTSLAx，但 issuer multiplier 在报价后变化；分别测试 raw 滑点通过/失败及 `afterSwap` 快照变化 | 成功交易仅按 `afterSwap` 实际 wTSLAx delta 与当时快照计股，raw 限额按请求执行；快照在 Router 结算结束前变化则回滚；前端展示的股数预估不作为链上边界 |
+| S11 I | 用户持有 wTSLAx，但 issuer multiplier 在报价后变化；分别测试 raw 滑点通过/失败及 `afterSwap` 快照变化 | 成功交易仅按 `afterSwap` 实际 wTSLAx delta 与当时快照计股，raw 限额按请求执行；Ledger 复核快照时若已变化则回滚；前端展示的股数预估不作为链上边界 |
 | S12 I | Router/LP Manager 非法回调、错 Swap 上下文/LP operationId/poolCurrency/owner/recipient、重入及故意遗留本次 wTSLAx 余额 | 全部拒绝或回滚；成功时上下文清空，Router/LP Manager 不留本笔资产 |
 
 ### 3.4 LP、Receipt、暂停和强退
@@ -116,6 +116,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | L09 I | 强退 wTSLAx 时底层 multiplier 或 TSLAx 账户显示余额改变，但 wTSLAx raw 应付量确定 | 原 owner 实收 wTSLAx raw 与 V4 应付量精确相等；不要求本交易执行发行方赎回，也不错误以 TSLAx 的 `balanceOfUI` 差额判断交付 |
 | L10 I | 正常 LP 修改时零 liquidity、部分减仓清空、tick 未对齐、deadline 过期、余额不足、外部重入 | 全部拒绝且仓位/Receipt 保持一致 |
 | L11 I | 强退设置任一侧高于实际到账的 `minPoolOut`，另一侧正常；再以可满足的两侧下限重试 | 前次整笔回滚且仓位、Receipt、两侧余额保持不变；重试按运营给定下限成功并向原 owner 交付 |
+| L12 I | `closePosition` 或 `decreaseLiquidity` 在 tick 区间边界使一侧 delta 为零，同时该侧 `minPoolOut` 大于零 | `SlippageExceeded`，整笔回滚，仓位与 Receipt 保留；零输出也必须满足调用者设置的最低输出 |
 
 ### 3.5 治理与升级
 

@@ -39,20 +39,11 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     error UnsupportedCallback();
     error StaleSnapshot();
 
-    struct SwapState {
-        bytes32 poolId;
-        RateSnapshot rate0;
-        RateSnapshot rate1;
-        bool accounted;
-    }
-
     IPoolManager public poolManager;
     TSVRegistryV1 public registry;
     TSVVolumeLedgerV1 public ledger;
     address public router;
     address public lpManager;
-    // The V1 swap path allows exactly one active Router swap.
-    SwapState private activeSwapState;
 
     function initialize(
         address authority,
@@ -160,6 +151,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
 
     function beforeSwap(address sender, PoolKey calldata key, IPoolManager.SwapParams calldata, bytes calldata hookData)
         external
+        view
         override
         onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
@@ -168,11 +160,9 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         bytes32 poolId = PoolId.unwrap(key.toId());
         (bool isActive, bytes32 activePoolId, address participant) = IActiveSwapContextV1(router).activeSwapContext();
         if (
-            !isActive || activePoolId != poolId || participant == address(0) || activeSwapState.poolId != 0
-                || !registry.isTradable(poolId)
+            !isActive || activePoolId != poolId || participant == address(0) || !registry.isTradable(poolId)
         ) revert InvalidOperation();
         _requireExactKey(key, poolId);
-        activeSwapState.poolId = poolId;
         return (IHooks.beforeSwap.selector, BeforeSwapDelta.wrap(0), 0);
     }
 
@@ -184,25 +174,10 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         bytes calldata hookData
     ) external override onlyPoolManager returns (bytes4, int128) {
         if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
-        SwapState storage state = activeSwapState;
-        if (state.poolId == 0 || state.poolId != PoolId.unwrap(key.toId()) || state.accounted) {
-            revert InvalidOperation();
-        }
-        state.rate0 = _snapshot(Currency.unwrap(key.currency0));
-        state.rate1 = _snapshot(Currency.unwrap(key.currency1));
-        ledger.recordSwap(state.poolId, delta.amount0(), delta.amount1(), state.rate0, state.rate1);
-        state.accounted = true;
+        RateSnapshot memory rate0 = _snapshot(Currency.unwrap(key.currency0));
+        RateSnapshot memory rate1 = _snapshot(Currency.unwrap(key.currency1));
+        ledger.recordSwap(PoolId.unwrap(key.toId()), delta.amount0(), delta.amount1(), rate0, rate1);
         return (IHooks.afterSwap.selector, 0);
-    }
-
-    function assertCurrentAndClear() external {
-        if (msg.sender != router) revert UnauthorizedCallback();
-        SwapState storage state = activeSwapState;
-        if (!state.accounted || state.poolId == 0) revert InvalidOperation();
-        PoolConfig memory pool = registry.getPool(state.poolId);
-        _assertCurrent(Currency.unwrap(pool.key.currency0), state.rate0);
-        _assertCurrent(Currency.unwrap(pool.key.currency1), state.rate1);
-        delete activeSwapState;
     }
 
     function beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
@@ -261,12 +236,4 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         }
     }
 
-    function _assertCurrent(address currency, RateSnapshot storage rate) private view {
-        TokenConfig memory config = registry.getToken(currency);
-        if (
-            config.securityId != 0
-                && (config.legalAdapterVersion != rate.adapterVersion
-                    || !ILegalShareAdapter(config.legalShareAdapter).isCurrent(currency, rate))
-        ) revert StaleSnapshot();
-    }
 }

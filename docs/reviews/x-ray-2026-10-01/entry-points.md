@@ -16,7 +16,7 @@
 
 ### Participant swap
 
-`SBT credential + approved token + listed security + open market + no matching pause + current ADTV` → `TSVSwapRouterV1.swapExactInput/Output()` → registry and ledger prechecks → `PoolManager.unlock()` → `TSVHookV1.beforeSwap()` snapshots adapters → `PoolManager.swap()` → `TSVHookV1.afterSwap()` records actual deltas → router settles both currencies and calls `assertCurrentAndClear()`.
+`SBT credential + approved token + listed security + open market + no matching pause + current ADTV` → `TSVSwapRouterV1.swapExactInput/Output()` → registry and ledger prechecks → `PoolManager.unlock()` → `TSVHookV1.beforeSwap()` validates Router context and pool → `PoolManager.swap()` → `TSVHookV1.afterSwap()` snapshots adapters and records actual deltas → router settles both currencies and clears its active context.
 
 ### Liquidity position
 
@@ -76,7 +76,7 @@
 | `EMERGENCY_PAUSER_ROLE` / `EMERGENCY_RESUMER_ROLE` | `TSVRegistryV1.addEmergencyPause()`, `clearEmergencyPause()` | Pause scope/target and reason; pause records and active counters |
 | `FORCE_EXIT_ADMIN_ROLE`, or `REVOKE_EXIT_EXECUTOR_ROLE` if owner has no credential | `TSVLPManagerV1.forceExit()` | Position, minimum outputs, evidence; closes position and pays recorded owner |
 | `PoolManager` callback | `TSVSwapRouterV1.unlockCallback()`, `TSVLPManagerV1.unlockCallback()`, `TSVHookV1.beforeSwap()`, `afterSwap()` | Active request/context hashes; swap state, deltas, and Ledger call |
-| Router / LP Manager internal caller binding | `TSVHookV1.assertCurrentAndClear()`, `TSVRegistryV1.registerPendingPool()`, `markPoolActive()`, `TSVRegistryV1.applyMarketStatus()`, `TSVVolumeLedgerV1.recordSwap()` | Operation, pool, market, or swap data; component-owned state |
+| Router / LP Manager internal caller binding | `TSVRegistryV1.registerPendingPool()`, `markPoolActive()`, `TSVRegistryV1.applyMarketStatus()`, `TSVVolumeLedgerV1.recordSwap()` | Operation, pool, market, or swap data; component-owned state |
 | Hook caller binding | `TSVVolumeLedgerV1.recordSwap()` | Pool deltas and two rate snapshots; per-security daily usage |
 | Router or LP Manager active-asset context | `IssuerShareSettlementAdapter.pullAndWrap()`, `prepareReceive()`, `redeemAndDeliver()` | Owner, recipient, shares, bounds and operation ID; temporary preparation state and wrapper redemption |
 | `Guardian` | `TSVGovernanceAnchor.approveRoot()`, `revokeRootApproval()`; `TSVUpgradeTimelock.approveRecovery()`, `revokeRecoveryApproval()`, `cancel()`; `TSVEmergencyUpgradeController.freezeEmergencyUpgrades()` | Recovery IDs or freeze evidence; approval, operation, and freeze state |

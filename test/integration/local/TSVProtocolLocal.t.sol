@@ -473,6 +473,25 @@ contract TSVProtocolLocalTest is Test {
         assertEq(lpManager.ownerOf(positionId), alice);
     }
 
+    function testClosePositionEnforcesMinimumForZeroDeltaCurrency() public {
+        LPBounds memory bounds;
+        bounds.maxPoolIn0 = 1e22;
+        bounds.maxPoolIn1 = 1e22;
+        bounds.deadline = uint64(block.timestamp + 100);
+        vm.prank(alice);
+        uint256 boundaryPositionId = lpManager.openPosition(key, 0, 60, 1e18, bounds);
+
+        bounds.minPoolOut1 = 1;
+        vm.expectRevert(TSVLPManagerV1.SlippageExceeded.selector);
+        vm.prank(alice);
+        lpManager.closePosition(boundaryPositionId, bounds);
+
+        TSVLPManagerV1.Position memory position = lpManager.getPosition(boundaryPositionId);
+        assertTrue(position.active);
+        assertEq(position.liquidity, 1e18);
+        assertEq(lpManager.ownerOf(boundaryPositionId), alice);
+    }
+
     function testDirectLpLifecycleDoesNotRecordLiquidityAsTradeVolume() public {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         LPBounds memory bounds;
