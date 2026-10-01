@@ -30,7 +30,8 @@
 - [三协议技术可行性评审](./reviews/PROTOCOL_FEASIBILITY_REVIEW.md)
 - [2026-09-30 全仓库静态安全评审](./reviews/SECURITY_REVIEW_2026-09-30.md)
 - [离线人工 Review 工作台](./reviews/TSV_V1_MANUAL_REVIEW.html)
-- [2026-10-01 安全审计报告](../security-audit-2026-10-01.md)
+- [2026-10-01 安全审计报告](./reviews/SECURITY_AUDIT_2026-10-01.md)
+- [评审与审计归档索引](./reviews/README.md)
 
 ## 维护约定
 
