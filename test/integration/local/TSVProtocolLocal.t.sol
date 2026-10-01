@@ -24,9 +24,8 @@ import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
-import {StaticLegalShareAdapter} from "tsv-v1/adapters/StaticLegalShareAdapter.sol";
-import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
-import {ERC8056TestToken} from "../../../lib/TestToken/erc8056/ERC8056TestToken.sol";
+import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../helpers/v1/MockIssuerTokens.sol";
 
 interface ITestTokenMetadata {
     function decimals() external view returns (uint8);
@@ -129,7 +128,8 @@ contract TSVProtocolLocalTest is Test {
     TSVSwapRouterV1 internal router;
     TSVLPManagerV1 internal lpManager;
     V1LocalSBT internal sbt;
-    ERC8056TestToken internal stock;
+    V1MockIssuerShares internal stockUnderlying;
+    V1MockIssuerWrapped internal stock;
     V1LocalERC20 internal quote;
     PoolKey internal key;
     address internal alice;
@@ -221,9 +221,11 @@ contract TSVProtocolLocalTest is Test {
         inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         registry.setTierPolicy(1, 10_000, 10, keccak256("tier"));
         registry.listSecurity(SECURITY, keccak256("STDx"), 1, keccak256("list"));
-        stock = new ERC8056TestToken("STDx", "STDx", 18, 0);
+        stockUnderlying = new V1MockIssuerShares();
+        stock = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1LocalERC20("QUOTE");
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(stock), 1);
+        BackedAutoFeeLegalShareAdapter adapter =
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
         registry.registerToken(_config(address(stock), SECURITY, address(adapter)), keccak256("stock"));
         registry.registerToken(_config(address(quote), 0, address(0)), keccak256("quote"));
         registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("approve"));
@@ -233,7 +235,7 @@ contract TSVProtocolLocalTest is Test {
         key = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(hook)));
         lpManager.initializePool(key, uint160(1 << 96), keccak256("price"));
         _submitReports();
-        stock.mint(alice, 1e24);
+        stock.mintTestShares(alice, 1e24);
         quote.mint(alice, 1e24);
         vm.startPrank(alice);
         stock.approve(address(lpManager), type(uint256).max);
@@ -338,7 +340,7 @@ contract TSVProtocolLocalTest is Test {
     function testContractWalletCanDirectlySubmitSwap() public {
         V1TestParticipantWallet wallet = new V1TestParticipantWallet(address(this));
         sbt.setHolder(address(wallet), true);
-        stock.mint(address(wallet), 1e21);
+        stock.mintTestShares(address(wallet), 1e21);
         quote.mint(address(wallet), 1e21);
         wallet.approveToken(address(stock), address(router));
         wallet.approveToken(address(quote), address(router));
@@ -354,43 +356,32 @@ contract TSVProtocolLocalTest is Test {
         assertGt(actualOut, 0);
     }
 
-    function testERC8056StockSwapBothWaysUsesDynamicUiMultiplier() public {
-        assertTrue(stock.supportsInterface(0xa60bf13d));
-        assertTrue(stock.supportsInterface(0x4bd27648));
-        assertTrue(stock.supportsInterface(0x57854fc3));
-        assertTrue(stock.supportsInterface(0xd890fd71));
-
+    function testBackedStockSwapBothWaysUsesLiveIssuerConversion() public {
         uint256 aliceRawBeforeUpdate = stock.balanceOf(alice);
         uint256 managerRawBeforeUpdate = stock.balanceOf(address(manager));
-        stock.setUIMultiplier(2e18, block.timestamp + 2);
-        assertEq(stock.uiMultiplier(), 1e18);
-        assertEq(stock.balanceOf(alice), aliceRawBeforeUpdate);
-        assertEq(stock.balanceOfUI(alice), aliceRawBeforeUpdate);
-
-        vm.warp(block.timestamp + 2);
-        assertEq(stock.uiMultiplier(), 2e18);
+        stockUnderlying.setMultiplier(2e18, 1);
         assertEq(stock.balanceOf(alice), aliceRawBeforeUpdate);
         assertEq(stock.balanceOf(address(manager)), managerRawBeforeUpdate);
-        assertEq(stock.balanceOfUI(alice), aliceRawBeforeUpdate * 2);
-        assertEq(stock.balanceOfUI(address(manager)), managerRawBeforeUpdate * 2);
+        assertEq(_displayBalance(alice), aliceRawBeforeUpdate * 2);
+        assertEq(_displayBalance(address(manager)), managerRawBeforeUpdate * 2);
 
         bool stockIsCurrency0 = address(stock) == Currency.unwrap(key.currency0);
         uint256 usedBefore = ledger.used(SECURITY, DAY);
         uint256 aliceRawBefore = stock.balanceOf(alice);
         uint256 managerRawBefore = stock.balanceOf(address(manager));
-        uint256 aliceUIBefore = stock.balanceOfUI(alice);
+        uint256 aliceDisplayBefore = _displayBalance(alice);
         vm.prank(alice);
         (uint256 stockIn, uint256 quoteOut) = router.swapExactInput(_swapRequest(stockIsCurrency0, 1e18));
         assertGt(stockIn, 0);
         assertGt(quoteOut, 0);
         assertEq(aliceRawBefore - stock.balanceOf(alice), stockIn);
         assertEq(stock.balanceOf(address(manager)) - managerRawBefore, stockIn);
-        assertEq(aliceUIBefore - stock.balanceOfUI(alice), stockIn * 2);
+        assertEq(aliceDisplayBefore - _displayBalance(alice), stockIn * 2);
         assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockIn * 2);
 
         aliceRawBefore = stock.balanceOf(alice);
         managerRawBefore = stock.balanceOf(address(manager));
-        aliceUIBefore = stock.balanceOfUI(alice);
+        aliceDisplayBefore = _displayBalance(alice);
         usedBefore = ledger.used(SECURITY, DAY);
         vm.prank(alice);
         (uint256 quoteIn, uint256 stockOut) = router.swapExactInput(_swapRequest(!stockIsCurrency0, 1e18));
@@ -398,13 +389,12 @@ contract TSVProtocolLocalTest is Test {
         assertGt(stockOut, 0);
         assertEq(stock.balanceOf(alice) - aliceRawBefore, stockOut);
         assertEq(managerRawBefore - stock.balanceOf(address(manager)), stockOut);
-        assertEq(stock.balanceOfUI(alice) - aliceUIBefore, stockOut * 2);
+        assertEq(_displayBalance(alice) - aliceDisplayBefore, stockOut * 2);
         assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockOut * 2);
     }
 
-    function testERC8056StockLPIncreaseAndDecreaseSettleRawAmounts() public {
-        stock.setUIMultiplier(2e18, block.timestamp + 1);
-        vm.warp(block.timestamp + 1);
+    function testBackedStockLPIncreaseAndDecreaseSettleRawAmounts() public {
+        stockUnderlying.setMultiplier(2e18, 1);
 
         LPBounds memory bounds;
         bounds.maxPoolIn0 = 1e22;
@@ -414,23 +404,23 @@ contract TSVProtocolLocalTest is Test {
 
         uint256 aliceRawBefore = stock.balanceOf(alice);
         uint256 managerRawBefore = stock.balanceOf(address(manager));
-        uint256 aliceUIBefore = stock.balanceOfUI(alice);
+        uint256 aliceDisplayBefore = _displayBalance(alice);
         vm.prank(alice);
         lpManager.increaseLiquidity(positionId, 1e19, bounds);
         uint256 stockRawIn = aliceRawBefore - stock.balanceOf(alice);
         assertGt(stockRawIn, 0);
         assertEq(stock.balanceOf(address(manager)) - managerRawBefore, stockRawIn);
-        assertEq(aliceUIBefore - stock.balanceOfUI(alice), stockRawIn * 2);
+        assertEq(aliceDisplayBefore - _displayBalance(alice), stockRawIn * 2);
 
         aliceRawBefore = stock.balanceOf(alice);
         managerRawBefore = stock.balanceOf(address(manager));
-        aliceUIBefore = stock.balanceOfUI(alice);
+        aliceDisplayBefore = _displayBalance(alice);
         vm.prank(alice);
         lpManager.decreaseLiquidity(positionId, 1e19, bounds);
         uint256 stockRawOut = stock.balanceOf(alice) - aliceRawBefore;
         assertGt(stockRawOut, 0);
         assertEq(managerRawBefore - stock.balanceOf(address(manager)), stockRawOut);
-        assertEq(stock.balanceOfUI(alice) - aliceUIBefore, stockRawOut * 2);
+        assertEq(_displayBalance(alice) - aliceDisplayBefore, stockRawOut * 2);
 
         assertEq(ledger.used(SECURITY, DAY), usedBefore);
         assertEq(lpManager.getPosition(positionId).liquidity, 1e20);
@@ -535,8 +525,7 @@ contract TSVProtocolLocalTest is Test {
     }
 
     function testExactOutputStockPurchaseRecordsNetShares() public {
-        stock.setUIMultiplier(2e18, block.timestamp + 1);
-        vm.warp(block.timestamp + 1);
+        stockUnderlying.setMultiplier(2e18, 1);
 
         bool quoteIsCurrency0 = address(quote) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(quoteIsCurrency0, 1e18);
@@ -544,7 +533,7 @@ contract TSVProtocolLocalTest is Test {
         request.limitAmount = 2e18;
         uint256 quoteBefore = quote.balanceOf(alice);
         uint256 stockBefore = stock.balanceOf(alice);
-        uint256 displayedBefore = stock.balanceOfUI(alice);
+        uint256 displayedBefore = _displayBalance(alice);
         uint256 usedBefore = ledger.used(SECURITY, DAY);
 
         vm.prank(alice);
@@ -554,7 +543,7 @@ contract TSVProtocolLocalTest is Test {
         assertEq(stockOut, request.amountSpecified);
         assertEq(quoteBefore - quote.balanceOf(alice), quoteIn);
         assertEq(stock.balanceOf(alice) - stockBefore, stockOut);
-        assertEq(stock.balanceOfUI(alice) - displayedBefore, stockOut * 2);
+        assertEq(_displayBalance(alice) - displayedBefore, stockOut * 2);
         assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockOut * 2);
     }
 
@@ -684,11 +673,15 @@ contract TSVProtocolLocalTest is Test {
         c.legalShareAdapter = legalAdapter;
         c.legalAdapterVersion = securityId == 0 ? 0 : 1;
         // Stock classification follows securityId and the bound adapter.
-        c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("erc8056-policy");
+        c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("backed-policy");
         c.status = TokenStatus.UNREVIEWED;
         c.poolRuntimeCodeHash = token.codehash;
         c.legalAdapterCodeHash = legalAdapter.codehash;
         c.reviewHash = keccak256("review");
+    }
+
+    function _displayBalance(address account) private view returns (uint256) {
+        return stockUnderlying.getUnderlyingAmountByShares(stock.balanceOf(account));
     }
 
     function _swapRequest(bool zeroForOne, uint128 amount) private view returns (SwapRequest memory r) {

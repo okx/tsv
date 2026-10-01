@@ -13,7 +13,7 @@
 | --- | --- | --- |
 | 业务代理 | Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager | 六个地址全部新建；使用非空初始化数据部署 `TSVERC1967Proxy` |
 | 治理合约 | `TSVUpgradeTimelock`、`TSVBusinessAuthority`、`TSVEmergencyUpgradeController`、`TSVGovernanceAnchor` | 非代理；本发布首次部署并互相绑定，六代理只保存 Anchor 地址 |
-| 外部依赖 | 官方 V4 `PoolManager`、SmartWalletSbt、发行方 Token、LegalShareAdapter | 地址、代码哈希和 ABI 必须写入发布清单 |
+| 外部依赖 | 官方 V4 `PoolManager`、SmartWalletSbt、发行方 Token、实现 `IDirectLegalShareAdapter` 的 Adapter | 地址、代码哈希、ABI/ERC-165 接口声明及法律换算依据必须写入发布清单 |
 | 历史源码 | `src/v1/legacy/` 下的旧包装/赎回 Adapter | 只用于隔离回归测试，不部署、不登记、不写入核心配置 |
 
 不得把旧 `TSVReceiptV1`、旧 `TSVSBTAdapterV1`、旧 Router 或旧 LP Manager 地址填入新清单。旧 LP 仓位和旧 SIP 日账不属于本部署状态，因此不执行迁移，也不保留兼容分支。
@@ -29,7 +29,7 @@
 - 官方 `PoolManager` 地址、链 ID、运行时代码哈希和 V4 版本。
 - 六个实现合约的运行时代码哈希、六个代理地址及 `tsvImplementation()` 返回值。
 - Hook 工厂地址、CREATE2 salt、预测地址、实际地址及低 14 位权限校验结果。
-- SBT、股票 Token、报价 Token、LegalShareAdapter 的地址、代码哈希、decimals、版本和准入证据哈希。
+- SBT、股票 Token、报价 Token、LegalShareAdapter 的地址、代码哈希、decimals、版本、ERC-165 接口声明和准入证据哈希。
 - Governor、Guardian、RecoveryCouncil、Executor 以及每个业务角色的独立地址。
 
 manifest 中不能只写“由多签控制”。链上只识别具体地址，必须记录每个地址当前承担的角色。
@@ -208,7 +208,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - Hook 地址权限位、实现地址和初始化事件。
 - SBT 配置、角色授予、资产配置和 TokenStatus。
 - `INITIAL_OPEN`/`INITIAL_HALTED`、ADTV、可选 quota 的 reportId 和 sequence。
-- 至少一个普通 ERC-20 报价资产和一个 `ERC8056TestToken` 股票资产的登记结果。
+- 至少一个普通 ERC-20 报价资产和一个 Backed-compatible 股票资产及 Adapter 的登记结果。
 - 一个股票/报价币池的初始化结果和 PoolId。
 - 一笔成功 Swap：实际输入、实际输出、`SwapExecuted`、`SwapAccounted`、usedWad。
 - 一次 LP 开仓、部分减仓、关闭和强退的 Receipt/余额变化。

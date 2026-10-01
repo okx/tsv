@@ -52,9 +52,9 @@ flowchart LR
   R -->|"单池 unlock / swap"| PM["官方 V4 PoolManager"]
   PM -. "beforeSwap / afterSwap 回调" .-> H["TSV Hook"]
   H -->|"二次检查 isTradable"| RG
-  H -->|"读取权益快照"| A["LegalShareAdapter"]
-  A -. "返回快照" .-> H
   PM -. "afterSwap：实际成交 delta" .-> H
+  H -->|"按实际 raw delta 调用 toLegalShares"| A["LegalShareAdapter"]
+  A -. "返回 legalSharesWad" .-> H
   H -->|"计股、日切与额度检查"| VL["Volume Ledger"]
   VL -. "返回检查结果" .-> H
   H -. "放行；失败则回滚" .-> PM
@@ -87,7 +87,7 @@ flowchart LR
 1. **提交请求。**用户通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。Router 要求 `msg.sender == participant == payer == recipient`，并绑定 PoolKey、金额边界和 deadline。
 2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：它调用 Registry 的 `isEligible` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户也会经 Registry 查询资格和池状态。
 3. **在 V4 中执行。**Router 通过官方 [PoolManager](../lib/v4-core/src/PoolManager.sol) 发起 Swap。PoolManager 调用 [TSVHookV1](../src/v1/core/TSVHookV1.sol)；Hook 校验唯一活跃上下文、池和运行状态。Router 非重入锁保证同一时刻只有一笔 Swap，不使用 Swap `operationId`。
-4. **按实际成交量计量。**`afterSwap` 收到实际 delta 后读取股票腿的 LegalShareAdapter 快照，并将实际 raw 数量与该快照交给 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)。Ledger 记账时校验快照、换算为 `legalSharesWad`，按 `(securityId, tradeDayId)` 更新全平台共享用量并检查当日有效上限。Router 在 unlock 回调结束后清理自身活跃上下文。
+4. **按实际成交量计量。**`afterSwap` 收到实际 delta 后，对股票腿调用 Registry 绑定的 LegalShareAdapter `toLegalShares(currency,rawAmount)`，再把结果和真实 delta 一起交给 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)。Ledger 校验股票身份、Adapter 配置及非零 shares，按 `(securityId, tradeDayId)` 更新全平台共享用量并检查当日有效上限；它不重复调用 Adapter。Router 在 unlock 回调结束后清理自身活跃上下文。
 5. **原子结算。**Router 直接以池内 ERC-20 Currency 和用户结算。交易门禁、计股、额度检查或精确余额校验任一失败，整笔交易回滚，成交和账本不会只成功一半。
 
 当前 V1 是单池直接结算路径；用户直接支付和接收 `PoolKey` 中的池内 Currency。Tesla 目标池直接使用 wTSLAx，TSLAx 不在 TSV 同笔交易中包装或赎回。股票腿和普通报价币腿的计量方式不同：报价币不占证券额度；一个合格池最多有一侧是股票。
@@ -401,7 +401,7 @@ struct QuotaReport {
 | `delistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 证券 ID、下架依据摘要 | 下架证券并释放 Tier 名额；必须已 listed 且 `activePoolCount == 0`。 |
 | `registerToken(TokenConfig calldata config, bytes32 evidenceHash)` | 下方完整 TokenConfig、登记依据摘要 | 登记池内 Currency 和审核信息；初始 `status` 必须为 `UNREVIEWED`。地址、代码哈希、decimals 和直接结算规则均按下表校验。 |
 | `setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)` | TokenConfig 主键 Currency、目标状态、状态变更依据摘要 | 只允许 `UNREVIEWED → APPROVED`、`APPROVED → DISABLED`、`DISABLED → APPROVED`；不能设置回 `UNREVIEWED`，也不能重复设置当前状态。批准时须已有非零 `reviewHash`；股票还须有非零 `legalSharePolicyHash`、证券仍 listed，且 Token 运行时代码哈希匹配登记值。 |
-| `replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)` | 股票 Currency、新 Adapter、公式/法律依据摘要 | 只对已登记股票 Token；新 Adapter 版本须等于旧版本加一、绑定相同 Currency，快照分子/分母非零且当前有效。`evidenceHash` 同时作为更新后的 `legalSharePolicyHash` 保存。若该 Currency 仍有活跃池，必须命中 GLOBAL 或该 TOKEN 范围的紧急暂停；SECURITY 或 POOL 范围暂停不满足此条件。 |
+| `replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)` | 股票 Currency、新 Adapter、公式/法律依据摘要 | 只对已登记股票 Token；新 Adapter 版本须等于旧版本加一，通过 ERC-165 声明 `IDirectLegalShareAdapter` 并绑定相同 Currency。`evidenceHash` 同时作为更新后的 `legalSharePolicyHash` 保存。若该 Currency 仍有活跃池，必须命中 GLOBAL 或该 TOKEN 范围的紧急暂停；SECURITY 或 POOL 范围暂停不满足此条件。Registry 不调用换算函数验证其结果。 |
 
 `TokenConfig` 的 ABI 字段顺序如下：
 
@@ -431,7 +431,7 @@ struct TokenConfig {
 | `legalAdapterVersion` | 股数 Adapter 版本；普通币为 `0`，新登记股票当前为 `1`。 |
 | `status` | `UNREVIEWED`、`APPROVED` 或 `DISABLED`；新登记必须为 `UNREVIEWED`。 |
 | `poolRuntimeCodeHash` | 登记时与链上代码哈希核对；Token 批准时再次核对，交易期间不持续检查。 |
-| `legalAdapterCodeHash` | 股票登记时与 Adapter 代码哈希核对；更换 Adapter 时更新。Swap/LP 运行时按 Adapter 版本和快照检查，不读取此字段重新校验代码哈希。 |
+| `legalAdapterCodeHash` | 股票登记/更换 Adapter 时与 Adapter 代码哈希核对并更新。运行时 Hook 调用配置 Adapter 的直接换算方法；不读取此字段重新校验代码哈希。 |
 | `poolImplementationHash` | 当前合约只保存并通过 `getToken` 返回；不做链上校验、不参与准入或交易门禁。需要核验代理实现时须由链下流程读取并比对。 |
 | `reviewHash` | 批准 Token 时只检查非零；不解析或验证其摘要对应的审查材料。 |
 | `restrictionsHash` | 当前合约只保存并通过 `getToken` 返回；不校验非零，也不参与任何交易门禁。 |
@@ -699,7 +699,7 @@ flowchart TD
   B --> C[用户 SBT 资格与请求授权有效]
   C --> D[市场 OPEN 且没有命中的紧急暂停]
   D --> E[交易系统执行 Swap]
-  E --> F[Hook 读取实际 delta 和计股快照]
+  E --> F[Hook 按实际股票 delta 直接换算 legalSharesWad]
   F --> G[Ledger 检查 ADTV / Tier / 可选 quota]
   G --> H[结算成功并写入日成交量]
   G -->|任一检查失败| X[整笔交易回滚]
@@ -776,7 +776,7 @@ TimelockController 继承的 `updateDelay(uint256 newDelay)` selector 也存在�
 
 ### 7.4 ABI 范围说明
 
-本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Hook 调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`；以及 Timelock/Anchor 在恢复和初次绑定期间调用的 `bindBusinessAuthority(...)`、`bindEmergencyController(...)`、`bindGovernanceAnchor(...)`、`activateGovernanceAnchor(...)`、`nominateGovernanceAnchor(...)`、`syncGuardian(...)`、`recoverGovernor(...)`、`setGovernor(...)`、`setGuardian(...)`。Adapter 的快照/换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Timelock 执行时的人类治理目标函数已在 §4.2 单独标为 Timelock 目标调用。
+本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Hook 在 `afterSwap` 调用 LegalShareAdapter 的 `toLegalShares(...)` 并调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`；以及 Timelock/Anchor 在恢复和初次绑定期间调用的 `bindBusinessAuthority(...)`、`bindEmergencyController(...)`、`bindGovernanceAnchor(...)`、`activateGovernanceAnchor(...)`、`nominateGovernanceAnchor(...)`、`syncGuardian(...)`、`recoverGovernor(...)`、`setGovernor(...)`、`setGuardian(...)`。Adapter 的直接换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Timelock 执行时的人类治理目标函数已在 §4.2 单独标为 Timelock 目标调用。
 
 LP Receipt 继承的转移/授权 selector 虽在 ABI 中存在，但会回滚，见 §2.6。部署工厂 `TSVHookProxyFactory.predict(address implementation, bytes initData, bytes32 salt)` / `deploy(address implementation, bytes initData, bytes32 salt)` 属于部署工具，不属于交易、运营或治理业务入口。
 

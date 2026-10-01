@@ -41,7 +41,7 @@
 | D-33 | 日配额报告是指定计量日的可选覆盖 | 已编码 |
 | D-34 | 计量日按 UTC 日期和可配置起点计算，可排期调整未来起点 | 已编码；算法见编码规格 `7 |
 | D-35 | 治理根可在业务代理地址不变时受限迁移 | 已编码并有本地回归；目标链未部署 |
-| D-36 | 股票 Currency 绑定双向 LegalShareAdapter，不重复登记静态比例 | 本地 ERC-8056 路径已编码；生产 Adapter 待逐实例审查 |
+| D-36 | 股票 Currency 绑定直接换算 LegalShareAdapter，不保存 rate snapshot 或反算接口 | Backed AutoFee Adapter 已接入 Hook；真实发行方方法与法定股数口径待逐实例审查 |
 
 ## 关键设计理由
 

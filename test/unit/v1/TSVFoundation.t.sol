@@ -3,18 +3,12 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {
-    TokenConfig,
-    TokenStatus,
-    MarketAction,
-    PauseScope,
-    RateSnapshot,
-    RoundingMode
-} from "tsv-v1/types/TSVTypes.sol";
+import {TokenConfig, TokenStatus, MarketAction, PauseScope} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVBusinessAuthority, IRecoveryContext} from "tsv-v1/governance/TSVBusinessAuthority.sol";
 import {TSVUpgradeTimelock} from "tsv-v1/governance/TSVUpgradeTimelock.sol";
@@ -23,9 +17,9 @@ import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
-import {StaticLegalShareAdapter} from "tsv-v1/adapters/StaticLegalShareAdapter.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
-import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
+import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
+import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../helpers/v1/MockIssuerTokens.sol";
 
 contract V1MockToken is ERC20 {
     uint8 private immutable tokenDecimals;
@@ -43,17 +37,13 @@ contract V1MockToken is ERC20 {
     }
 }
 
-contract V1MockMultiplier {
-    uint256 public multiplier = 1e18;
-    uint256 public nonce;
+contract V1SnapshotOnlyAdapterMock {
+    address public immutable poolCurrency;
+    uint32 public immutable adapterVersion;
 
-    function set(uint256 multiplier_, uint256 nonce_) external {
-        multiplier = multiplier_;
-        nonce = nonce_;
-    }
-
-    function getCurrentMultiplier() external view returns (uint256, uint256, uint256) {
-        return (multiplier, 0, nonce);
+    constructor(address currency_, uint32 version_) {
+        poolCurrency = currency_;
+        adapterVersion = version_;
     }
 }
 
@@ -86,9 +76,10 @@ contract TSVFoundationTest is Test {
     TSVRegistryV1 internal registry;
     TSVVolumeLedgerV1 internal ledger;
     TSVDataInboxV1 internal inbox;
-    V1MockToken internal stock;
+    V1MockIssuerShares internal stockUnderlying;
+    V1MockIssuerWrapped internal stock;
     V1MockToken internal quote;
-    ERC8056DirectLegalShareAdapter internal stockAdapter;
+    BackedAutoFeeLegalShareAdapter internal stockAdapter;
     PoolKey internal key;
     bytes32 internal poolId;
 
@@ -151,11 +142,12 @@ contract TSVFoundationTest is Test {
         registry.setTierPolicy(1, 25, 10, keccak256("tier"));
         registry.listSecurity(SECURITY, keccak256("STDx"), 1, keccak256("listing"));
 
-        stock = new V1MockToken("STDx", 18);
+        stockUnderlying = new V1MockIssuerShares();
+        stock = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1MockToken("QUOTE6", 6);
-        stockAdapter = new ERC8056DirectLegalShareAdapter(address(stock), 1);
-        registry.registerToken(_config(stock, SECURITY, address(stockAdapter)), keccak256("stock"));
-        registry.registerToken(_config(quote, 0, address(0)), keccak256("quote"));
+        stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
+        registry.registerToken(_config(address(stock), SECURITY, address(stockAdapter)), keccak256("stock"));
+        registry.registerToken(_config(address(quote), 0, address(0)), keccak256("quote"));
         registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("approve-stock"));
         registry.setTokenStatus(address(quote), TokenStatus.APPROVED, keccak256("approve-quote"));
 
@@ -166,34 +158,50 @@ contract TSVFoundationTest is Test {
         registry.markPoolActive(poolId, uint160(1 << 96), address(this), keccak256("price"));
     }
 
-    function testStaticLegalShareRoundsUpAndRejectsStaleRate() public {
-        StaticLegalShareAdapter adapter = new StaticLegalShareAdapter(address(stock), 18, 1e18, 1);
-        RateSnapshot memory rate = adapter.snapshot(address(stock));
-        assertEq(adapter.toLegalShares(address(stock), 2e18, rate), 2e18);
-        assertEq(adapter.toLegalShares(address(stock), 1, rate), 1);
-        rate.numerator = 2e18;
-        vm.expectRevert(StaticLegalShareAdapter.InvalidRate.selector);
-        adapter.toLegalShares(address(stock), 1, rate);
+    function testBackedAdapterCallsIssuerConversionAtTheTimeOfSwap() public {
+        V1MockIssuerShares underlying = new V1MockIssuerShares();
+        V1MockIssuerWrapped wrapped = new V1MockIssuerWrapped(underlying);
+        BackedAutoFeeLegalShareAdapter adapter =
+            new BackedAutoFeeLegalShareAdapter(address(underlying), address(wrapped), 1);
+        assertEq(adapter.toLegalShares(address(wrapped), 3e18), 3e18);
+        underlying.setMultiplier(0.9e18, 7);
+        assertEq(adapter.toLegalShares(address(wrapped), 3e18), 2.7e18);
+        underlying.setMultiplier(0.8e18, 8);
+        assertEq(adapter.toLegalShares(address(wrapped), 3e18), 2.4e18);
     }
 
-    function testDynamicLegalShareUsesCurrentMultiplierAndVersionedRateId() public {
-        V1MockMultiplier underlying = new V1MockMultiplier();
+    function testBackedAdapterValidatesCurrencyAndAllowsZeroAmount() public {
         BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(underlying), address(quote), 1);
-        underlying.set(0.9e18, 7);
-        RateSnapshot memory rate = adapter.snapshot(address(quote));
-        assertEq(adapter.toLegalShares(address(quote), 3e18, rate), 2.7e18);
-        assertEq(rate.rateId, keccak256(abi.encode(address(underlying), uint256(0.9e18), uint256(7), uint32(1))));
-        underlying.set(0.8e18, 8);
-        assertFalse(adapter.isCurrent(address(quote), rate));
-        vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidRate.selector);
-        adapter.toLegalShares(address(quote), 3e18, rate);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
+        assertEq(adapter.toLegalShares(address(stock), 0), 0);
+
+        vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidCurrency.selector);
+        adapter.toLegalShares(address(quote), 1e18);
+    }
+
+    function testBackedAdapterRejectsWrappedAssetMismatch() public {
+        V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
+        V1MockIssuerWrapped otherWrapped = new V1MockIssuerWrapped(otherUnderlying);
+        vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidAdapterConfig.selector);
+        new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(otherWrapped), 1);
+    }
+
+    function testBackedAdapterRejectsZeroConversionAndDeclaresDirectInterface() public {
+        BackedAutoFeeLegalShareAdapter adapter =
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
+        stockUnderlying.setMultiplier(0, 1);
+
+        vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidConversion.selector);
+        adapter.toLegalShares(address(stock), 1);
+        assertTrue(adapter.supportsInterface(type(IDirectLegalShareAdapter).interfaceId));
     }
 
     function testRegistryRejectsSameSecurityBothSides() public {
-        V1MockToken secondStock = new V1MockToken("Second", 18);
-        ERC8056DirectLegalShareAdapter secondAdapter = new ERC8056DirectLegalShareAdapter(address(secondStock), 1);
-        registry.registerToken(_config(secondStock, SECURITY, address(secondAdapter)), keccak256("second"));
+        V1MockIssuerShares secondUnderlying = new V1MockIssuerShares();
+        V1MockIssuerWrapped secondStock = new V1MockIssuerWrapped(secondUnderlying);
+        BackedAutoFeeLegalShareAdapter secondAdapter =
+            new BackedAutoFeeLegalShareAdapter(address(secondUnderlying), address(secondStock), 1);
+        registry.registerToken(_config(address(secondStock), SECURITY, address(secondAdapter)), keccak256("second"));
         registry.setTokenStatus(address(secondStock), TokenStatus.APPROVED, keccak256("approve-second"));
         address a = address(stock) < address(secondStock) ? address(stock) : address(secondStock);
         address b = address(stock) < address(secondStock) ? address(secondStock) : address(stock);
@@ -203,9 +211,11 @@ contract TSVFoundationTest is Test {
     }
 
     function testRegistryAcceptsDirectAdapterAndStoresPolicyMetadata() public {
-        V1MockToken other = new V1MockToken("Other", 18);
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(other), 1);
-        TokenConfig memory config = _config(other, SECURITY, address(adapter));
+        V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
+        V1MockIssuerWrapped other = new V1MockIssuerWrapped(otherUnderlying);
+        BackedAutoFeeLegalShareAdapter adapter =
+            new BackedAutoFeeLegalShareAdapter(address(otherUnderlying), address(other), 1);
+        TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
         registry.registerToken(config, keccak256("wrong-ratio"));
         TokenConfig memory stored = registry.getToken(address(other));
         assertEq(stored.securityId, SECURITY);
@@ -216,18 +226,20 @@ contract TSVFoundationTest is Test {
         assertEq(quoteConfig.legalShareAdapter, address(0));
     }
 
-    function testRegistryRejectsSnapshotOnlyAdapter() public {
+    function testRegistryRejectsAdapterWithoutDirectInterface() public {
         V1MockToken other = new V1MockToken("Other", 18);
-        StaticLegalShareAdapter adapter = new StaticLegalShareAdapter(address(other), 6, 1e18, 1);
-        TokenConfig memory config = _config(other, SECURITY, address(adapter));
+        V1SnapshotOnlyAdapterMock adapter = new V1SnapshotOnlyAdapterMock(address(other), 1);
+        TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.registerToken(config, keccak256("adapter-rate"));
     }
 
     function testRegistryRejectsDirectAdapterBoundToDifferentCurrency() public {
-        V1MockToken other = new V1MockToken("Other", 18);
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(stock), 1);
-        TokenConfig memory config = _config(other, SECURITY, address(adapter));
+        V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
+        V1MockIssuerWrapped other = new V1MockIssuerWrapped(otherUnderlying);
+        BackedAutoFeeLegalShareAdapter adapter =
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
+        TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
 
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.registerToken(config, keccak256("wrong-currency"));
@@ -235,14 +247,16 @@ contract TSVFoundationTest is Test {
 
     function testLegalAdapterReplacementRequiresPauseAndNextVersion() public {
         assertEq(registry.activePoolCountByCurrency(address(stock)), 1);
-        ERC8056DirectLegalShareAdapter replacement = new ERC8056DirectLegalShareAdapter(address(stock), 2);
+        BackedAutoFeeLegalShareAdapter replacement =
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         uint256 pauseId = registry.addEmergencyPause(
             PauseScope.TOKEN, bytes32(uint256(uint160(address(stock)))), keccak256("replace"), keccak256("source")
         );
-        ERC8056DirectLegalShareAdapter wrongVersion = new ERC8056DirectLegalShareAdapter(address(stock), 3);
+        BackedAutoFeeLegalShareAdapter wrongVersion =
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 3);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.replaceLegalShareAdapter(address(stock), address(wrongVersion), keccak256("review"));
         registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
@@ -377,9 +391,13 @@ contract TSVFoundationTest is Test {
     function testRegistryRejectsDifferentSecurityStocksInSamePool() public {
         bytes32 secondSecurity = keccak256("SEC_B");
         registry.listSecurity(secondSecurity, keccak256("STDy"), 1, keccak256("listing-b"));
-        V1MockToken second = new V1MockToken("STDy", 18);
-        ERC8056DirectLegalShareAdapter secondAdapter = new ERC8056DirectLegalShareAdapter(address(second), 1);
-        registry.registerToken(_config(second, secondSecurity, address(secondAdapter)), keccak256("register-b"));
+        V1MockIssuerShares secondUnderlying = new V1MockIssuerShares();
+        V1MockIssuerWrapped second = new V1MockIssuerWrapped(secondUnderlying);
+        BackedAutoFeeLegalShareAdapter secondAdapter =
+            new BackedAutoFeeLegalShareAdapter(address(secondUnderlying), address(second), 1);
+        registry.registerToken(
+            _config(address(second), secondSecurity, address(secondAdapter)), keccak256("register-b")
+        );
         registry.setTokenStatus(address(second), TokenStatus.APPROVED, keccak256("approve-b"));
         address a = address(stock) < address(second) ? address(stock) : address(second);
         address b = address(stock) < address(second) ? address(second) : address(stock);
@@ -491,19 +509,19 @@ contract TSVFoundationTest is Test {
         timelock.execute(address(timelock), 0, payload, 0, salt);
     }
 
-    function _config(V1MockToken token, bytes32 securityId, address legalAdapter)
+    function _config(address token, bytes32 securityId, address legalAdapter)
         private
         view
         returns (TokenConfig memory c)
     {
-        c.poolCurrency = address(token);
-        c.poolDecimals = token.decimals();
+        c.poolCurrency = token;
+        c.poolDecimals = IERC20Metadata(token).decimals();
         c.securityId = securityId;
         c.legalShareAdapter = legalAdapter;
         c.legalAdapterVersion = securityId == 0 ? 0 : 1;
         c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("share-policy");
         c.status = TokenStatus.UNREVIEWED;
-        c.poolRuntimeCodeHash = address(token).codehash;
+        c.poolRuntimeCodeHash = token.codehash;
         c.legalAdapterCodeHash = legalAdapter.codehash;
         c.reviewHash = keccak256("review");
     }

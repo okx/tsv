@@ -101,6 +101,10 @@ contract V1MockIssuerWrapped is ERC20 {
         return address(underlying);
     }
 
+    function mintTestShares(address receiver, uint256 shares) external {
+        _mint(receiver, shares);
+    }
+
     function mint(uint256 shares, address receiver) external returns (uint256) {
         require(underlying.transferSharesFrom(msg.sender, address(this), shares));
         _mint(receiver, shares);
@@ -114,4 +118,3 @@ contract V1MockIssuerWrapped is ERC20 {
         return underlying.getUnderlyingAmountByShares(shares);
     }
 }
-

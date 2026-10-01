@@ -31,14 +31,6 @@ enum PauseScope {
     TOKEN,
     POOL
 }
-enum RoundingMode {
-    FLOOR,
-    CEIL
-}
-enum RawBoundMode {
-    MIN_RAW_FOR_AT_LEAST_SHARES,
-    MAX_RAW_FOR_AT_MOST_SHARES
-}
 enum LPOperationMode {
     OPEN,
     INCREASE,
@@ -78,14 +70,6 @@ struct PoolConfig {
     bytes32 securityId1;
     PoolStatus status;
     uint32 version;
-}
-
-struct RateSnapshot {
-    bytes32 rateId;
-    uint256 numerator;
-    uint256 denominator;
-    uint32 adapterVersion;
-    RoundingMode rounding;
 }
 
 struct LPContext {

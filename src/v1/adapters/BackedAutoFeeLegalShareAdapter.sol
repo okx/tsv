@@ -1,69 +1,59 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {RateSnapshot, RoundingMode, RawBoundMode} from "tsv-v1/types/TSVTypes.sol";
-import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
-import {LegalShareMath} from "tsv-v1/libraries/LegalShareMath.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 
-interface IBackedMultiplier {
-    function getCurrentMultiplier()
-        external
-        view
-        returns (uint256 currentMultiplier, uint256 periodsPassed, uint256 currentMultiplierNonce);
+interface IBackedShareConversionSource {
+    function decimals() external view returns (uint8);
+    function getUnderlyingAmountByShares(uint256 sharesAmount) external view returns (uint256 underlyingAmount);
 }
 
-/// @notice Technical display-unit accounting. Listing still requires issuer/legal approval.
-contract BackedAutoFeeLegalShareAdapter is ILegalShareAdapter {
-    error InvalidRate();
+interface IBackedWrappedAsset {
+    function asset() external view returns (address);
+    function decimals() external view returns (uint8);
+}
+
+/// @notice Converts wrapped Backed shares by calling the issuer token's live conversion method.
+/// @dev The returned underlying amount is the legal-share amount in WAD for the reviewed wTSLAx setup.
+contract BackedAutoFeeLegalShareAdapter is IDirectLegalShareAdapter {
+    error InvalidAdapterConfig();
+    error InvalidCurrency();
+    error InvalidConversion();
 
     address public immutable userToken;
     address public immutable override poolCurrency;
     uint32 public immutable override adapterVersion;
 
     constructor(address underlying_, address wrapped_, uint32 version_) {
-        if (underlying_ == address(0) || wrapped_ == address(0) || underlying_ == wrapped_ || version_ == 0) {
-            revert InvalidRate();
-        }
+        if (
+            underlying_ == address(0) || wrapped_ == address(0) || underlying_ == wrapped_ || version_ == 0
+                || underlying_.code.length == 0 || wrapped_.code.length == 0
+        ) revert InvalidAdapterConfig();
+        if (
+            IBackedWrappedAsset(wrapped_).asset() != underlying_
+                || IBackedShareConversionSource(underlying_).decimals() != 18
+                || IBackedWrappedAsset(wrapped_).decimals() != 18
+        ) revert InvalidAdapterConfig();
         userToken = underlying_;
         poolCurrency = wrapped_;
         adapterVersion = version_;
     }
 
-    function snapshot(address currency) public view returns (RateSnapshot memory rate) {
-        if (currency != poolCurrency) revert InvalidRate();
-        (uint256 multiplier,, uint256 nonce) = IBackedMultiplier(userToken).getCurrentMultiplier();
-        if (multiplier == 0) revert InvalidRate();
-        rate = RateSnapshot(
-            keccak256(abi.encode(userToken, multiplier, nonce, adapterVersion)),
-            multiplier,
-            1e18,
-            adapterVersion,
-            RoundingMode.FLOOR
-        );
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return interfaceId == type(IDirectLegalShareAdapter).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
-    function isCurrent(address currency, RateSnapshot calldata rate) external view returns (bool) {
-        RateSnapshot memory expected = snapshot(currency);
-        return keccak256(abi.encode(rate)) == keccak256(abi.encode(expected));
-    }
-
-    function toLegalShares(address currency, uint256 rawAmount, RateSnapshot calldata rate)
+    function toLegalShares(address currency, uint256 rawAmount)
         external
         view
-        returns (uint256 amount)
+        override
+        returns (uint256 legalSharesWad)
     {
-        RateSnapshot memory expected = snapshot(currency);
-        if (keccak256(abi.encode(rate)) != keccak256(abi.encode(expected))) revert InvalidRate();
-        amount = LegalShareMath.toLegalSharesFloor(rawAmount, rate.numerator, rate.denominator);
-    }
+        if (currency != poolCurrency) revert InvalidCurrency();
+        if (rawAmount == 0) return 0;
 
-    function rawForLegalShares(address currency, uint256 legalSharesWad, RateSnapshot calldata rate, RawBoundMode mode)
-        external
-        view
-        returns (uint256 rawAmount)
-    {
-        RateSnapshot memory expected = snapshot(currency);
-        if (keccak256(abi.encode(rate)) != keccak256(abi.encode(expected))) revert InvalidRate();
-        rawAmount = LegalShareMath.rawForLegalSharesFloor(legalSharesWad, rate.numerator, rate.denominator, mode);
+        legalSharesWad = IBackedShareConversionSource(userToken).getUnderlyingAmountByShares(rawAmount);
+        if (legalSharesWad == 0) revert InvalidConversion();
     }
 }
