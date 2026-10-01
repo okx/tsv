@@ -3,11 +3,10 @@ pragma solidity 0.8.26;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {TokenConfig, PoolConfig, PoolStatus, RateSnapshot} from "tsv-v1/types/TSVTypes.sol";
+import {TokenConfig, PoolConfig, PoolStatus} from "tsv-v1/types/TSVTypes.sol";
 import {AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
 import {TradeDayLib} from "tsv-v1/libraries/TradeDayLib.sol";
 
 /// @notice Aggregates per-security volume by UTC trade day across every pool of this TSV venue.
@@ -16,8 +15,8 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     error InvalidReport();
     error MissingReport();
     error InvalidPeriod();
-    error StaleSnapshot();
     error ZeroSwapAmount();
+    error InvalidLegalShareAmount();
     error QuotaExceeded(bytes32 securityId, uint32 tradeDayId);
 
     uint8 public constant QUOTA_SET = 1;
@@ -79,9 +78,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint32 tradeDayId,
         uint256 rawAmount,
         uint256 legalSharesWad,
-        bytes32 rateId,
-        uint32 legalAdapterVersion,
-        uint8 roundingMode
+        uint32 legalAdapterVersion
     );
     event DayStartScheduled(
         uint32 indexed effectiveDayId,
@@ -247,20 +244,16 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         return (true, consumed >= effectiveCap ? 0 : effectiveCap - consumed);
     }
 
-    function recordSwap(
-        bytes32 poolId,
-        int128 delta0,
-        int128 delta1,
-        RateSnapshot calldata rate0,
-        RateSnapshot calldata rate1
-    ) external {
+    function recordSwap(bytes32 poolId, int128 delta0, int128 delta1, uint256 legalShares0, uint256 legalShares1)
+        external
+    {
         if (msg.sender != hook) revert UnauthorizedWriter();
         if (delta0 == 0 || delta1 == 0 || (delta0 < 0) == (delta1 < 0)) revert ZeroSwapAmount();
         PoolConfig memory pool = registry.getPool(poolId);
         if (pool.status != PoolStatus.ACTIVE || !registry.isTradable(poolId)) revert InvalidPeriod();
         (, uint32 day) = currentTradeDay();
-        _recordLeg(poolId, pool.securityId0, Currency.unwrap(pool.key.currency0), delta0, rate0, day);
-        _recordLeg(poolId, pool.securityId1, Currency.unwrap(pool.key.currency1), delta1, rate1, day);
+        _recordLeg(poolId, pool.securityId0, Currency.unwrap(pool.key.currency0), delta0, legalShares0, day);
+        _recordLeg(poolId, pool.securityId1, Currency.unwrap(pool.key.currency1), delta1, legalShares1, day);
     }
 
     function _recordLeg(
@@ -268,34 +261,24 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         bytes32 securityId,
         address currency,
         int128 delta,
-        RateSnapshot calldata rate,
+        uint256 legalSharesWad,
         uint32 day
     ) private {
         if (securityId == 0) {
-            if (rate.rateId != 0 || rate.numerator != 0 || rate.denominator != 0 || rate.adapterVersion != 0) {
-                revert StaleSnapshot();
-            }
+            if (legalSharesWad != 0) revert InvalidLegalShareAmount();
             return;
         }
+        if (legalSharesWad == 0) revert InvalidLegalShareAmount();
         TokenConfig memory config = registry.getToken(currency);
-        ILegalShareAdapter adapter = ILegalShareAdapter(config.legalShareAdapter);
-        if (rate.adapterVersion != config.legalAdapterVersion || !adapter.isCurrent(currency, rate)) {
-            revert StaleSnapshot();
+        if (
+            config.securityId != securityId || config.legalShareAdapter == address(0) || config.legalAdapterVersion == 0
+        ) {
+            revert InvalidLegalShareAmount();
         }
         uint256 raw = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
-        uint256 charge = adapter.toLegalShares(currency, raw, rate);
-        _consume(securityId, day, charge);
+        _consume(securityId, day, legalSharesWad);
         emit SwapAccounted(
-            poolId,
-            securityId,
-            currency,
-            delta < 0,
-            day,
-            raw,
-            charge,
-            rate.rateId,
-            rate.adapterVersion,
-            uint8(rate.rounding)
+            poolId, securityId, currency, delta < 0, day, raw, legalSharesWad, config.legalAdapterVersion
         );
     }
 

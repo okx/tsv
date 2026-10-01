@@ -12,11 +12,10 @@ import {
     PoolStatus,
     MarketStatus,
     MarketAction,
-    PauseScope,
-    RateSnapshot
+    PauseScope
 } from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
-import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
+import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 
 interface IERC20DecimalsV1 {
     function decimals() external view returns (uint8);
@@ -226,12 +225,10 @@ contract TSVRegistryV1 is TSVGoverned {
                 !securities[config.securityId].listed || config.legalShareAdapter.code.length == 0
                     || config.legalAdapterVersion != 1 || config.legalSharePolicyHash == 0
                     || config.legalShareAdapter.codehash != config.legalAdapterCodeHash
-                    || ILegalShareAdapter(config.legalShareAdapter).poolCurrency() != config.poolCurrency
-                    || ILegalShareAdapter(config.legalShareAdapter).adapterVersion() != 1
             ) {
                 revert InvalidConfig();
             }
-            _validateLegalShareSnapshot(config.legalShareAdapter, config.poolCurrency, config.legalAdapterVersion);
+            _validateLegalShareAdapter(config.legalShareAdapter, config.poolCurrency, config.legalAdapterVersion);
         }
         tokens[config.poolCurrency] = config;
         emit TokenRegistered(config.poolCurrency, config.securityId, evidenceHash);
@@ -271,11 +268,7 @@ contract TSVRegistryV1 is TSVGoverned {
                 || newAdapter.code.length == 0 || evidenceHash == 0 || !_assetPausedForReplacement(currency)
         ) revert InvalidConfig();
         uint32 nextVersion = config.legalAdapterVersion + 1;
-        if (
-            ILegalShareAdapter(newAdapter).poolCurrency() != currency
-                || ILegalShareAdapter(newAdapter).adapterVersion() != nextVersion
-        ) revert InvalidConfig();
-        _validateLegalShareSnapshot(newAdapter, currency, nextVersion);
+        _validateLegalShareAdapter(newAdapter, currency, nextVersion);
         address oldAdapter = config.legalShareAdapter;
         config.legalShareAdapter = newAdapter;
         config.legalAdapterCodeHash = newAdapter.codehash;
@@ -435,12 +428,16 @@ contract TSVRegistryV1 is TSVGoverned {
         tier.listedCount++;
     }
 
-    function _validateLegalShareSnapshot(address adapter, address currency, uint32 version) private view {
-        RateSnapshot memory rate = ILegalShareAdapter(adapter).snapshot(currency);
-        if (
-            rate.numerator == 0 || rate.denominator == 0 || rate.adapterVersion != version
-                || !ILegalShareAdapter(adapter).isCurrent(currency, rate)
-        ) revert InvalidConfig();
+    function _validateLegalShareAdapter(address adapter, address currency, uint32 version) private view {
+        IDirectLegalShareAdapter directAdapter = IDirectLegalShareAdapter(adapter);
+        try directAdapter.supportsInterface(type(IDirectLegalShareAdapter).interfaceId) returns (bool supported) {
+            if (!supported) revert InvalidConfig();
+        } catch {
+            revert InvalidConfig();
+        }
+        if (directAdapter.poolCurrency() != currency || directAdapter.adapterVersion() != version) {
+            revert InvalidConfig();
+        }
     }
 
     function _assetPausedForReplacement(address currency) private view returns (bool) {

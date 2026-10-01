@@ -11,7 +11,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
-import {TokenConfig, TokenStatus, MarketAction, RateSnapshot, LPBounds, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {TokenConfig, TokenStatus, MarketAction, LPBounds, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVBusinessAuthority} from "tsv-v1/governance/TSVBusinessAuthority.sol";
 import {TSVUpgradeTimelock} from "tsv-v1/governance/TSVUpgradeTimelock.sol";
@@ -25,7 +25,7 @@ import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 import {StaticLegalShareAdapter} from "tsv-v1/adapters/StaticLegalShareAdapter.sol";
-import {ERC8056LegalShareAdapter} from "tsv-v1/adapters/ERC8056LegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {ERC8056TestToken} from "../../../lib/TestToken/erc8056/ERC8056TestToken.sol";
 
 interface ITestTokenMetadata {
@@ -223,7 +223,7 @@ contract TSVProtocolLocalTest is Test {
         registry.listSecurity(SECURITY, keccak256("STDx"), 1, keccak256("list"));
         stock = new ERC8056TestToken("STDx", "STDx", 18, 0);
         quote = new V1LocalERC20("QUOTE");
-        ERC8056LegalShareAdapter adapter = new ERC8056LegalShareAdapter(address(stock), 1);
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(stock), 1);
         registry.registerToken(_config(address(stock), SECURITY, address(adapter)), keccak256("stock"));
         registry.registerToken(_config(address(quote), 0, address(0)), keccak256("quote"));
         registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("approve"));

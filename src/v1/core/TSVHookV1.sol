@@ -8,11 +8,11 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
-import {PoolConfig, PoolStatus, TokenConfig, LPContext, LPOperationMode, RateSnapshot} from "tsv-v1/types/TSVTypes.sol";
+import {PoolConfig, PoolStatus, TokenConfig, LPContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
-import {ILegalShareAdapter} from "tsv-v1/interfaces/ILegalShareAdapter.sol";
+import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 
 interface IActiveSwapContextV1 {
     function activeSwapContext() external view returns (bool isActive, bytes32 poolId, address participant);
@@ -37,7 +37,6 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     error InvalidPool();
     error InvalidOperation();
     error UnsupportedCallback();
-    error StaleSnapshot();
 
     IPoolManager public poolManager;
     TSVRegistryV1 public registry;
@@ -159,9 +158,9 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
         bytes32 poolId = PoolId.unwrap(key.toId());
         (bool isActive, bytes32 activePoolId, address participant) = IActiveSwapContextV1(router).activeSwapContext();
-        if (
-            !isActive || activePoolId != poolId || participant == address(0) || !registry.isTradable(poolId)
-        ) revert InvalidOperation();
+        if (!isActive || activePoolId != poolId || participant == address(0) || !registry.isTradable(poolId)) {
+            revert InvalidOperation();
+        }
         _requireExactKey(key, poolId);
         return (IHooks.beforeSwap.selector, BeforeSwapDelta.wrap(0), 0);
     }
@@ -174,9 +173,11 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         bytes calldata hookData
     ) external override onlyPoolManager returns (bytes4, int128) {
         if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
-        RateSnapshot memory rate0 = _snapshot(Currency.unwrap(key.currency0));
-        RateSnapshot memory rate1 = _snapshot(Currency.unwrap(key.currency1));
-        ledger.recordSwap(PoolId.unwrap(key.toId()), delta.amount0(), delta.amount1(), rate0, rate1);
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        PoolConfig memory pool = registry.getPool(poolId);
+        uint256 shares0 = _sharesForLeg(pool.securityId0, Currency.unwrap(key.currency0), delta.amount0());
+        uint256 shares1 = _sharesForLeg(pool.securityId1, Currency.unwrap(key.currency1), delta.amount1());
+        ledger.recordSwap(poolId, delta.amount0(), delta.amount1(), shares0, shares1);
         return (IHooks.afterSwap.selector, 0);
     }
 
@@ -228,12 +229,11 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         _requireExactKey(key, ctx.poolId);
     }
 
-    function _snapshot(address currency) private view returns (RateSnapshot memory rate) {
+    function _sharesForLeg(bytes32 securityId, address currency, int128 delta) private view returns (uint256) {
+        if (securityId == 0 || delta == 0) return 0;
         TokenConfig memory config = registry.getToken(currency);
-        if (config.securityId != 0) {
-            rate = ILegalShareAdapter(config.legalShareAdapter).snapshot(currency);
-            if (rate.adapterVersion != config.legalAdapterVersion) revert StaleSnapshot();
-        }
+        if (config.securityId != securityId || config.legalShareAdapter == address(0)) revert InvalidPool();
+        uint256 rawAmount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
+        return IDirectLegalShareAdapter(config.legalShareAdapter).toLegalShares(currency, rawAmount);
     }
-
 }
