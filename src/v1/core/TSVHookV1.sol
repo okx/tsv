@@ -48,25 +48,21 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     address public lpManager;
 
     /// @notice Initializes the Hook's trusted component addresses and verifies its V4 permission bits.
-    /// @param authority Business authority used by the governed base contract.
-    /// @param timelock Upgrade timelock used by the governed base contract.
-    /// @param controller Emergency upgrade controller used by the governed base contract.
+    /// @param anchor Fixed governance Anchor used by the governed base contract.
     /// @param poolManager_ V4 PoolManager that invokes Hook callbacks.
     /// @param registry_ Registry used for pool, token, and market validation.
     /// @param ledger_ Volume Ledger that records completed swaps.
     /// @param router_ Only router permitted to execute swaps through this Hook.
     /// @param lpManager_ Only LP Manager permitted to initialize pools and modify liquidity.
     function initialize(
-        address authority,
-        address timelock,
-        address controller,
+        address anchor,
         address poolManager_,
         address registry_,
         address ledger_,
         address router_,
         address lpManager_
     ) external initializer {
-        __TSVGoverned_init(authority, timelock, controller);
+        __TSVGoverned_init(anchor);
         if ((uint160(address(this)) & FLAG_MASK) != REQUIRED_HOOK_FLAGS) revert InvalidHookAddress();
         if (
             poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0

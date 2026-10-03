@@ -39,8 +39,7 @@ contract TSVSwapRouterV1 is TSVGoverned {
     error AdapterNotAllowed();
 
     uint160 private constant MIN_SQRT_PRICE = 4_295_128_739;
-    uint160 private constant MAX_SQRT_PRICE =
-        1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342;
+    uint160 private constant MAX_SQRT_PRICE = 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342;
 
     IPoolManager public poolManager;
     TSVRegistryV1 public registry;
@@ -75,21 +74,12 @@ contract TSVSwapRouterV1 is TSVGoverned {
     event AdapterAuthorizationUpdated(address indexed adapter, bool allowed);
 
     /// @notice Initializes governance and binds the PoolManager, Registry, and Volume Ledger.
-    /// @param authority Business authority used by the governed base contract.
-    /// @param timelock Upgrade timelock used by the governed base contract.
-    /// @param controller Emergency upgrade controller used by the governed base contract.
+    /// @param anchor Fixed governance Anchor used by the governed base contract.
     /// @param poolManager_ V4 PoolManager used to execute swaps and settle deltas.
     /// @param registry_ Registry used for SBT eligibility and pool tradability checks.
     /// @param ledger_ Volume Ledger used to read the trade day for swap events.
-    function initialize(
-        address authority,
-        address timelock,
-        address controller,
-        address poolManager_,
-        address registry_,
-        address ledger_
-    ) external initializer {
-        __TSVGoverned_init(authority, timelock, controller);
+    function initialize(address anchor, address poolManager_, address registry_, address ledger_) external initializer {
+        __TSVGoverned_init(anchor);
         if (poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0) {
             revert InvalidRequest();
         }

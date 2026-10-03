@@ -148,11 +148,9 @@ contract TSVRegistryV1 is TSVGoverned {
     );
 
     /// @notice Initializes governance and starts emergency-pause IDs at one.
-    /// @param authority Business authority used by the governed base contract.
-    /// @param timelock Upgrade timelock used by the governed base contract.
-    /// @param controller Emergency upgrade controller used by the governed base contract.
-    function initialize(address authority, address timelock, address controller) external initializer {
-        __TSVGoverned_init(authority, timelock, controller);
+    /// @param anchor Fixed governance Anchor used by the governed base contract.
+    function initialize(address anchor) external initializer {
+        __TSVGoverned_init(anchor);
         nextPauseId = 1;
     }
 

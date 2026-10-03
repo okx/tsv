@@ -12,10 +12,10 @@ import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {LPBounds} from "tsv-v1/types/TSVTypes.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
-import {TSVProtocolLocalTest} from "./TSVProtocolLocal.t.sol";
+import {ProtocolFixture} from "../../../helpers/v1/ProtocolFixture.sol";
 
 /// @dev Verifies position identifiers and their V4 storage isolation against a real local PoolManager.
-contract TSVPositionIdLocalTest is TSVProtocolLocalTest {
+contract TSVPositionIdLocalTest is ProtocolFixture {
     using PoolIdLibrary for PoolKey;
     using stdStorage for StdStorage;
 
@@ -149,16 +149,13 @@ contract TSVPositionIdLocalTest is TSVProtocolLocalTest {
     function testPositionIdCompatibleUpgradePreservesCounterAndBlocksReinitialization() public {
         TSVLPManagerV1 replacement = new TSVLPManagerV1();
         address anchor = address(lpManager.governanceAnchor());
-        address timelock = lpManager.upgradeTimelock();
-        address controller = lpManager.emergencyUpgradeController();
-        vm.prank(timelock);
         lpManager.upgradeToAndCall(address(replacement), bytes(""));
 
         assertEq(lpManager.nextPositionId(), 2);
         assertEq(lpManager.ownerOf(positionId), alice);
         assertEq(lpManager.getPosition(positionId).salt, bytes32(positionId));
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        lpManager.initialize(anchor, timelock, controller, address(manager), address(registry));
+        lpManager.initialize(anchor, address(manager), address(registry));
         assertEq(lpManager.nextPositionId(), 2);
 
         vm.prank(alice);
@@ -175,13 +172,7 @@ contract TSVPositionIdLocalTest is TSVProtocolLocalTest {
                     address(new TSVLPManagerV1()),
                     abi.encodeCall(
                         TSVLPManagerV1.initialize,
-                        (
-                            address(lpManager.governanceAnchor()),
-                            lpManager.upgradeTimelock(),
-                            lpManager.emergencyUpgradeController(),
-                            address(manager),
-                            address(registry)
-                        )
+                        (address(lpManager.governanceAnchor()), address(manager), address(registry))
                     )
                 )
             )

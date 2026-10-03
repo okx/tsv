@@ -1,6 +1,7 @@
 [profile.default]
 src = "src"
 test = "test"
+no_match_path = "test/integration/xlayer/**"
 out = "out"
 libs = ["lib", "dependencies"]
 solc_version = "0.8.26"
@@ -26,6 +27,21 @@ solc_version = "0.8.26"
 [profile.local]
 test = "test/integration/local"
 solc_version = "0.8.26"
+
+[profile.coverage]
+out = "out/coverage"
+cache_path = "cache/coverage"
+no_match_coverage = "^test/"
+
+[profile.xlayer]
+test = "test/integration/xlayer"
+no_match_path = "test/integration/local/**"
+fs_permissions = [{ access = "read", path = "./test/integration/xlayer/deployment.json" }]
+
+[profile.default.invariant]
+runs = 64
+depth = 32
+fail_on_revert = true
 
 [soldeer]
 remappings_generate = false

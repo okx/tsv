@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "tsv-v1-deployment-1",
+  "schemaVersion": "tsv-v1-deployment-4",
   "status": "TEMPLATE",
   "network": {
     "name": "xlayer",
@@ -22,14 +22,13 @@
     "backedTokenCommit": ""
   },
   "governance": {
-    "businessAuthority": "",
     "governanceAnchor": "",
-    "upgradeTimelock": "",
-    "emergencyUpgradeController": "",
     "governor": "",
     "guardian": "",
     "recoveryCouncil": "",
-    "executors": []
+    "upgradesFrozen": false,
+    "freezeEpoch": 0,
+    "freezeId": ""
   },
   "businessProxies": {
     "registry": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
@@ -49,7 +48,6 @@
     "tsvImplementation": ""
   },
   "bindings": {
-    "timelockAnchor": "",
     "anchorProxyOrder": [],
     "registryHook": "",
     "registryLpManager": "",
