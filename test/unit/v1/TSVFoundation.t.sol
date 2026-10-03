@@ -8,7 +8,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {TokenConfig, TokenStatus, MarketAction, PauseScope} from "tsv-v1/types/TSVTypes.sol";
+import {TokenConfig, TokenStatus, MarketStatus, MarketAction, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVBusinessAuthority, IRecoveryContext} from "tsv-v1/governance/TSVBusinessAuthority.sol";
 import {TSVUpgradeTimelock} from "tsv-v1/governance/TSVUpgradeTimelock.sol";
@@ -274,7 +274,11 @@ contract TSVFoundationTest is Test {
         registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         uint256 pauseId = registry.addEmergencyPause(
-            PauseScope.TOKEN, bytes32(uint256(uint160(address(stock)))), keccak256("replace"), keccak256("source")
+            PauseScope.TOKEN,
+            bytes32(uint256(uint160(address(stock)))),
+            PauseMode.ALL,
+            keccak256("replace"),
+            keccak256("source")
         );
         BackedAutoFeeLegalShareAdapter wrongVersion =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 3);
@@ -540,6 +544,297 @@ contract TSVFoundationTest is Test {
         registry.setTierPolicy(2, 25, 1, keccak256("tier2"));
     }
 
+    function testEmergencyPauseModesAcrossAllScopes() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _grantPauseRoles();
+        for (uint8 scope = 0; scope < 4; scope++) {
+            bytes32 target = _pauseTarget(PauseScope(scope));
+            for (uint8 mode = 1; mode <= 3; mode++) {
+                uint256 id = registry.addEmergencyPause(
+                    PauseScope(scope), target, PauseMode(mode), keccak256("pause"), keccak256("source")
+                );
+                assertEq(registry.activePauseCount(scope, target, mode), 1);
+                (PauseScope savedScope, bytes32 savedTarget, PauseMode savedMode,,,,, bool active) =
+                    registry.emergencyPauses(id);
+                assertEq(uint8(savedScope), scope);
+                assertEq(savedTarget, target);
+                assertEq(uint8(savedMode), mode);
+                assertTrue(active);
+                _assertOperationGates(mode == uint8(PauseMode.LP), mode == uint8(PauseMode.TRADE));
+                registry.clearEmergencyPause(id, keccak256("resume"));
+                assertEq(registry.activePauseCount(scope, target, mode), 0);
+                _assertOperationGates(true, true);
+            }
+        }
+    }
+
+    function testPauseEventsExposeEmergencyModeAndMarketMaskChanges() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _grantPauseRoles();
+        vm.expectEmit(true, true, false, true, address(registry));
+        emit TSVRegistryV1.EmergencyPauseOpened(
+            1, uint8(PauseScope.POOL), poolId, uint8(PauseMode.LP), keccak256("pause")
+        );
+        _pause(PauseScope.POOL, poolId, PauseMode.LP);
+        bytes32 reportId = keccak256(abi.encode("market-mode", MarketAction.HALT, PauseMode.TRADE, uint64(2)));
+        vm.expectEmit(true, true, false, true, address(registry));
+        emit TSVRegistryV1.MarketStatusChanged(
+            SECURITY,
+            uint8(MarketStatus.OPEN),
+            uint8(MarketStatus.HALTED),
+            uint8(PauseMode.NONE),
+            uint8(PauseMode.TRADE),
+            2,
+            reportId
+        );
+        _submitMarketMode(MarketAction.HALT, PauseMode.TRADE, 2);
+        reportId = keccak256(abi.encode("market-mode", MarketAction.HALT, PauseMode.LP, uint64(3)));
+        vm.expectEmit(true, true, false, true, address(registry));
+        emit TSVRegistryV1.MarketStatusChanged(
+            SECURITY,
+            uint8(MarketStatus.HALTED),
+            uint8(MarketStatus.HALTED),
+            uint8(PauseMode.TRADE),
+            uint8(PauseMode.ALL),
+            3,
+            reportId
+        );
+        _submitMarketMode(MarketAction.HALT, PauseMode.LP, 3);
+    }
+
+    function testEmergencyPauseRecordsStackAndClearIndependently() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _grantPauseRoles();
+        uint256 trade1 = _pause(PauseScope.POOL, poolId, PauseMode.TRADE);
+        uint256 trade2 = _pause(PauseScope.POOL, poolId, PauseMode.TRADE);
+        uint256 lp = _pause(PauseScope.GLOBAL, 0, PauseMode.LP);
+        uint256 all = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
+        assertEq(registry.activePauseCount(uint8(PauseScope.POOL), poolId, uint8(PauseMode.TRADE)), 2);
+        _assertOperationGates(false, false);
+        registry.clearEmergencyPause(all, keccak256("resume"));
+        _assertOperationGates(false, false);
+        registry.clearEmergencyPause(lp, keccak256("resume"));
+        _assertOperationGates(false, true);
+        registry.clearEmergencyPause(trade1, keccak256("resume"));
+        _assertOperationGates(false, true);
+        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
+        registry.clearEmergencyPause(trade1, keccak256("again"));
+        assertEq(registry.activePauseCount(uint8(PauseScope.POOL), poolId, uint8(PauseMode.TRADE)), 1);
+        registry.clearEmergencyPause(trade2, keccak256("resume"));
+        _assertOperationGates(true, true);
+    }
+
+    function testEmergencyPauseRejectsNoneInvalidEnumsAndUnauthorizedCallers() public {
+        _grantPauseRoles();
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.NONE, keccak256("pause"), keccak256("source"));
+        (bool success,) = address(registry)
+            .call(
+                abi.encodeWithSelector(
+                    TSVRegistryV1.addEmergencyPause.selector,
+                    uint8(PauseScope.GLOBAL),
+                    bytes32(0),
+                    uint8(4),
+                    keccak256("pause"),
+                    keccak256("source")
+                )
+            );
+        assertFalse(success);
+        assertEq(registry.nextPauseId(), 1);
+        address stranger = makeAddr("pause-stranger");
+        vm.expectRevert();
+        vm.prank(stranger);
+        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("pause"), keccak256("source"));
+        uint256 id = _pause(PauseScope.GLOBAL, 0, PauseMode.ALL);
+        vm.expectRevert();
+        vm.prank(stranger);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertEq(registry.activePauseCount(uint8(PauseScope.GLOBAL), 0, uint8(PauseMode.ALL)), 1);
+    }
+
+    function testEmergencyPauseDoesNotAffectUnrelatedTargetsAndChecksBothCurrencies() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _grantPauseRoles();
+        _pause(PauseScope.POOL, keccak256("other-pool"), PauseMode.ALL);
+        _pause(PauseScope.SECURITY, keccak256("other-security"), PauseMode.ALL);
+        _pause(PauseScope.TOKEN, bytes32(uint256(uint160(makeAddr("other-token")))), PauseMode.ALL);
+        _assertOperationGates(true, true);
+        uint256 id = _pause(PauseScope.TOKEN, bytes32(uint256(uint160(address(quote)))), PauseMode.LP);
+        _assertOperationGates(true, false);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        _assertOperationGates(true, true);
+        assertFalse(registry.isTradable(keccak256("absent-pool")));
+        assertFalse(registry.isLPAllowed(keccak256("absent-pool")));
+    }
+
+    function testMarketPauseModesAccumulateAndResumeIndependently() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _submitMarketMode(MarketAction.HALT, PauseMode.TRADE, 2);
+        _assertMarketPause(PauseMode.TRADE, false, true);
+        _submitMarketMode(MarketAction.HALT, PauseMode.ALL, 3);
+        _assertMarketPause(PauseMode.ALL, false, false);
+        _submitMarketMode(MarketAction.RESUME, PauseMode.TRADE, 4);
+        _assertMarketPause(PauseMode.LP, true, false);
+        _submitMarketMode(MarketAction.RESUME, PauseMode.ALL, 5);
+        _assertMarketPause(PauseMode.NONE, true, true);
+        _submitMarketMode(MarketAction.HALT, PauseMode.LP, 6);
+        _submitMarketMode(MarketAction.HALT, PauseMode.TRADE, 7);
+        _assertMarketPause(PauseMode.ALL, false, false);
+        _submitMarketMode(MarketAction.RESUME, PauseMode.LP, 8);
+        _assertMarketPause(PauseMode.TRADE, false, true);
+        _submitMarketMode(MarketAction.RESUME, PauseMode.TRADE, 9);
+        _assertMarketPause(PauseMode.NONE, true, true);
+    }
+
+    function testMarketInitialLPPauseAllowsTrading() public {
+        _submitMarketMode(MarketAction.INITIAL_HALTED, PauseMode.LP, 1);
+        _assertMarketPause(PauseMode.LP, true, false);
+    }
+
+    function testMarketInitialAllPauseBlocksBoth() public {
+        _submitMarketMode(MarketAction.INITIAL_HALTED, PauseMode.ALL, 1);
+        _assertMarketPause(PauseMode.ALL, false, false);
+    }
+
+    function testMarketReportsRejectInvalidInitializationNoneAndNoopsAtomically() public {
+        _assertOperationGates(false, false);
+        _rejectMarketMode(MarketAction.HALT, PauseMode.TRADE, 1, TSVRegistryV1.InvalidStatus.selector);
+        _rejectMarketMode(MarketAction.RESUME, PauseMode.ALL, 1, TSVRegistryV1.InvalidStatus.selector);
+        _rejectMarketMode(MarketAction.INITIAL_OPEN, PauseMode.LP, 1, TSVRegistryV1.InvalidStatus.selector);
+        _rejectMarketMode(MarketAction.INITIAL_HALTED, PauseMode.NONE, 1, TSVDataInboxV1.InvalidReport.selector);
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _rejectMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 2, TSVRegistryV1.InvalidStatus.selector);
+        _rejectMarketMode(MarketAction.HALT, PauseMode.NONE, 2, TSVDataInboxV1.InvalidReport.selector);
+        _rejectMarketMode(MarketAction.RESUME, PauseMode.NONE, 2, TSVDataInboxV1.InvalidReport.selector);
+        _rejectMarketMode(MarketAction.RESUME, PauseMode.ALL, 2, TSVRegistryV1.InvalidStatus.selector);
+        _submitMarketMode(MarketAction.HALT, PauseMode.TRADE, 2);
+        _rejectMarketMode(MarketAction.HALT, PauseMode.TRADE, 3, TSVRegistryV1.InvalidStatus.selector);
+        _rejectMarketMode(MarketAction.RESUME, PauseMode.LP, 3, TSVRegistryV1.InvalidStatus.selector);
+        _assertMarketPause(PauseMode.TRADE, false, true);
+        _submitMarketMode(MarketAction.RESUME, PauseMode.TRADE, 3);
+        _assertMarketPause(PauseMode.NONE, true, true);
+    }
+
+    function testEmergencyAndMarketPauseRecoveriesAreIndependent() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _grantPauseRoles();
+        _submitMarketMode(MarketAction.HALT, PauseMode.LP, 2);
+        uint256 id = _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
+        _assertOperationGates(false, false);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        _assertOperationGates(true, false);
+        id = _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
+        _submitMarketMode(MarketAction.RESUME, PauseMode.LP, 3);
+        _assertOperationGates(false, true);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        _assertOperationGates(true, true);
+    }
+
+    function testPoolEnableRequiresBothOperationTypesToBeUnpaused() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _grantPauseRoles();
+        for (uint8 mode = 1; mode <= 3; mode++) {
+            uint256 id = _pause(PauseScope.GLOBAL, 0, PauseMode(mode));
+            registry.disablePool(poolId, keccak256("disable"));
+            uint32 version = registry.getPool(poolId).version;
+            vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
+            registry.enablePool(poolId, keccak256("enable"));
+            assertEq(registry.getPool(poolId).version, version);
+            assertEq(registry.activePoolCountByCurrency(address(stock)), 0);
+            registry.clearEmergencyPause(id, keccak256("resume"));
+            registry.enablePool(poolId, keccak256("enable"));
+            _assertOperationGates(true, true);
+        }
+        registry.disablePool(poolId, keccak256("disable"));
+        _submitMarketMode(MarketAction.HALT, PauseMode.LP, 2);
+        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
+        registry.enablePool(poolId, keccak256("enable"));
+        _submitMarketMode(MarketAction.RESUME, PauseMode.LP, 3);
+        registry.enablePool(poolId, keccak256("enable"));
+    }
+
+    function testAdapterReplacementRejectsSingleModePauseAndAllowsCombinedCoverage() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _grantPauseRoles();
+        uint256 trade = _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
+        BackedAutoFeeLegalShareAdapter replacement =
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
+        registry.clearEmergencyPause(trade, keccak256("resume"));
+        _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.LP);
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
+        _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
+        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
+        assertEq(registry.getToken(address(stock)).legalAdapterVersion, 2);
+    }
+
+    function testLedgerUsesOnlyTradingPauseForSwapAccounting() public {
+        _submitMarketMode(MarketAction.INITIAL_OPEN, PauseMode.ALL, 1);
+        _submitAdtv(1000e18);
+        _grantPauseRoles();
+        _pause(PauseScope.GLOBAL, 0, PauseMode.LP);
+        bool stock0 = address(stock) == Currency.unwrap(key.currency0);
+        int128 delta0 = stock0 ? -int128(1e18) : int128(1e6);
+        int128 delta1 = stock0 ? int128(1e6) : -int128(1e18);
+        ledger.recordSwap(poolId, delta0, delta1, stock0 ? 1e18 : 0, stock0 ? 0 : 1e18);
+        assertEq(ledger.used(SECURITY, DAY), 1e18);
+        _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
+        vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
+        ledger.recordSwap(poolId, delta0, delta1, stock0 ? 1e18 : 0, stock0 ? 0 : 1e18);
+        assertEq(ledger.used(SECURITY, DAY), 1e18);
+    }
+
+    function _grantPauseRoles() private {
+        registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
+        registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
+    }
+
+    function _pauseTarget(PauseScope scope) private view returns (bytes32) {
+        if (scope == PauseScope.GLOBAL) return 0;
+        if (scope == PauseScope.SECURITY) return SECURITY;
+        if (scope == PauseScope.TOKEN) return bytes32(uint256(uint160(address(stock))));
+        return poolId;
+    }
+
+    function _pause(PauseScope scope, bytes32 target, PauseMode mode) private returns (uint256) {
+        return registry.addEmergencyPause(scope, target, mode, keccak256("pause"), keccak256("source"));
+    }
+
+    function _assertOperationGates(bool tradeAllowed, bool lpAllowed) private view {
+        assertEq(registry.isTradable(poolId), tradeAllowed);
+        assertEq(registry.isLPAllowed(poolId), lpAllowed);
+    }
+
+    function _assertMarketPause(PauseMode mode, bool tradeAllowed, bool lpAllowed) private view {
+        assertEq(uint8(registry.marketPauseMode(SECURITY)), uint8(mode));
+        assertEq(
+            uint8(registry.marketStatus(SECURITY)),
+            uint8(mode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED)
+        );
+        _assertOperationGates(tradeAllowed, lpAllowed);
+    }
+
+    function _submitMarketMode(MarketAction action, PauseMode mode, uint64 sequence) private {
+        MarketReport memory report =
+            _market(action, sequence, keccak256(abi.encode("market-mode", action, mode, sequence)));
+        report.mode = mode;
+        inbox.submitMarketStatus(report);
+    }
+
+    function _rejectMarketMode(MarketAction action, PauseMode mode, uint64 sequence, bytes4 expectedError) private {
+        MarketReport memory report =
+            _market(action, sequence, keccak256(abi.encode("rejected-market-mode", action, mode, sequence)));
+        report.mode = mode;
+        uint64 previousSequence = registry.marketSequence(SECURITY);
+        vm.expectRevert(expectedError);
+        inbox.submitMarketStatus(report);
+        assertEq(registry.marketSequence(SECURITY), previousSequence);
+        assertEq(inbox.lastSequence(0, SECURITY), previousSequence);
+        assertFalse(inbox.reportIdUsed(report.reportId));
+    }
+
     /// @dev Schedules and executes a governance operation through the test timelock.
     function _executeGovernance(bytes memory payload, bytes32 salt) private {
         timelock.schedule(address(timelock), 0, payload, 0, salt, 0);
@@ -573,6 +868,7 @@ contract TSVFoundationTest is Test {
         report = MarketReport(
             SECURITY,
             action,
+            PauseMode.ALL,
             keccak256("reason"),
             keccak256("exchange"),
             uint64(block.timestamp - 1),

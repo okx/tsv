@@ -77,7 +77,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | --- | --- | --- |
 | D01 U/I | 由持有 `HALT_REPORTER_ROLE` 或 `VOLUME_ORACLE_ROLE` 的地址直接提交 Market、ADTV、Quota 报告；尝试用 relayer、签名参数或旧 TradeDay 入口提交 | 只有 `msg.sender` 当前持有对应角色时接受；DataInbox ABI 不含签名参数或 signer 字段；旧日历报告无可调用入口 |
 | D02 U | 非角色调用、角色已撤、重复 reportId、序号回退、过 submitDeadline、sourceTimestamp 在未来、同月批次未排序/跨月 | 各自拒绝，reportId/sequence 不被占用；早先已接受状态不自动失效 |
-| D03 U | INITIAL_OPEN/INITIAL_HALTED 一次；OPEN→HALT→RESUME；重复 OPEN、HALT 心跳、RESUME 心跳 | 仅合法状态变化上链；HALT 无年龄失效，状态长期不变无需重报 |
+| D03 U | INITIAL_OPEN/INITIAL_HALTED 的模式校验；HALT 叠加与 RESUME 部分恢复；NONE、重复初始化和无模式变化报告 | INITIAL_OPEN 仅允许 ALL，INITIAL_HALTED 指定模式；初始化前交易与 LP 均阻断；之后按模式独立阻断/恢复，任一暂停时 HALTED、全部恢复时 OPEN；无变化请求整体回滚报告序号/去重状态；HALT 无年龄失效 |
 | D04 U/I | 初始 UTC 日切 04:00；普通日边界前后各一秒、周末、月末、闰日及年末；无预提交日历 | 每个 UTC 日期独立归属一个 `YYYYMMDD` 计量日，连续无空洞/重叠；边界后新日用量从零开始，历史用量不改；不要求下一窗口或心跳交易 |
 | D05 U/I | 治理将日切从 04:00 排期为未来 07:00；另试从 04:00 直接改到 09:00、同时存在第二项待生效排期、已开始的过渡日、更改过去或当前日、取消待生效排期 | 只有符合未来边界、每次偏移差不超过 4 小时且过渡日尚未开始的排期/取消成功；过渡日可为 20–28 小时但只有一份完整硬上限；已开始和历史日边界永久不变；自动生效无需激活交易 |
 | D06 U | 9 月 ADTV 适用 10 月计量日，进入 11 月但无 10 月 ADTV；同一月份 ADTV 值不变，同一日没有 quota 覆盖 | 10 月使用 9 月 ADTV；11 月缺适用 ADTV 则受影响证券 Swap fail-closed；无 quota 时仍按 ADTV/Tier 硬上限交易；同一有效期间不重复上报相同值 |
@@ -104,6 +104,8 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 ### 3.4 LP、Receipt、暂停和强退
 
+暂停模式为 TRADE=1、LP=2、ALL=3；NONE=0 不能用于暂停/恢复请求。普通 LP 包括开仓、加仓、减仓、收费、关闭。
+
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
 | L01 I | open→increase→decrease→collect→close；普通股票/quote 与 wTSLAx/quote 池均直接结算 | positionId/salt 唯一，Receipt owner 与账本 owner 一致；V4 实际 liquidity、callerDelta、最终 Currency 交付逐步吻合 |
@@ -112,12 +114,15 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | L04 I | `collectFees` 在正流动性仓位有费/无费；最后一次 `closePosition` 有累计费 | 有费按返回 callerDelta 交付；无费回滚；close 单次负 liquidity 同时拿本金和费，不在零仓位追加领费 |
 | L05 I | LP bounds 的两侧 raw Currency 付款上限、收款下限；报价后池价或 multiplier 变化；输入 delta 恰为 `int128.min`；COLLECT 返回负 delta | 各侧按实际 callerDelta 校验 raw 边界，任一失败全回滚；`int128.min` 在 token 转账前拒绝，COLLECT 的负 delta 拒绝；前端股数展示不被误认为链上独立限价 |
 | L06 I | `REVOKE_EXIT_EXECUTOR` 对确实无 SBT 的原 owner；SBT 只是 paused；`FORCE_EXIT_ADMIN` 有/无 reason/evidence | 仅规定的两类调用者满足各自条件时能强退；paused 但仍持证不能作为撤证理由 |
-| L07 I | 停牌、EmergencyPause、Token/Pool DISABLED、报告缺失时强退，并提交两侧 raw `minPoolOut` | 业务门禁不阻挡既有仓位全额强退；两侧实际到账均满足调用时下限才成功，资产仍只发到**原 owner** |
+| L07 I | 停牌和 EmergencyPause 的三种模式、Token/Pool DISABLED、报告缺失时强退，并提交两侧 raw `minPoolOut` | 业务门禁不阻挡既有仓位全额强退；两侧实际到账均满足调用时下限才成功，资产仍只发到**原 owner** |
 | L08 I | 发行方 wTSLAx 拒绝向原 owner 转账，或另一侧普通 Token 拒转；分别安排失败发生在第一/第二腿 | 方案 A：V4 移除、资产转账、Receipt burn、TSV 仓位和事件均回滚到 `S_pre`；旧仓位可重试，无持久失败事件 |
 | L09 I | 强退 wTSLAx 时底层 multiplier 或 TSLAx 账户显示余额改变，但 wTSLAx raw 应付量确定 | 原 owner 实收 wTSLAx raw 与 V4 应付量精确相等；不要求本交易执行发行方赎回，也不错误以 TSLAx 的 `balanceOfUI` 差额判断交付 |
 | L10 I | 正常 LP 修改时零 liquidity、部分减仓清空、tick 未对齐、deadline 过期、余额不足、外部重入 | 全部拒绝且仓位/Receipt 保持一致 |
 | L11 I | 强退设置任一侧高于实际到账的 `minPoolOut`，另一侧正常；再以可满足的两侧下限重试 | 前次整笔回滚且仓位、Receipt、两侧余额保持不变；重试按运营给定下限成功并向原 owner 交付 |
 | L12 I | `closePosition` 或 `decreaseLiquidity` 在 tick 区间边界使一侧 delta 为零，同时该侧 `minPoolOut` 大于零 | `SlippageExceeded`，整笔回滚，仓位与 Receipt 保留；零输出也必须满足调用者设置的最低输出 |
+| L13 U/I | 四种紧急 scope × 三种 mode；同模式多记录、ALL 与单项叠加、清除顺序与未命中目标 | TRADE 只阻断 Swap、LP 只阻断全部普通 LP、ALL 同时阻断；精确模式计数逐条更新；恢复不误解除其他记录或市场暂停 |
+| L14 I | 市场/紧急 TRADE 暂停下完整 LP 生命周期；LP 暂停下 direct exact-in/out 与 Adapter 双向 Swap；Hook 与 Ledger 独立门禁 | 另一类操作成功，实际 V4 流动性、资产结算和计量符合预期；收费前先产生手续费，避免 NoFees 掩盖暂停行为 |
+| L15 U/I | 单项暂停下 enablePool、LegalShareAdapter 替换；GLOBAL/TOKEN 模式组合覆盖两类操作；暂停期间建池 | enablePool 要求两类门禁均通过；活跃 Currency 替换须 GLOBAL/TOKEN 共同覆盖两类；单项暂停拒绝替换；建池仍只看准入 |
 
 ### 3.5 治理与升级
 
@@ -150,7 +155,7 @@ X-BACKED 必须覆盖 multiplier=`1e18`、低于 `1e18`、会跨一个费率周�
 | P01 | 随机 open/increase/decrease/collect/close/forceExit、tick、owner | 每个活跃 position 的 `(PoolId,ticks,salt)` V4 liquidity 与 TSV ledger 相等；Receipt 恰好一个且 owner 不变；关闭后不可再领取 |
 | P02 | 随机单池 exact-in/out、股票/quote 方向、滑点、fee、来源 multiplier、配额更正 | `usedWad[securityId][day]` 等于**所有成功 Swap** 逐笔按实际 delta 调用来源转换方法的返回值之和；每次成功成交均满足成交时两种上限，更正下调上限后禁止继续超额成交；LP 操作不计量 |
 | P03 | 随机报告顺序、延迟、UTC 日切偏移排期/取消、过渡日、ADTV 和 quota SET/CLEAR | 任意时间只归属一个计量日，历史边界不变；无适用 ADTV 时不会成功 Swap，无 quota 时可按硬上限交易；已用额度不因报告或日切排期重置 |
-| P04 | 随机权限、暂停叠加/解除、SBT revoke/paused、池停用 | 任一命中的业务门禁阻止新用户动作；清除单条暂停不清除其他条；强退仍按原 owner 交付 |
+| P04 | 随机权限、scope/target/mode 暂停叠加与逐条解除、市场部分恢复、SBT revoke/paused、池停用 | 交易仅受 TRADE/ALL、普通 LP 仅受 LP/ALL 阻断；紧急与市场暂停独立叠加；清除单条记录不清除其他条；强退仍按原 owner 交付 |
 | P05 | 随机直接 Token 故障、报价边界和回调重入 | 失败路径完全等于 `S_pre`；成功路径 V4 所有 Currency delta 为零，Router/LP Manager 不积累本笔余额 |
 | P06 | 随机 Governor/Guardian/Council/Executor 操作序列 | 事故升级只有未冻结且 Governor+允许目标可执行；普通升级只能 ready 后；受保护角色只经 Council 恢复；根身份唯一 |
 

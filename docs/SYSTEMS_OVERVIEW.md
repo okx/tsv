@@ -64,7 +64,7 @@ flowchart LR
   PM -->|"输出 Currency"| U
 
   U -->|"LP 请求"| LP["LP Manager<br/>资格、仓位与边界检查"]
-  LP -->|"检查 isEligible / isTradable"| RG
+  LP -->|"检查 isEligible / isLPAllowed"| RG
   RG -. "返回资格与可交易结果" .-> LP
   LP -->|"modifyLiquidity"| PM
   LP --> RC["不可转让 Receipt"]
@@ -85,7 +85,7 @@ flowchart LR
 ### 2.1 Swap：授权、执行、计量、结算
 
 1. **提交请求。**用户可通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。外部 DexRouter 可通过其现有 Adapter 接口路由到 TSV Adapter，再调用 TSV Router 的 Adapter 专用 exact-in 入口。用户直连时调用者是 participant、payer 和 recipient；Adapter 路径由 Router 检查白名单 Adapter 与其提供的 participant，Adapter 作为结算方并接收输出。
-2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：直连路径检查 `msg.sender`，Adapter 路径检查白名单 Adapter 并校验其提供的 participant；两条路径都会查询 Registry 的 `isEligible` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户也会经 Registry 查询资格和池状态。
+2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：直连路径检查 `msg.sender`，Adapter 路径检查白名单 Adapter 并校验其提供的 participant；两条路径都会查询 Registry 的 `isEligible` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户查询 isEligible 和 isLPAllowed；Hook 的 LP 回调复核 isLPAllowed。交易和 LP 分别检查命中的暂停模式。
 3. **在 V4 中执行。**Router 通过官方 [PoolManager](../lib/v4-core/src/PoolManager.sol) 发起 Swap。PoolManager 调用 [TSVHookV1](../src/v1/core/TSVHookV1.sol)；Hook 检查回调来自 Router、池可交易且 PoolKey 与 Registry 配置一致。Router 非重入锁限制单笔 Swap，不使用 Swap `operationId`，也不保存 Swap 活跃上下文。
 4. **按实际成交量计量。**`afterSwap` 收到实际 delta 后，对股票腿调用 Registry 绑定的 LegalShareAdapter `toLegalShares(currency,rawAmount)`，再把结果和真实 delta 一起交给 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)。Ledger 校验股票身份、Adapter 配置及非零 shares，按 `(securityId, tradeDayId)` 更新全平台共享用量并检查当日有效上限；它不重复调用 Adapter。
 5. **原子结算。**用户直连路径由 Router 以池内 ERC-20 Currency 和用户结算；Adapter 路径由 Router 从 Adapter 拉取输入并将输出交给 Adapter，再由 Adapter 转发到外部 DexRouter 指定的 hop 收款地址。交易门禁、计股、额度检查或精确余额校验任一失败，整笔交易回滚，成交和账本不会只成功一半。
@@ -270,7 +270,7 @@ flowchart LR
 | `SYMBOL_ADMIN_ROLE` | Registry | `registerToken(TokenConfig calldata config, bytes32 evidenceHash)` | 完整 `TokenConfig` 和登记依据摘要；字段见 §3.2。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)` | 池内 Currency、目标状态、状态变更依据摘要。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)` | 股票 Currency、新 Adapter、政策/法律依据摘要。 |
-| `EMERGENCY_PAUSER_ROLE` | Registry | `addEmergencyPause(PauseScope scope, bytes32 target, bytes32 reasonCode, bytes32 sourceHash) returns (uint256 recordId)` | 暂停范围、范围目标、原因码、来源摘要；返回新暂停记录 ID。 |
+| `EMERGENCY_PAUSER_ROLE` | Registry | `addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode, bytes32 sourceHash) returns (uint256 recordId)` | 暂停范围、范围目标、TRADE/LP/ALL 模式、原因码、来源摘要；返回新暂停记录 ID。 |
 | `EMERGENCY_RESUMER_ROLE` | Registry | `clearEmergencyPause(uint256 recordId, bytes32 reasonCode)` | 暂停记录 ID、清除原因码。 |
 | Governor | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId, bytes32 reasonHash)` | 新 UTC 偏移秒数、生效日、理由摘要。 |
 | Governor | VolumeLedger | `cancelPendingDayStart(bytes32 reasonHash)` | 非零取消理由摘要。 |
@@ -305,6 +305,7 @@ flowchart LR
 struct MarketReport {
     bytes32 securityId;
     MarketAction action;
+    PauseMode mode;
     bytes32 reasonCode;
     bytes32 exchangeHash;
     uint64 sourceTimestamp;
@@ -318,12 +319,13 @@ struct MarketReport {
 | 参数 | 类型 | 含义和当前约束 |
 | --- | --- | --- |
 | `securityId` | `bytes32` | 已登记且当前 listed 的证券 ID；不是 ticker 字符串。 |
-| `action` | `MarketAction` | `INITIAL_OPEN`、`INITIAL_HALTED`、`HALT` 或 `RESUME`。首次只能初始化为开放或停牌；之后只允许 `OPEN → HALTED` 和 `HALTED → OPEN`，重复状态报告回滚。 |
+| `action` | `MarketAction` | `INITIAL_OPEN`、`INITIAL_HALTED`、`HALT` 或 `RESUME`；首次只允许初始化，随后 HALT 叠加模式、RESUME 清除指定模式，无模式变化的报告回滚。 |
+| `mode` | `PauseMode` | `TRADE=1`、`LP=2`、`ALL=3`；禁止 NONE；只影响指定模式，另一类操作开放。 |
 | `reasonCode` | `bytes32` | 非零原因码；建议在运营字典中维护稳定编码。仅在提交时校验，不写入 Registry 状态或 `MarketStatusChanged` 事件；可从提交交易 calldata 读取。 |
 | `exchangeHash` | `bytes32` | 非零交易所/市场来源标识摘要。仅在提交时校验，不写入 Registry 状态或 `MarketStatusChanged` 事件；可从提交交易 calldata 读取。 |
 | 其余字段 | — | 按上面的通用审计字段填写。 |
 
-`HALT` 一直有效到有效 `RESUME` 被接受；不会按报告年龄自动恢复。该入口用于个别证券的市场状态，不代表周末或正常闭市，也不能增删紧急暂停记录。
+`HALT` 一直有效到对应模式的有效 `RESUME` 被接受，不会按报告年龄自动恢复。市场在任一模式暂停时保持 HALTED，全部恢复后变为 OPEN；首次 INITIAL_OPEN 必须指定 ALL，INITIAL_HALTED 使用指定模式；尚未初始化的证券阻断交易和 LP。例如先 HALT TRADE，再 HALT LP 得到 ALL；RESUME TRADE 后仅剩 LP 暂停。MarketStatusChanged 包含 oldPauseMode/newPauseMode，HALTED 内的模式变化也会发事件。该入口不能增删或解除紧急暂停记录。
 
 #### 月度成交量：`AdtvReport`
 
@@ -395,7 +397,7 @@ struct QuotaReport {
 | `delistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 证券 ID、下架依据摘要 | 下架证券并释放 Tier 名额；必须已 listed 且 `activePoolCount == 0`。 |
 | `registerToken(TokenConfig calldata config, bytes32 evidenceHash)` | 下方完整 TokenConfig、登记依据摘要 | 登记池内 Currency 和审核信息；初始 `status` 必须为 `UNREVIEWED`。地址、代码哈希、decimals 和直接结算规则均按下表校验。 |
 | `setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)` | TokenConfig 主键 Currency、目标状态、状态变更依据摘要 | 只允许 `UNREVIEWED → APPROVED`、`APPROVED → DISABLED`、`DISABLED → APPROVED`；不能设置回 `UNREVIEWED`，也不能重复设置当前状态。批准时须已有非零 `reviewHash`；股票还须有非零 `legalSharePolicyHash`、证券仍 listed，且 Token 运行时代码哈希匹配登记值。 |
-| `replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)` | 股票 Currency、新 Adapter、公式/法律依据摘要 | 只对已登记股票 Token；新 Adapter 版本须等于旧版本加一，通过 ERC-165 声明 `IDirectLegalShareAdapter` 并绑定相同 Currency。`evidenceHash` 同时作为更新后的 `legalSharePolicyHash` 保存。若该 Currency 仍有活跃池，必须命中 GLOBAL 或该 TOKEN 范围的紧急暂停；SECURITY 或 POOL 范围暂停不满足此条件。Registry 不调用换算函数验证其结果。 |
+| `replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)` | 股票 Currency、新 Adapter、公式/法律依据摘要 | 只对已登记股票 Token；新 Adapter 版本须等于旧版本加一，通过 ERC-165 声明 `IDirectLegalShareAdapter` 并绑定相同 Currency。`evidenceHash` 同时作为更新后的 `legalSharePolicyHash` 保存。若该 Currency 仍有活跃池，GLOBAL 或该 TOKEN 范围的紧急记录必须共同覆盖交易和 LP（单条 ALL 或分别叠加 TRADE、LP）；单项暂停、SECURITY 或 POOL 范围暂停均不足。Registry 不调用换算函数验证其结果。 |
 
 `TokenConfig` 的 ABI 字段顺序如下：
 
@@ -435,12 +437,22 @@ struct TokenConfig {
 
 ### 3.3 紧急暂停与恢复
 
+暂停模式同时用于紧急暂停与市场报告；这次接口按首次部署更新，不保留旧 ABI 或迁移旧记录。
+
+| mode | 交易 | 普通 LP |
+| --- | --- | --- |
+| TRADE（1） | 暂停 | 允许 |
+| LP（2） | 允许 | 暂停 |
+| ALL（3） | 暂停 | 暂停 |
+
+“允许”还须通过资产、池、证券及 SBT 准入。NONE（0）仅表示无市场暂停，不能作为请求模式。紧急暂停开启事件包含 mode；恢复按 recordId 关闭整条记录，若需部分恢复，分别创建 TRADE 和 LP 两条记录。
+
 | 入口 | 角色 | 参数含义与约束 |
 | --- | --- | --- |
-| `addEmergencyPause(PauseScope scope, bytes32 target, bytes32 reasonCode, bytes32 sourceHash) returns (uint256 recordId)` | `EMERGENCY_PAUSER_ROLE` | 新建独立暂停记录并返回递增的 `recordId`。`scope` 为 `GLOBAL`、`SECURITY`、`TOKEN` 或 `POOL`；GLOBAL 的 `target` 必须为零，其余 scope 的 target 必须非零。`reasonCode` 和 `sourceHash` 必须非零。 |
+| `addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode, bytes32 sourceHash) returns (uint256 recordId)` | `EMERGENCY_PAUSER_ROLE` | 新建独立暂停记录并返回递增的 `recordId`。`scope` 为 `GLOBAL`、`SECURITY`、`TOKEN` 或 `POOL`；GLOBAL 的 `target` 必须为零，其余 scope 的 target 必须非零。`mode` 必须为 TRADE/LP/ALL；`reasonCode` 和 `sourceHash` 必须非零。 |
 | `clearEmergencyPause(uint256 recordId, bytes32 reasonCode)` | `EMERGENCY_RESUMER_ROLE` | 按记录 ID 清除一条暂停；记录必须存在且仍 active，清除原因码非零。不同记录独立计数，清除一条不会清除其他暂停。 |
 
-`target` 的编码按范围解释：GLOBAL 使用 `bytes32(0)`；SECURITY 使用 `securityId`；TOKEN 使用地址左侧补零转为 `bytes32(uint256(uint160(token)))`；POOL 使用 `PoolId.unwrap(key.toId())`。命中的暂停会阻止对应范围内新 Swap 和普通 LP 操作。它与市场 `HALT` 状态独立；强制退出另走专用授权路径。
+`target` 的编码按范围解释：GLOBAL 使用 `bytes32(0)`；SECURITY 使用 `securityId`；TOKEN 使用地址左侧补零转为 `bytes32(uint256(uint160(token)))`；POOL 使用 `PoolId.unwrap(key.toId())`。命中的 TRADE 或 ALL 记录阻止交易，LP 或 ALL 记录阻止开仓、加仓、减仓、收费、关闭等全部普通 LP 操作。记录按 scope/target/mode 分别计数，并与市场暂停叠加；清除一条记录仅解除该记录，不影响其他记录或市场 HALT。授权 forceExit 继续可用。
 
 ### 3.4 UTC 计量日切点
 
@@ -459,7 +471,7 @@ struct TokenConfig {
 | --- | --- | --- |
 | `initializePool(PoolKey calldata key, uint160 sqrtPriceX96, bytes32 priceBasisHash)` | `POOL_CREATOR_ROLE`，调用 `TSVLPManagerV1` | 创建 V4 池并在同一交易中登记 PENDING→ACTIVE。`key` 由 `currency0/currency1/fee/tickSpacing/hooks` 组成，字段含义见交易系统 §2.2；两侧 Token 都须 APPROVED，Currency 地址须排序且不能为零，Hook 必须为 TSV Hook，fee `< 1,000,000`，tickSpacing 为 `1..32767`，最多一侧可为股票。`sqrtPriceX96` 是 V4 初始 Q64.96 平方根价格；范围及池是否已初始化由 PoolManager 校验。`priceBasisHash` 必须非零，用于留存定价依据摘要。 |
 | `disablePool(bytes32 poolId, bytes32 evidenceHash)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 ACTIVE 池可停用；`evidenceHash` 非零。池状态变为 DISABLED，禁止新 Swap 和普通 LP 操作，但不自动清退存量仓位；历史池身份仍保留供强退使用。 |
-| `enablePool(bytes32 poolId, bytes32 evidenceHash)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 DISABLED 池可恢复；`evidenceHash` 非零。两侧 Token 必须仍为 APPROVED，所含证券必须仍 listed；恢复时还会调用 `isTradable(poolId)`，因此全局/池/Token/证券暂停均须解除，股票市场状态必须为 OPEN。 |
+| `enablePool(bytes32 poolId, bytes32 evidenceHash)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 DISABLED 池可恢复；`evidenceHash` 非零。两侧 Token 必须仍为 APPROVED，所含证券必须仍 listed；恢复时要求交易和 LP 两类门禁均通过，因此全局/池/Token/证券的两类暂停均须解除，股票市场状态必须为 OPEN。 |
 
 `initializePool` 的原子流程是 LP Manager 调用 Registry 登记 PENDING、调用 PoolManager `initialize`，成功后再由 Manager 通知 Registry 标为 ACTIVE 并更新 active-pool 计数。失败时三步全部回滚。运营不直接调用 Registry 的 `registerPendingPool`/`markPoolActive`；这两个入口仅允许已绑定的 LP Manager 调用。
 
@@ -499,8 +511,8 @@ function forceExit(
 | 合约 | 直接查询入口 | 返回/用途 |
 | --- | --- | --- |
 | Registry | `getSecurity(bytes32 securityId)`、`getToken(address currency)`、`getPool(bytes32 poolId)`、`tierPolicy(uint8 tierId)` | 读取证券、Token、池和 Tier 配置结构。 |
-| Registry | `marketStatus(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`hasCredential(address owner)`、`isEligible(address owner)` | 查询市场状态、池是否登记/可交易、SBT 是否持有/当前是否合格。`isEligible` 同时考虑 SBT 全局暂停。 |
-| Registry | `activePoolCountByCurrency(address currency)`、`marketSequence(bytes32 securityId)`、`emergencyPauses(uint256 recordId)`、`activePauseCount(uint8 scope, bytes32 target)` | 读取活跃池计数、市场报告序号、暂停记录及指定范围的活动暂停数量。 |
+| Registry | `marketStatus(bytes32 securityId)`、`marketPauseMode(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`hasCredential(address owner)`、`isEligible(address owner)` | 市场未初始化时返回 UNINITIALIZED，初始化后任一市场暂停时 HALTED、全部恢复时 OPEN；池是否登记/允许交易/允许普通 LP，SBT 是否持有/当前是否合格。`isEligible` 同时考虑 SBT 全局暂停。isTradable 不检查 ADTV、额度或流动性。 |
+| Registry | `activePoolCountByCurrency(address currency)`、`marketSequence(bytes32 securityId)`、`emergencyPauses(uint256 recordId)`、`activePauseCount(uint8 scope, bytes32 target, uint8 mode)` | 读取活跃池计数、市场报告序号、暂停记录及指定范围/目标/精确模式的活动暂停数量；ALL 记录计入 mode=3，不重复计入 mode=1/2。 |
 | Registry | `hook()`、`lpManager()`、`dataInbox()`、`nextPauseId()`、`participantSbt()`、`sbtTokenId()` | 读取绑定地址、下一暂停记录编号和当前 SBT 配置。 |
 | DataInbox | `reportIdUsed(bytes32 reportId)`、`lastSequence(uint8 kind, bytes32 key)`、`lastSourceTimestamp(uint8 kind, bytes32 key)`、`MAX_ADTV_BATCH_SIZE()` | 核对报告去重、各类别最新序号/来源时间和批量 ADTV 上限；`kind` 为 `0=Market`、`1=ADTV`、`2=Quota`，`key` 为对应 `securityId`。 |
 | DataInbox | `registry()`、`ledger()` | 读取绑定的 Registry 和 VolumeLedger。 |
@@ -691,7 +703,9 @@ flowchart TB
 flowchart TD
   A[资产已登记并获批] --> B[PoolKey 已登记且池 ACTIVE]
   B --> C[用户 SBT 资格与请求授权有效]
-  C --> D[市场 OPEN 且没有命中的紧急暂停]
+  C --> D[证券已初始化且仍 listed 且没有命中的 TRADE/ALL 暂停]
+  C --> LP[无命中的 LP/ALL 暂停时执行普通 LP]
+  R --> LP
   D --> E[交易系统执行 Swap]
   E --> F[Hook 按实际股票 delta 直接换算 legalSharesWad]
   F --> G[Ledger 检查 ADTV / Tier / 可选 quota]

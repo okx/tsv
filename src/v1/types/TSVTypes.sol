@@ -20,14 +20,14 @@ enum PoolStatus {
 enum MarketStatus {
     UNINITIALIZED, // No initial market report has been accepted.
     OPEN, // Market operations may proceed when all other gates pass.
-    HALTED // New swaps and ordinary LP actions are blocked.
+    HALTED // Trading, ordinary LP actions, or both are paused.
 }
 /// @notice Allowed first-state and subsequent market-state transitions.
 enum MarketAction {
     INITIAL_OPEN, // Initializes an uninitialized security as open.
-    INITIAL_HALTED, // Initializes an uninitialized security as halted.
-    HALT, // Changes an open security to halted.
-    RESUME // Changes a halted security to open.
+    INITIAL_HALTED, // Initializes an uninitialized security with the selected pause.
+    HALT, // Adds the selected trading and/or LP pause to an initialized security.
+    RESUME // Removes the selected pause; the security is open once all market pauses clear.
 }
 /// @notice Scope used to target an emergency pause record.
 enum PauseScope {
@@ -35,6 +35,13 @@ enum PauseScope {
     SECURITY, // Applies to pools containing one security.
     TOKEN, // Applies to pools containing one Currency.
     POOL // Applies to one V4 pool ID.
+}
+/// @notice Operations affected by a pause; values also form the market pause bitmask.
+enum PauseMode {
+    NONE, // No market pause; invalid as the mode of a pause or resume request.
+    TRADE, // Blocks swaps only.
+    LP, // Blocks all ordinary LP actions only.
+    ALL // Blocks swaps and all ordinary LP actions.
 }
 /// @notice Operation mode bound to an LP Manager callback context.
 enum LPOperationMode {

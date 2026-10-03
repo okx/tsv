@@ -1,6 +1,6 @@
 # TSV V1 合约编码规格
 
-版本：1.6，2026-10-02。本文记录**当前源码 ABI**、已实现/未冻结规则，接口以 `src/v1/` 为准。交易、运营、治理流程及直接入口总览见[三系统总览](./SYSTEMS_OVERVIEW.md)。[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)是资产分类、结算能力与计股能力的规范，并集中说明 wTSLAx、未接入股数 Adapter 的 ERC-8056 测试夹具及公司行动边界；当前 V1 每侧只直接收付该侧 Currency。系统设计理由见[主架构](./CONTRACT_ARCHITECTURE.md)，未编码和未冻结之处见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
+版本：1.7，2026-10-03。本文记录**当前源码 ABI**、已实现/未冻结规则，接口以 `src/v1/` 为准。交易、运营、治理流程及直接入口总览见[三系统总览](./SYSTEMS_OVERVIEW.md)。[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)是资产分类、结算能力与计股能力的规范，并集中说明 wTSLAx、未接入股数 Adapter 的 ERC-8056 测试夹具及公司行动边界；当前 V1 每侧只直接收付该侧 Currency。系统设计理由见[主架构](./CONTRACT_ARCHITECTURE.md)，未编码和未冻结之处见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
 
 | 位置 | 阅读方式 |
 | --- | --- |
@@ -38,6 +38,7 @@ enum PoolStatus { ABSENT, PENDING, ACTIVE, DISABLED }
 enum MarketStatus { UNINITIALIZED, OPEN, HALTED }
 enum MarketAction { INITIAL_OPEN, INITIAL_HALTED, HALT, RESUME }
 enum PauseScope { GLOBAL, SECURITY, TOKEN, POOL }
+enum PauseMode { NONE, TRADE, LP, ALL } // ABI values: 0, 1, 2, 3
 enum LPOperationMode { OPEN, INCREASE, DECREASE, COLLECT, CLOSE, FORCE_EXIT }
 
 struct TokenConfig {
@@ -203,7 +204,9 @@ function forceExit(
 
 建池仅 `POOL_CREATOR`，要求 `key.hooks == Hook`、`currency0 < currency1`、两侧都有已批准 TokenConfig、`0 <= key.fee < 1_000_000` pips 且 `1 <= key.tickSpacing <= 32767`；拒绝 V4 动态费率哨兵与 100% LP fee。Registry 先标记 PENDING，LP Manager 调用 PoolManager `initialize`，Hook 只允许来自 LP Manager 的准确 PoolKey，成功后 Registry 改为 ACTIVE；任一失败全部回滚。初始价格由 POOL_CREATOR 提交，只校验 V4 范围；`priceBasisHash` 只用于审计。
 
-`positionId` 从 1 单调递增，V4 salt 直接取 `bytes32(positionId)`；在同一 LP Manager 内 positionId 唯一，且 V4 仓位键还包含 manager、PoolKey 和 ticks。每次 LP 操作在 `PoolManager.unlock` 前保存活跃 `LPContext`，并保存完整 `ModifyRequest` 的 `activeRequestHash`；unlock data 是该请求编码，LP `modifyLiquidity` 的 `hookData` 为空。PoolManager 回调要求调用者为 PoolManager、Manager 正处于非重入操作中、活跃 positionId 非零，并核对 unlock data 哈希后才解码和结算。Hook 通过无参 `activeLPContext()` 读取只含自身校验所需字段的 `LPHookContext`，并将 poolId、PoolKey、ticks、salt、liquidityDelta 与 V4 参数逐项比对；`beforeAddLiquidity/beforeRemoveLiquidity` 再按模式限制增加或移除，强退只允许全额负 delta。操作成功后 Manager 清除活跃上下文与请求哈希；任何回滚会原子恢复状态。这里不使用 LP operationId 或 nonce。仓位保存不可变 owner、PoolKey、ticks、salt，流动性严格为正。LP Manager 内置 Receipt ERC-721，tokenId 等于 positionId，mint/burn 仅由 LP 生命周期内部执行；所有转移和授权入口回滚。用户 LP 操作仅允许 `msg.sender == position.owner == ownerOf(positionId)` 且 Registry 的共用 SBT 当前有效、未暂停；无资格回滚 `Unauthorized()`，不可交易池回滚 `InvalidPool()`。强退例外见下段。
+`positionId` 从 1 单调递增，V4 salt 直接取 `bytes32(positionId)`；在同一 LP Manager 内 positionId 唯一，且 V4 仓位键还包含 manager、PoolKey 和 ticks。每次 LP 操作在 `PoolManager.unlock` 前保存活跃 `LPContext`，并保存完整 `ModifyRequest` 的 `activeRequestHash`；unlock data 是该请求编码，LP `modifyLiquidity` 的 `hookData` 为空。PoolManager 回调要求调用者为 PoolManager、Manager 正处于非重入操作中、活跃 positionId 非零，并核对 unlock data 哈希后才解码和结算。Hook 通过无参 `activeLPContext()` 读取只含自身校验所需字段的 `LPHookContext`，并将 poolId、PoolKey、ticks、salt、liquidityDelta 与 V4 参数逐项比对；`beforeAddLiquidity/beforeRemoveLiquidity` 再按模式限制增加或移除，强退只允许全额负 delta。操作成功后 Manager 清除活跃上下文与请求哈希；任何回滚会原子恢复状态。这里不使用 LP operationId 或 nonce。仓位保存不可变 owner、PoolKey、ticks、salt，流动性严格为正。LP Manager 内置 Receipt ERC-721，tokenId 等于 positionId，mint/burn 仅由 LP 生命周期内部执行；所有转移和授权入口回滚。用户 LP 操作仅允许 `msg.sender == position.owner == ownerOf(positionId)` 且 Registry 的共用 SBT 当前有效、未暂停；无资格回滚 `Unauthorized()`，`isLPAllowed(poolId)` 为 false 时回滚 `InvalidPool()`。强退例外见下段。
+
+Position ID 的唯一性范围是单个 LP Manager 代理，跨链或跨代理索引使用 `(chainId, managerProxyAddress, positionId)`。成功关闭或强退后 ID 不复用；开仓失败时计数器、Receipt 与 V4 状态一起回滚；uint256 计数溢出会回滚。兼容布局的升级保留计数器，初始化不能重复执行。对应 8 项真实 V4 验证见 `test/integration/local/TSVPositionIdLocal.t.sol`。
 
 所有 LP 操作验证 deadline、tick 间隔、`0 < liquidity <= int128.max`（需要非零 liquidity 的操作）和 PoolManager 返回的**实际** `callerDelta`；`maxPoolIn* / minPoolOut*` 是两种池内 Currency 的原始单位边界。若输入 delta 为 `int128.min`，Manager 在 ERC-20 转账前以 `InputAmountTooLarge()` 拒绝，因为其绝对值 `2^127` 超出 PoolManager 可结算的正 `int128` 范围。强退调用方必须传入两侧 raw `minPoolOut`，合约逐侧校验，具体下限由运营按执行时策略设置；若任一侧不足则整笔回滚并保留仓位。正流动性变化用 V4 `modifyLiquidity(+liquidity)`，减仓用负值；所有实际负 delta 直接从原 owner 拉取对应 Currency，正 delta 直接交付同一 Currency 给原 owner，并核对双方准确余额变化。`openPosition` 在同笔结算成功后 mint Receipt；`increaseLiquidity` 增加账本流动性；`decreaseLiquidity` 的 `liquidity < current` 且剩余严格为正；`collectFees` 只在 OPEN 且正流动性时使用 V4 零 delta，任一负 delta 都拒绝、若两侧实际领取均为零也回滚；`closePosition` 一次负 delta 清空流动性，直接用该次包含费用的 `callerDelta` 结清、交付并 burn Receipt，不再调用零 delta。wTSLAx 与普通 ERC-20 完全共用这条直接结算路径，不调用包装/赎回 Adapter。
 
@@ -221,7 +224,7 @@ function forceExit(
 
 1. 对每个 `(securityId,tradeDayId)` 保存 `QuotaOverride { uint256 quotaWad; bool active; uint64 version; bytes32 reportId; }`。从未提交、或已显式清除覆盖时，`active=false`；不能用 `quotaWad == 0` 判定 ADTV 缺失。新 TSV 计量日默认没有覆盖，不继承前一日状态。
 2. `QuotaReport` 增加 `uint8 action`，只允许 `SET=1` 或 `CLEAR=2`。Solidity 字段顺序为 `bytes32 securityId,uint32 tradeDayId,uint8 action,uint256 quotaWad,uint64 sourceTimestamp,uint64 submitDeadline,uint64 version,uint64 sequence,bytes32 reportId,bytes32 sourceHash`；没有 `signer` 字段或签名参数。`SET` 要求证券已登记、该日所需 ADTV 已存在、`0 < quotaWad <=` 提交时的硬上限；`CLEAR` 要求原覆盖处于 active 且 `quotaWad == 0`。两者都要求该 key 的 version 严格加一、报告 ID 唯一、报告来源序号递增，发出包含 action、值、版本、reportId 的事件。不能把零配额当作暂停；暂停仍走 §8。
-3. 每次 Swap 必须有按 D-34 自动算出的当前计量日、适用 ADTV、有效股票资产和 OPEN 市场状态。`hardCapWad == 0` 时拒绝；当日 `active=false` 时 `effectiveCapWad=hardCapWad`，否则 `effectiveCapWad=min(hardCapWad,quotaWad)`。要求 `usedWad[securityId][tradeDayId] + legalSharesWad <= effectiveCapWad`；`remaining` 在无覆盖但 ADTV 有效时返回有效及 `max(0,hardCapWad-usedWad)`。同日 SET/CLEAR 从成功提交交易之后影响后续 Swap，不修改已计成交或已用量；低于已用量时后续 Swap 失败。
+3. 每次 Swap 必须有按 D-34 自动算出的当前计量日、适用 ADTV、有效股票资产和已初始化且未暂停交易的市场状态。`hardCapWad == 0` 时拒绝；当日 `active=false` 时 `effectiveCapWad=hardCapWad`，否则 `effectiveCapWad=min(hardCapWad,quotaWad)`。要求 `usedWad[securityId][tradeDayId] + legalSharesWad <= effectiveCapWad`；`remaining` 在无覆盖但 ADTV 有效时返回有效及 `max(0,hardCapWad-usedWad)`。同日 SET/CLEAR 从成功提交交易之后影响后续 Swap，不修改已计成交或已用量；低于已用量时后续 Swap 失败。
 4. 同一计量单位内，ADTV/Tier 更正后始终重新计算硬上限并取 `min`，既有覆盖值不能使有效上限超过新硬上限；上调硬上限不会自动解除较低的覆盖值。公司行动改变股数单位时仍须先暂停并执行[准入标准的单位切换流程](./TOKEN_ADMISSION_STANDARD_V1.md)，不能拿不同单位的数值取 `min`。
 5. 本版 `DataInbox` 完全移除报告签名机制。升级时必须同步切换 ABI、角色运营脚本、索引器和 Ledger；旧版待提交的签名报告不再有入口，已接受的 `reportId`、序号和账本状态保持不变。D-34 同版移除日历报告依赖。
 
@@ -250,11 +253,19 @@ event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator,
 
 `cancelPendingDayStart` 仅允许当前业务 Governor、非零原因哈希，且待生效配置的 D-1 尚未开始；取消后最后一个有效检查点仍用于后续计算，已生效检查点不可删除。检查点按生效日递增存储，查询可用二分搜索，当前交易日读取不得线性遍历全部历史变更。`dayStartUTC` 对非法公历日期或超出可表示范围回滚。`dayStartCheckpoint` 返回已生效及待生效的有效检查点，不返回已取消项；取消事件保留审计记录。初始 offset 通过单独 getter 暴露，且不依赖后续治理事件重建。
 
-**当前代码**的 `VolumeLedger.recordSwap(poolId,delta0,delta1,legalShares0,legalShares1)` 只允许固定 Hook 调用。Ledger 从 Registry 读取两侧 Currency、securityId 和 Adapter 元数据；非股票侧必须传入零 shares，股票侧必须传入非零 shares，并验证 Token 的证券、Adapter 地址及版本配置。Adapter 的转换函数只由 Hook 在本回调之前调用，Ledger 信任固定 Hook 传来的 shares，不再读取或执行 Adapter。Ledger 从区块时间和日切检查点确定计量日，读取适用 ADTV 与可选 quota 覆盖，并要求 `used + charge <= effectiveCapWad`。源码逐侧处理 delta，但 Registry 建池门禁使双股票分支不可用于新池。任一必需输入缺失、停牌、暂停、零股或超额，整笔交易回滚。Ledger 不向 DataInbox 提供写 `used` 的入口。
+**当前代码**的 `VolumeLedger.recordSwap(poolId,delta0,delta1,legalShares0,legalShares1)` 只允许固定 Hook 调用。Ledger 从 Registry 读取两侧 Currency、securityId 和 Adapter 元数据；非股票侧必须传入零 shares，股票侧必须传入非零 shares，并验证 Token 的证券、Adapter 地址及版本配置。Adapter 的转换函数只由 Hook 在本回调之前调用，Ledger 信任固定 Hook 传来的 shares，不再读取或执行 Adapter。Ledger 从区块时间和日切检查点确定计量日，读取适用 ADTV 与可选 quota 覆盖，并要求 `used + charge <= effectiveCapWad`。源码逐侧处理 delta，但 Registry 建池门禁使双股票分支不可用于新池。任一必需输入缺失、交易停牌、交易暂停、零股或超额，整笔交易回滚。Ledger 不向 DataInbox 提供写 `used` 的入口。
 
 ## 8. 暂停与准入状态
 
-紧急暂停记录以递增 `recordId` 为主键，保存 `scope,target,reasonCode,sourceHash,openedBy,openedAt,active`；`GLOBAL/SECURITY/TOKEN/POOL` 目标分别是零、securityId、Token 地址、PoolId。`EMERGENCY_PAUSER` 只新增记录，`EMERGENCY_RESUMER` 只关闭指定仍活跃记录；每 scope/target 维护活跃计数，任何命中即阻止新 Swap 和用户 LP。关闭一条记录不影响同目标的其他记录。市场 HALTED 阻止新 Swap/用户 LP；目标规则中仅缺适用 ADTV 会因报告缺失阻止 Swap，日切自动发生，quota 可选；Token/Pool DISABLED 阻止新 Swap/用户 LP。池初始化只看建池准入，不受运行期 HALT/暂停阻止。强退仅绕过这些业务门禁，不绕过发行方 Token 自身的转账限制。
+暂停模式为 `TRADE=1`（仅交易）、`LP=2`（全部普通 LP）、`ALL=3`（交易和 LP）。`NONE=0` 只表示无市场暂停，不能作为暂停/恢复请求模式。普通 LP 包括开仓、加仓、减仓、领取手续费和关闭仓位。Router、Hook Swap 和 VolumeLedger 使用 `isTradable(poolId)`；LP Manager 与 Hook LP 使用 `isLPAllowed(poolId)`。单项暂停允许另一类操作通过暂停门禁，其他资产、池、证券和 SBT 准入仍须满足。
+
+紧急暂停记录以递增 `recordId` 为主键，保存 `scope,target,mode,reasonCode,sourceHash,openedBy,openedAt,active`；`GLOBAL/SECURITY/TOKEN/POOL` 目标分别是零、securityId、Token 地址、PoolId。`EMERGENCY_PAUSER` 新增记录，`EMERGENCY_RESUMER` 关闭指定仍活跃记录；`activePauseCount(scope,target,mode)` 返回该精确模式的活跃记录数。交易检查 TRADE 或 ALL，LP 检查 LP 或 ALL；命中的记录叠加生效，关闭一条不会关闭其他记录或解除市场暂停。
+
+`MarketReport` 在 `action` 后新增 `PauseMode mode`，DataInbox 调用 `applyMarketStatus(securityId,action,mode,sequence,reportId)`。尚未初始化的证券阻断交易和 LP；INITIAL_OPEN 必须指定 ALL 并写入 NONE/OPEN，INITIAL_HALTED 则写入指定模式，未被暂停的另一类操作可以通过门禁。初始化仅允许一次。HALT 按位叠加指定模式，RESUME 只清除指定模式；不产生状态变化的报告回滚，报告序号和去重状态也回滚。`marketPauseMode(securityId)` 保存当前模式，`marketStatus(securityId)` 返回初始化及暂停状态，任一位暂停时市场为 HALTED，全部恢复时为 OPEN；下架证券仍由 listed 门禁阻断。例如 TRADE → HALT LP → ALL → RESUME TRADE → LP → RESUME LP → NONE/OPEN。模式改变时即使市场仍为 HALTED，也发出带旧/新模式的 MarketStatusChanged。暂停不会因报告年龄自动恢复。
+
+缺适用 ADTV 会阻止 Swap，日切自动发生，quota 可选；Token/Pool DISABLED 和外部 SBT paused 仍阻止普通 Swap/LP。池初始化只看建池准入，不受运行期 HALT/暂停阻止；enablePool 要求交易和 LP 门禁均通过。活跃 Currency 替换 LegalShareAdapter 时，GLOBAL/TOKEN 紧急记录必须共同覆盖交易和 LP，单项暂停不足。授权强退绕过上述业务门禁，资产仍只交付原 owner，发行方 Token 的转账限制仍生效。
+
+本次按首次部署更新暂停、市场报告、事件和计数查询 ABI，不提供旧接口重载或历史暂停状态迁移。
 
 ## 9. 代理、角色和升级
 
@@ -325,7 +336,7 @@ TokenStatusChanged(address indexed poolCurrency,uint8 oldStatus,uint8 newStatus,
 LegalShareAdapterChanged(address indexed poolCurrency,address oldAdapter,address newAdapter,uint32 legalAdapterVersion,bytes32 evidenceHash)
 PoolInitialized(bytes32 indexed poolId,uint160 sqrtPriceX96,address indexed creator,bytes32 priceBasisHash)
 PoolStatusChanged(bytes32 indexed poolId,uint8 oldStatus,uint8 newStatus,bytes32 evidenceHash)
-MarketStatusChanged(bytes32 indexed securityId,uint8 oldStatus,uint8 newStatus,uint64 sequence,bytes32 indexed reportId)
+MarketStatusChanged(bytes32 indexed securityId,uint8 oldStatus,uint8 newStatus,uint8 oldPauseMode,uint8 newPauseMode,uint64 sequence,bytes32 indexed reportId)
 AdtvAccepted(bytes32 indexed securityId,uint32 indexed sourceMonth,uint256 adtvWad,uint64 version,bytes32 indexed reportId)
 QuotaAccepted(bytes32 indexed securityId,uint32 indexed tradeDayId,uint8 action,uint256 quotaWad,uint64 version,bytes32 indexed reportId)
 DayStartScheduled(uint32 indexed effectiveDayId,uint32 indexed transitionDayId,uint32 oldOffsetSeconds,uint32 newOffsetSeconds,uint64 effectiveStartUTC,address indexed operator,bytes32 reasonHash)
@@ -337,7 +348,7 @@ PositionChanged(uint256 indexed positionId,uint128 oldLiquidity,uint128 newLiqui
 FeesCollected(uint256 indexed positionId,uint256 amount0,uint256 amount1)
 PositionClosed(uint256 indexed positionId,address indexed owner,bool forced,bytes32 reasonCode)
 SbtConfigChanged(address indexed oldSbt,address indexed newSbt,uint256 oldTokenId,uint256 newTokenId,bytes32 evidenceHash)
-EmergencyPauseOpened(uint256 indexed recordId,uint8 scope,bytes32 indexed target,bytes32 reasonCode)
+EmergencyPauseOpened(uint256 indexed recordId,uint8 scope,bytes32 indexed target,uint8 mode,bytes32 reasonCode)
 EmergencyPauseClosed(uint256 indexed recordId,bytes32 reasonCode)
 UpgradeTargetChanged(address indexed proxy,bool allowed)
 EmergencyUpgradeExecuted(address indexed proxy,address oldImplementation,address newImplementation,bytes32 indexed upgradeActionId,bytes32 incidentId,bytes32 initDataHash,bytes32 evidenceHash)
@@ -382,9 +393,9 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 | Registry | `bindComponents(address hook,address lpManager,address dataInbox)` | Governor 仅可首次绑定；三个地址均须有代码。部署初始化入口，不可替换已绑定组件 |
 | Registry | `registerPendingPool(PoolKey)`、`markPoolActive(bytes32 poolId,uint160 sqrtPriceX96,address creator,bytes32 priceBasisHash)` | 仅 LP Manager；两个调用与 PoolManager.initialize 必须在同一外部交易成功 |
 | Registry | `disablePool(bytes32 poolId,bytes32 evidenceHash)`、`enablePool(bytes32 poolId,bytes32 evidenceHash)` | `SYMBOL_ADMIN`；enable 重查两侧资产批准、市场与准入，不更改 PoolKey |
-| Registry | `addEmergencyPause(PauseScope scope,bytes32 target,bytes32 reasonCode,bytes32 sourceHash)`、`clearEmergencyPause(uint256 recordId,bytes32 reasonCode)` | 分别仅 `EMERGENCY_PAUSER` 与 `EMERGENCY_RESUMER`；活跃计数逐条更新 |
+| Registry | `addEmergencyPause(PauseScope scope,bytes32 target,PauseMode mode,bytes32 reasonCode,bytes32 sourceHash)`、`clearEmergencyPause(uint256 recordId,bytes32 reasonCode)` | 分别仅 `EMERGENCY_PAUSER` 与 `EMERGENCY_RESUMER`；mode 必须为 TRADE/LP/ALL；按 scope/target/mode 逐条更新活跃计数 |
 | Registry | `setSbtConfig(address sbt,uint256 tokenId,bytes32 evidenceHash)`、`isEligible(address owner)`、`hasCredential(address owner)`、`participantSbt()`、`sbtTokenId()` | SBT 配置仅 Governor，必须提供有代码地址和证据哈希；配置时校验 `paused()`/`verify()` ABI；所有用户 Swap/LP 使用同一份资格配置；未配置时回滚 `SbtNotConfigured()`，读取失败时调用回滚 |
-| Registry | `getToken(address poolCurrency)`、`getPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isKnownPool(bytes32 poolId)` | 只读；`isKnownPool` 对停用历史池仍为真，供强退 |
+| Registry | `getToken(address poolCurrency)`、`getPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`marketPauseMode(bytes32 securityId)`、`activePauseCount(uint8 scope,bytes32 target,uint8 mode)`、`isKnownPool(bytes32 poolId)` | 只读；isTradable/isLPAllowed 分别判断交易/普通 LP；activePauseCount 返回精确 mode 的记录数；`isKnownPool` 对停用历史池仍为真，供强退 |
 | DataInbox | `submitMarketStatus(MarketReport)`、`submitAdtv(AdtvReport)`、`submitAdtvBatch(AdtvReport[])`、`submitQuota(QuotaReport)` | `msg.sender` 必须直接持有对应角色；批量 ADTV 同月、securityId 严格递增、最多 100 条且整批原子提交；不接受报告签名或任意 relayer 代提；序号、reportId 和期间规则按 §7；状态分别写 Registry/VolumeLedger 的仅 DataInbox 入口 |
 | VolumeLedger | `recordSwap(bytes32 poolId,int128 delta0,int128 delta1,uint256 legalShares0,uint256 legalShares1)` | 仅固定 Hook 代理；从 Registry 重读资产身份，检查 shares 与资产配置一致后双侧额度原子检查/增加 |
 | VolumeLedger | `bindWriters(address hook,address dataInbox)` | Governor 仅可首次绑定；两个地址均须有代码。部署初始化入口，不可替换已绑定写入者 |
@@ -397,4 +408,4 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 
 `MarketReport/AdtvReport/QuotaReport` 的 Solidity 字段类型和顺序逐项等于 `src/v1/types/TSVReports.sol`，不额外嵌套、重排或使用 `string` 代替 `bytes32`；报告结构不含 `signer` 字段，也没有签名参数；`QuotaReport.action` 为 `uint8`。TradeDayReport 只属于历史资料，当前接口不再接受该类型。当前 getter 对未知主键返回 Solidity 默认结构；调用方必须检查 `status`、`poolCurrency`、`securityId`、`version` 或报告 `version/reportId` 等存在性字段，不能把零值当作有效配置。`Tier` 的规范存储为 `tierBps uint16`、`maxListed uint32`、`listedCount uint32`，Governor 修改 `tierBps/maxListed` 要求 `1 <= tierBps <= 10000` 且新 `maxListed >= listedCount`，变更对未来 Swap 立即生效而不清除历史额度。
 
-`LegalShareAdapterChanged` 只在暂停或无活跃池、版本递增且新 Adapter 声明支持直接换算接口并绑定对应 Currency 时发出。
+`LegalShareAdapterChanged` 只在 GLOBAL/TOKEN 紧急暂停共同覆盖交易和 LP 或无活跃池、版本递增且新 Adapter 声明支持直接换算接口并绑定对应 Currency 时发出。

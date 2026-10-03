@@ -12,7 +12,8 @@ import {
     PoolStatus,
     MarketStatus,
     MarketAction,
-    PauseScope
+    PauseScope,
+    PauseMode
 } from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
@@ -63,6 +64,8 @@ contract TSVRegistryV1 is TSVGoverned {
         PauseScope scope;
         /// @dev Scope-specific target identifier; zero for a global pause.
         bytes32 target;
+        /// @dev Trading, ordinary LP operations, or both blocked by this record.
+        PauseMode mode;
         /// @dev Operational reason assigned to the pause.
         bytes32 reasonCode;
         /// @dev Digest of the supporting incident evidence.
@@ -89,9 +92,12 @@ contract TSVRegistryV1 is TSVGoverned {
     mapping(bytes32 => MarketStatus) private marketStatuses;
     mapping(bytes32 => uint64) public marketSequence;
     mapping(uint256 => EmergencyPause) public emergencyPauses;
-    mapping(uint8 => mapping(bytes32 => uint256)) public activePauseCount;
+    /// @notice Number of active records for exactly the specified scope, target, and mode.
+    mapping(uint8 => mapping(bytes32 => mapping(uint8 => uint256))) public activePauseCount;
     ISmartWalletSbtV1 public participantSbt;
     uint256 public sbtTokenId;
+    /// @notice Current market pause mask; NONE does not imply the market has been initialized.
+    mapping(bytes32 => PauseMode) public marketPauseMode;
 
     /// @notice Emitted when core component addresses were bound to the Registry.
     event ComponentsBound(address indexed hook, address indexed lpManager, address indexed dataInbox);
@@ -123,10 +129,18 @@ contract TSVRegistryV1 is TSVGoverned {
     event PoolStatusChanged(bytes32 indexed poolId, uint8 oldStatus, uint8 newStatus, bytes32 evidenceHash);
     /// @notice Emitted when a security market-state report was accepted.
     event MarketStatusChanged(
-        bytes32 indexed securityId, uint8 oldStatus, uint8 newStatus, uint64 sequence, bytes32 indexed reportId
+        bytes32 indexed securityId,
+        uint8 oldStatus,
+        uint8 newStatus,
+        uint8 oldPauseMode,
+        uint8 newPauseMode,
+        uint64 sequence,
+        bytes32 indexed reportId
     );
     /// @notice Emitted when an emergency pause record was opened.
-    event EmergencyPauseOpened(uint256 indexed recordId, uint8 scope, bytes32 indexed target, bytes32 reasonCode);
+    event EmergencyPauseOpened(
+        uint256 indexed recordId, uint8 scope, bytes32 indexed target, uint8 mode, bytes32 reasonCode
+    );
     /// @notice Emitted when an emergency pause record was closed.
     event EmergencyPauseClosed(uint256 indexed recordId, bytes32 reasonCode);
     /// @notice Emitted when the configured participant SBT or token identifier was changed.
@@ -445,7 +459,9 @@ contract TSVRegistryV1 is TSVGoverned {
         ) revert InvalidStatus();
         pool.status = PoolStatus.ACTIVE;
         pool.version++;
-        if (!this.isTradable(poolId)) revert InvalidStatus();
+        if (!_isOperationAllowed(poolId, PauseMode.TRADE) || !_isOperationAllowed(poolId, PauseMode.LP)) {
+            revert InvalidStatus();
+        }
         activePoolCountByCurrency[c0]++;
         activePoolCountByCurrency[c1]++;
         if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount++;
@@ -477,45 +493,70 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Applies the next valid market-state transition from the bound DataInbox.
     /// @param securityId Listed security whose market state changes.
     /// @param action Initial-state, halt, or resume action from the report.
+    /// @param mode Operations affected by this action: TRADE, LP, or ALL.
     /// @param sequence Report sequence for this security.
     /// @param reportId Unique ID of the accepted MarketReport.
-    function applyMarketStatus(bytes32 securityId, MarketAction action, uint64 sequence, bytes32 reportId) external {
+    function applyMarketStatus(
+        bytes32 securityId,
+        MarketAction action,
+        PauseMode mode,
+        uint64 sequence,
+        bytes32 reportId
+    ) external {
         if (
             msg.sender != dataInbox || securityId == 0 || !securities[securityId].listed
-                || sequence <= marketSequence[securityId]
+                || sequence <= marketSequence[securityId] || mode == PauseMode.NONE
         ) revert InvalidStatus();
         MarketStatus old = marketStatuses[securityId];
+        PauseMode oldMode = marketPauseMode[securityId];
         MarketStatus next;
-        if (action == MarketAction.INITIAL_OPEN && old == MarketStatus.UNINITIALIZED) next = MarketStatus.OPEN;
-        else if (action == MarketAction.INITIAL_HALTED && old == MarketStatus.UNINITIALIZED) next = MarketStatus.HALTED;
-        else if (action == MarketAction.HALT && old == MarketStatus.OPEN) next = MarketStatus.HALTED;
-        else if (action == MarketAction.RESUME && old == MarketStatus.HALTED) next = MarketStatus.OPEN;
-        else revert InvalidStatus();
+        PauseMode nextMode;
+        if (action == MarketAction.INITIAL_OPEN && old == MarketStatus.UNINITIALIZED && mode == PauseMode.ALL) {
+            next = MarketStatus.OPEN;
+            nextMode = PauseMode.NONE;
+        } else if (action == MarketAction.INITIAL_HALTED && old == MarketStatus.UNINITIALIZED) {
+            next = MarketStatus.HALTED;
+            nextMode = mode;
+        } else if (action == MarketAction.HALT && old != MarketStatus.UNINITIALIZED) {
+            nextMode = PauseMode(uint8(oldMode) | uint8(mode));
+            if (nextMode == oldMode) revert InvalidStatus();
+            next = MarketStatus.HALTED;
+        } else if (action == MarketAction.RESUME && old != MarketStatus.UNINITIALIZED) {
+            nextMode = PauseMode(uint8(oldMode) & ~uint8(mode));
+            if (nextMode == oldMode) revert InvalidStatus();
+            next = nextMode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
+        } else {
+            revert InvalidStatus();
+        }
         marketStatuses[securityId] = next;
+        marketPauseMode[securityId] = nextMode;
         marketSequence[securityId] = sequence;
-        emit MarketStatusChanged(securityId, uint8(old), uint8(next), sequence, reportId);
+        emit MarketStatusChanged(
+            securityId, uint8(old), uint8(next), uint8(oldMode), uint8(nextMode), sequence, reportId
+        );
     }
 
     /// @notice Opens a scoped emergency pause and returns its record ID.
     /// @param scope GLOBAL, SECURITY, TOKEN, or POOL pause scope.
     /// @param target Scope-specific target key; zero only for GLOBAL.
+    /// @param mode TRADE, LP, or ALL; NONE cannot open a pause record.
     /// @param reasonCode Nonzero operational reason code.
     /// @param sourceHash Nonzero digest of the incident source material.
     /// @return recordId New emergency-pause record identifier.
-    function addEmergencyPause(PauseScope scope, bytes32 target, bytes32 reasonCode, bytes32 sourceHash)
+    function addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode, bytes32 sourceHash)
         external
         onlyRole(EMERGENCY_PAUSER_ROLE)
         returns (uint256 recordId)
     {
         if (
-            reasonCode == 0 || sourceHash == 0 || (scope == PauseScope.GLOBAL && target != 0)
+            mode == PauseMode.NONE || reasonCode == 0 || sourceHash == 0 || (scope == PauseScope.GLOBAL && target != 0)
                 || (scope != PauseScope.GLOBAL && target == 0)
         ) revert InvalidConfig();
         recordId = nextPauseId++;
         emergencyPauses[recordId] =
-            EmergencyPause(scope, target, reasonCode, sourceHash, msg.sender, uint64(block.timestamp), true);
-        activePauseCount[uint8(scope)][target]++;
-        emit EmergencyPauseOpened(recordId, uint8(scope), target, reasonCode);
+            EmergencyPause(scope, target, mode, reasonCode, sourceHash, msg.sender, uint64(block.timestamp), true);
+        activePauseCount[uint8(scope)][target][uint8(mode)]++;
+        emit EmergencyPauseOpened(recordId, uint8(scope), target, uint8(mode), reasonCode);
     }
 
     /// @notice Closes an active emergency-pause record and decrements its scope's active count.
@@ -525,36 +566,46 @@ contract TSVRegistryV1 is TSVGoverned {
         EmergencyPause storage record = emergencyPauses[recordId];
         if (!record.active || reasonCode == 0) revert InvalidStatus();
         record.active = false;
-        activePauseCount[uint8(record.scope)][record.target]--;
+        activePauseCount[uint8(record.scope)][record.target][uint8(record.mode)]--;
         emit EmergencyPauseClosed(recordId, reasonCode);
     }
 
-    /// @notice Returns whether a pool and both assets pass status, market, and emergency-pause checks.
+    /// @notice Returns whether a pool permits swaps after status and trading-pause checks.
     /// @param poolId Pool identifier to check.
-    /// @return Whether the pool is active, assets are approved, securities are open, and no pause applies.
+    /// @return Whether pool and asset admission checks pass and no trading pause applies.
     function isTradable(bytes32 poolId) external view returns (bool) {
+        return _isOperationAllowed(poolId, PauseMode.TRADE);
+    }
+
+    /// @notice Returns whether a pool permits ordinary LP operations after status and LP-pause checks.
+    /// @param poolId Pool identifier to check.
+    /// @return Whether pool and asset admission checks pass and no LP pause applies.
+    function isLPAllowed(bytes32 poolId) external view returns (bool) {
+        return _isOperationAllowed(poolId, PauseMode.LP);
+    }
+
+    /// @dev Applies common admission checks and pauses for exactly one operation type.
+    function _isOperationAllowed(bytes32 poolId, PauseMode operation) private view returns (bool) {
         PoolConfig storage pool = pools[poolId];
         if (pool.status != PoolStatus.ACTIVE) return false;
         address c0 = Currency.unwrap(pool.key.currency0);
         address c1 = Currency.unwrap(pool.key.currency1);
         if (tokens[c0].status != TokenStatus.APPROVED || tokens[c1].status != TokenStatus.APPROVED) return false;
         if (
-            _isPaused(PauseScope.GLOBAL, 0) || _isPaused(PauseScope.POOL, poolId)
-                || _isPaused(PauseScope.TOKEN, _addressKey(c0)) || _isPaused(PauseScope.TOKEN, _addressKey(c1))
+            _isPaused(PauseScope.GLOBAL, 0, operation) || _isPaused(PauseScope.POOL, poolId, operation)
+                || _isPaused(PauseScope.TOKEN, _addressKey(c0), operation)
+                || _isPaused(PauseScope.TOKEN, _addressKey(c1), operation)
         ) return false;
-        if (
-            pool.securityId0 != 0
-                && (!securities[pool.securityId0].listed
-                    || marketStatuses[pool.securityId0] != MarketStatus.OPEN
-                    || _isPaused(PauseScope.SECURITY, pool.securityId0))
-        ) return false;
-        if (
-            pool.securityId1 != 0
-                && (!securities[pool.securityId1].listed
-                    || marketStatuses[pool.securityId1] != MarketStatus.OPEN
-                    || _isPaused(PauseScope.SECURITY, pool.securityId1))
-        ) return false;
+        if (pool.securityId0 != 0 && !_isSecurityAllowed(pool.securityId0, operation)) return false;
+        if (pool.securityId1 != 0 && !_isSecurityAllowed(pool.securityId1, operation)) return false;
         return true;
+    }
+
+    /// @dev Requires a listed, initialized security with no pause matching the operation.
+    function _isSecurityAllowed(bytes32 securityId, PauseMode operation) private view returns (bool) {
+        return securities[securityId].listed && marketStatuses[securityId] != MarketStatus.UNINITIALIZED
+            && (uint8(marketPauseMode[securityId]) & uint8(operation)) == 0
+            && !_isPaused(PauseScope.SECURITY, securityId, operation);
     }
 
     /// @dev Checks the tier is configured and below capacity, then reserves one listing slot.
@@ -581,20 +632,25 @@ contract TSVRegistryV1 is TSVGoverned {
         }
     }
 
-    /// @dev Allows adapter replacement when the currency has no active pools or is emergency-paused.
+    /// @dev Allows adapter replacement when no pool uses the currency or both operation types are emergency-paused.
     /// @param currency Pool Currency whose replacement conditions are checked.
-    /// @return Whether no active pool uses the currency or a global/token pause is active.
+    /// @return Whether no active pool uses the currency or global/token records cover both operation types.
     function _assetPausedForReplacement(address currency) private view returns (bool) {
-        return activePoolCountByCurrency[currency] == 0 || _isPaused(PauseScope.GLOBAL, 0)
-            || _isPaused(PauseScope.TOKEN, _addressKey(currency));
+        if (activePoolCountByCurrency[currency] == 0) return true;
+        bytes32 target = _addressKey(currency);
+        return (_isPaused(PauseScope.GLOBAL, 0, PauseMode.TRADE)
+                || _isPaused(PauseScope.TOKEN, target, PauseMode.TRADE))
+            && (_isPaused(PauseScope.GLOBAL, 0, PauseMode.LP) || _isPaused(PauseScope.TOKEN, target, PauseMode.LP));
     }
 
-    /// @dev Checks whether at least one active pause record exists for the scope and target.
+    /// @dev Checks whether the operation's exact mode or ALL has an active pause record.
     /// @param scope Pause scope to inspect.
     /// @param target Scope-specific target key.
+    /// @param operation TRADE or LP operation to inspect.
     /// @return Whether the active pause count is nonzero.
-    function _isPaused(PauseScope scope, bytes32 target) private view returns (bool) {
-        return activePauseCount[uint8(scope)][target] != 0;
+    function _isPaused(PauseScope scope, bytes32 target, PauseMode operation) private view returns (bool) {
+        return activePauseCount[uint8(scope)][target][uint8(operation)] != 0
+            || activePauseCount[uint8(scope)][target][uint8(PauseMode.ALL)] != 0;
     }
 
     /// @dev Encodes an address as the bytes32 target key used by token-scoped pauses.

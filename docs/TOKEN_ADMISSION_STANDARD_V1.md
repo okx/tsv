@@ -49,7 +49,7 @@ raw 余额不变而股数权益系数变化时，V4 技术结算可以仍正确�
 
 如果 Adapter 调用发行方的实时 multiplier 换算方法，同一法律股数单位内的参数更新会直接反映在随后成交的换算结果中，不要求人工写入比例。成交事件只记录配置的 Adapter 版本，不记录每笔外部参数或转换结果的来源版本；需要追溯时，运营必须另行索引发行方参数事件或保存只读状态。自动读取新参数并不等于自动批准法律单位切换。发行方若可在计量日内改变法律单位，准入方必须有足够提前量暂停该 `securityId`，否则该资产不得作为 V1 的可持续交易资产准入。无法验证参数变化及法律映射时保持暂停。
 
-固定比例 Adapter 使用不可变参数；公式变化时须经审查后部署新 Adapter，并通过 Registry 以递增版本替换。若该 Currency 有活跃池，合约只接受 `GLOBAL` 紧急暂停或命中该 Currency 的 `TOKEN` 紧急暂停；`SECURITY` 或 `POOL` 暂停单独不能满足 Adapter 替换检查。若变化同时改变法律股数单位，还须暂停整个 `securityId`，等到下一个计量日并提交新单位 ADTV、清理或重设不兼容 quota 后再恢复。若 PoolManager raw 余额本身随公司行动变化，该 Currency 不符合第 2 节，单纯更换计股 Adapter 不足以准入。
+固定比例 Adapter 使用不可变参数；公式变化时须经审查后部署新 Adapter，并通过 Registry 以递增版本替换。若该 Currency 有活跃池，合约要求 `GLOBAL` 或命中该 Currency 的 `TOKEN` 紧急记录共同覆盖交易和 LP（单条 ALL，或 TRADE 与 LP 叠加）；`SECURITY` 或 `POOL` 暂停单独不能满足 Adapter 替换检查。若变化同时改变法律股数单位，还须暂停整个 `securityId`，等到下一个计量日并提交新单位 ADTV、清理或重设不兼容 quota 后再恢复。若 PoolManager raw 余额本身随公司行动变化，该 Currency 不符合第 2 节，单纯更换计股 Adapter 不足以准入。
 
 
 ### 4.1 法律股数单位切换的运营步骤
@@ -57,8 +57,8 @@ raw 余额不变而股数权益系数变化时，V4 技术结算可以仍正确�
 V1 只在正向拆股、反向拆股/合股确实改变 `legalSharesWad` 的法律单位时执行单位切换流程。普通 multiplier 更新若仍表示相同法律单位，可以由实时转换方法继续计量；日内新旧法律单位不能混用。合约没有公司行动报告、`unitEpoch` 或自动发现外部单位变化的入口，运营通过既有状态与报告入口执行：
 
 1. 记录发行方公告、法律及市场生效时间、受影响 `securityId`/Token、旧新映射和依据摘要；确认事件实际改变法律计量单位。
-2. 在新单位生效前，由 `EMERGENCY_PAUSER_ROLE` 对整个证券新增 `SECURITY` 暂停，阻止其所有池和 Token 的 Swap 与普通 LP 操作。单位或映射不确定时保持暂停。
-3. 若活跃 Currency 需要更换 Adapter，还须对每个要替换的 Currency 新增 `TOKEN` 暂停，或改用 `GLOBAL` 暂停；仅有 `SECURITY`/`POOL` 暂停时，`replaceLegalShareAdapter` 会回滚。无活跃池的 Currency 不受这项替换门槛限制。
+2. 在新单位生效前，由 `EMERGENCY_PAUSER_ROLE` 对整个证券新增 `SECURITY/ALL` 暂停，阻止其所有池和 Token 的 Swap 与普通 LP 操作。单位或映射不确定时保持暂停。
+3. 若活跃 Currency 需要更换 Adapter，还须对每个要替换的 Currency 新增 `TOKEN/ALL` 暂停，或改用 `GLOBAL/ALL` 暂停（也可用独立 TRADE 和 LP 记录叠加）；仅有 `SECURITY`/`POOL` 暂停时，`replaceLegalShareAdapter` 会回滚。无活跃池的 Currency 不受这项替换门槛限制。
 4. 若需更换 Adapter，由 `SYMBOL_ADMIN_ROLE` 按 Registry 规则登记新 Adapter 和递增版本；核对 ERC-165 直接换算接口、同一 Currency、Adapter 代码哈希、换算公式及权益依据。若直接调用发行方动态换算方法，则确认其生效时间和返回语义。
 5. 对新的 `legalSharesWad` 单位准备适用 ADTV，并按需为恢复交易的计量日提交新单位 quota；不得自动按拆股比例改写旧报告或旧单位日限额。报告仍由 `VOLUME_ORACLE_ROLE` 经 DataInbox 直接提交；若市场状态也被置为 HALTED，再由 `HALT_REPORTER_ROLE` 按市场报告入口恢复。V1 不新增公司行动报告函数或报告字段。
 6. 至少等到下一个 UTC 计量日开始后，复核所有准备恢复交易的 Token 已映射到同一新法律单位，ADTV/quota 使用的单位一致，原子结算和原 owner 强退路径可用。未完成审查的 Token 保持 `DISABLED` 或继续暂停。
@@ -73,7 +73,7 @@ V1 只在正向拆股、反向拆股/合股确实改变 `legalSharesWad` 的法�
 | `announcedAt`、`legalEffectiveAt`、`marketEffectiveAt` | 发行方公告、法律生效和市场生效时间 |
 | `tsvEffectiveTradeDay` | TSV 计划使用的新单位计量日 |
 | `old/newAdapterVersion`、发行方参数信息 | 公式版本与可识别的参数变化；Adapter 不变时记录外部参数变化的链上事件或状态证据 |
-| `pauseScope`、`status` | 实际暂停范围和事件处理状态 |
+| `pauseScope`、`pauseMode`、`status` | 实际暂停范围、TRADE/LP/ALL 模式和事件处理状态 |
 | `evidenceHash`、交易哈希、报告 ID | 公告、审批、链上暂停/恢复、Adapter 和报告操作的可追溯依据 |
 
 以上是运营审计记录，不是 `DataInbox` 当前 ABI 的字段；是否增设链上公司行动报告属于未来版本决策。
