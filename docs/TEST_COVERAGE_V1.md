@@ -35,6 +35,12 @@
 
 ## 执行记录
 
+2026-10-04 拆并股系数功能的最新优化回归：**369 通过、0 失败、0 跳过**（unit 237、local 132，63 个不联网套件），固定 seed `0x20261004`。本轮新增 35 项，运营范围现为 **148 项 / 23 个套件**。包含七项 invariant，默认每项 64 轮 × 32 步，普通 fuzz 256 次。使用独立 `out/split-factor-regression` / `cache/split-factor-regression` 从头编译，避免复用旧测试制品。
+
+独立 coverage 运行同样 **369 通过**；固定 X Layer 区块 **72,271,000 / chainId 196** 的 DEX fork 重新执行 **11 通过、0 失败、0 跳过**。本地与 fork 分别执行，共 380 个不同用例，不把重复插桩执行计为新增用例。`make check` 通过；六业务合约和 Anchor 运行时均小于 24,576 字节。
+
+复现：`FOUNDRY_PROFILE=default FOUNDRY_OUT=out/split-factor-regression FOUNDRY_CACHE_PATH=cache/split-factor-regression forge test --fuzz-seed 0x20261004 --summary`；fork 为 `FOUNDRY_PROFILE=xlayer forge test --fuzz-seed 0x20261004 --summary`。原始记录在忽略的 `out/`：`tsv-split-factor-all-tests.log`、`tsv-split-factor-xlayer.log`、`tsv-split-factor-coverage.log`、`tsv-split-factor-coverage.lcov`、`tsv-split-factor-check.log` 和 `tsv-split-factor-layout.json`。
+
 2026-10-04 系数功能之前的运营历史优化回归：**334 通过、0 失败、0 跳过**，unit 208 + local 126，60 个不联网套件。其中 Registry/报告/运营范围为 **113 项 / 20 个套件**；本轮新增 64 项。包含七项 invariant 和十二个具名 fuzz 用例；默认 invariant 每项 64 轮 × 32 步，普通 fuzz 每项 256 次。复现命令：`FOUNDRY_PROFILE=default forge test --fuzz-seed 0x20261004 --summary`。
 
 交易/LP 阶段历史优化回归为 **270 通过、0 失败、0 跳过**（unit 155 + local 115，46 个不联网套件）。该阶段固定区块 DEX 为 **11 通过、0 失败、0 跳过**，chainId 196，block 72,271,000，入口版本 `v1.0.10-rfq-anti-arbitrage`，当时连同本地共 281 项。运营阶段未修改 DEX/fork 夹具，未重新执行该 11 项；不将其混入本轮 334 项结果。
@@ -45,13 +51,13 @@
 
 ## 最终覆盖率
 
-系数功能之前的历史 coverage profile 使用 `--ir-minimum` 和 seed `0x20261004` 汇总全部不联网用例；当时 **334 通过、0 失败、0 跳过**。X Layer 的既有 11 项 fork 用例未计入下表。
+最新系数功能 coverage profile 使用 `--ir-minimum` 和 seed `0x20261004` 汇总全部不联网用例；**369 通过、0 失败、0 跳过**。X Layer 独立 fork 的 11 项未计入下表。
 
 | 合约 | 行 | 语句 | 分支 | 函数 |
 | --- | --- | --- | --- | --- |
-| TSVDataInboxV1 | 100% (37/37) | 100% (45/45) | 100% (5/5) | 100% (7/7) |
+| TSVDataInboxV1 | 100% (40/40) | 100% (47/47) | 100% (5/5) | 100% (8/8) |
 | TSVRegistryV1 | 98.41% (248/252) | 99.02% (403/407) | 95.08% (58/61) | 100% (36/36) |
-| TSVVolumeLedgerV1 | 98.61% (142/144) | 97.66% (209/214) | 84.21% (32/38) | 100% (22/22) |
+| TSVVolumeLedgerV1 | 99.01% (201/203) | 98.65% (292/296) | 90.57% (48/53) | 100% (28/28) |
 | ReportValidationLib | 100% (5/5) | 100% (13/13) | 100% (2/2) | 100% (1/1) |
 | TradeDayLib | 100% (44/44) | 98.15% (106/108) | 71.43% (5/7) | 100% (7/7) |
 | TSVGovernanceAnchor | 100% (109/109) | 100% (218/218) | 100% (24/24) | 100% (11/11) |
@@ -61,10 +67,12 @@
 | TSVHookV1 | 100% (78/78) | 97.50% (117/120) | 77.78% (14/18) | 100% (16/16) |
 | TSVDirectSettlementLib | 100% (19/19) | 100% (42/42) | 100% (2/2) | 100% (2/2) |
 
-全部非测试源码（含部署脚本）的汇总为：行 **91.57% (1119/1222)**、语句 **92.65% (1915/2067)**、分支 **83.91% (219/261)**、函数 **94.51% (172/182)**。部署脚本的真实广播路径没有执行。
+全部非测试源码（含部署脚本）的汇总为：行 **91.98% (1181/1284)**、语句 **92.98% (2000/2151)**、分支 **85.14% (235/276)**、函数 **94.71% (179/189)**。部署脚本的真实广播路径没有执行。
 
 LP Manager 与 Router 的结算符号判断已被实际正/负 delta 用例执行，IR 最小优化的行映射仍各留下一个未计入位置。Hook/LP 的分支统计也尚未达到 100%；上述矩阵记录具体成功、失败和回滚行为，不能从百分比推导所有输入组合均已验证。
 
 运营合约未计入位置分为实际未注入的防御输入、当前入口约束不可达的状态和源码映射遗漏；分类见[运营 review](./OPERATIONS_TEST_REVIEW_V1.md#覆盖率与尚未触达的合约内分支)。没有把这些分支全部称为已测试。
 
 本轮原始记录位于忽略的 `out/`：`tsv-operations-all-tests-v2.log`、`tsv-operations-model-v2.log`、`tsv-operations-check.log`、`tsv-operations-coverage-v2.log` 与 `tsv-operations-coverage.lcov`。旧阶段的 `tsv-final-fork-tests-v2.log` 继续保留；可按测试说明重新生成。
+
+系数功能的最新 coverage 记录：`out/tsv-split-factor-coverage.log`、`out/tsv-split-factor-coverage.lcov`；原有运营 334 项阶段的日志保留为历史记录。

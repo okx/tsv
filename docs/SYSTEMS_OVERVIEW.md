@@ -731,7 +731,7 @@ Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager 均继承 `T
 
 ### 7.4 ABI 范围说明
 
-本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Hook 在 `afterSwap` 调用 LegalShareAdapter 的 `toLegalShares(...)` 并调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`。Adapter 的直接换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Governor 的升级与 Guardian 的统一开关入口见 §4.2。
+本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Hook 在 `afterSwap` 调用 LegalShareAdapter 的 `toLegalShares(...)` 并调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)` / `acceptSplitFactor(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`。Adapter 的直接换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Governor 的升级与 Guardian 的统一开关入口见 §4.2。
 
 LP Receipt 继承的转移/授权 selector 虽在 ABI 中存在，但会回滚，见 §2.6。部署工厂 `TSVHookProxyFactory.predict(address implementation, bytes initData, bytes32 salt)` / `deploy(address implementation, bytes initData, bytes32 salt)` 属于部署工具，不属于交易、运营或治理业务入口。
 

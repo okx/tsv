@@ -4,8 +4,8 @@
 
 ## 当前基线
 
-- 最新本地回归及独立 coverage 运行均为 **334 通过、0 失败、0 跳过**，其中运营相关 113 项；seed 为 `0x20261004`。
-- 此前固定区块 X Layer DEX 流程 **11 通过、0 失败、0 跳过**。运营补齐后没有重跑该组，不能把它与 334 项记成同一次执行。
+- 最新优化本地回归及独立 coverage 运行均为 **369 通过、0 失败、0 跳过**，其中运营相关 148 项；seed 为 `0x20261004`。
+- 系数功能完成后重新运行固定区块 X Layer DEX：**11 通过、0 失败、0 跳过**。该组与本地分别执行，共 380 个不同用例。
 - DEX 及授权组件使用真实链上实例；TSV 和真实 V4 PoolManager 在 fork 中新部署，股票/Wrapped/SBT 为行为 mock。GovernorExecutor 是合约调用替身；DEX Adapter 是测试实现。
 - 统一清单建立后已补齐 TG-12 的链上系数能力与相关测试；本轮执行结果见覆盖矩阵，其他组保留各自完成条件。
 
@@ -71,3 +71,5 @@ TG-01～TG-05 是代码测试工作；生产与链下项包含真实配置、实
 后续新增发现先归入已有 ID；不同验收对象才新增 ID。完成时记录测试文件、执行日期/seed/配置、通过日志及保留限制；生产用例另存固定区块、地址/codehash、实际账户与产物依据。部分完成的组保留其剩余子项，不能因为同领域有一条成功用例就整组关闭。
 
 原始基线记录在忽略的 `out/`：`tsv-operations-all-tests-v2.log`、`tsv-operations-coverage-v2.log`、`tsv-operations-coverage.lcov` 及历史 `tsv-final-fork-tests-v2.log`。运行与目录约定见[测试维护说明](../test/README.md)。
+
+系数功能最新原始记录：`out/tsv-split-factor-all-tests.log`、`out/tsv-split-factor-xlayer.log`、`out/tsv-split-factor-coverage.log` 与 `out/tsv-split-factor-coverage.lcov`。

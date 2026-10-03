@@ -88,3 +88,13 @@ LCOV 剩余位置不能统一归因于源码映射，也不能仅靠函数覆盖
 系数功能之前的历史优化回归使用固定 seed `0x20261004`：**334 通过、0 失败、0 跳过**（unit 208、local 126，60 个不联网套件）。其中运营范围 **113 项 / 20 个套件** 全部通过；相比交易/LP 阶段新增 **64 项**，含两项运营 invariant，全库共有七项 invariant 和十二个具名 fuzz 用例。invariant 默认每项 64 轮 × 32 步，普通 fuzz 256 次。
 
 复现本轮完整结果：`FOUNDRY_PROFILE=default forge test --fuzz-seed 0x20261004 --summary`。覆盖率及原始记录见[覆盖矩阵](./TEST_COVERAGE_V1.md)，不把未执行的生产场景计入通过数。
+
+### 拆并股功能完成后的最新记录
+
+2026-10-04 拆并股系数功能的最新优化回归：**369 通过、0 失败、0 跳过**（unit 237、local 132，63 个不联网套件），固定 seed `0x20261004`。本轮新增 35 项，运营范围现为 **148 项 / 23 个套件**。包含七项 invariant，默认每项 64 轮 × 32 步，普通 fuzz 256 次。使用独立 `out/split-factor-regression` / `cache/split-factor-regression` 从头编译，避免复用旧测试制品。
+
+独立 coverage 运行同样 **369 通过**；固定 X Layer 区块 **72,271,000 / chainId 196** 的 DEX fork 重新执行 **11 通过、0 失败、0 跳过**。本地与 fork 分别执行，共 380 个不同用例，不把重复插桩执行计为新增用例。`make check` 通过；六业务合约和 Anchor 运行时均小于 24,576 字节。
+
+复现：`FOUNDRY_PROFILE=default FOUNDRY_OUT=out/split-factor-regression FOUNDRY_CACHE_PATH=cache/split-factor-regression forge test --fuzz-seed 0x20261004 --summary`；fork 为 `FOUNDRY_PROFILE=xlayer forge test --fuzz-seed 0x20261004 --summary`。原始记录在忽略的 `out/`：`tsv-split-factor-all-tests.log`、`tsv-split-factor-xlayer.log`、`tsv-split-factor-coverage.log`、`tsv-split-factor-coverage.lcov`、`tsv-split-factor-check.log` 和 `tsv-split-factor-layout.json`。
+
+Ledger 最新覆盖为行 **99.01% (201/203)**、分支 **90.57% (48/53)**、函数 **100% (28/28)**；DataInbox 四项均 **100%**。上方 334 项阶段统计保留为历史；完整最新分母与边界见[覆盖矩阵](./TEST_COVERAGE_V1.md)。

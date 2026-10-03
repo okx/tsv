@@ -21,7 +21,7 @@
 | GAP-09 **已编码，本地回归通过** | GLOBAL/SECURITY/TOKEN/POOL 紧急暂停与市场 HALT 支持 TRADE/LP/ALL；市场按模式叠加/恢复，交易与普通 LP 门禁分离，授权强退继续可用 | 本版按首次部署更新暂停、MarketReport、事件及计数查询 ABI；无旧暂停状态迁移。生产报告服务和索引器须采用新模式字段 |
 | GAP-10 **已编码，本地回归通过** | admitSecurity 原子登记证券及批准首个 Currency；registerToken 登记即批准；取消待审、市场未初始化及首次开市报告，准入后默认 OPEN；市场状态由暂停模式推导 | 报价币已获批时首次运营调用从六次减为三次；ADTV 与建池独立，缺 ADTV 时可提供 LP，但 Swap 全部回滚。准入与真实 V4 回归通过，包含准入回滚的 256 次 fuzz；本版用于全新部署，无旧 ABI/存储迁移 |
 | GAP-11 **已编码** | TimeLock 与专用 Executor 已移除；Governor 单笔 UUPS 升级并初始化，Anchor 支持六代理原子批量升级；恢复提案移至 Anchor；事故控制器已移除，Guardian 可冻结/解冻所有升级，身份恢复不自动解冻 | 新部署初始化 ABI 已简化为 Anchor 与业务依赖；发布仍须验证布局与批量初始化调用者，验收见 G02/G05/G07 |
-| GAP-12 **已编码，本地专项通过** | 独立 `SplitFactorReport` 精确比例按未来计量日开始自动生效，ADTV/Tier 保持；最新未生效项更正/取消；来源月基准、跨月防重复、版本/ID、防溢出、绝对 quota、升级保留 | 报告服务须固定月末单位与公告排期，发行方单位/监控及生产联测仍需证据；实际 Adapter 计股不新增通用归一化，见 TG-10/TG-12 和 D10–D13 |
+| GAP-12 **已编码，完整回归通过** | 独立 `SplitFactorReport` 精确比例按未来计量日开始自动生效，ADTV/Tier 保持；最新未生效项更正/取消；来源月基准、跨月防重复、版本/ID、防溢出、绝对 quota、升级保留 | 报告服务须固定月末单位与公告排期，发行方单位/监控及生产联测仍需证据；实际 Adapter 计股不新增通用归一化，见 TG-10/TG-12 和 D10–D13 |
 | DEPLOY-01 **脚本已编码，本地预测已测** | DeployGovernanceV1 与 DeployCoreV1 分阶段部署；六代理地址及 Hook 依赖 Router/LP Manager 地址的 CREATE/CREATE2 预测有回归 | 尚未在目标链广播；按[部署清单](./DEPLOYMENT_CHECKLIST_V1.md)完成绑定、SBT、角色及发布后快照 |
 
 ## 2. 规格与发布门禁
@@ -70,3 +70,11 @@ X Layer 固定区块 **72,271,000** 使用真实 DexRouter `0x7c5bee2a8091c3ef39
 2026-10-04 运营测试 review 与补齐：固定 seed `0x20261004` 的完整本地优化回归为 **334 通过、0 失败、0 跳过**（unit 208、local 126）。运营相关 113 项、20 个套件全部通过，新增 64 项，包含两项运营模型性质。补齐报告角色/元数据/版本/拒绝重试、100 条批次原子性、Tier/证券/Token/池生命周期、SBT/Adapter 配置故障、逐入口撤权、Gregorian 边界与日切排期；真实 V4 验证额度/报告更正、跨月、20/28h 过渡日、已有仓位与费用保留。P03 新增独立季度日历/报告模型，七类动作覆盖四个月 ADTV、96 日 quota/used 与历史边界。测试目录校验为 61 个套件（含既有 fork），无可执行套件继承。真实发行方/SBT/多签、链下报告/索引/重组/告警服务、法律单位审批及最坏 gas/生产演练仍待验收；完整范围与限制见[运营测试 review](./OPERATIONS_TEST_REVIEW_V1.md)。
 
 2026-10-04 运营阶段 coverage 也为 **334 通过、0 失败、0 跳过**。DataInbox 与 ReportValidationLib 行/语句/分支/函数均 **100%**；Registry 行 **98.41%**、分支 **95.08%**、函数 **100%**；Ledger 行 **98.61%**、分支 **84.21%**、函数 **100%**；TradeDayLib 行/函数 **100%**、分支 **71.43%**。剩余防御输入、当前入口约束不可达分支、时间模型范围和映射遗漏分别列入运营 review，未把它们统一计为已覆盖。全部非测试源码含脚本的分支汇总从 **68.97%** 提升至 **83.91%**；真实广播仍未执行。
+
+2026-10-04 拆并股系数功能的最新优化回归：**369 通过、0 失败、0 跳过**（unit 237、local 132，63 个不联网套件），固定 seed `0x20261004`。本轮新增 35 项，运营范围现为 **148 项 / 23 个套件**。包含七项 invariant，默认每项 64 轮 × 32 步，普通 fuzz 256 次。使用独立 `out/split-factor-regression` / `cache/split-factor-regression` 从头编译，避免复用旧测试制品。
+
+独立 coverage 运行同样 **369 通过**；固定 X Layer 区块 **72,271,000 / chainId 196** 的 DEX fork 重新执行 **11 通过、0 失败、0 跳过**。本地与 fork 分别执行，共 380 个不同用例，不把重复插桩执行计为新增用例。`make check` 通过；六业务合约和 Anchor 运行时均小于 24,576 字节。
+
+复现：`FOUNDRY_PROFILE=default FOUNDRY_OUT=out/split-factor-regression FOUNDRY_CACHE_PATH=cache/split-factor-regression forge test --fuzz-seed 0x20261004 --summary`；fork 为 `FOUNDRY_PROFILE=xlayer forge test --fuzz-seed 0x20261004 --summary`。原始记录在忽略的 `out/`：`tsv-split-factor-all-tests.log`、`tsv-split-factor-xlayer.log`、`tsv-split-factor-coverage.log`、`tsv-split-factor-coverage.lcov`、`tsv-split-factor-check.log` 和 `tsv-split-factor-layout.json`。
+
+系数新增两个 mapping 位于 Ledger slot 9/10，既有 ADTV、quota、used 和日切字段顺序保持；实际成交计股仍由现有实时 Adapter 决定。新增单元/真实 V4/模型覆盖及更新后的覆盖率见[覆盖矩阵](./TEST_COVERAGE_V1.md)。
