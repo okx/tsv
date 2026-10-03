@@ -138,7 +138,8 @@ struct LPHookContext {
     int256 liquidityDelta;
 }
 
-/// @notice One-pool swap request accepted by the TSV Router.
+/// @notice Shared one-pool request for direct exact-in/out and approved Adapter exact-in swaps.
+/// @dev The Router derives a full-range V4 price limit from `zeroForOne`.
 struct SwapRequest {
     /// @notice Full V4 pool key; the Registry must recognize it as tradable.
     PoolKey key;
@@ -148,23 +149,6 @@ struct SwapRequest {
     uint128 amountSpecified;
     /// @notice Minimum output for exact-input swaps or maximum input for exact-output swaps.
     uint128 limitAmount;
-    /// @notice Q64.96 square-root price boundary passed to PoolManager.
-    uint160 sqrtPriceLimitX96;
-    /// @notice Latest timestamp at which the swap may execute.
-    uint64 deadline;
-}
-
-/// @notice Exact-input swap parameters accepted from an approved external Adapter.
-/// @dev The Router chooses a full-range price limit and always settles to the Adapter.
-struct AdapterSwapRequest {
-    /// @notice Full V4 pool key; the Registry must recognize it as tradable.
-    PoolKey key;
-    /// @notice True for currency0-to-currency1, false for the reverse direction.
-    bool zeroForOne;
-    /// @notice Exact input amount supplied by the Adapter.
-    uint128 amountIn;
-    /// @notice Minimum output the Adapter must receive.
-    uint128 minAmountOut;
     /// @notice Latest timestamp at which the swap may execute.
     uint64 deadline;
 }

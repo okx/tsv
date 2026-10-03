@@ -6,7 +6,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
-import {AdapterSwapRequest, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -107,7 +107,7 @@ contract TSVSwapRouterV1 is TSVGoverned {
     }
 
     /// @notice Executes a direct, single-pool swap with an exact input amount.
-    /// @param request Pool, direction, input amount, minimum output, price limit, and deadline.
+    /// @param request Pool, direction, input amount, minimum output, and deadline.
     /// @return actualIn Input Currency amount actually paid by the caller.
     /// @return actualOut Output Currency amount actually received by the caller.
     function swapExactInput(SwapRequest calldata request)
@@ -119,7 +119,7 @@ contract TSVSwapRouterV1 is TSVGoverned {
     }
 
     /// @notice Executes a direct, single-pool swap for an exact output amount.
-    /// @param request Pool, direction, output amount, maximum input, price limit, and deadline.
+    /// @param request Pool, direction, output amount, maximum input, and deadline.
     /// @return actualIn Input Currency amount actually paid by the caller.
     /// @return actualOut Output Currency amount actually received by the caller.
     function swapExactOutput(SwapRequest calldata request)
@@ -137,22 +137,14 @@ contract TSVSwapRouterV1 is TSVGoverned {
     /// @param participant Original caller whose SBT eligibility is checked.
     /// @return actualIn Input Currency amount actually paid by the Adapter.
     /// @return actualOut Output Currency amount received by the Adapter.
-    function swapExactInputFromAdapter(AdapterSwapRequest calldata request, address participant)
+    function swapExactInputFromAdapter(SwapRequest calldata request, address participant)
         external
         nonReentrant
         returns (uint256 actualIn, uint256 actualOut)
     {
         if (!isAdapterAllowed[msg.sender]) revert AdapterNotAllowed();
 
-        SwapRequest memory routerRequest = SwapRequest({
-            key: request.key,
-            zeroForOne: request.zeroForOne,
-            amountSpecified: request.amountIn,
-            limitAmount: request.minAmountOut,
-            sqrtPriceLimitX96: request.zeroForOne ? MIN_SQRT_PRICE + 1 : MAX_SQRT_PRICE - 1,
-            deadline: request.deadline
-        });
-        return _swapWithSettlement(routerRequest, true, participant, msg.sender, msg.sender);
+        return _swapWithSettlement(request, true, participant, msg.sender, msg.sender);
     }
 
     /// @notice Adds or removes an external Adapter from the swap allowlist.
@@ -173,10 +165,11 @@ contract TSVSwapRouterV1 is TSVGoverned {
         if (msg.sender != address(poolManager) || !entered) revert Unauthorized();
         (SwapRequest memory request, address settlementParticipant, bool exactInput) =
             abi.decode(data, (SwapRequest, address, bool));
+        uint160 sqrtPriceLimitX96 = request.zeroForOne ? MIN_SQRT_PRICE + 1 : MAX_SQRT_PRICE - 1;
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams(
             request.zeroForOne,
             exactInput ? -int256(uint256(request.amountSpecified)) : int256(uint256(request.amountSpecified)),
-            request.sqrtPriceLimitX96
+            sqrtPriceLimitX96
         );
         BalanceDelta delta = poolManager.swap(request.key, params, bytes(""));
         int128 inDelta = request.zeroForOne ? delta.amount0() : delta.amount1();

@@ -100,7 +100,7 @@ TSV Router 每次调用只执行一个池并结算 `PoolKey` 中的 Currency；�
 | --- | --- | --- |
 | 用户 → [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) | `swapExactInput(SwapRequest request) returns (uint256 actualIn, uint256 actualOut)` | 精确输入模式；调用者本人作为 participant、payer 和 recipient，模式由入口确定。 |
 | 用户 → Router | `swapExactOutput(SwapRequest request) returns (uint256 actualIn, uint256 actualOut)` | 精确输出模式；调用者本人作为 participant、payer 和 recipient，模式由入口确定。 |
-| 外部白名单 Adapter → Router | `swapExactInputFromAdapter(AdapterSwapRequest request,address participant)` | 仅 exact-in；Adapter 作为结算方和收款方，`participant` 用于 SBT 校验；价格边界由 Router 按方向设置。 |
+| 外部白名单 Adapter → Router | `swapExactInputFromAdapter(SwapRequest request,address participant)` | 仅 exact-in；Adapter 作为结算方和收款方，`participant` 用于 SBT 校验；价格边界由 Router 按方向设置。 |
 
 **直连 Swap 由 participant 直接提交。**直连路径的 participant、payer 和 recipient 均由 `msg.sender` 确定。Adapter 路径仅允许 Governor 授权的 Adapter 调用，Adapter 必须从外部 DexRouter 附加的 caller marker 解析原始调用者，并将该地址传给 Router；`ORIGIN_PAYER` 是退款地址，不用作 SBT 身份。Adapter 需批准 Router 从其余额中拉取本次输入 Token。
 
@@ -124,7 +124,6 @@ struct SwapRequest {
     bool zeroForOne;
     uint128 amountSpecified;
     uint128 limitAmount;
-    uint160 sqrtPriceLimitX96;
     uint64 deadline;
 }
 ```
@@ -135,8 +134,9 @@ struct SwapRequest {
 | `zeroForOne` | `bool` | `true` 表示从 `currency0` 换到 `currency1`；`false` 表示从 `currency1` 换到 `currency0`。 |
 | `amountSpecified` | `uint128` | 使用池内 Currency 的 raw 最小单位，不是股数。精确输入时表示目标/上限输入量；精确输出时表示必须完整得到的输出量。必须大于零且不超过 `int128.max`。 |
 | `limitAmount` | `uint128` | 交易滑点界限，单位同样是池内 Currency 的 raw 最小单位。精确输入时为最小输出量；精确输出时为最大输入量；必须大于零。 |
-| `sqrtPriceLimitX96` | `uint160` | V4 的价格停止边界，表示 Q64.96 格式的平方根价格。PoolManager 按交易方向校验该边界；到达边界可能令精确输入部分成交，但精确输出若未达到目标会回滚。 |
 | `deadline` | `uint64` | Unix 秒时间戳。执行时若 `block.timestamp > deadline`，请求过期并回滚。 |
+
+调用方不传 V4 价格停止边界。Router 根据 `zeroForOne` 设置全范围 `sqrtPriceLimitX96`；交易滑点仍由 `limitAmount` 约束。
 
 #### 嵌套结构参数
 

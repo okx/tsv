@@ -131,6 +131,22 @@ contract V1TestParticipantWallet {
     }
 }
 
+/// @dev Routes a test swap through the Router's external Adapter entry.
+contract V1TestExternalAdapter {
+    /// @dev Approves the Router to pull the test Adapter's input Currency.
+    function approveToken(address token, address spender) external {
+        IERC20(token).approve(spender, type(uint256).max);
+    }
+
+    /// @dev Executes a Router exact-input swap for the supplied participant.
+    function swapExactInput(TSVSwapRouterV1 router, SwapRequest calldata request, address participant)
+        external
+        returns (uint256 actualIn, uint256 actualOut)
+    {
+        return router.swapExactInputFromAdapter(request, participant);
+    }
+}
+
 /// @dev Exercises the protocol against a local Uniswap V4 pool manager.
 contract TSVProtocolLocalTest is Test {
     using PoolIdLibrary for PoolKey;
@@ -285,6 +301,38 @@ contract TSVProtocolLocalTest is Test {
         assertGt(actualOut, 0);
         uint256 used = ledger.used(SECURITY, DAY) - beforeUsed;
         assertEq(used, actualIn);
+    }
+
+    /// @dev Verifies an allowlisted Adapter uses the shared request for both directions and settles to itself.
+    function testAllowlistedAdapterUsesSharedSwapRequestBothDirections() public {
+        V1TestExternalAdapter adapter = new V1TestExternalAdapter();
+        router.setAdapterAllowed(address(adapter), true);
+
+        bool stockIsCurrency0 = address(stock) == Currency.unwrap(key.currency0);
+        _runAdapterSwap(adapter, stockIsCurrency0);
+        _runAdapterSwap(adapter, !stockIsCurrency0);
+    }
+
+    /// @dev Verifies the Adapter entry rejects callers outside the Router allowlist.
+    function testAdapterEntryRejectsUnallowlistedCaller() public {
+        SwapRequest memory request = _swapRequest(address(stock) == Currency.unwrap(key.currency0), 1e18);
+        vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
+        router.swapExactInputFromAdapter(request, alice);
+    }
+
+    /// @dev Verifies an allowlisted Adapter cannot use an ineligible participant identity.
+    function testAllowlistedAdapterRequiresEligibleParticipant() public {
+        V1TestExternalAdapter adapter = new V1TestExternalAdapter();
+        router.setAdapterAllowed(address(adapter), true);
+        bool zeroForOne = address(stock) == Currency.unwrap(key.currency0);
+        address inputToken = Currency.unwrap(zeroForOne ? key.currency0 : key.currency1);
+        vm.prank(alice);
+        IERC20(inputToken).transfer(address(adapter), 1e18);
+        adapter.approveToken(inputToken, address(router));
+
+        SwapRequest memory request = _swapRequest(zeroForOne, 1e18);
+        vm.expectRevert(TSVSwapRouterV1.Unauthorized.selector);
+        adapter.swapExactInput(router, request, makeAddr("ineligible"));
     }
 
     /// @dev Verifies the LP Manager issues a non-transferable position receipt.
@@ -733,8 +781,26 @@ contract TSVProtocolLocalTest is Test {
         r.zeroForOne = zeroForOne;
         r.amountSpecified = amount;
         r.limitAmount = 1;
-        r.sqrtPriceLimitX96 = zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1;
         r.deadline = uint64(block.timestamp + 100);
+    }
+
+    /// @dev Funds an approved test Adapter, executes one direction, and verifies exact balance settlement.
+    function _runAdapterSwap(V1TestExternalAdapter adapter, bool zeroForOne) private {
+        address inputToken = Currency.unwrap(zeroForOne ? key.currency0 : key.currency1);
+        address outputToken = Currency.unwrap(zeroForOne ? key.currency1 : key.currency0);
+        vm.prank(alice);
+        IERC20(inputToken).transfer(address(adapter), 1e18);
+        adapter.approveToken(inputToken, address(router));
+
+        uint256 inputBefore = IERC20(inputToken).balanceOf(address(adapter));
+        uint256 outputBefore = IERC20(outputToken).balanceOf(address(adapter));
+        SwapRequest memory request = _swapRequest(zeroForOne, 1e18);
+        (uint256 actualIn, uint256 actualOut) = adapter.swapExactInput(router, request, alice);
+
+        assertGt(actualIn, 0);
+        assertGt(actualOut, 0);
+        assertEq(inputBefore - IERC20(inputToken).balanceOf(address(adapter)), actualIn);
+        assertEq(IERC20(outputToken).balanceOf(address(adapter)) - outputBefore, actualOut);
     }
 
     /// @dev Submits the initial market and monthly ADTV reports required by the test.

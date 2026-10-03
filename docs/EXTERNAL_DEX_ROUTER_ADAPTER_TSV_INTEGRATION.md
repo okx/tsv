@@ -18,19 +18,19 @@
 
 ## TSV Router 接口
 
-新增的请求类型为 `AdapterSwapRequest`，字段顺序如下：
+Adapter 入口复用 `SwapRequest`，字段顺序如下：
 
 | 字段 | 类型 | 用途 |
 | --- | --- | --- |
 | `key` | V4 `PoolKey` | 要交易的 TSV 池 |
 | `zeroForOne` | `bool` | 交易方向 |
-| `amountIn` | `uint128` | 精确输入金额 |
-| `minAmountOut` | `uint128` | 最小输出金额 |
+| `amountSpecified` | `uint128` | 本入口中表示精确输入金额 |
+| `limitAmount` | `uint128` | 本入口中表示最小输出金额 |
 | `deadline` | `uint64` | 请求过期时间 |
 
-Adapter 调用 `swapExactInputFromAdapter(request, participant)`。Router 仅接受 `setAdapterAllowed(adapter, true)` 已授权的调用地址；该函数及撤销操作 `setAdapterAllowed(adapter, false)` 仅 Governor 可调用。Router 对 `participant` 执行 SBT 资格检查，对池执行现有交易状态检查，并从 Adapter 拉取输入、把输出及任何正 delta 交给 Adapter。价格边界由 Router 根据方向设置为 V4 的全范围边界。
+Adapter 调用 `swapExactInputFromAdapter(request, participant)`。Router 仅接受 `setAdapterAllowed(adapter, true)` 已授权的调用地址；该函数及撤销操作 `setAdapterAllowed(adapter, false)` 仅 Governor 可调用。Router 对 `participant` 执行 SBT 资格检查，对池执行现有交易状态检查，并从 Adapter 拉取输入、把输出及任何正 delta 交给 Adapter。Adapter 调用时，`amountSpecified` 传本 hop 实际输入量，`limitAmount` 传最小输出量。价格边界由 Router 根据方向设置为 V4 的全范围边界。
 
-该请求结构与 TSV `SwapRequest` 不同：Adapter 入口不接收 exact-output，也不接收 `sqrtPriceLimitX96`。调用方需按上述字段顺序编码匹配的 ABI tuple。
+三个 Swap 入口共用同一个 `SwapRequest`。直连 exact-in 使用 `amountSpecified` 表示输入量、`limitAmount` 表示最小输出；直连 exact-out 则分别表示目标输出和最大输入。调用方需按上述字段顺序编码匹配的 ABI tuple；所有入口均不接收 `sqrtPriceLimitX96`。
 
 ## 外部 Adapter 仓库工作
 
@@ -38,7 +38,7 @@ Adapter 调用 `swapExactInputFromAdapter(request, participant)`。Router 仅接
 
 1. 实现现有 `IAdapter.sellBase` 和 `sellQuote`，分别映射到对应的 TSV 交易方向；只支持 exact-input。
 2. 仅允许配置的外部 DexRouter 调用 Adapter。解析 DexRouter 附加在 calldata 尾部的 caller marker，并将 marker 中的原始调用者作为 `participant` 传入 TSV Router。
-3. 从 calldata 倒数第 96 字节读取 DexRouter 附加的本 hop `amountIn`；从 `moreInfo` 解码 `PoolKey`、方向、`minAmountOut` 和 `deadline`。不得从 Adapter 的总余额推断输入量，也不得让调用请求用既有余额补足本 hop 金额；拒绝零金额及超出 TSV 支持范围的金额。
+3. 从 calldata 倒数第 96 字节读取 DexRouter 附加的本 hop 输入量；从 `moreInfo` 解码 `PoolKey`、方向、`minAmountOut` 和 `deadline`，并据此构造共享 `SwapRequest`（输入量写入 `amountSpecified`，最小输出写入 `limitAmount`）。不得从 Adapter 的总余额推断输入量，也不得让调用请求用既有余额补足本 hop 金额；拒绝零金额及超出 TSV 支持范围的金额。
 4. 为 `amountIn` 临时批准 TSV Router 拉取输入，调用后清除未用 allowance。根据 Router 返回的 `actualIn`，把 `amountIn - actualIn` 的未成交输入退回 `ORIGIN_PAYER` 尾字段中的退款地址。记录调用前 Adapter 的输出币余额，仅将本次 TSV Swap 新增的输出余额转给 `to`，不要转走 Adapter 既有余额。
 5. 按部署链配置 TSV Router 地址、DexRouter 地址及 TSV 池参数，并登记/发布 Adapter 的链上地址和所需路由元数据。
 

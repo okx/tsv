@@ -140,7 +140,6 @@ struct SwapRequest {
     bool zeroForOne;
     uint128 amountSpecified;   // V4 输入/输出 Currency 的原始单位；须 <= int128.max
     uint128 limitAmount;       // exact-in 为最小输出；exact-out 为最大输入
-    uint160 sqrtPriceLimitX96;
     uint64 deadline;
 }
 
@@ -149,38 +148,30 @@ function swapExactInput(SwapRequest calldata request)
 function swapExactOutput(SwapRequest calldata request)
     external returns (uint256 actualIn, uint256 actualOut);
 
-struct AdapterSwapRequest {
-    PoolKey key;
-    bool zeroForOne;
-    uint128 amountIn;
-    uint128 minAmountOut;
-    uint64 deadline;
-}
-
-function swapExactInputFromAdapter(AdapterSwapRequest calldata request, address participant)
+function swapExactInputFromAdapter(SwapRequest calldata request, address participant)
     external returns (uint256 actualIn, uint256 actualOut);
 function setAdapterAllowed(address adapter, bool allowed) external; // only Governor
 ```
 
-用户直连入口由函数本身决定 exact-in 或 exact-out 模式；participant、payer 和 recipient 均为 `msg.sender`。Adapter 入口只允许 `isAdapterAllowed[msg.sender]` 为真的调用方，Router 对 `participant` 检查 SBT 资格，但从 Adapter 拉取输入并把输出交给 Adapter；Adapter 再按外部 DexRouter 传入的 hop 收款地址转发输出。`AdapterSwapRequest` 不接收价格边界，Router 按方向使用 V4 全范围边界。Adapter 入口的身份可信度依赖已审查并加入白名单的 Adapter 正确解析外部 DexRouter caller marker；不要把 `ORIGIN_PAYER` 退款地址当成 SBT 身份。Adapter 的 `amountIn` 须来自 DexRouter 追加的实际 hop 转账量，不能从 `moreInfo` 或 Adapter 总余额猜测。用户直连入口仍不接受第三方代提交或用户签名，也不提供应用层请求 nonce。
+用户直连入口由函数本身决定 exact-in 或 exact-out 模式；participant、payer 和 recipient 均为 `msg.sender`。Adapter 入口复用同一个 `SwapRequest`，只允许 `isAdapterAllowed[msg.sender]` 为真的调用方，Router 对 `participant` 检查 SBT 资格，但从 Adapter 拉取输入并把输出交给 Adapter；Adapter 再按外部 DexRouter 传入的 hop 收款地址转发输出。三个入口都不接受调用方指定价格边界；Router 按 `zeroForOne` 设置 V4 全范围边界。Adapter 入口的身份可信度依赖已审查并加入白名单的 Adapter 正确解析外部 DexRouter caller marker；不要把 `ORIGIN_PAYER` 退款地址当成 SBT 身份。Adapter exact-input 的 `amountSpecified` 须来自 DexRouter 追加的实际 hop 转账量，不能从 `moreInfo` 或 Adapter 总余额猜测。用户直连入口仍不接受第三方代提交或用户签名，也不提供应用层请求 nonce。
 
 `amountSpecified > 0` 且不超过 `int128.max`；`limitAmount > 0`；deadline 未过。准入池最多一侧为股票，两种池内 Currency 的普通滑点由 `limitAmount` 约束。
 
-Adapter 请求中 `amountIn` 和 `minAmountOut` 同样使用池内 Currency 的 raw 单位，二者均须大于零，且 `amountIn <= int128.max`；`deadline` 不得早于当前区块时间。完整字段和 ABI tuple 见[外部接入说明](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md)。
+Adapter exact-input 请求中的 `amountSpecified` 和 `limitAmount` 分别表示输入量与最小输出量，同样使用池内 Currency 的 raw 单位，二者均须大于零，且 `amountSpecified <= int128.max`；`deadline` 不得早于当前区块时间。完整字段和 ABI tuple 见[外部接入说明](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md)。
 
 执行顺序固定如下：
 
-1. Router 非重入。用户直连时检查 `msg.sender` 的 SBT 资格；Adapter 入口先检查调用 Adapter 白名单，再检查 Adapter 传入的 participant 资格。两条路径均检查池是否可交易、金额边界和 deadline。完整 PoolKey 的精确匹配由 Hook 的 `beforeSwap` 检查；Registry 的 `isTradable(poolId)` 让无效池在进入 unlock 前快速失败。直接入口使用请求内 `sqrtPriceLimitX96`；Adapter 入口由 Router 按交易方向计算全范围边界。
+1. Router 非重入。用户直连时检查 `msg.sender` 的 SBT 资格；Adapter 入口先检查调用 Adapter 白名单，再检查 Adapter 传入的 participant 资格。两条路径均检查池是否可交易、金额边界和 deadline。完整 PoolKey 的精确匹配由 Hook 的 `beforeSwap` 检查；Registry 的 `isTradable(poolId)` 让无效池在进入 unlock 前快速失败。Router 按 `zeroForOne` 为所有入口设置 V4 全范围价格边界。
 2. Router 调用 `PoolManager.unlock(abi.encode(request, settlementParticipant, exactInput))`。用户直连时 `settlementParticipant == msg.sender`；Adapter 路径中 `settlementParticipant == msg.sender`，即白名单 Adapter。`unlockCallback` 只接受 PoolManager 且要求 Router 非重入锁处于活跃状态，然后解码本次 unlock 携带的数据并执行一次 `swap`；资格、可交易池和请求参数已在进入 unlock 前检查。`hookData` 为空；Router 的非重入状态保证同一时刻只有一笔活跃 Swap，不另存 Swap 上下文。
 3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，所有回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、空 `hookData`、池可交易且 PoolKey 与 Registry 配置完全一致；SBT 资格由 Router 在进入 unlock 前检查。Hook 不为 Swap 保存状态，也不读取 Router 活跃上下文。`afterSwap` 保留 `sender == Router` 和空 `hookData` 检查，从实际 `BalanceDelta` 获取两侧 raw 成交量，对股票腿即时调用 Registry 绑定的 Adapter `toLegalShares`，将直接换算出的 shares 与真实 delta 一并交由 Ledger 原子记账；配对币使用零 shares 且不调用股数 Adapter。Ledger 按 Registry 身份及已配置 Adapter 元数据核验输入并记账，不再读取 Adapter 或重复换算。Hook 返回零 delta 与零费率覆盖。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
-4. Router 对实际 delta 再验 `actualIn > 0 && actualOut > 0`。exact-in 要求 `actualIn <= amountSpecified && actualOut >= limitAmount`，允许价格边界造成的部分成交；exact-out 要求 `actualOut == amountSpecified && actualIn <= limitAmount`，任何部分成交回滚。输入 `inDelta` 为 `int128.min` 时，在结算前以 `InputAmountTooLarge()` 拒绝，因为其绝对值 `2^127` 无法用 PoolManager 的 `int128` 结算边界表示。按**实际**负 delta 从 `settlementParticipant` 拉取对应 Currency，按实际正 delta `take` 给同一地址；直连时该地址是用户，Adapter 路径时是 Adapter。两侧均核对发送方扣减、PoolManager 余额变化、接收方增加和 `settle()` 返回值。
+4. Router 对实际 delta 再验 `actualIn > 0 && actualOut > 0`。exact-in 要求 `actualIn <= amountSpecified && actualOut >= limitAmount`；exact-out 要求 `actualOut == amountSpecified && actualIn <= limitAmount`，任何部分成交回滚。输入 `inDelta` 为 `int128.min` 时，在结算前以 `InputAmountTooLarge()` 拒绝，因为其绝对值 `2^127` 无法用 PoolManager 的 `int128` 结算边界表示。按**实际**负 delta 从 `settlementParticipant` 拉取对应 Currency，按实际正 delta `take` 给同一地址；直连时该地址是用户，Adapter 路径时是 Adapter。两侧均核对发送方扣减、PoolManager 余额变化、接收方增加和 `settle()` 返回值。
 5. `unlockCallback` 返回后 Router 读取当前交易日并完成事件记录。Ledger 已在 `afterSwap` 记账时读取并校验交易日；Router 不在 unlock 前额外预查。成交换算和额度记账均在 `afterSwap` 完成，后续 Router 直接结算 raw Currency，不再读取或复验换算参数。当前路径没有包装、赎回、底层 shares 转移或其他结算分流。
 
-**当前结算路径。**Registry 只登记实际池内 Currency。用户入口通过 `TSVDirectSettlementLib` 与 raw `amountSpecified/limitAmount` 直接结算；Adapter 入口仅提供 exact-in，通过 `TSVDirectSettlementLib` 按 raw `amountIn/minAmountOut` 从白名单 Adapter 拉取输入、将输出返给 Adapter。Adapter 在调用前须为输入批准 TSV Router，并只向外部 DexRouter 的 hop `to` 转发本次新增输出。两条路径每次均核对发送方恰扣、接收方恰增。旧 `IssuerShareSettlementAdapter` 与接口仅在 `src/v1/legacy/` 保留，供隔离单元测试对照，不参与新 Swap。
+**当前结算路径。**Registry 只登记实际池内 Currency。用户直连入口通过 `TSVDirectSettlementLib` 与 raw `amountSpecified/limitAmount` 直接结算；Adapter 入口仅提供 exact-in，此时 `amountSpecified/limitAmount` 分别表示输入量/最小输出量，Router 从白名单 Adapter 拉取输入并将输出返给 Adapter。Adapter 在调用前须为输入批准 TSV Router，并只向外部 DexRouter 的 hop `to` 转发本次新增输出。两条路径每次均核对发送方恰扣、接收方恰增。旧 `IssuerShareSettlementAdapter` 与接口仅在 `src/v1/legacy/` 保留，供隔离单元测试对照，不参与新 Swap。
 
 Swap 成功时发出 `SwapExecuted`，其 `participant` 是直连用户或 Adapter 声明并通过资格检查的交易用户；Adapter 路径额外发出 `AdapterSwapExecuted`，同时记录 Adapter 地址。Governor 修改 Adapter 白名单时发出 `AdapterAuthorizationUpdated`。Hook/Ledger 的 `SwapAccounted` 对每个股票腿分别记录 `securityId,poolCurrency,inputSide,rawAmount,legalSharesWad,legalAdapterVersion`。交易哈希与 logIndex 由索引器取链上 receipt，不写进合约事件。
 
-**前端股数展示与 Swap 报价。**前端从 Registry 读取该股票 Currency 当前绑定的 Adapter 与版本，并按发行方批准的账户权益规则显示用户持有股数。当前 Adapter 接口不提供 raw 与法律股数的通用反向报价；`SwapRequest.amountSpecified`、`limitAmount`、价格限制和 deadline 仍使用 raw 数量。账户总持仓的舍入可能不同于单笔成交换算，尤其是 TSLAx，前端须分别展示。V1 Router 无股数输入参数；报价后价格、余额或发行方转换结果变化可能改变实际股数，链上只保证提交的 raw 与结算边界。Hook 在 `afterSwap` 按实际股票腿 delta 调用 Adapter 并计入 VolumeLedger，前端估值不写入额度。
+**前端股数展示与 Swap 报价。**前端从 Registry 读取该股票 Currency 当前绑定的 Adapter 与版本，并按发行方批准的账户权益规则显示用户持有股数。当前 Adapter 接口不提供 raw 与法律股数的通用反向报价；`SwapRequest.amountSpecified`、`limitAmount` 和 deadline 使用 raw 数量，V4 价格边界由 Router 内部按方向设置。账户总持仓的舍入可能不同于单笔成交换算，尤其是 TSLAx，前端须分别展示。V1 Router 无股数输入参数；报价后价格、余额或发行方转换结果变化可能改变实际股数，链上只保证提交的 raw 与结算边界。Hook 在 `afterSwap` 按实际股票腿 delta 调用 Adapter 并计入 VolumeLedger，前端估值不写入额度。
 
 ## 6. LP、Receipt 与强退
 
