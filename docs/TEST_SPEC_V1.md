@@ -18,7 +18,7 @@
 | P：fuzz/invariant | 随机交易序列、整数边界、升级/暂停/日切交错 | seed、最小复现输入、`fail_on_revert` 策略与不变量结果 |
 | G：gas/部署 | 最坏 `getUnderlyingAmountByShares` 调用、单股票腿计量、双侧资产结算、强退、Hook 代理地址 | 给出所用编译器/优化参数、区块 gas limit、实际 gas 与余量 |
 
-`F` 层固定区块和 RPC 由测试清单提供，不把实时链状态当成稳定断言。测试必须校验 `chainId == 196`、官方 PoolManager 的地址/codehash、TSLAx/wTSLAx 的代理地址、运行代码哈希与可核验的实现/ABI；任何一项不符即让该组测试**失败**，不得自动改为 mock 或跳过。实际代理与本地 Backed 源码不一致时，记为准入阻断项并保持资产 `UNREVIEWED`。底层转账场景只使用测试控制的地址或本地发行方实例；不能控制的真实发行方状态只做只读核验并如实标注未覆盖路径。
+`F` 层固定区块和 RPC 由测试清单提供，不把实时链状态当成稳定断言。测试必须校验 `chainId == 196`、官方 PoolManager 的地址/codehash、TSLAx/wTSLAx 的代理地址、运行代码哈希与可核验的实现/ABI；任何一项不符即让该组测试**失败**，不得自动改为 mock 或跳过。实际代理与本地 Backed 源码不一致时，记为准入阻断项并保持资产未准入（`ABSENT`）。底层转账场景只使用测试控制的地址或本地发行方实例；不能控制的真实发行方状态只做只读核验并如实标注未覆盖路径。
 
 V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分别构建。跨版本集成测试通过薄接口调用各自产物；不得仅因一个集成 profile 能用 `0.8.29` 重编译 TSV，就把它当作生产 `0.8.26` 字节码的验证。测试清单保存三份外部源码 commit、OZ 版本、TSV 实现/代理 codehash 和 CREATE2 salt。
 
@@ -47,7 +47,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
-| R01 U/I | 按目标配置登记 wTSLAx 行为 mock、普通 `QUOTE`/`QUOTE6` Currency，查询 Token/Currency 配置；尝试将无适配器的 `STDx` 登记为股票 | 股票身份及 `BackedAutoFeeLegalShareAdapter` 绑定同一 wTSLAx Currency；新资产 `UNREVIEWED`；无兼容 Adapter 的股票配置失败；旧 TSLAx→wTSLAx 结算 ABI 不属于当前 Registry |
+| R01 U/I | 按目标配置登记 wTSLAx 行为 mock、普通 `QUOTE`/`QUOTE6` Currency，查询 Token/Currency 配置；尝试将无适配器的 `STDx` 登记为股票 | 股票身份及 `BackedAutoFeeLegalShareAdapter` 绑定同一 wTSLAx Currency；新证券经 admitSecurity 同笔登记与批准，新增 Currency/报价币 registerToken 登记即 APPROVED；默认市场 OPEN、序号为零；无兼容 Adapter 的股票配置失败；旧 TSLAx→wTSLAx 结算 ABI 不属于当前 Registry |
 | R02 U | Currency 为零、无代码、代码哈希/decimals 错、重复 Currency、quote 携带 securityId、动态逐笔公式不可复算、股数 Adapter 报错或资产对不匹配 | 每种注册失败且无 TokenConfig 残留；目标 Registry 不用独立静态比例字段判定公式 |
 | R03 U/I | 没有审查/股数依据就批准；`APPROVED→DISABLED→APPROVED` 携新依据；活动仓位时更换股数 Adapter 或 Token 关键实现 | 无依据拒绝；合法状态转换成功；未暂停或新 Adapter 公式/版本不符则拒绝；变更不改写旧仓位资产；发行方实际拒转则强退原子回滚 |
 | R04 U/I | Tier 名额上限边界、证券重复登记/下架/重上架、跨 Token 同 securityId | `listedCount` 按 securityId 去重；活动池未处理前不能下架；同证券不同 Currency 合并日额度 |
@@ -61,7 +61,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
-| A01 U/I | 用 Backed 行为 mock 的 wTSLAx Currency 和唯一生产 Adapter 接入 Hook；另用普通 ERC-20 或错误/错绑 Adapter 配置尝试登记；来源 multiplier 变化后交换两方向 | Hook 对每条股票 delta 调用来源 Token 转换方法并按当次返回值计股；错误配置拒绝或保持 `UNREVIEWED`；PoolManager raw 份额不自行变化，用户始终收付 wTSLAx |
+| A01 U/I | 用 Backed 行为 mock 的 wTSLAx Currency 和唯一生产 Adapter 接入 Hook；另用普通 ERC-20 或错误/错绑 Adapter 配置尝试登记；来源 multiplier 变化后交换两方向 | Hook 对每条股票 delta 调用来源 Token 转换方法并按当次返回值计股；错误配置回滚且新资产保持 `ABSENT`；PoolManager raw 份额不自行变化，用户始终收付 wTSLAx |
 | A02 U/I | 月中来源转换参数变化实际改变法律股数单位；例如 2 拆 1 前日 quota=100 股，当前计量日 ADTV、quota 和 used 仍为旧单位 | 未完成法律单位/计量日切换时暂停并拒绝；不自动把旧 quota 乘 2，也不追溯换算本月历史数据或 used；新计量日以批准的新单位 ADTV/可选 quota 就绪后恢复；既有仓位仍按原 Token 强退 |
 | A03 I | 模拟发送方扣 `x + fee`、接收方正好收到 `x` 的 Token，分别走 Swap 和 LP 的 PoolManager 入金/出金及强退 | 每条路径均因发送方 raw 差额不等于 `x` 而全回滚；用户余额、PoolManager、仓位、Receipt、used 恢复为 `S_pre` |
 | A04 U/I | 仅 UI getter 存在但未绑定经审核的直接换算 Adapter；Adapter 返回零、currency 不匹配或 ERC-165/版本不符；`balanceOf(PoolManager)` 会 Rebase | 不兼容股票 Token 不得批准或 Swap；正 raw 换算结果为零、来源方法 revert 时整笔回滚；准入不能仅凭函数名或单次余额读取 |
@@ -77,7 +77,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | --- | --- | --- |
 | D01 U/I | 由持有 `HALT_REPORTER_ROLE` 或 `VOLUME_ORACLE_ROLE` 的地址直接提交 Market、ADTV、Quota 报告；尝试用 relayer、签名参数或旧 TradeDay 入口提交 | 只有 `msg.sender` 当前持有对应角色时接受；DataInbox ABI 不含签名参数或 signer 字段；旧日历报告无可调用入口 |
 | D02 U | 非角色调用、角色已撤、重复 reportId、序号回退、过 submitDeadline、sourceTimestamp 在未来、同月批次未排序/跨月 | 各自拒绝，reportId/sequence 不被占用；早先已接受状态不自动失效 |
-| D03 U | INITIAL_OPEN/INITIAL_HALTED 的模式校验；HALT 叠加与 RESUME 部分恢复；NONE、重复初始化和无模式变化报告 | INITIAL_OPEN 仅允许 ALL，INITIAL_HALTED 指定模式；初始化前交易与 LP 均阻断；之后按模式独立阻断/恢复，任一暂停时 HALTED、全部恢复时 OPEN；无变化请求整体回滚报告序号/去重状态；HALT 无年龄失效 |
+| D03 U | 准入后默认开放；首份 HALT 的三种模式；HALT 叠加与 RESUME 部分恢复；NONE、越界 action 和无模式变化报告 | 无需首次开市报告；按模式独立阻断/恢复，任一暂停时 HALTED、全部恢复时 OPEN；无变化请求整体回滚报告序号/去重状态；HALT 无年龄失效 |
 | D04 U/I | 初始 UTC 日切 04:00；普通日边界前后各一秒、周末、月末、闰日及年末；无预提交日历 | 每个 UTC 日期独立归属一个 `YYYYMMDD` 计量日，连续无空洞/重叠；边界后新日用量从零开始，历史用量不改；不要求下一窗口或心跳交易 |
 | D05 U/I | 治理将日切从 04:00 排期为未来 07:00；另试从 04:00 直接改到 09:00、同时存在第二项待生效排期、已开始的过渡日、更改过去或当前日、取消待生效排期 | 只有符合未来边界、每次偏移差不超过 4 小时且过渡日尚未开始的排期/取消成功；过渡日可为 20–28 小时但只有一份完整硬上限；已开始和历史日边界永久不变；自动生效无需激活交易 |
 | D06 U | 9 月 ADTV 适用 10 月计量日，进入 11 月但无 10 月 ADTV；同一月份 ADTV 值不变，同一日没有 quota 覆盖 | 10 月使用 9 月 ADTV；11 月缺适用 ADTV 则受影响证券 Swap fail-closed；无 quota 时仍按 ADTV/Tier 硬上限交易；同一有效期间不重复上报相同值 |
@@ -138,6 +138,8 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | G08 I | 每个 TSV 代理升级前后保存 PoolKey、额度、报告、暂停、position、Receipt；旧 `TokenConfig` 字段槽位不重排；升级后执行 wTSLAx 直结 Swap | 状态及权限位一致；新 Router/Hook 布局不含 Swap nonce 或 `operationId` 状态；旧 `version="1"` 授权失效、新 `version="2"` 授权有效；禁止不兼容 layout 的候选实现进入发布清单 |
 | G09 I | D-35 GovernanceAnchor 提议同时切换 Timelock、BusinessAuthority、事故控制器；独立 Guardian 批准/撤回、坏互绑地址、未提名 Anchor、缺六代理允许名单、重复 epoch、旧根继续调用；候选代码哈希与升级布局由发布清单单独核验 | 仅完整的三地址组原子切换成功；失败不改变任何代理的治理根；成功后旧根失权，新根同时接管普通升级、事故升级和业务角色，原 PoolId、额度、仓位及强退能力不变 |
 
+准入回归还须覆盖：准入失败后证券、符号预留、Tier 名额和 Token 配置全部回滚；重复证券/符号/Currency、Tier 超额、缺审查/法律依据、decimals/代码哈希/Adapter 不匹配均拒绝；未登记资产保持 ABSENT，不能建池；重新上市保留市场暂停和报告序号。真实 V4 用例验证缺 ADTV 时可提供 LP，但 Swap 的余额、价格、费用与用量全部回滚，提交有效 ADTV 后可成交；初始化失败不留下 PENDING 记录或活动池计数。
+
 ## 4. 三个外部协议的专项集成
 
 | ID | 本地源码/实际实例 | 必须复核的具体行为 |
@@ -177,4 +179,4 @@ FOUNDRY_PROFILE=unit forge build --skip test --sizes
 
 执行顺序：先 U，再 I，再 P，最后固定区块 F 与 G。每次候选实现升级后重跑全部相关 U/I/P/F；涉及 Token/Adapter/Hook 的改动至少重跑 X-V4、X-BACKED 与 G08。CI 记录编译器、优化参数、依赖 commit、fork block、部署清单哈希、随机 seed、gas 报告和测试结果。不要使用实时最新区块生成会随市场状态漂移的必过断言。
 
-V1 **代码验收**要求：上述所有适用 ID 已落地且通过；没有跳过/预期失败的关键路径；关键完整交易用真实 V4 PoolManager 测过；失败原子性快照与六项性质测试通过；Router 直接调用者约束、报告直接角色 ABI、事件和错误可复算；代理布局和 Hook 权限位通过升级回归。**生产启用**另外要求固定区块 fork/真实代理核验、wTSLAx 股数口径的发行方/法务书面批准、实际制裁/暂停/精确转账与强退可达性、最坏 gas 余量及独立安全审计。缺任一项时不宣称 wTSLAx 生产测试完成，也不把 `UNREVIEWED` 改为 `APPROVED`。
+V1 **代码验收**要求：上述所有适用 ID 已落地且通过；没有跳过/预期失败的关键路径；关键完整交易用真实 V4 PoolManager 测过；失败原子性快照与六项性质测试通过；Router 直接调用者约束、报告直接角色 ABI、事件和错误可复算；代理布局和 Hook 权限位通过升级回归。**生产启用**另外要求固定区块 fork/真实代理核验、wTSLAx 股数口径的发行方/法务书面批准、实际制裁/暂停/精确转账与强退可达性、最坏 gas 余量及独立安全审计。缺任一项时不宣称 wTSLAx 生产测试完成，也不得调用准入入口将资产登记为 `APPROVED`。

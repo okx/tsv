@@ -20,7 +20,7 @@
 - 预留返回 delta 权限只赋予地址能力，不授权 V1 升级立即返回非零值。未来启用非零 delta 前，必须同版重设计 Router/LP Manager 的最终 `callerDelta` 结算、Hook/Ledger 的监管成交数量口径、Hook 自身欠款清算、请求边界、事件及回滚不变量，并完成独立审查与升级回归。当前 `afterSwap` 参数是 Hook 返回值影响 PoolManager 最终 caller delta **之前**的 Swap delta；直接沿用现有股数公式会错计。非零 delta 不能靠单独升级 Hook 启用。静态 LP fee、单池 Swap 和禁用 donate 的 V1 限制保持不变。
 - `poolCurrency` 是 PoolKey 中的 ERC-20，也是用户直接支付/收到的资产及 Registry 主键；当前 ABI 不定义独立用户 Token 或结算 Adapter 路径。TSV 不发行 Wrapped。
 - 股数账本单位 `legalSharesWad` 为 `1e18` 表示 1 股；金额字段除明确标注外均是相应 ERC-20 的**原始整数单位**。当前 `tradeDayId` 是按自动 UTC 日切计算的周期开始日 `YYYYMMDD`；不再使用 SIP 日历。链上时间为 Unix 秒。
-- 外部源码固定为本仓库 `lib/v4-core`、`lib/soul-bound-token-1155`、`lib/TestToken/backed-token-contract` 的当前提交；TSV Solidity `0.8.26` 只导入本地薄接口及 V4 类型，发行方/SBT 实现分别独立编译。任何实际代理 ABI/代码与参考源码不符，资产保持 `UNREVIEWED`。
+- 外部源码固定为本仓库 `lib/v4-core`、`lib/soul-bound-token-1155`、`lib/TestToken/backed-token-contract` 的当前提交；TSV Solidity `0.8.26` 只导入本地薄接口及 V4 类型，发行方/SBT 实现分别独立编译。任何实际代理 ABI/代码与参考源码不符，资产不得准入；未登记状态为 `ABSENT`。
 
 | 外部协议 | 编码必须遵守的本地源码事实 |
 | --- | --- |
@@ -33,10 +33,10 @@
 以下名称、顺序和整数宽度是**当前实现 ABI**。首次部署前的注册模型已移除 `AssetClass`、`LegalShareMode` 及重复比例字段：`securityId == 0` 表示非股票配对币，非零 `securityId` 表示绑定股数 Adapter 的股票资产。未部署的旧 ABI 不作为代理升级来源；首次部署后升级必须遵守存储布局约束。`PoolKey/PoolId/BalanceDelta` 使用固定 V4 类型。
 
 ```solidity
-enum TokenStatus { UNREVIEWED, APPROVED, DISABLED }
+enum TokenStatus { ABSENT, APPROVED, DISABLED }
 enum PoolStatus { ABSENT, PENDING, ACTIVE, DISABLED }
-enum MarketStatus { UNINITIALIZED, OPEN, HALTED }
-enum MarketAction { INITIAL_OPEN, INITIAL_HALTED, HALT, RESUME }
+enum MarketStatus { OPEN, HALTED }
+enum MarketAction { HALT, RESUME }
 enum PauseScope { GLOBAL, SECURITY, TOKEN, POOL }
 enum PauseMode { NONE, TRADE, LP, ALL } // ABI values: 0, 1, 2, 3
 enum LPOperationMode { OPEN, INCREASE, DECREASE, COLLECT, CLOSE, FORCE_EXIT }
@@ -89,11 +89,11 @@ Registry 使用 `mapping(address poolCurrency => TokenConfig)`；不再维护用
 
 **首次部署与后续升级：**V1 当前尚未在目标链部署，本次注册 ABI 精简在首次部署前完成；此前未部署的源码 ABI 不需要迁移兼容。首次部署后，六个代理的后续实现升级必须通过存储布局检查，不得删除或重排已部署的字段。V1 首次部署不迁移旧 wTSLAx 条目、LP 仓位或旧账本。
 
-**当前实现的准入组合如下；完整业务门槛以[新版准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准。**`registerToken(TokenConfig, bytes32 evidenceHash)` 仅 `SYMBOL_ADMIN`，只接收一个非零池内 Currency 地址，初次状态必须 `UNREVIEWED`，`poolDecimals` 须等于 ERC-20 `decimals()` 实测值且不超过 18；合约核对池内 Currency 和非零股数 Adapter 的代码哈希。结算固定为 Router/LP Manager 对实际池内 Currency 直接执行 raw ERC-20 收付，ABI 不接受结算模式、版本、Adapter 或用户 Token 字段。
+**当前实现的准入组合如下；完整业务门槛以[新版准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准。**首次证券准入由 `SYMBOL_ADMIN` 调用 `admitSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, TokenConfig config, bytes32 evidenceHash)`，同笔登记证券、预留唯一符号与 Tier 名额、批准首个 Currency；要求证券 ID 与配置一致。任何校验失败均回滚，移除独立首次证券登记入口。`registerToken(TokenConfig, bytes32 evidenceHash)` 同样仅 `SYMBOL_ADMIN`，用于报价 Currency 或已有上市证券新增 Currency，登记即批准。两个入口只接收一个非零且有代码的池内 Currency 地址，输入状态必须 `APPROVED`、`reviewHash` 必须非零，`poolDecimals` 须等于 ERC-20 `decimals()` 实测值且不超过 18；合约核对池内 Currency 和非零股数 Adapter 的代码哈希。结算固定为 Router/LP Manager 对实际池内 Currency 直接执行 raw ERC-20 收付，ABI 不接受结算模式、版本、Adapter 或用户 Token 字段。
 
 非股票配对币要求 `securityId == 0` 且不绑定股数 Adapter；股票要求 `securityId != 0`、证券已上市、Adapter 已部署且代码哈希匹配、Adapter 版本从 1 开始、`legalSharePolicyHash != 0`。Registry 通过 ERC-165 检查 `IDirectLegalShareAdapter`，并核对其 `poolCurrency()` 与 `adapterVersion()`；Registry 不读取、缓存或验证实时换算结果。换算公式及参数来源由经审查的 Adapter 定义。代理 `implementationHash` 是链下审查证据，链上不能读取另一合约的 ERC-1967 存储槽；运维监测实际实现变化。
 
-注册、批准、停用、股数 Adapter 更新都发事件；状态只允许 `UNREVIEWED→APPROVED→DISABLED→APPROVED`，重新批准必须附新审查依据。转入 `APPROVED` 时要求非零 `reviewHash`、`evidenceHash`；其哈希证明文件本身由链下评审，合约不推断法律真实性。只有 `APPROVED` 可用于新 Swap/用户 LP。`DISABLED` 保留配置供原 owner 强退。
+准入发出 TokenRegistered 和 ABSENT→APPROVED 的 TokenStatusChanged；`admitSecurity` 先发出 SecurityListed。Token 状态只允许准入时 `ABSENT→APPROVED`，随后 `APPROVED↔DISABLED`，禁止将已登记 Token 设置为 ABSENT；重新批准必须附新审查依据。停用、恢复和股数 Adapter 更新都发事件。转入 `APPROVED` 时要求非零 `reviewHash`、`evidenceHash`；其哈希证明文件本身由链下评审，合约不推断法律真实性。只有 `APPROVED` 可用于新 Swap/用户 LP。`DISABLED` 保留配置供原 owner 强退。
 
 **当前实现的替换入口：**当前 ABI 没有结算 Adapter 替换入口。更换法定股数 Adapter 仍要求暂停、版本递增和历史成交不重算。现有 Backed Adapter 每次转换都调用发行方 `getUnderlyingAmountByShares(rawShares)`，因此发行方方法所采用的实时 multiplier 会直接体现在该笔成交的计股结果中。Token 代理实现、制裁权限或关键规则变化时先停用，再复核恢复。
 
@@ -261,11 +261,11 @@ event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator,
 
 紧急暂停记录以递增 `recordId` 为主键，保存 `scope,target,mode,reasonCode,sourceHash,openedBy,openedAt,active`；`GLOBAL/SECURITY/TOKEN/POOL` 目标分别是零、securityId、Token 地址、PoolId。`EMERGENCY_PAUSER` 新增记录，`EMERGENCY_RESUMER` 关闭指定仍活跃记录；`activePauseCount(scope,target,mode)` 返回该精确模式的活跃记录数。交易检查 TRADE 或 ALL，LP 检查 LP 或 ALL；命中的记录叠加生效，关闭一条不会关闭其他记录或解除市场暂停。
 
-`MarketReport` 在 `action` 后新增 `PauseMode mode`，DataInbox 调用 `applyMarketStatus(securityId,action,mode,sequence,reportId)`。尚未初始化的证券阻断交易和 LP；INITIAL_OPEN 必须指定 ALL 并写入 NONE/OPEN，INITIAL_HALTED 则写入指定模式，未被暂停的另一类操作可以通过门禁。初始化仅允许一次。HALT 按位叠加指定模式，RESUME 只清除指定模式；不产生状态变化的报告回滚，报告序号和去重状态也回滚。`marketPauseMode(securityId)` 保存当前模式，`marketStatus(securityId)` 返回初始化及暂停状态，任一位暂停时市场为 HALTED，全部恢复时为 OPEN；下架证券仍由 listed 门禁阻断。例如 TRADE → HALT LP → ALL → RESUME TRADE → LP → RESUME LP → NONE/OPEN。模式改变时即使市场仍为 HALTED，也发出带旧/新模式的 MarketStatusChanged。暂停不会因报告年龄自动恢复。
+`MarketReport` 在 `action` 后新增 `PauseMode mode`，DataInbox 调用 `applyMarketStatus(securityId,action,mode,sequence,reportId)`。新证券准入后默认 NONE/OPEN，不再提交首次开市报告。MarketAction 仅 HALT=0、RESUME=1；首份报告可直接 HALT。HALT 按位叠加指定模式，RESUME 只清除指定模式；不产生状态变化的报告回滚，报告序号和去重状态也回滚。`marketPauseMode(securityId)` 保存当前模式，`marketStatus(securityId)` 从该模式推导，任一位暂停时市场为 HALTED，全部恢复时为 OPEN；未知证券查询回滚，下架证券仍由 listed 门禁阻断，重新上市不清除暂停或报告序号。不再保存重复的市场状态映射。例如 TRADE → HALT LP → ALL → RESUME TRADE → LP → RESUME LP → NONE/OPEN。模式改变时即使市场仍为 HALTED，也发出带旧/新模式的 MarketStatusChanged。暂停不会因报告年龄自动恢复。
 
 缺适用 ADTV 会阻止 Swap，日切自动发生，quota 可选；Token/Pool DISABLED 和外部 SBT paused 仍阻止普通 Swap/LP。池初始化只看建池准入，不受运行期 HALT/暂停阻止；enablePool 要求交易和 LP 门禁均通过。活跃 Currency 替换 LegalShareAdapter 时，GLOBAL/TOKEN 紧急记录必须共同覆盖交易和 LP，单项暂停不足。授权强退绕过上述业务门禁，资产仍只交付原 owner，发行方 Token 的转账限制仍生效。
 
-本次按首次部署更新暂停、市场报告、事件和计数查询 ABI，不提供旧接口重载或历史暂停状态迁移。
+本次按首次部署更新 ABI：准入、Token/Market 状态、暂停、市场报告、事件和计数查询均使用新接口；本版删除待审及市场未初始化状态，不提供旧接口重载或历史状态迁移。
 
 ## 9. 代理、角色和升级
 
@@ -380,7 +380,7 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 | ADTV 数值不变但进入新适用月份；新计量日没有配额覆盖报告 | 必须有新适用月份 ADTV；新日无配额时使用硬上限，不因缺配额报告拒绝 Swap |
 | Guardian 已冻结事故升级入口，普通升级已排期 | 事故即时升级失败；普通排期按其自身 ready 时间仍可执行 |
 
-完整的测试 ID、fixture、三份外部源码集成、fuzz/invariant、fork 与通过门槛见规范性文件 [V1 测试规格](./TEST_SPEC_V1.md)。上表只是手算验收向量，不能代替其中的测试覆盖。构建交付包含完整 ABI、存储布局清单、部署/配置脚本、事件索引说明、测试结果及上述行为的可复算案例。**代码完成**与**生产启用**分开验收：wTSLAx 动态权益映射的发行方/法务批准、实际代理 ABI/制裁矩阵/精确转账行为、gas 最坏情况和强退可达性仍是外部事实门禁；它们没有确认时合约可实现，但 wTSLAx 必须保持 `UNREVIEWED`，不得创建其活跃生产池。
+完整的测试 ID、fixture、三份外部源码集成、fuzz/invariant、fork 与通过门槛见规范性文件 [V1 测试规格](./TEST_SPEC_V1.md)。上表只是手算验收向量，不能代替其中的测试覆盖。构建交付包含完整 ABI、存储布局清单、部署/配置脚本、事件索引说明、测试结果及上述行为的可复算案例。**代码完成**与**生产启用**分开验收：wTSLAx 动态权益映射的发行方/法务批准、实际代理 ABI/制裁矩阵/精确转账行为、gas 最坏情况和强退可达性仍是外部事实门禁；它们没有确认时合约可实现，但 wTSLAx 不得调用准入入口，未登记状态为 `ABSENT`，不得创建其活跃生产池。
 
 ## 12. 对外 ABI 清单与调用权限
 
@@ -388,7 +388,7 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 
 | 合约 | 外部入口 | 调用者及主要约束 |
 | --- | --- | --- |
-| Registry | `listSecurity(bytes32 securityId,bytes32 symbolHash,uint8 tierId,bytes32 evidenceHash)`、`relistSecurity(bytes32 securityId,bytes32 evidenceHash)`、`setSecurityTier(bytes32 securityId,uint8 tierId,bytes32 evidenceHash)`、`delistSecurity(bytes32 securityId,bytes32 evidenceHash)`、`setTierPolicy(uint8 tierId,uint16 tierBps,uint32 maxListed,bytes32 evidenceHash)` | 前四项 `SYMBOL_ADMIN`，政策修改仅 Governor；activePoolCount/version 由合约派生，Tier 名额按不同 securityId 计算，活动池未全停用不得下架 |
+| Registry | `admitSecurity(bytes32 securityId,bytes32 symbolHash,uint8 tierId,TokenConfig config,bytes32 evidenceHash)`、`relistSecurity(bytes32 securityId,bytes32 evidenceHash)`、`setSecurityTier(bytes32 securityId,uint8 tierId,bytes32 evidenceHash)`、`delistSecurity(bytes32 securityId,bytes32 evidenceHash)`、`setTierPolicy(uint8 tierId,uint16 tierBps,uint32 maxListed,bytes32 evidenceHash)` | 前四项 `SYMBOL_ADMIN`，政策修改仅 Governor；activePoolCount/version 由合约派生，Tier 名额按不同 securityId 计算，活动池未全停用不得下架 |
 | Registry | `registerToken(TokenConfig,bytes32 evidenceHash)`、`setTokenStatus(address poolCurrency,TokenStatus,bytes32 evidenceHash)`、`replaceLegalShareAdapter(address poolCurrency,address newAdapter,bytes32 evidenceHash)` | `SYMBOL_ADMIN`；仅按 §2 的状态、暂停、版本和旧仓位不变量变更 |
 | Registry | `bindComponents(address hook,address lpManager,address dataInbox)` | Governor 仅可首次绑定；三个地址均须有代码。部署初始化入口，不可替换已绑定组件 |
 | Registry | `registerPendingPool(PoolKey)`、`markPoolActive(bytes32 poolId,uint160 sqrtPriceX96,address creator,bytes32 priceBasisHash)` | 仅 LP Manager；两个调用与 PoolManager.initialize 必须在同一外部交易成功 |

@@ -82,7 +82,7 @@ V1 只在正向拆股、反向拆股/合股确实改变 `legalSharesWad` 的法�
 
 ## 5. 注册、持续准入与当前迁移
 
-目标注册以 `poolCurrency` 为唯一 Token 地址和 Registry 主键，保存证券身份及股数 Adapter/版本/依据；`securityId == 0` 的配对币不绑定股数 Adapter，非零 `securityId` 的股票必须绑定股数 Adapter。用户直接支付和接收该池内 Currency；当前 ABI 不含独立用户 Token、结算模式或结算 Adapter 字段，也不提供多路径映射、路径选择、路径专用签名或 LP 路径字段。`UNREVIEWED→APPROVED→DISABLED→APPROVED` 的复审仍需证据与版本；停用阻止新 Swap/用户 LP，既有仓位强退按其原始资产交付规则处理。
+目标注册以 `poolCurrency` 为唯一 Token 地址和 Registry 主键，保存证券身份及股数 Adapter/版本/依据；`securityId == 0` 的配对币不绑定股数 Adapter，非零 `securityId` 的股票必须绑定股数 Adapter。用户直接支付和接收该池内 Currency；当前 ABI 不含独立用户 Token、结算模式或结算 Adapter 字段，也不提供多路径映射、路径选择、路径专用签名或 LP 路径字段。首次证券及首个 Currency 使用 `admitSecurity` 原子准入；报价币及已有上市证券新增 Currency 使用 `registerToken` 登记即批准。未登记资产为 `ABSENT`，审查未通过不得准入。准入后为 `APPROVED`，市场默认 OPEN，无需首次开市报告；后续 `APPROVED↔DISABLED` 的复审仍需证据与版本；停用阻止新 Swap/用户 LP，既有仓位强退按其原始资产交付规则处理。
 
 旧 `TSLAx → wTSLAx` 包装结算不属于当前注册 ABI。目标生产操作直接将 `wTSLAx` 登记为 `poolCurrency`；本部署没有旧 LP 仓位或旧账本，因此不实现旧结算兼容分支，也不提供 TSLAx 退出路径。
 

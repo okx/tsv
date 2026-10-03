@@ -11,6 +11,9 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
+import {Hooks} from "v4-core/libraries/Hooks.sol";
+import {CustomRevert} from "v4-core/libraries/CustomRevert.sol";
 import {
     TokenConfig,
     TokenStatus,
@@ -268,21 +271,19 @@ contract TSVProtocolLocalTest is Test {
         inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
         inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         registry.setTierPolicy(1, 10_000, 10, keccak256("tier"));
-        registry.listSecurity(SECURITY, keccak256("STDx"), 1, keccak256("list"));
         stockUnderlying = new V1MockIssuerShares();
         stock = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1LocalERC20("QUOTE");
         BackedAutoFeeLegalShareAdapter adapter =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
-        registry.registerToken(_config(address(stock), SECURITY, address(adapter)), keccak256("stock"));
+        registry.admitSecurity(
+            SECURITY, keccak256("STDx"), 1, _config(address(stock), SECURITY, address(adapter)), keccak256("stock")
+        );
         registry.registerToken(_config(address(quote), 0, address(0)), keccak256("quote"));
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("approve"));
-        registry.setTokenStatus(address(quote), TokenStatus.APPROVED, keccak256("approve"));
         address a = address(stock) < address(quote) ? address(stock) : address(quote);
         address b = address(stock) < address(quote) ? address(quote) : address(stock);
         key = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(hook)));
         lpManager.initializePool(key, uint160(1 << 96), keccak256("price"));
-        _submitReports();
         stock.mintTestShares(alice, 1e24);
         quote.mint(alice, 1e24);
         vm.startPrank(alice);
@@ -296,6 +297,97 @@ contract TSVProtocolLocalTest is Test {
         bounds.deadline = uint64(block.timestamp + 100);
         positionId = lpManager.openPosition(key, -600, 600, 1e20, bounds);
         vm.stopPrank();
+        _submitReports();
+    }
+
+    function testAdmissionOpensRealV4PoolWithoutMarketReport() public view {
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        assertEq(uint8(registry.getToken(address(stock)).status), uint8(TokenStatus.APPROVED));
+        assertEq(uint8(registry.marketStatus(SECURITY)), uint8(MarketStatus.OPEN));
+        assertEq(registry.marketSequence(SECURITY), 0);
+        assertEq(inbox.lastSequence(0, SECURITY), 0);
+        assertTrue(registry.isTradable(poolId));
+        assertTrue(registry.isLPAllowed(poolId));
+        assertGt(lpManager.getPosition(positionId).liquidity, 0);
+    }
+
+    function testMissingAdtvAllowsLiquidityButSwapRevertsAtomically() public {
+        uint32 day = 20261101;
+        vm.warp(ledger.dayStartUTC(day) + 1);
+        (bool valid,) = ledger.remaining(SECURITY, day);
+        assertFalse(valid);
+        vm.prank(alice);
+        lpManager.increaseLiquidity(positionId, 1e19, _pauseTestBounds());
+        assertEq(lpManager.getPosition(positionId).liquidity, 11e19);
+        bytes32 beforeState = _swapStateDigest(day);
+        SwapRequest memory request = _swapRequest(address(stock) == Currency.unwrap(key.currency0), 1e18);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                address(hook),
+                IHooks.afterSwap.selector,
+                abi.encodeWithSelector(TSVVolumeLedgerV1.MissingReport.selector),
+                abi.encodeWithSelector(Hooks.HookCallFailed.selector)
+            )
+        );
+        vm.prank(alice);
+        router.swapExactInput(request);
+        assertEq(_swapStateDigest(day), beforeState);
+        uint64 now_ = uint64(block.timestamp);
+        inbox.submitAdtv(
+            AdtvReport(SECURITY, 202610, 1e24, now_ - 1, now_ + 100, 1, 2, keccak256("nov-adtv"), keccak256("source"))
+        );
+        vm.prank(alice);
+        router.swapExactInput(request);
+        assertGt(ledger.used(SECURITY, day), 0);
+    }
+
+    function testPoolInitializationFailureLeavesNoPendingRecordOrCounts() public {
+        PoolKey memory otherPool = key;
+        otherPool.fee = 500;
+        bytes32 otherPoolId = PoolId.unwrap(otherPool.toId());
+        uint32 stockCount = registry.activePoolCountByCurrency(address(stock));
+        uint32 quoteCount = registry.activePoolCountByCurrency(address(quote));
+        vm.expectRevert();
+        lpManager.initializePool(otherPool, 0, keccak256("bad-price"));
+        assertEq(uint8(registry.getPool(otherPoolId).status), uint8(PoolStatus.ABSENT));
+        assertFalse(registry.isKnownPool(otherPoolId));
+        assertEq(registry.activePoolCountByCurrency(address(stock)), stockCount);
+        assertEq(registry.activePoolCountByCurrency(address(quote)), quoteCount);
+        assertEq(registry.getSecurity(SECURITY).activePoolCount, 1);
+        (uint160 price,,,) = StateLibrary.getSlot0(manager, PoolId.wrap(otherPoolId));
+        assertEq(price, 0);
+        lpManager.initializePool(otherPool, uint160(1 << 96), keccak256("correct-price"));
+        assertEq(uint8(registry.getPool(otherPoolId).status), uint8(PoolStatus.ACTIVE));
+        assertEq(registry.getSecurity(SECURITY).activePoolCount, 2);
+    }
+
+    function _swapStateDigest(uint32 day) private view returns (bytes32) {
+        PoolId id = key.toId();
+        (uint160 price, int24 tick, uint24 protocolFee, uint24 lpFee) = StateLibrary.getSlot0(manager, id);
+        (uint256 growth0, uint256 growth1) = StateLibrary.getFeeGrowthGlobals(manager, id);
+        return keccak256(
+            abi.encode(
+                price,
+                tick,
+                protocolFee,
+                lpFee,
+                growth0,
+                growth1,
+                StateLibrary.getLiquidity(manager, id),
+                stock.balanceOf(alice),
+                quote.balanceOf(alice),
+                stock.balanceOf(address(router)),
+                quote.balanceOf(address(router)),
+                stock.balanceOf(address(manager)),
+                quote.balanceOf(address(manager)),
+                stock.balanceOf(address(lpManager)),
+                quote.balanceOf(address(lpManager)),
+                lpManager.getPosition(positionId),
+                lpManager.ownerOf(positionId),
+                ledger.used(SECURITY, day)
+            )
+        );
     }
 
     /// @dev Verifies a real V4 pool swap accounts for the actual deltas.
@@ -1033,7 +1125,7 @@ contract TSVProtocolLocalTest is Test {
         c.legalAdapterVersion = securityId == 0 ? 0 : 1;
         // Stock classification follows securityId and the bound adapter.
         c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("backed-policy");
-        c.status = TokenStatus.UNREVIEWED;
+        c.status = TokenStatus.APPROVED;
         c.poolRuntimeCodeHash = token.codehash;
         c.legalAdapterCodeHash = legalAdapter.codehash;
         c.reviewHash = keccak256("review");
@@ -1072,22 +1164,9 @@ contract TSVProtocolLocalTest is Test {
         assertEq(IERC20(outputToken).balanceOf(address(adapter)) - outputBefore, actualOut);
     }
 
-    /// @dev Submits the initial market and monthly ADTV reports required by the test.
+    /// @dev Submits the monthly ADTV report required by the test; admission already opens the market.
     function _submitReports() private {
         uint64 now_ = uint64(block.timestamp);
-        MarketReport memory market = MarketReport(
-            SECURITY,
-            MarketAction.INITIAL_OPEN,
-            PauseMode.ALL,
-            keccak256("open"),
-            keccak256("exchange"),
-            now_ - 1,
-            now_ + 100,
-            1,
-            keccak256("market"),
-            keccak256("source")
-        );
-        inbox.submitMarketStatus(market);
         AdtvReport memory adtv =
             AdtvReport(SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, 1, keccak256("adtv"), keccak256("source"));
         inbox.submitAdtv(adtv);

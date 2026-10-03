@@ -89,14 +89,13 @@ contract TSVRegistryV1 is TSVGoverned {
     mapping(address => TokenConfig) private tokens;
     mapping(address => uint32) public activePoolCountByCurrency;
     mapping(bytes32 => PoolConfig) private pools;
-    mapping(bytes32 => MarketStatus) private marketStatuses;
     mapping(bytes32 => uint64) public marketSequence;
     mapping(uint256 => EmergencyPause) public emergencyPauses;
     /// @notice Number of active records for exactly the specified scope, target, and mode.
     mapping(uint8 => mapping(bytes32 => mapping(uint8 => uint256))) public activePauseCount;
     ISmartWalletSbtV1 public participantSbt;
     uint256 public sbtTokenId;
-    /// @notice Current market pause mask; NONE does not imply the market has been initialized.
+    /// @notice Current market pause mask; admitted securities default to NONE.
     mapping(bytes32 => PauseMode) public marketPauseMode;
 
     /// @notice Emitted when core component addresses were bound to the Registry.
@@ -233,23 +232,28 @@ contract TSVRegistryV1 is TSVGoverned {
         return !participantSbt.paused() && hasCredential(owner);
     }
 
-    /// @notice Lists a new security and reserves its unique symbol and one slot in its tier.
+    /// @notice Atomically lists a security and admits its first approved Currency.
     /// @param securityId Unique internal identifier for the security.
     /// @param symbolHash Unique digest of its display symbol or ticker.
     /// @param tierId Configured tier with available listing capacity.
-    /// @param evidenceHash Nonzero digest of the listing evidence.
-    function listSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, bytes32 evidenceHash)
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
+    /// @param config Reviewed Token configuration bound to the new security.
+    /// @param evidenceHash Nonzero digest of the admission evidence.
+    function admitSecurity(
+        bytes32 securityId,
+        bytes32 symbolHash,
+        uint8 tierId,
+        TokenConfig calldata config,
+        bytes32 evidenceHash
+    ) external onlyRole(SYMBOL_ADMIN_ROLE) {
         if (
             securityId == 0 || symbolHash == 0 || evidenceHash == 0 || securities[securityId].securityId != 0
-                || symbolToSecurity[symbolHash] != 0
+                || symbolToSecurity[symbolHash] != 0 || config.securityId != securityId
         ) revert InvalidConfig();
         _takeTierSlot(tierId);
         securities[securityId] = SecurityConfig(securityId, symbolHash, tierId, true, 0, 1);
         symbolToSecurity[symbolHash] = securityId;
         emit SecurityListed(securityId, symbolHash, tierId, evidenceHash);
+        _registerToken(config, evidenceHash);
     }
 
     /// @notice Relists a delisted security under its existing symbol and tier.
@@ -301,13 +305,19 @@ contract TSVRegistryV1 is TSVGoverned {
         return securities[securityId];
     }
 
-    /// @notice Registers a token after validating its runtime code, decimals, security, and share adapter.
-    /// @param config Token configuration; new entries must start as UNREVIEWED.
-    /// @param evidenceHash Nonzero digest of the token registration evidence.
+    /// @notice Admits a quote token or another Currency for an already listed security.
+    /// @param config Reviewed Token configuration; status must be APPROVED.
+    /// @param evidenceHash Nonzero digest of the token admission evidence.
     function registerToken(TokenConfig calldata config, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        _registerToken(config, evidenceHash);
+    }
+
+    /// @dev Validates and stores an approved Currency without leaving a pending review state.
+    function _registerToken(TokenConfig calldata config, bytes32 evidenceHash) private {
         if (
-            config.poolCurrency == address(0) || config.status != TokenStatus.UNREVIEWED || evidenceHash == 0
+            config.poolCurrency == address(0) || config.status != TokenStatus.APPROVED || evidenceHash == 0
                 || tokens[config.poolCurrency].poolCurrency != address(0) || config.poolDecimals > 18
+                || config.reviewHash == 0 || config.poolCurrency.code.length == 0
         ) revert InvalidConfig();
         if (
             config.poolCurrency.codehash != config.poolRuntimeCodeHash
@@ -330,11 +340,14 @@ contract TSVRegistryV1 is TSVGoverned {
         }
         tokens[config.poolCurrency] = config;
         emit TokenRegistered(config.poolCurrency, config.securityId, evidenceHash);
+        emit TokenStatusChanged(
+            config.poolCurrency, uint8(TokenStatus.ABSENT), uint8(TokenStatus.APPROVED), evidenceHash
+        );
     }
 
-    /// @notice Changes a registered token's review status, enforcing approval prerequisites.
+    /// @notice Disables or re-enables an admitted token, enforcing approval prerequisites.
     /// @param currency Registered pool Currency to update.
-    /// @param status New review status.
+    /// @param status APPROVED or DISABLED; ABSENT is not a valid transition.
     /// @param evidenceHash Nonzero digest of the status-change evidence.
     function setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)
         external
@@ -342,12 +355,7 @@ contract TSVRegistryV1 is TSVGoverned {
     {
         TokenConfig storage config = tokens[currency];
         if (config.poolCurrency == address(0) || evidenceHash == 0 || config.status == status) revert InvalidStatus();
-        if (
-            status == TokenStatus.UNREVIEWED
-                || (config.status == TokenStatus.UNREVIEWED && status != TokenStatus.APPROVED)
-        ) {
-            revert InvalidStatus();
-        }
+        if (status == TokenStatus.ABSENT) revert InvalidStatus();
         if (status == TokenStatus.APPROVED) {
             if (
                 config.reviewHash == 0 || (config.securityId != 0 && config.legalSharePolicyHash == 0)
@@ -483,16 +491,17 @@ contract TSVRegistryV1 is TSVGoverned {
         return pools[poolId].status != PoolStatus.ABSENT;
     }
 
-    /// @notice Returns the current reported market state for a security.
+    /// @notice Derives the market state from a known security's pause mask.
     /// @param securityId Security identifier to query.
-    /// @return Current market state, or UNINITIALIZED when no state was reported.
+    /// @return OPEN when no market pause applies, otherwise HALTED; unknown IDs revert.
     function marketStatus(bytes32 securityId) external view returns (MarketStatus) {
-        return marketStatuses[securityId];
+        if (securities[securityId].securityId == 0) revert InvalidConfig();
+        return marketPauseMode[securityId] == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
     }
 
     /// @notice Applies the next valid market-state transition from the bound DataInbox.
     /// @param securityId Listed security whose market state changes.
-    /// @param action Initial-state, halt, or resume action from the report.
+    /// @param action Halt or resume action from the report.
     /// @param mode Operations affected by this action: TRADE, LP, or ALL.
     /// @param sequence Report sequence for this security.
     /// @param reportId Unique ID of the accepted MarketReport.
@@ -507,28 +516,14 @@ contract TSVRegistryV1 is TSVGoverned {
             msg.sender != dataInbox || securityId == 0 || !securities[securityId].listed
                 || sequence <= marketSequence[securityId] || mode == PauseMode.NONE
         ) revert InvalidStatus();
-        MarketStatus old = marketStatuses[securityId];
         PauseMode oldMode = marketPauseMode[securityId];
-        MarketStatus next;
+        MarketStatus old = oldMode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
         PauseMode nextMode;
-        if (action == MarketAction.INITIAL_OPEN && old == MarketStatus.UNINITIALIZED && mode == PauseMode.ALL) {
-            next = MarketStatus.OPEN;
-            nextMode = PauseMode.NONE;
-        } else if (action == MarketAction.INITIAL_HALTED && old == MarketStatus.UNINITIALIZED) {
-            next = MarketStatus.HALTED;
-            nextMode = mode;
-        } else if (action == MarketAction.HALT && old != MarketStatus.UNINITIALIZED) {
-            nextMode = PauseMode(uint8(oldMode) | uint8(mode));
-            if (nextMode == oldMode) revert InvalidStatus();
-            next = MarketStatus.HALTED;
-        } else if (action == MarketAction.RESUME && old != MarketStatus.UNINITIALIZED) {
-            nextMode = PauseMode(uint8(oldMode) & ~uint8(mode));
-            if (nextMode == oldMode) revert InvalidStatus();
-            next = nextMode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
-        } else {
-            revert InvalidStatus();
-        }
-        marketStatuses[securityId] = next;
+        if (action == MarketAction.HALT) nextMode = PauseMode(uint8(oldMode) | uint8(mode));
+        else if (action == MarketAction.RESUME) nextMode = PauseMode(uint8(oldMode) & ~uint8(mode));
+        else revert InvalidStatus();
+        if (nextMode == oldMode) revert InvalidStatus();
+        MarketStatus next = nextMode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
         marketPauseMode[securityId] = nextMode;
         marketSequence[securityId] = sequence;
         emit MarketStatusChanged(
@@ -601,10 +596,9 @@ contract TSVRegistryV1 is TSVGoverned {
         return true;
     }
 
-    /// @dev Requires a listed, initialized security with no pause matching the operation.
+    /// @dev Admitted securities default to open and are blocked only by listing and matching pauses.
     function _isSecurityAllowed(bytes32 securityId, PauseMode operation) private view returns (bool) {
-        return securities[securityId].listed && marketStatuses[securityId] != MarketStatus.UNINITIALIZED
-            && (uint8(marketPauseMode[securityId]) & uint8(operation)) == 0
+        return securities[securityId].listed && (uint8(marketPauseMode[securityId]) & uint8(operation)) == 0
             && !_isPaused(PauseScope.SECURITY, securityId, operation);
     }
 

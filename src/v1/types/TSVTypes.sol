@@ -5,7 +5,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 
 /// @notice Admission state for a pool Currency registered in the Registry.
 enum TokenStatus {
-    UNREVIEWED, // Registered but not approved for pools.
+    ABSENT, // No approved Currency has been registered.
     APPROVED, // Reviewed and permitted for new pool operations.
     DISABLED // Temporarily or permanently blocked from new pool operations.
 }
@@ -16,17 +16,14 @@ enum PoolStatus {
     ACTIVE, // Initialized and available when all other trading gates pass.
     DISABLED // Registered but blocked from ordinary user operations.
 }
-/// @notice Trading state reported for a listed security.
+/// @notice Market state derived from a known security's current pause mask.
 enum MarketStatus {
-    UNINITIALIZED, // No initial market report has been accepted.
     OPEN, // Market operations may proceed when all other gates pass.
     HALTED // Trading, ordinary LP actions, or both are paused.
 }
-/// @notice Allowed first-state and subsequent market-state transitions.
+/// @notice Allowed market pause transitions after admission defaults to open.
 enum MarketAction {
-    INITIAL_OPEN, // Initializes an uninitialized security as open.
-    INITIAL_HALTED, // Initializes an uninitialized security with the selected pause.
-    HALT, // Adds the selected trading and/or LP pause to an initialized security.
+    HALT, // Adds the selected trading and/or LP pause to a listed security.
     RESUME // Removes the selected pause; the security is open once all market pauses clear.
 }
 /// @notice Scope used to target an emergency pause record.
@@ -67,7 +64,7 @@ struct TokenConfig {
     uint32 legalAdapterVersion;
     /// @notice Current approval or disablement state of the Currency.
     TokenStatus status;
-    /// @notice Runtime code hash required when the token is registered and approved.
+    /// @notice Runtime code hash required when the token is admitted or re-enabled.
     bytes32 poolRuntimeCodeHash;
     /// @notice Runtime code hash recorded for the legal-share adapter.
     bytes32 legalAdapterCodeHash;

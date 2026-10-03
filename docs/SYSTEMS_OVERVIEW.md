@@ -263,7 +263,7 @@ flowchart LR
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitAdtv(AdtvReport calldata report)` | `report` 字段见 §3.1「月度成交量」。 |
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitAdtvBatch(AdtvReport[] calldata reports)` | 同月、按 `securityId` 严格递增的 ADTV 报告数组；见 §3.1「月度成交量」。 |
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitQuota(QuotaReport calldata report)` | `report` 字段见 §3.1「指定日额度」。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `listSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, bytes32 evidenceHash)` | 新证券 ID、符号摘要、Tier、依据摘要。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `admitSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, TokenConfig calldata config, bytes32 evidenceHash)` | 新证券 ID、符号摘要、Tier、首个 Currency 的已审 TokenConfig、准入依据摘要；同笔登记证券并批准 Token。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `relistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 已下架证券 ID、恢复依据摘要。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `setSecurityTier(bytes32 securityId, uint8 tierId, bytes32 evidenceHash)` | 证券 ID、新 Tier、依据摘要。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `delistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 证券 ID、下架依据摘要。 |
@@ -319,13 +319,13 @@ struct MarketReport {
 | 参数 | 类型 | 含义和当前约束 |
 | --- | --- | --- |
 | `securityId` | `bytes32` | 已登记且当前 listed 的证券 ID；不是 ticker 字符串。 |
-| `action` | `MarketAction` | `INITIAL_OPEN`、`INITIAL_HALTED`、`HALT` 或 `RESUME`；首次只允许初始化，随后 HALT 叠加模式、RESUME 清除指定模式，无模式变化的报告回滚。 |
+| `action` | `MarketAction` | `HALT=0` 或 `RESUME=1`。准入后默认开放，首份报告可以直接 HALT；HALT 叠加模式，RESUME 清除指定模式，无模式变化的报告回滚。 |
 | `mode` | `PauseMode` | `TRADE=1`、`LP=2`、`ALL=3`；禁止 NONE；只影响指定模式，另一类操作开放。 |
 | `reasonCode` | `bytes32` | 非零原因码；建议在运营字典中维护稳定编码。仅在提交时校验，不写入 Registry 状态或 `MarketStatusChanged` 事件；可从提交交易 calldata 读取。 |
 | `exchangeHash` | `bytes32` | 非零交易所/市场来源标识摘要。仅在提交时校验，不写入 Registry 状态或 `MarketStatusChanged` 事件；可从提交交易 calldata 读取。 |
 | 其余字段 | — | 按上面的通用审计字段填写。 |
 
-`HALT` 一直有效到对应模式的有效 `RESUME` 被接受，不会按报告年龄自动恢复。市场在任一模式暂停时保持 HALTED，全部恢复后变为 OPEN；首次 INITIAL_OPEN 必须指定 ALL，INITIAL_HALTED 使用指定模式；尚未初始化的证券阻断交易和 LP。例如先 HALT TRADE，再 HALT LP 得到 ALL；RESUME TRADE 后仅剩 LP 暂停。MarketStatusChanged 包含 oldPauseMode/newPauseMode，HALTED 内的模式变化也会发事件。该入口不能增删或解除紧急暂停记录。
+`HALT` 一直有效到对应模式的有效 `RESUME` 被接受，不会按报告年龄自动恢复。市场在任一模式暂停时保持 HALTED，全部恢复后变为 OPEN；首次准入后默认 NONE/OPEN，无需首次开市报告；重新上市保留原暂停模式及报告序号。例如先 HALT TRADE，再 HALT LP 得到 ALL；RESUME TRADE 后仅剩 LP 暂停。MarketStatusChanged 包含 oldPauseMode/newPauseMode，HALTED 内的模式变化也会发事件。该入口不能增删或解除紧急暂停记录。
 
 #### 月度成交量：`AdtvReport`
 
@@ -387,16 +387,16 @@ struct QuotaReport {
 
 ### 3.2 证券、Token 与股数 Adapter 准入
 
-证券和资产元数据由 `SYMBOL_ADMIN_ROLE` 直接写入 Registry。它不自动批准新 Token：证券和 Token 初始登记后仍是待审查状态，只有 Token 进入 `APPROVED` 后才能建池。
+证券和资产由 `SYMBOL_ADMIN_ROLE` 在链下审查完成后准入。新证券及首个 Currency 用 `admitSecurity` 同笔登记和批准；报价币及已有上市证券新增 Currency 用 `registerToken` 登记即批准。链上没有待审流程，未登记资产为 `ABSENT`，只有 `APPROVED` Token 才能建池。
 
 | 入口 | 参数 | 主要效果和约束 |
 | --- | --- | --- |
-| `listSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, bytes32 evidenceHash)` | 内部证券 ID、ticker/符号摘要、Tier 编号、依据摘要 | 新增证券；`securityId`、`symbolHash`、`evidenceHash` 均非零；`securityId` 和 `symbolHash` 分别不能已登记；Tier 必须已配置且尚有名额。 |
+| `admitSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, TokenConfig calldata config, bytes32 evidenceHash)` | 内部证券 ID、ticker/符号摘要、Tier 编号、首个 Currency 的 TokenConfig、依据摘要 | 原子登记证券并批准首个 Token，`config.securityId` 必须匹配；失败回滚证券、符号预留及 Tier 名额；`securityId`、`symbolHash`、`evidenceHash` 均非零；`securityId` 和 `symbolHash` 分别不能已登记；Tier 必须已配置且尚有名额。 |
 | `relistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 已下架证券 ID、恢复依据摘要 | 恢复原证券并增加版本；证券必须存在且当前未 listed，原 Tier 仍须有名额。 |
 | `setSecurityTier(bytes32 securityId, uint8 tierId, bytes32 evidenceHash)` | 证券 ID、新 Tier、依据摘要 | 修改已上市证券的 Tier；扣减旧 Tier 名额、占用新 Tier 名额并增加证券版本。 |
 | `delistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 证券 ID、下架依据摘要 | 下架证券并释放 Tier 名额；必须已 listed 且 `activePoolCount == 0`。 |
-| `registerToken(TokenConfig calldata config, bytes32 evidenceHash)` | 下方完整 TokenConfig、登记依据摘要 | 登记池内 Currency 和审核信息；初始 `status` 必须为 `UNREVIEWED`。地址、代码哈希、decimals 和直接结算规则均按下表校验。 |
-| `setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)` | TokenConfig 主键 Currency、目标状态、状态变更依据摘要 | 只允许 `UNREVIEWED → APPROVED`、`APPROVED → DISABLED`、`DISABLED → APPROVED`；不能设置回 `UNREVIEWED`，也不能重复设置当前状态。批准时须已有非零 `reviewHash`；股票还须有非零 `legalSharePolicyHash`、证券仍 listed，且 Token 运行时代码哈希匹配登记值。 |
+| `registerToken(TokenConfig calldata config, bytes32 evidenceHash)` | 下方完整 TokenConfig、登记依据摘要 | 登记即批准报价 Currency 或已上市证券的新增 Currency；输入 `status` 必须为 `APPROVED` 且 `reviewHash` 非零。地址、代码哈希、decimals 和直接结算规则均按下表校验。 |
+| `setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)` | TokenConfig 主键 Currency、目标状态、状态变更依据摘要 | 只允许 `APPROVED → DISABLED`、`DISABLED → APPROVED`；不能设置 `ABSENT`，也不能重复设置当前状态。恢复批准时须已有非零 `reviewHash`；股票还须有非零 `legalSharePolicyHash`、证券仍 listed，且 Token 运行时代码哈希匹配登记值。 |
 | `replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)` | 股票 Currency、新 Adapter、公式/法律依据摘要 | 只对已登记股票 Token；新 Adapter 版本须等于旧版本加一，通过 ERC-165 声明 `IDirectLegalShareAdapter` 并绑定相同 Currency。`evidenceHash` 同时作为更新后的 `legalSharePolicyHash` 保存。若该 Currency 仍有活跃池，GLOBAL 或该 TOKEN 范围的紧急记录必须共同覆盖交易和 LP（单条 ALL 或分别叠加 TRADE、LP）；单项暂停、SECURITY 或 POOL 范围暂停均不足。Registry 不调用换算函数验证其结果。 |
 
 `TokenConfig` 的 ABI 字段顺序如下：
@@ -425,13 +425,13 @@ struct TokenConfig {
 | `securityId` | 股票资产的证券 ID；`0` 表示普通配对币，非零表示股票且必须指向已上市证券。 |
 | `legalShareAdapter` | 股票的法律股数换算 Adapter；普通配对币必须为零，股票必须提供有效合约并绑定同一 Currency。 |
 | `legalAdapterVersion` | 股数 Adapter 版本；普通币为 `0`，新登记股票当前为 `1`。 |
-| `status` | `UNREVIEWED`、`APPROVED` 或 `DISABLED`；新登记必须为 `UNREVIEWED`。 |
-| `poolRuntimeCodeHash` | 登记时与链上代码哈希核对；Token 批准时再次核对，交易期间不持续检查。 |
+| `status` | `ABSENT=0`、`APPROVED=1` 或 `DISABLED=2`；未登记为 ABSENT，准入输入必须为 APPROVED。 |
+| `poolRuntimeCodeHash` | 登记时与链上代码哈希核对；Token 恢复批准时再次核对，交易期间不持续检查。 |
 | `legalAdapterCodeHash` | 股票登记/更换 Adapter 时与 Adapter 代码哈希核对并更新。运行时 Hook 调用配置 Adapter 的直接换算方法；不读取此字段重新校验代码哈希。 |
 | `poolImplementationHash` | 当前合约只保存并通过 `getToken` 返回；不做链上校验、不参与准入或交易门禁。需要核验代理实现时须由链下流程读取并比对。 |
-| `reviewHash` | 批准 Token 时只检查非零；不解析或验证其摘要对应的审查材料。 |
+| `reviewHash` | Token 准入和恢复批准时检查非零；不解析或验证其摘要对应的审查材料。 |
 | `restrictionsHash` | 当前合约只保存并通过 `getToken` 返回；不校验非零，也不参与任何交易门禁。 |
-| `legalSharePolicyHash` | 股票登记/批准时要求非零；更换股数 Adapter 时会以新 `evidenceHash` 更新。当前不参与股数换算公式或 Swap 额度公式。 |
+| `legalSharePolicyHash` | 股票准入/恢复批准时要求非零；更换股数 Adapter 时会以新 `evidenceHash` 更新。当前不参与股数换算公式或 Swap 额度公式。 |
 
 `TokenConfig` 只描述实际池内 Currency 和股数计量配置；用户结算 Token 与池内 Currency 不再分别登记，V1 也没有结算 Adapter 替换入口。`poolImplementationHash` 和 `restrictionsHash` 是当前链上逻辑未消费的被动字段。ABI 首次部署后，后续代理升级必须遵守已部署的存储布局。SBT 地址/tokenId、角色授权和 Tier 风险参数由 Governor 控制，见治理系统；运营角色不能自行更换这些治理根配置。
 
@@ -502,7 +502,7 @@ function forceExit(
 
 运营地址不会自行授予角色。Governor 通过各业务代理的 `grantRole(bytes32 role, address account)` / `revokeRole(bytes32 role, address account)` 配置运营角色；权限配置属于治理。`setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed, bytes32 evidenceHash)` 和 `setSbtConfig(address sbt, uint256 tokenId, bytes32 evidenceHash)` 同样仅 Governor 可调用，故分别属于风险参数和资格体系治理，不授予 `SYMBOL_ADMIN` 执行权。日切虽然由 Governor 调用，但在本系统业务分类中作为运营计量周期配置列于 §3.4。
 
-资产准入和建池是先后两步：先登记证券及 Token，并完成资产审查、批准；再由 `POOL_CREATOR` 初始化获批的 PoolKey。普通 Pool 创建权限不意味着可以跳过 Registry 的资产准入或运行期交易门禁。
+资产先经链下审查，再由 `SYMBOL_ADMIN` 一次调用 `admitSecurity` 完成证券和首个 Currency 准入，市场默认开放。随后 `VOLUME_ORACLE` 提交 ADTV、`POOL_CREATOR` 初始化获批的 PoolKey，两者可按任意顺序完成。LP 可在 ADTV 提交前提供流动性，首笔股票 Swap 必须有适用 ADTV 和流动性。普通 Pool 创建权限不意味着可以跳过 Registry 的资产准入或运行期交易门禁。
 
 ### 3.8 运营状态直接查询入口
 
@@ -511,7 +511,7 @@ function forceExit(
 | 合约 | 直接查询入口 | 返回/用途 |
 | --- | --- | --- |
 | Registry | `getSecurity(bytes32 securityId)`、`getToken(address currency)`、`getPool(bytes32 poolId)`、`tierPolicy(uint8 tierId)` | 读取证券、Token、池和 Tier 配置结构。 |
-| Registry | `marketStatus(bytes32 securityId)`、`marketPauseMode(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`hasCredential(address owner)`、`isEligible(address owner)` | 市场未初始化时返回 UNINITIALIZED，初始化后任一市场暂停时 HALTED、全部恢复时 OPEN；池是否登记/允许交易/允许普通 LP，SBT 是否持有/当前是否合格。`isEligible` 同时考虑 SBT 全局暂停。isTradable 不检查 ADTV、额度或流动性。 |
+| Registry | `marketStatus(bytes32 securityId)`、`marketPauseMode(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`hasCredential(address owner)`、`isEligible(address owner)` | 市场状态从暂停模式推导为 OPEN/HALTED，未知证券的 marketStatus 查询回滚；池是否登记/允许交易/允许普通 LP，SBT 是否持有/当前是否合格。`isEligible` 同时考虑 SBT 全局暂停。isTradable 不检查 ADTV、额度或流动性。 |
 | Registry | `activePoolCountByCurrency(address currency)`、`marketSequence(bytes32 securityId)`、`emergencyPauses(uint256 recordId)`、`activePauseCount(uint8 scope, bytes32 target, uint8 mode)` | 读取活跃池计数、市场报告序号、暂停记录及指定范围/目标/精确模式的活动暂停数量；ALL 记录计入 mode=3，不重复计入 mode=1/2。 |
 | Registry | `hook()`、`lpManager()`、`dataInbox()`、`nextPauseId()`、`participantSbt()`、`sbtTokenId()` | 读取绑定地址、下一暂停记录编号和当前 SBT 配置。 |
 | DataInbox | `reportIdUsed(bytes32 reportId)`、`lastSequence(uint8 kind, bytes32 key)`、`lastSourceTimestamp(uint8 kind, bytes32 key)`、`MAX_ADTV_BATCH_SIZE()` | 核对报告去重、各类别最新序号/来源时间和批量 ADTV 上限；`kind` 为 `0=Market`、`1=ADTV`、`2=Quota`，`key` 为对应 `securityId`。 |
@@ -703,7 +703,7 @@ flowchart TB
 flowchart TD
   A[资产已登记并获批] --> B[PoolKey 已登记且池 ACTIVE]
   B --> C[用户 SBT 资格与请求授权有效]
-  C --> D[证券已初始化且仍 listed 且没有命中的 TRADE/ALL 暂停]
+  C --> D[证券仍 listed 且没有命中的 TRADE/ALL 暂停]
   C --> LP[无命中的 LP/ALL 暂停时执行普通 LP]
   R --> LP
   D --> E[交易系统执行 Swap]
