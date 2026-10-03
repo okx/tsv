@@ -14,6 +14,7 @@
 | 当前实现证据 | [实现状态](./IMPLEMENTATION_STATUS_V1.md) | 已实现范围、缺口、外部阻断及本地验证记录 |
 | 部署与迁移操作 | [部署清单](./DEPLOYMENT_CHECKLIST_V1.md) | 部署顺序、配置步骤、发布门禁和治理根迁移 |
 | 单只股票市场开通 | [如何开启一只股票市场](./如何开启一只股票市场/README.md) | 从证券与 Token 准入到建池、加流动性、首笔 Swap 和持续运营 |
+| 外部 DEX Router / Adapter 接入 | [外部 DEX Router 与 Adapter 接入 TSV](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) | TSV Adapter 专用交易入口、caller 身份传递及外部仓库配合事项 |
 | 部署参数输入 | [Manifest 模板](./DEPLOYMENT_MANIFEST_V1.example.json) | 部署脚本所需字段的示例结构 |
 
 ## 按任务阅读

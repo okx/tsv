@@ -84,13 +84,13 @@ flowchart LR
 
 ### 2.1 Swap：授权、执行、计量、结算
 
-1. **提交请求。**用户通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。调用者由 Router 同时作为 participant、payer 和 recipient；请求绑定 PoolKey、金额边界和 deadline。
-2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：它调用 Registry 的 `isEligible` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户也会经 Registry 查询资格和池状态。
+1. **提交请求。**用户可通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。外部 DexRouter 可通过其现有 Adapter 接口路由到 TSV Adapter，再调用 TSV Router 的 Adapter 专用 exact-in 入口。用户直连时调用者是 participant、payer 和 recipient；Adapter 路径由 Router 检查白名单 Adapter 与其提供的 participant，Adapter 作为结算方并接收输出。
+2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：直连路径检查 `msg.sender`，Adapter 路径检查白名单 Adapter 并校验其提供的 participant；两条路径都会查询 Registry 的 `isEligible` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户也会经 Registry 查询资格和池状态。
 3. **在 V4 中执行。**Router 通过官方 [PoolManager](../lib/v4-core/src/PoolManager.sol) 发起 Swap。PoolManager 调用 [TSVHookV1](../src/v1/core/TSVHookV1.sol)；Hook 检查回调来自 Router、池可交易且 PoolKey 与 Registry 配置一致。Router 非重入锁限制单笔 Swap，不使用 Swap `operationId`，也不保存 Swap 活跃上下文。
 4. **按实际成交量计量。**`afterSwap` 收到实际 delta 后，对股票腿调用 Registry 绑定的 LegalShareAdapter `toLegalShares(currency,rawAmount)`，再把结果和真实 delta 一起交给 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)。Ledger 校验股票身份、Adapter 配置及非零 shares，按 `(securityId, tradeDayId)` 更新全平台共享用量并检查当日有效上限；它不重复调用 Adapter。
-5. **原子结算。**Router 直接以池内 ERC-20 Currency 和用户结算。交易门禁、计股、额度检查或精确余额校验任一失败，整笔交易回滚，成交和账本不会只成功一半。
+5. **原子结算。**用户直连路径由 Router 以池内 ERC-20 Currency 和用户结算；Adapter 路径由 Router 从 Adapter 拉取输入并将输出交给 Adapter，再由 Adapter 转发到外部 DexRouter 指定的 hop 收款地址。交易门禁、计股、额度检查或精确余额校验任一失败，整笔交易回滚，成交和账本不会只成功一半。
 
-当前 V1 是单池直接结算路径；用户直接支付和接收 `PoolKey` 中的池内 Currency。Tesla 目标池直接使用 wTSLAx，TSLAx 不在 TSV 同笔交易中包装或赎回。股票腿和普通报价币腿的计量方式不同：报价币不占证券额度；一个合格池最多有一侧是股票。
+TSV Router 每次调用只执行一个池并结算 `PoolKey` 中的 Currency；用户可直连，外部 DexRouter 也可通过白名单 Adapter 把 TSV 作为一跳。Tesla 目标池直接使用 wTSLAx，TSLAx 不在 TSV 同笔交易中包装或赎回。股票腿和普通报价币腿的计量方式不同：报价币不占证券额度；一个合格池最多有一侧是股票。
 
 ### 2.2 Swap 交互合约入口与参数
 
@@ -100,8 +100,11 @@ flowchart LR
 | --- | --- | --- |
 | 用户 → [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) | `swapExactInput(SwapRequest request) returns (uint256 actualIn, uint256 actualOut)` | 精确输入模式；调用者本人作为 participant、payer 和 recipient，模式由入口确定。 |
 | 用户 → Router | `swapExactOutput(SwapRequest request) returns (uint256 actualIn, uint256 actualOut)` | 精确输出模式；调用者本人作为 participant、payer 和 recipient，模式由入口确定。 |
+| 外部白名单 Adapter → Router | `swapExactInputFromAdapter(AdapterSwapRequest request,address participant)` | 仅 exact-in；Adapter 作为结算方和收款方，`participant` 用于 SBT 校验；价格边界由 Router 按方向设置。 |
 
-**每笔 Swap 都由 participant 直接提交。**participant、payer 和 recipient 均由 `msg.sender` 确定，Router 实时检查其 SBT 资格；Router 不接受代提交者或 participant 签名。合约钱包可由自身发起调用，其 UserOperation/所有者授权由钱包自身验证。用户仍须预先授权 Router 花费输入 Token。
+**直连 Swap 由 participant 直接提交。**直连路径的 participant、payer 和 recipient 均由 `msg.sender` 确定。Adapter 路径仅允许 Governor 授权的 Adapter 调用，Adapter 必须从外部 DexRouter 附加的 caller marker 解析原始调用者，并将该地址传给 Router；`ORIGIN_PAYER` 是退款地址，不用作 SBT 身份。Adapter 需批准 Router 从其余额中拉取本次输入 Token。
+
+外部 DexRouter 仓库当前已有 `IAdapter.sellBase/sellQuote` 分发调用，无需为此功能新增用户直连入口；内部 Adapter 调用 helper 需附加实际 hop 输入量，路由构造需提供 TSV Adapter 所需 `moreInfo`，并保留两个尾部身份/退款字段。详细分工见[外部接入说明](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md)。
 
 #### `SwapRequest` 结构与字段
 

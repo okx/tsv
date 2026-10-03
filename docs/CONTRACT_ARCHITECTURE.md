@@ -54,7 +54,7 @@
 
 ### Router 的多池路由需求须按 SBT 场景评估
 
-当前 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 只提供单池 exact-in 和 exact-out 入口，不支持多跳路径或把多个 Swap 与结算动作编码到同一请求。官方 [V4Router](../lib/v4-periphery/src/V4Router.sol) 提供 exact-in/exact-out 单池及多跳 action 处理逻辑，并可在一次 PoolManager unlock 中结算；它是抽象合约，需要具体入口合约承接交易。
+当前 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 提供用户直连的单池 exact-in/exact-out，以及供外部白名单 Adapter 调用的单池 exact-in 入口；TSV Router 本身不提供多跳路径或把多个 Swap 与结算动作编码到同一请求。外部 DexRouter 可通过其现有 Adapter 分发接口把 TSV 池作为路由中的一跳，Adapter 仍须把原始调用者身份带入 TSV 资格门禁。官方 [V4Router](../lib/v4-periphery/src/V4Router.sol) 提供 exact-in/exact-out 单池及多跳 action 处理逻辑，并可在一次 PoolManager unlock 中结算；它是抽象合约，需要具体入口合约承接交易。
 
 这是已确认的能力差异，但是否构成 TSV 的业务缺口仍待评估。SBT 资格门禁可能意味着用户只需在获准的池中直接交易；若当前产品不需要中间资产路径，增加多跳的收益有限。若确有更优流动性或跨池路径需求，则每条路径都必须绑定发起用户的 SBT 资格，并逐跳检查 Registry 池状态及 Hook 约束。多跳还会改变 D-30“每笔 Swap 只经过一个池”的边界；扩展前须明确同一请求内每个证券 Swap 的额度记账口径，尤其是路径重复经过同一证券或池时如何避免错误计量。此记录确认能力缺口，不代表已批准开放多跳。
 

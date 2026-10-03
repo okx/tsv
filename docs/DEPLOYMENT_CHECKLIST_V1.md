@@ -185,7 +185,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - `REVOKE_EXIT_EXECUTOR_ROLE`
 - `FORCE_EXIT_ADMIN_ROLE`
 
-每个角色至少配置一个独立地址，并把地址写入 manifest。Router 要求用户交易由 `participant` 本人直接发起，并通过 Router 的 SBT 校验。
+每个角色至少配置一个独立地址，并把地址写入 manifest。用户直连 Router 时，调用者本人是 participant；若启用外部 DEX Adapter 路径，必须先由 Governor 将已审查的 Adapter 加入 Router 白名单，且 Adapter 从可信 DexRouter caller marker 解析 participant 后由 Router 执行 SBT 校验。退款地址 marker 不能代替 participant 身份。
 
 ## 6. 资产、报告和池配置
 

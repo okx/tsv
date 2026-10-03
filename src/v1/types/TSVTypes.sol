@@ -154,6 +154,21 @@ struct SwapRequest {
     uint64 deadline;
 }
 
+/// @notice Exact-input swap parameters accepted from an approved external Adapter.
+/// @dev The Router chooses a full-range price limit and always settles to the Adapter.
+struct AdapterSwapRequest {
+    /// @notice Full V4 pool key; the Registry must recognize it as tradable.
+    PoolKey key;
+    /// @notice True for currency0-to-currency1, false for the reverse direction.
+    bool zeroForOne;
+    /// @notice Exact input amount supplied by the Adapter.
+    uint128 amountIn;
+    /// @notice Minimum output the Adapter must receive.
+    uint128 minAmountOut;
+    /// @notice Latest timestamp at which the swap may execute.
+    uint64 deadline;
+}
+
 /// @notice Raw-unit settlement limits and deadline for an LP operation.
 struct LPBounds {
     /// @notice Maximum currency0 amount the owner may be charged.
