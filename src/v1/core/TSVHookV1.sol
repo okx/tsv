@@ -115,7 +115,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return IHooks.afterInitialize.selector;
     }
 
-    /// @notice Allows positive liquidity changes only for an authorized, tradable LP operation.
+    /// @notice Allows positive liquidity changes only for an authorized operation passing LP admission and pause checks.
     /// @param sender Contract that initiated PoolManager.modifyLiquidity.
     /// @param key Full V4 pool key being modified.
     /// @param params Tick range, salt, and liquidity change requested by the manager.
@@ -130,7 +130,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         LPHookContext memory ctx = _checkLP(sender, key, params, hookData);
         if (
             params.liquidityDelta <= 0 || (ctx.mode != LPOperationMode.OPEN && ctx.mode != LPOperationMode.INCREASE)
-                || !registry.isTradable(ctx.poolId)
+                || !registry.isLPAllowed(ctx.poolId)
         ) revert InvalidOperation();
         return IHooks.beforeAddLiquidity.selector;
     }
@@ -150,7 +150,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return (IHooks.afterAddLiquidity.selector, BalanceDelta.wrap(0));
     }
 
-    /// @notice Validates removal context and allows forced exits to bypass ordinary tradability checks.
+    /// @notice Validates removal context and allows forced exits to bypass ordinary LP admission and pause checks.
     /// @param sender Contract that initiated PoolManager.modifyLiquidity.
     /// @param key Full V4 pool key being modified.
     /// @param params Tick range, salt, and liquidity change requested by the manager.
@@ -168,7 +168,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         }
         if (ctx.mode == LPOperationMode.FORCE_EXIT) {
             if (params.liquidityDelta >= 0) revert InvalidOperation();
-        } else if (!registry.isTradable(ctx.poolId)) {
+        } else if (!registry.isLPAllowed(ctx.poolId)) {
             revert InvalidPool();
         }
         return IHooks.beforeRemoveLiquidity.selector;

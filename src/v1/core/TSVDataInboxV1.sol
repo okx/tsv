@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
+import {PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -54,8 +55,11 @@ contract TSVDataInboxV1 is TSVGoverned {
             report.reportId,
             report.sourceHash
         );
-        if (report.securityId == 0 || report.reasonCode == 0 || report.exchangeHash == 0) revert InvalidReport();
-        registry.applyMarketStatus(report.securityId, report.action, report.sequence, report.reportId);
+        if (
+            report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0
+                || report.exchangeHash == 0
+        ) revert InvalidReport();
+        registry.applyMarketStatus(report.securityId, report.action, report.mode, report.sequence, report.reportId);
     }
 
     /// @notice Validates and accepts one monthly ADTV report.

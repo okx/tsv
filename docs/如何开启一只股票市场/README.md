@@ -1,59 +1,37 @@
 # 如何开启一只股票市场（TSV V1）
 
-本文按首次开通一只新证券市场的顺序，串起治理配置、资产准入、报告提交、建池、加流动性和首笔交易。适用前提是 TSV 合约已部署；合约 ABI、准入标准和角色权限仍以[系统总览](../SYSTEMS_OVERVIEW.md)、[代币准入标准](../TOKEN_ADMISSION_STANDARD_V1.md)和[部署清单](../DEPLOYMENT_CHECKLIST_V1.md)为准。
+合约部署与治理准备完成后，报价 Currency 已获批时，新证券只需三次运营调用：**一次资产准入、一次 ADTV 提交、一次建池**。准入后市场默认开放，无需首次开市报告；LP 提供流动性后，满足额度与交易门禁即可成交。
+
+合约 ABI、准入证据和角色权限以[系统总览](../SYSTEMS_OVERVIEW.md)、[代币准入标准](../TOKEN_ADMISSION_STANDARD_V1.md)及[部署清单](../DEPLOYMENT_CHECKLIST_V1.md)为准。本版用于全新部署，不兼容旧准入和市场状态 ABI。
 
 ## 全流程图
 
 ```mermaid
 flowchart TD
-    A["部署与治理准备完成<br/>组件已绑定；SBT 已配置；所需角色已授予；Token/发行方审查材料备齐"] --> B{"所需 Tier Policy 是否已配置？"}
-    B -- 否 --> B1["Governor：setTierPolicy<br/>配置 tierBps 与 maxListed"]
+    A["部署与治理准备完成<br/>组件、SBT、Tier Policy、角色已配置；资产审查通过"] --> B{"报价 Currency 已 APPROVED？"}
+    B -- 否 --> B1["SYMBOL_ADMIN：registerToken<br/>报价币登记即批准；securityId=0"]
     B -- 是 --> C
-    B1 --> C["SYMBOL_ADMIN：listSecurity<br/>登记唯一 securityId、symbolHash 和 tierId"]
-
-    C --> D{"股票及发行方审查材料齐全且准入通过？"}
-    D -- 否 --> D1["暂停准入；补齐法律、结算、计股或限制审查材料"]
-    D1 --> D
-    D -- 是 --> E["SYMBOL_ADMIN：registerToken（股票 Currency）<br/>securityId 指向新证券；status=UNREVIEWED；TokenConfig 带非零 reviewHash 与 LegalShareAdapter"]
-    E --> F["SYMBOL_ADMIN：setTokenStatus(APPROVED)<br/>复核通过后单独批准 Token"]
-
-    F --> G{"报价 Currency 已登记且 APPROVED？"}
-    G -- 否 --> G1["SYMBOL_ADMIN：registerToken（普通 Currency）<br/>securityId=0；Adapter 字段为零；TokenConfig 带非零 reviewHash"]
-    G -- 是 --> H
-    G1 --> H["报告角色提交两份报告"]
-
-    H --> I["HALT_REPORTER：submitMarketStatus<br/>首次提交 INITIAL_OPEN 或 INITIAL_HALTED"]
-    H --> J["VOLUME_ORACLE：submitAdtv<br/>提交当前计量月适用的 ADTV；adtvWad > 0"]
-    I --> K{"市场状态与 ADTV 报告均已接受？"}
-    J --> K
-    K -- 否 --> K1["修正报告字段、权限、序号或数据来源后重提"]
-    K1 --> H
-    K -- 是 --> L["POOL_CREATOR：LPManager.initializePool<br/>提交 PoolKey、sqrtPriceX96、priceBasisHash"]
-
-    L --> M["同一交易内：Registry 登记 PENDING → PoolManager 初始化 → Registry 标为 ACTIVE"]
-    M --> N["核验 PoolId、PoolKey、Hook、初始价格和 ACTIVE 状态；留存交易回执"]
-    N --> O{"Registry.isTradable(poolId) 为 true？"}
-    O -- 否 --> O1["解除阻断：Token 需 APPROVED、市场需 OPEN、相关紧急暂停需清除"]
-    O1 --> O
-    O -- 是 --> P["SBT 合格的 LP 调用 TSVLPManagerV1.openPosition<br/>设定 tick 区间、流动性与两侧结算边界"]
-
-    P --> Q["SBT 合格的用户经 TSVSwapRouterV1 发起单池 Swap<br/>exact-in 或 exact-out；Hook/Ledger 按实际成交计股并检查额度"]
-    Q --> R["验收并持续运营<br/>核对 Swap 事件与 usedWad；按月提交 ADTV，维护市场状态和暂停"]
-    R --> S{"市场停牌、风险事件或法律股数单位变化？"}
-    S -- 否 --> R
-    S -- 是 --> T["按事件提交 HALT/恢复或紧急暂停；公司行动按准入标准暂停、切换新单位和报告后再恢复"]
-    T --> R
+    B1 --> C["SYMBOL_ADMIN：admitSecurity<br/>同笔登记证券、首个股票 Currency 并批准；市场默认 OPEN"]
+    C --> D["VOLUME_ORACLE：submitAdtv<br/>提交当前计量月适用 ADTV"]
+    C --> E["POOL_CREATOR：LPManager.initializePool<br/>同笔 PENDING → V4 初始化 → ACTIVE"]
+    E --> F["SBT 合格 LP：openPosition<br/>通过 isLPAllowed 后提供流动性；不要求 ADTV"]
+    D --> G["SBT 合格用户：Router Swap<br/>交易门禁通过且有有效 ADTV、足够额度和流动性"]
+    F --> G
+    G --> H["核对实际成交、计股和 usedWad；持续运营"]
+    H --> I["按月更新 ADTV；市场事件提交 HALT/RESUME<br/>风险事件使用紧急暂停；公司行动按单位切换流程处理"]
+    I --> H
 ```
+
+ADTV 与建池可以按任意顺序完成，也可先建池、提供 LP，再提交 ADTV。Pool 的 PENDING 只存在于建池交易内部，运营无需单独确认或推进。
 
 ## 执行要点
 
-1. **先确认前置配置。**Governor 配置 SBT 和 Tier Policy，并授予 `SYMBOL_ADMIN_ROLE`、`HALT_REPORTER_ROLE`、`VOLUME_ORACLE_ROLE`、`POOL_CREATOR_ROLE`、`EMERGENCY_PAUSER_ROLE`、`EMERGENCY_RESUMER_ROLE` 等所需角色。Tier Policy 是 Governor 配置；Tier 尚未配置或名额已满时，`listSecurity` 会失败。
-2. **登记证券与股票 Token。**`SYMBOL_ADMIN_ROLE` 先调用 `listSecurity`。完成外部审查后准备 `TokenConfig`，其中包括非零 `reviewHash`；再调用 `registerToken` 登记股票 Currency，初始状态保持 `UNREVIEWED`。随后单独调用 `setTokenStatus(..., APPROVED, ...)` 批准。`reviewHash` 只能随 `registerToken` 写入，`setTokenStatus` 不会修改它。股票 Token 还需要绑定该 Currency、版本为 `1` 的 LegalShareAdapter。
-3. **准备报价 Currency。**若报价 Token 尚未登记，完成资产审查后按普通 Token 流程登记并批准：`securityId=0`，LegalShareAdapter 相关字段全为零；用于批准的非零 `reviewHash` 随 `registerToken` 写入。普通 Token 不需要 Tier、`listSecurity`、市场状态或 ADTV 报告。一个 TSV 池最多只能有一侧是股票。
-4. **提交市场状态和 ADTV。**这是两份独立报告：`HALT_REPORTER_ROLE` 提交 `INITIAL_OPEN`（准备开市）或 `INITIAL_HALTED`；`VOLUME_ORACLE_ROLE` 提交适用月份 ADTV。`sourceMonth` 是当前 TSV 计量日所在自然月的上一个自然月，例如 2026 年 10 月计量日对应 `202609`；该证券/来源月首次提交时 `version=1`，后续更正递增。两份报告都须在首笔 Swap 前被接受。日额度 quota 是可选覆盖，不提交时按 ADTV 和 Tier 计算硬上限。
-5. **建池并核验。**`initializePool` 会在同一笔交易中完成 Registry 的 PENDING 登记、V4 初始化和 ACTIVE 标记。随后核对 `PoolKey`、`PoolId`、Hook、`sqrtPriceX96` 和 Registry 状态，并保存交易回执及定价依据。
-6. **开市后再加流动性。**普通 LP 入口要求 SBT 合格且 `Registry.isTradable(poolId)` 为真。因此市场须为 OPEN、Token 须 APPROVED、相关紧急暂停须解除，LP 才能调用 `openPosition`。若初始市场状态设为 `INITIAL_HALTED`，须先提交有效 `RESUME`；市场仍关闭时不能通过普通入口开初始仓位。
-7. **做首笔交易并核对账本。**用户本人经 TSV Router 发起单池 exact-in 或 exact-out Swap。核对 `SwapExecuted`、`SwapAccounted`、实际输入/输出及 Ledger 的 `usedWad`；额度缺 ADTV 或超过有效上限时交易会回滚。
-8. **转入持续运营。**按适用月份提交 ADTV，按市场事件提交 HALT/RESUME，必要时使用紧急暂停。拆股/合股若改变法律股数单位，按[公司行动运营步骤](../TOKEN_ADMISSION_STANDARD_V1.md#41-法律股数单位切换的运营步骤)暂停并完成新单位报告后再恢复。
+1. **完成治理与链下审查。**Governor 配置 SBT、Tier Policy 并授予相应运营角色。准入前确认资产转账、法律计股、发行方限制和公司行动证据；材料未齐时不登记链上待审状态。Tier 未配置或名额已满时准入失败。
+2. **一次准入新证券。**`SYMBOL_ADMIN_ROLE` 调用 `admitSecurity(securityId, symbolHash, tierId, config, evidenceHash)`。`config.securityId` 必须匹配，`status=APPROVED`、`reviewHash` 非零；股票配置还须有绑定同一 Currency、版本为 1 的 LegalShareAdapter、代码哈希及非零 `legalSharePolicyHash`。证券、符号或 Currency 重复及任一校验失败时，整笔回滚，不占用 Tier 名额。成功后市场为 OPEN、暂停模式为 NONE、市场报告序号为零。
+3. **复用报价资产。**普通 Currency 用 `registerToken` 登记即批准，`securityId=0`、Adapter 相关字段为零、`reviewHash` 非零。已有 listed 证券新增 Currency 也使用此入口，不重复占用 Tier 名额。普通 Currency 不需要证券、市场报告或 ADTV。一个池最多只能有一侧股票。
+4. **建池并核验。**`POOL_CREATOR_ROLE` 调用 `initializePool(key, sqrtPriceX96, priceBasisHash)`。核对 PoolKey、PoolId、Hook、初始价格及 ACTIVE 状态，保存回执和定价依据。失败时 Registry 登记、V4 初始化及池计数全部回滚。
+5. **提交适用 ADTV。**`VOLUME_ORACLE_ROLE` 调用 `submitAdtv`，要求 `adtvWad > 0`。`sourceMonth` 是当前 TSV 计量日所在自然月的上一个自然月，例如 2026 年 10 月对应 `202609`；该证券/来源月首次 `version=1`，更正递增，报告类别内的序号持续递增。Quota 是可选覆盖，不提交时按 ADTV 和 Tier 计算硬上限。
+6. **提供 LP 与做首笔成交。**普通 LP 要求 SBT 合格且 `Registry.isLPAllowed(poolId)` 为真；不要求 ADTV。Swap 要求交易门禁通过，Ledger 另行校验适用 ADTV、有效额度与实际法律股数。`isTradable` 为真仅表示 Registry 交易门禁通过，不证明额度或流动性已就绪。核对 `SwapExecuted`、`SwapAccounted`、实际收付及 `usedWad`。
+7. **持续运营。**市场事件通过 `HALT/RESUME` 指定 TRADE、LP 或 ALL；首份报告可直接 HALT。暂停叠加，恢复仅清除指定市场模式，紧急暂停独立清除。重新上市保留原市场暂停及报告序号，不自动开放。Currency/Pool 禁用继续阻断普通操作，授权强退另走专用路径。拆股/合股按[公司行动运营步骤](../TOKEN_ADMISSION_STANDARD_V1.md#41-法律股数单位切换的运营步骤)暂停并准备新单位报告后恢复。
 
-遇到 Token 转账受限、SBT 暂停、池不可交易或额度报告缺失时，不要把失败当作部分开通；先按对应准入/运营规则处理，并确认失败交易未改变资产、仓位和成交账本状态。
+Token 拒转、资格失效、额度缺失或池操作失败时，核对余额、仓位及账本均回到交易前状态，再处理对应阻断原因。

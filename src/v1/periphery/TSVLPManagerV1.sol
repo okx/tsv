@@ -132,7 +132,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     }
 
     /// @notice Opens a positive-liquidity position and mints its nontransferable Receipt to the caller.
-    /// @param key Active, tradable pool in which to provide liquidity.
+    /// @param key Active pool permitting ordinary LP operations.
     /// @param tickLower Lower tick boundary, aligned to the pool's tick spacing.
     /// @param tickUpper Upper tick boundary, aligned to the pool's tick spacing.
     /// @param liquidity Positive liquidity amount to add.
@@ -150,15 +150,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         if (liquidity == 0 || liquidity > uint128(type(int128).max)) revert InvalidPosition();
         _validateTicks(key, tickLower, tickUpper);
         positionId = nextPositionId++;
-        positions[positionId] = Position(
-            msg.sender,
-            key,
-            tickLower,
-            tickUpper,
-            bytes32(positionId),
-            0,
-            true
-        );
+        positions[positionId] = Position(msg.sender, key, tickLower, tickUpper, bytes32(positionId), 0, true);
         _modify(positionId, poolId, LPOperationMode.OPEN, int256(uint256(liquidity)), bounds);
         positions[positionId].liquidity = liquidity;
         _mint(msg.sender, positionId);
@@ -361,10 +353,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         LPOperationMode mode,
         int256 liquidityDelta,
         LPBounds memory bounds
-    )
-        private
-        returns (BalanceDelta delta)
-    {
+    ) private returns (BalanceDelta delta) {
         Position storage p = positions[positionId];
         activeContext = LPContext(poolId, positionId, p.tickLower, p.tickUpper, mode, p.salt, liquidityDelta);
         ModifyRequest memory request = ModifyRequest(positionId, mode, liquidityDelta, bounds);
@@ -405,13 +394,13 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         }
     }
 
-    /// @dev Requires an unexpired request, an active SBT credential, and a tradable pool.
+    /// @dev Requires an unexpired request, an active SBT credential, and a pool permitting ordinary LP operations.
     /// @param poolId Pool identifier for the operation.
     /// @param deadline Latest timestamp at which the operation may execute.
     function _requireUserPool(bytes32 poolId, uint64 deadline) private view {
         if (block.timestamp > deadline) revert Expired();
         if (!registry.isEligible(msg.sender)) revert Unauthorized();
-        if (!registry.isTradable(poolId)) revert InvalidPool();
+        if (!registry.isLPAllowed(poolId)) revert InvalidPool();
     }
 
     /// @dev Verifies the caller owns the active Receipt before applying the common user and pool checks.
