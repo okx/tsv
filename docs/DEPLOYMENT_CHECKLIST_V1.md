@@ -191,11 +191,11 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 
 资产准入证据和实例边界以[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准；本节只列上线时的执行顺序：
 
-1. 登记 `securityId`、Tier、池内 Currency 和适用的 LegalShareAdapter；Token 初始保持 `UNREVIEWED`。
-2. 通过准入审查后，提交批准证据并将 Token 切换为 `APPROVED`。
-3. 提交初始市场状态和当前适用月份 ADTV；仅在需要覆盖某计量日硬上限时提交 quota。
-4. 由 `POOL_CREATOR` 调用 `LPManager.initializePool`。Registry pending、V4 initialize 和 Registry active 必须在同一交易完成。
-5. 核对 PoolKey、PoolId、Hook 地址、初始价格及状态，并写入 manifest。
+1. 完成链下审查后，由 `SYMBOL_ADMIN` 一次调用 `admitSecurity`，登记 `securityId`、Tier、首个 Currency 和 LegalShareAdapter 并批准 Token；输入 status=APPROVED、reviewHash 非零，市场默认 OPEN。证据未齐不得准入。
+2. 报价 Currency 若未准入，调用 `registerToken` 登记即批准；已有上市证券的新增 Currency 也使用此入口。
+3. 由 `VOLUME_ORACLE` 提交当前适用月份 ADTV；quota 仅在需要覆盖某计量日硬上限时提交。无需首次开市报告。
+4. 由 `POOL_CREATOR` 调用 `LPManager.initializePool`。Registry pending、V4 initialize 和 Registry active 必须在同一交易完成；建池和 ADTV 可按任意顺序执行。
+5. 核对 PoolKey、PoolId、Hook 地址、初始价格及状态，写入 manifest；LP 可在 ADTV 前提供流动性，首笔股票 Swap 前必须有有效 ADTV。
 
 ## 7. 发布后最小验收
 
@@ -204,7 +204,9 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - 六个业务代理和四个治理合约的地址、代码哈希及绑定关系。
 - Hook 地址权限位、实现地址和初始化事件。
 - SBT 配置、角色授予、资产配置和 TokenStatus。
-- `INITIAL_OPEN`/`INITIAL_HALTED`、ADTV、可选 quota 的 reportId 和 sequence。
+- 准入后默认 OPEN、marketSequence=0；ADTV、可选 quota 及后续 HALT/RESUME 的 reportId 和 sequence。
+- 四种紧急暂停范围及 TRADE/LP/ALL 模式、市场 HALT 叠加与 RESUME 部分恢复；索引器读取新事件模式字段、marketPauseMode 和三参数 activePauseCount。
+- 使用本版准入、Token/Market 状态及暂停/MarketReport ABI 首次部署，不作为旧合约存储的原地迁移实现。
 - 至少一个普通 ERC-20 报价资产和一个 Backed-compatible 股票资产及 Adapter 的登记结果。
 - 一个股票/报价币池的初始化结果和 PoolId。
 - 一笔成功 Swap：实际输入、实际输出、`SwapExecuted`、`SwapAccounted`、usedWad。
@@ -232,7 +234,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - Hook 权限位不是 `0x3FFF`
 - SBT 未配置或 ABI 校验失败
 - wTSLAx 仍缺少发行方/法务准入证据
-- 任一资产仍为 `UNREVIEWED` 却尝试建池
+- 任一资产未准入（`ABSENT`）或为 `DISABLED` 却尝试建池
 - 使用了旧代理、旧 Receipt、旧 SBT Adapter 或 legacy Adapter
 - Hook 初始化中 Router/LP Manager 地址未经过预测和实际地址比对
 
@@ -243,7 +245,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 ### 9.1 迁移前准备
 
 1. 从 Anchor 读取 `epoch`、`guardianEpoch`、`guardian`、`recoveryCouncil`、当前三地址及 `proxies(0..5)`；六代理顺序固定为 Registry、Ledger、DataInbox、Hook、Router、LPManager。核对每个代理的 `governanceAnchor()` 和实际 ERC-1967 实现地址。
-2. 保存旧根的待执行 Timelock 操作与事故控制器状态。需要停交易时，先由独立 `EMERGENCY_PAUSER_ROLE` 暂停并保存交易哈希。迁移不会自动暂停或清理业务角色。
+2. 保存旧根的待执行 Timelock 操作与事故控制器状态。需要停交易时，先由独立 `EMERGENCY_PAUSER_ROLE` 以 TRADE 模式暂停并保存交易哈希；如同时需冻结普通 LP，选择 ALL。迁移不会自动暂停或清理业务角色。
 3. 部署候选三合约，使候选 Timelock 的 Governor、Guardian、RecoveryCouncil 与候选 Authority/Controller 一致；新 Controller 保持 `frozen=true`。
 4. 候选 Timelock 自身排期并执行 `bindBusinessAuthority`、`bindEmergencyController`、`nominateGovernanceAnchor(anchor)`。再通过候选 Timelock 为六代理逐个执行 `setUpgradeTarget(proxy,true)`。读取核对所有绑定、角色、代码哈希和允许名单；候选代码哈希写入发布 manifest。Anchor 只验证可调用状态与相互绑定，不替代代码审计。
 
