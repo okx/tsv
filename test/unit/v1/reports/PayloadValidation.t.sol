@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {MarketAction, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
+import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
+import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
+import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
+import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
+
+contract TSVOperationsPayloadTest is OperationsFixture {
+    function testMarketFieldsRejectAndSameIdCanBeCorrected() public {
+        for (uint8 fault; fault < 6; ++fault) {
+            uint256 snapshot = vm.snapshotState();
+            MarketReport memory r = _market(MarketAction.HALT, 1, keccak256(abi.encode("market-field", fault)));
+            bytes32 id = r.reportId;
+            bytes4 expected = TSVDataInboxV1.InvalidReport.selector;
+            if (fault == 0) {
+                r.securityId = 0;
+            } else if (fault == 1) {
+                r.mode = PauseMode.NONE;
+            } else if (fault == 2) {
+                r.reasonCode = 0;
+            } else if (fault == 3) {
+                r.exchangeHash = 0;
+            } else {
+                expected = TSVRegistryV1.InvalidStatus.selector;
+                if (fault == 4) {
+                    r.securityId = keccak256("absent");
+                } else {
+                    registry.disablePool(poolId, keccak256("disable"));
+                    registry.delistSecurity(SECURITY, keccak256("delist"));
+                }
+            }
+            bytes32 beforeState = _reportState(id);
+            bytes32 targetBefore = _reportState(r.securityId, uint32(MONTH), DAY, id);
+            vm.expectRevert(expected);
+            inbox.submitMarketStatus(r);
+            assertEq(_reportState(id), beforeState);
+            assertEq(_reportState(r.securityId, uint32(MONTH), DAY, id), targetBefore);
+            if (fault == 5) registry.relistSecurity(SECURITY, keccak256("relist"));
+            r = _market(MarketAction.HALT, 1, id);
+            inbox.submitMarketStatus(r);
+            assertTrue(inbox.reportIdUsed(id));
+            assertTrue(vm.revertToState(snapshot));
+        }
+    }
+
+    function testAdtvFieldsRejectAndSameIdCanBeCorrected() public {
+        uint32[5] memory invalidMonths = [uint32(0), 196912, 202600, 202613, 1000001];
+        for (uint8 fault; fault < 11; ++fault) {
+            uint256 snapshot = vm.snapshotState();
+            AdtvReport memory r = _adtv(SECURITY, 1000e18, 1, 1, keccak256(abi.encode("adtv-field", fault)));
+            bytes32 id = r.reportId;
+            if (fault == 0) {
+                r.securityId = 0;
+            } else if (fault == 1) {
+                r.securityId = keccak256("absent");
+            } else if (fault == 2) {
+                r.adtvWad = 0;
+            } else if (fault == 3) {
+                r.version = 0;
+            } else if (fault == 4) {
+                r.version = 2;
+            } else if (fault < 10) {
+                r.sourceMonth = invalidMonths[fault - 5];
+            } else {
+                registry.disablePool(poolId, keccak256("disable"));
+                registry.delistSecurity(SECURITY, keccak256("delist"));
+            }
+            bytes32 beforeState = _reportState(id);
+            bytes32 targetBefore = _reportState(r.securityId, r.sourceMonth, DAY, id);
+            vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
+            inbox.submitAdtv(r);
+            assertEq(_reportState(id), beforeState);
+            assertEq(_reportState(r.securityId, r.sourceMonth, DAY, id), targetBefore);
+            if (fault == 10) registry.relistSecurity(SECURITY, keccak256("relist"));
+            inbox.submitAdtv(_adtv(SECURITY, 1000e18, 1, 1, id));
+            assertTrue(vm.revertToState(snapshot));
+        }
+    }
+
+    function testQuotaFieldsRejectAndSameIdCanBeCorrected() public {
+        _submitAdtv(1000e18);
+        for (uint8 fault; fault < 12; ++fault) {
+            uint256 snapshot = vm.snapshotState();
+            QuotaReport memory r = _quota(2e18, 1, 1, 1, keccak256(abi.encode("quota-field", fault)));
+            bytes32 id = r.reportId;
+            bytes4 expected = TSVVolumeLedgerV1.InvalidReport.selector;
+            if (fault == 0) {
+                r.securityId = 0;
+            } else if (fault == 1) {
+                r.securityId = keccak256("absent");
+            } else if (fault == 2) {
+                r.action = 0;
+            } else if (fault == 3) {
+                r.action = 3;
+            } else if (fault == 4) {
+                r.quotaWad = 0;
+            } else if (fault == 5) {
+                r.quotaWad = 2.5e18 + 1;
+            } else if (fault == 6) {
+                r.version = 0;
+            } else if (fault == 7) {
+                r.version = 2;
+            } else if (fault == 8) {
+                r.tradeDayId = 20261101;
+                expected = TSVVolumeLedgerV1.InvalidReport.selector;
+            } else if (fault == 9) {
+                r.tradeDayId = 20260229;
+                expected = TSVVolumeLedgerV1.InvalidPeriod.selector;
+            } else if (fault == 10) {
+                r.action = 2; // CLEAR without an active SET, even with nonzero amount.
+            } else {
+                registry.disablePool(poolId, keccak256("disable"));
+                registry.delistSecurity(SECURITY, keccak256("delist"));
+            }
+            bytes32 beforeState = _reportState(id);
+            bytes32 targetBefore = _reportState(r.securityId, uint32(MONTH), r.tradeDayId, id);
+            vm.expectRevert(expected);
+            inbox.submitQuota(r);
+            assertEq(_reportState(id), beforeState);
+            assertEq(_reportState(r.securityId, uint32(MONTH), r.tradeDayId, id), targetBefore);
+            if (fault == 11) registry.relistSecurity(SECURITY, keccak256("relist"));
+            inbox.submitQuota(_quota(2e18, 1, 1, 1, id));
+            assertTrue(vm.revertToState(snapshot));
+        }
+    }
+
+    function testCorrectionsRequireNextVersionButStreamsContinueAcrossPeriods() public {
+        _submitAdtv(1000e18);
+        AdtvReport memory correction = _adtv(SECURITY, 500e18, 1, 2, keccak256("correction"));
+        for (uint64 version; version < 4; ++version) {
+            if (version == 2) continue;
+            correction.version = version;
+            bytes32 beforeState = _reportState(correction.reportId);
+            vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
+            inbox.submitAdtv(correction);
+            assertEq(_reportState(correction.reportId), beforeState);
+        }
+        correction.version = 2;
+        vm.expectEmit(true, true, true, true, address(ledger));
+        emit TSVVolumeLedgerV1.AdtvAccepted(SECURITY, uint32(MONTH), 500e18, 2, correction.reportId);
+        inbox.submitAdtv(correction);
+        AdtvReport memory nextMonth = _adtv(SECURITY, 500e18, 1, 3, keccak256("next-month"));
+        nextMonth.sourceMonth = 202610;
+        inbox.submitAdtv(nextMonth);
+        assertEq(ledger.adtvOf(SECURITY, 202609).version, 2);
+        assertEq(ledger.adtvOf(SECURITY, 202610).version, 1);
+        assertEq(inbox.lastSequence(1, SECURITY), 3);
+        // A fresh ID/version may report the same positive value; value equality is not replay protection.
+        nextMonth.version = 2;
+        nextMonth.sequence = 4;
+        nextMonth.reportId = keccak256("same-value-new-version");
+        inbox.submitAdtv(nextMonth);
+        assertEq(ledger.adtvOf(SECURITY, 202610).value, 500e18);
+    }
+
+    function testQuotaClearMustBeZeroAndKeepsVersionAndUsage() public {
+        _submitAdtv(1000e18);
+        _submitQuota(2e18);
+        _charge(1e18);
+        QuotaReport memory r = _quota(1, 2, 2, 2, keccak256("clear"));
+        bytes32 beforeState = _reportState(r.reportId);
+        vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
+        inbox.submitQuota(r);
+        assertEq(_reportState(r.reportId), beforeState);
+        r.quotaWad = 0;
+        vm.expectEmit(true, true, true, true, address(ledger));
+        emit TSVVolumeLedgerV1.QuotaAccepted(SECURITY, DAY, 2, 0, 2, r.reportId);
+        inbox.submitQuota(r);
+        assertEq(ledger.used(SECURITY, DAY), 1e18);
+        assertEq(ledger.quotaOf(SECURITY, DAY).version, 2);
+        assertFalse(ledger.quotaOf(SECURITY, DAY).active);
+        r.version = 3;
+        r.sequence = 3;
+        r.reportId = keccak256("second-clear");
+        beforeState = _reportState(r.reportId);
+        vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
+        inbox.submitQuota(r);
+        assertEq(_reportState(r.reportId), beforeState);
+        r.action = 1;
+        r.quotaWad = 1.5e18;
+        inbox.submitQuota(r);
+        assertEq(ledger.quotaOf(SECURITY, DAY).version, 3);
+        (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
+        assertTrue(valid);
+        assertEq(left, 0.5e18);
+    }
+}

@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {TokenConfig, PoolConfig, PoolStatus} from "tsv-v1/types/TSVTypes.sol";
-import {AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
+import {AdtvReport, QuotaReport, SplitFactorReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TradeDayLib} from "tsv-v1/libraries/TradeDayLib.sol";
@@ -28,6 +28,8 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
 
     uint8 public constant QUOTA_SET = 1;
     uint8 public constant QUOTA_CLEAR = 2;
+    uint8 public constant SPLIT_FACTOR_SET = 1;
+    uint8 public constant SPLIT_FACTOR_CANCEL = 2;
     uint32 private constant SECONDS_PER_DAY = 86_400;
     uint32 private constant MAX_DAY_START_SHIFT = 14_400;
 
@@ -63,6 +65,14 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         bytes32 reasonHash;
     }
 
+    /// @dev Immutable once its first trade day starts; the fraction is reduced before storage.
+    struct SplitFactorCheckpoint {
+        uint32 effectiveTradeDayId;
+        uint128 numerator;
+        uint128 denominator;
+        bytes32 reportId;
+    }
+
     TSVRegistryV1 public registry;
     address public hook;
     address public dataInbox;
@@ -73,6 +83,10 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     mapping(bytes32 => mapping(uint32 => uint256)) private usedWad;
     DayStartCheckpoint[] private dayStartCheckpoints;
     bool private hasPendingDayStart;
+
+    // Appended storage: existing ADTV, quota, usage and day-start slots retain their layouts.
+    mapping(bytes32 => mapping(uint32 => SplitFactorCheckpoint[])) private splitFactorCheckpoints;
+    mapping(bytes32 => mapping(uint32 => uint64)) private splitFactorVersions;
 
     /// @notice Emitted when the authorized report writer contracts were bound to the Ledger.
     event WritersBound(address indexed hook, address indexed dataInbox);
@@ -116,21 +130,34 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     );
     /// @notice Emitted when a pending trade-day boundary change was cancelled.
     event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator, bytes32 reasonHash);
+    /// @notice Records a new or corrected future factor; the trade-day ID determines activation.
+    event SplitFactorScheduled(
+        bytes32 indexed securityId,
+        uint32 indexed sourceMonth,
+        uint32 indexed effectiveTradeDayId,
+        uint128 numerator,
+        uint128 denominator,
+        uint64 version,
+        bytes32 reportId,
+        bytes32 sourceHash
+    );
+    /// @notice Records removal of the latest pending checkpoint without reusing its version.
+    event SplitFactorCancelled(
+        bytes32 indexed securityId,
+        uint32 indexed sourceMonth,
+        uint32 indexed effectiveTradeDayId,
+        bytes32 scheduledReportId,
+        uint64 version,
+        bytes32 reportId,
+        bytes32 sourceHash
+    );
 
     /// @notice Initializes governance, the Registry, and the starting UTC day boundary.
-    /// @param authority Business authority used by the governed base contract.
-    /// @param timelock Upgrade timelock used by the governed base contract.
-    /// @param controller Emergency upgrade controller used by the governed base contract.
+    /// @param anchor Fixed governance Anchor used by the governed base contract.
     /// @param registry_ Registry that supplies security tiers and pool configuration.
     /// @param dayStartOffsetSeconds Seconds after UTC midnight at which a trade day begins.
-    function initialize(
-        address authority,
-        address timelock,
-        address controller,
-        address registry_,
-        uint32 dayStartOffsetSeconds
-    ) external initializer {
-        __TSVGoverned_init(authority, timelock, controller);
+    function initialize(address anchor, address registry_, uint32 dayStartOffsetSeconds) external initializer {
+        __TSVGoverned_init(anchor);
         if (registry_ == address(0) || dayStartOffsetSeconds >= SECONDS_PER_DAY) revert InvalidReport();
         registry = TSVRegistryV1(registry_);
         initialDayStartOffsetSeconds = dayStartOffsetSeconds;
@@ -138,7 +165,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
 
     /// @notice Binds the only contracts permitted to record swaps and submit reports.
     /// @param hook_ Hook authorized to record completed swaps.
-    /// @param dataInbox_ DataInbox authorized to write ADTV and quota reports.
+    /// @param dataInbox_ DataInbox authorized to write ADTV, quota and split-factor reports.
     function bindWriters(address hook_, address dataInbox_) external onlyGovernor {
         if (hook != address(0) || dataInbox != address(0) || hook_.code.length == 0 || dataInbox_.code.length == 0) {
             revert InvalidReport();
@@ -163,6 +190,11 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         ) revert InvalidReport();
         AdtvValue storage current = adtv[report.securityId][report.sourceMonth];
         if (report.version != current.version + 1) revert InvalidReport();
+        // A later ADTV correction or Tier increase must not make a stored factor unrepresentable.
+        SplitFactorCheckpoint[] storage factors = splitFactorCheckpoints[report.securityId][report.sourceMonth];
+        for (uint256 i; i < factors.length; ++i) {
+            Math.mulDiv(report.adtvWad, factors[i].numerator, factors[i].denominator);
+        }
         current.value = report.adtvWad;
         current.version = report.version;
         current.reportId = report.reportId;
@@ -194,6 +226,106 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         emit QuotaAccepted(
             report.securityId, report.tradeDayId, report.action, report.quotaWad, report.version, report.reportId
         );
+    }
+
+    /// @notice Accepts a source-month-relative split factor for a future trade-day start.
+    /// @dev Factors are absolute, not multiplied by the previous checkpoint. No activation transaction is needed.
+    /// @param report Schedule/update or cancellation instruction validated by the DataInbox.
+    function acceptSplitFactor(SplitFactorReport calldata report) external onlyDataInbox {
+        if (
+            report.securityId == 0 || !registry.getSecurity(report.securityId).listed
+                || !TradeDayLib.validMonth(report.sourceMonth)
+                || TradeDayLib.previousMonth(report.effectiveTradeDayId) != report.sourceMonth
+                || report.version != splitFactorVersions[report.securityId][report.sourceMonth] + 1
+        ) revert InvalidReport();
+        (, uint32 currentDay) = currentTradeDay();
+        if (report.effectiveTradeDayId <= currentDay) revert InvalidReport();
+
+        SplitFactorCheckpoint[] storage factors = splitFactorCheckpoints[report.securityId][report.sourceMonth];
+        uint256 count = factors.length;
+        if (report.action == SPLIT_FACTOR_SET) {
+            (uint128 numerator, uint128 denominator) = _reducedFactor(report.numerator, report.denominator);
+            uint256 value = adtv[report.securityId][report.sourceMonth].value;
+            if (value != 0) Math.mulDiv(value, numerator, denominator);
+            SplitFactorCheckpoint memory next =
+                SplitFactorCheckpoint(report.effectiveTradeDayId, numerator, denominator, report.reportId);
+            if (count != 0 && factors[count - 1].effectiveTradeDayId >= report.effectiveTradeDayId) {
+                // Only the latest pending checkpoint can be corrected; historical and intermediate entries are fixed.
+                if (factors[count - 1].effectiveTradeDayId != report.effectiveTradeDayId) revert InvalidReport();
+                factors[count - 1] = next;
+            } else {
+                factors.push(next);
+            }
+            emit SplitFactorScheduled(
+                report.securityId,
+                report.sourceMonth,
+                report.effectiveTradeDayId,
+                numerator,
+                denominator,
+                report.version,
+                report.reportId,
+                report.sourceHash
+            );
+        } else if (report.action == SPLIT_FACTOR_CANCEL) {
+            if (
+                report.numerator != 0 || report.denominator != 0 || count == 0
+                    || factors[count - 1].effectiveTradeDayId != report.effectiveTradeDayId
+            ) revert InvalidReport();
+            bytes32 scheduledReportId = factors[count - 1].reportId;
+            factors.pop();
+            emit SplitFactorCancelled(
+                report.securityId,
+                report.sourceMonth,
+                report.effectiveTradeDayId,
+                scheduledReportId,
+                report.version,
+                report.reportId,
+                report.sourceHash
+            );
+        } else {
+            revert InvalidReport();
+        }
+        splitFactorVersions[report.securityId][report.sourceMonth] = report.version;
+    }
+
+    /// @notice Returns the factor applicable to a security and trade day, defaulting to 1/1.
+    /// @dev Source-month scoping prevents old actions from being reapplied to a new month's ADTV basis.
+    function splitFactorOf(bytes32 securityId, uint32 tradeDayId)
+        public
+        view
+        returns (uint128 numerator, uint128 denominator)
+    {
+        SplitFactorCheckpoint[] storage factors =
+            splitFactorCheckpoints[securityId][TradeDayLib.previousMonth(tradeDayId)];
+        uint256 low;
+        uint256 high = factors.length;
+        while (low < high) {
+            uint256 mid = (low + high) / 2;
+            if (factors[mid].effectiveTradeDayId <= tradeDayId) low = mid + 1;
+            else high = mid;
+        }
+        if (low == 0) return (1, 1);
+        SplitFactorCheckpoint storage factor = factors[low - 1];
+        return (factor.numerator, factor.denominator);
+    }
+
+    /// @notice Returns accepted schedule/cancellation version for a security and ADTV source month.
+    function splitFactorVersion(bytes32 securityId, uint32 sourceMonth) external view returns (uint64) {
+        return splitFactorVersions[securityId][sourceMonth];
+    }
+
+    /// @notice Returns the number of retained factor checkpoints for an ADTV source month.
+    function splitFactorCheckpointCount(bytes32 securityId, uint32 sourceMonth) external view returns (uint256) {
+        return splitFactorCheckpoints[securityId][sourceMonth].length;
+    }
+
+    /// @notice Returns a pending or historical checkpoint; cancelled entries remain in events only.
+    function splitFactorCheckpoint(bytes32 securityId, uint32 sourceMonth, uint256 index)
+        external
+        view
+        returns (SplitFactorCheckpoint memory)
+    {
+        return splitFactorCheckpoints[securityId][sourceMonth][index];
     }
 
     /// @notice Schedules a bounded UTC day-start change without rewriting an active transition day.
@@ -392,7 +524,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         return quota.active ? Math.min(hardCap, quota.quotaWad) : hardCap;
     }
 
-    /// @dev Computes the hard cap from the preceding calendar month's ADTV and the current Tier multiplier.
+    /// @dev Computes ADTV × Tier × the source-month-relative factor with one final floor rounding.
     /// @param securityId Security whose ADTV and Tier policy are used.
     /// @param day Trade-day identifier in YYYYMMDD form.
     /// @return Cap in legal-share WAD, or zero when the required ADTV is missing.
@@ -402,7 +534,21 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         if (monthlyAdtv == 0) return 0;
         uint8 tierId = registry.getSecurity(securityId).tierId;
         uint16 bps = registry.tierPolicy(tierId).tierBps;
-        return Math.mulDiv(monthlyAdtv, bps, 10_000);
+        (uint128 numerator, uint128 denominator) = splitFactorOf(securityId, day);
+        return Math.mulDiv(monthlyAdtv, uint256(bps) * numerator, 10_000 * uint256(denominator));
+    }
+
+    /// @dev Rejects zero components and reduces an exact factor without a fixed-point approximation.
+    function _reducedFactor(uint128 numerator, uint128 denominator) private pure returns (uint128, uint128) {
+        if (numerator == 0 || denominator == 0) revert InvalidReport();
+        uint128 a = numerator;
+        uint128 b = denominator;
+        while (b != 0) {
+            uint128 remainder = a % b;
+            a = b;
+            b = remainder;
+        }
+        return (numerator / a, denominator / a);
     }
 
     /// @dev Converts a trade-day identifier and its applicable offset into a UTC timestamp.

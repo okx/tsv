@@ -1,62 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Script, console2} from "forge-std/Script.sol";
-import {TSVUpgradeTimelock} from "tsv-v1/governance/TSVUpgradeTimelock.sol";
-import {TSVBusinessAuthority} from "tsv-v1/governance/TSVBusinessAuthority.sol";
-import {TSVEmergencyUpgradeController} from "tsv-v1/governance/TSVEmergencyUpgradeController.sol";
+import {console2} from "forge-std/Script.sol";
+import {ScriptEnvironment} from "./ScriptEnvironment.sol";
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 
-/// @notice Deploys the non-proxy governance trio and fixed Anchor. Binding is a separate Timelock operation.
-contract DeployGovernanceV1 is Script {
-    /// @dev Reverts when the chain ID or initial governance role addresses are invalid.
+/// @notice Deploys the fixed governance Anchor with its three independent identities.
+contract DeployGovernanceV1 is ScriptEnvironment {
     error InvalidDeploymentInput();
 
-    /// @notice Deploys the governance contracts and fixed governance anchor.
-    /// @dev Validates distinct role addresses and chain ID; component binding is performed separately.
-    /// @return timelock Newly deployed upgrade timelock.
-    /// @return authority Newly deployed business authority.
-    /// @return controller Newly deployed emergency upgrade controller.
-    /// @return anchor Newly deployed governance anchor.
-    function run()
-        external
-        returns (
-            TSVUpgradeTimelock timelock,
-            TSVBusinessAuthority authority,
-            TSVEmergencyUpgradeController controller,
-            TSVGovernanceAnchor anchor
-        )
-    {
-        uint256 deployerKey = vm.envUint("TSV_DEPLOYER_PRIVATE_KEY");
-        address governor = vm.envAddress("TSV_GOVERNOR");
-        address guardian = vm.envAddress("TSV_GUARDIAN");
-        address council = vm.envAddress("TSV_RECOVERY_COUNCIL");
-        address executor = vm.envAddress("TSV_EXECUTOR");
-        uint256 expectedChainId = vm.envUint("TSV_CHAIN_ID");
-        if (
-            block.chainid != expectedChainId || governor == address(0) || guardian == address(0)
-                || council == address(0) || executor == address(0) || governor == guardian || governor == council
-                || guardian == council
-        ) revert InvalidDeploymentInput();
+    function run() external returns (TSVGovernanceAnchor anchor) {
+        uint256 deployerKey = _envUint("TSV_DEPLOYER_PRIVATE_KEY");
+        address governor = _envAddress("TSV_GOVERNOR");
+        address guardian = _envAddress("TSV_GUARDIAN");
+        address council = _envAddress("TSV_RECOVERY_COUNCIL");
+        if (block.chainid != _envUint("TSV_CHAIN_ID")) revert InvalidDeploymentInput();
 
-        address[] memory executors = new address[](1);
-        executors[0] = executor;
         vm.startBroadcast(deployerKey);
-        timelock = new TSVUpgradeTimelock(governor, guardian, council, executors);
-        authority = new TSVBusinessAuthority(governor, address(timelock));
-        controller = new TSVEmergencyUpgradeController(governor, guardian, address(timelock));
-        anchor = new TSVGovernanceAnchor(address(timelock), address(authority), address(controller));
+        anchor = new TSVGovernanceAnchor(governor, guardian, council);
         vm.stopBroadcast();
-
         if (
-            timelock.governor() != governor || timelock.guardian() != guardian || timelock.recoveryCouncil() != council
-                || authority.upgradeTimelock() != address(timelock) || controller.upgradeTimelock() != address(timelock)
-                || !controller.frozen() || address(anchor.timelock()) != address(timelock)
+            anchor.governor() != governor || anchor.guardian() != guardian || anchor.upgradesFrozen()
+                || anchor.recoveryCouncil() != council
         ) revert InvalidDeploymentInput();
-        console2.log("UpgradeTimelock", address(timelock));
-        console2.log("BusinessAuthority", address(authority));
-        console2.log("EmergencyUpgradeController", address(controller));
         console2.log("GovernanceAnchor", address(anchor));
-        console2.log("Bind authority, controller and Anchor through scheduled Timelock calls before core deployment.");
     }
 }

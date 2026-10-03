@@ -72,3 +72,31 @@ struct QuotaReport {
     /// @notice Nonzero digest of the supporting source material.
     bytes32 sourceHash;
 }
+
+/// @notice Schedules or cancels an absolute split factor relative to one month's ADTV units.
+struct SplitFactorReport {
+    /// @notice Listed security whose ADTV-derived cap is adjusted.
+    bytes32 securityId;
+    /// @notice Unchanged ADTV source month, encoded as YYYYMM.
+    uint32 sourceMonth;
+    /// @notice First YYYYMMDD trade day using the factor; only future day starts are allowed.
+    uint32 effectiveTradeDayId;
+    /// @notice Schedule/update = 1, cancel the latest pending checkpoint = 2.
+    uint8 action;
+    /// @notice Absolute cumulative factor numerator relative to the source-month units.
+    uint128 numerator;
+    /// @notice Absolute cumulative factor denominator; both components are zero when cancelling.
+    uint128 denominator;
+    /// @notice Time when the source produced this instruction.
+    uint64 sourceTimestamp;
+    /// @notice Latest timestamp at which DataInbox may accept the report.
+    uint64 submitDeadline;
+    /// @notice Next version for this security and source month, including cancellations.
+    uint64 version;
+    /// @notice Increasing sequence for this security's split-factor report stream.
+    uint64 sequence;
+    /// @notice Globally unique nonzero report identifier.
+    bytes32 reportId;
+    /// @notice Nonzero digest of the announcement and supporting source material.
+    bytes32 sourceHash;
+}

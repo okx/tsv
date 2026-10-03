@@ -18,7 +18,7 @@ flowchart LR
   end
   subgraph G["治理系统"]
     direction TB
-    G1["Governor / Guardian / RecoveryCouncil"] --> G2["角色与参数 / 升级 / 治理根迁移"]
+    G1["Governor / Guardian / RecoveryCouncil"] --> G2["角色与参数 / 升级 / 身份恢复"]
   end
   O2 -->|"状态、数据和额度"| T4
   G2 -->|"授权、参数和实现"| T2
@@ -36,7 +36,7 @@ flowchart LR
   style SBT fill:#F3ECFF,stroke:#8061B2,color:#39275D,stroke-width:1.5px
 ```
 
-图中 `Registry`、`DataInbox`、`VolumeLedger`、`Hook`、`SwapRouter` 和 `LPManager` 是六个业务代理。治理三合约和 `GovernanceAnchor` 是非代理治理合约；Anchor 为六个代理提供当前治理根地址。
+图中 `Registry`、`DataInbox`、`VolumeLedger`、`Hook`、`SwapRouter` 和 `LPManager` 是六个业务代理。`GovernanceAnchor` 是唯一、不可升级的治理合约；直接保存 Governor、Guardian、Council 和统一升级开关，六代理只保存该固定 Anchor 地址。
 
 `SmartWalletSbt` 是 Registry 使用的外部凭证合约，不属于 TSV 六个业务代理；Registry 保存 SBT 地址和 tokenId，并读取凭证有效性及全局暂停状态。
 
@@ -176,7 +176,7 @@ LP 需要向 LP Manager 授权输入 Token；LP Manager 从仓位 owner 拉取�
 
 Ledger 使用 `block.timestamp` 和配置的 UTC 日切起点自动计算 `tradeDayId`。每个 UTC 日期都形成一个计量日；它不是美股交易日历，也不要求日历报告或边界时的激活交易。起点可由 Governor 为未来日期排期调整，具体限制见[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。
 
-证券当日硬上限由适用 ADTV 和证券 Tier 计算；有效日配额有覆盖时，取硬上限和覆盖值中较小者，没有覆盖时使用硬上限。适用 ADTV 缺失会阻止该证券 Swap；可选 quota 缺失本身不会阻止交易。每个证券在同一 TSV 平台的所有池共用一份日用量。LP 加减仓不增加 `usedWad`。
+证券当日硬上限由适用 ADTV、证券 Tier 和独立拆并股系数计算（整条公式一次向下取整）；有效日配额有覆盖时，取硬上限和覆盖值中较小者，没有覆盖时使用硬上限。适用 ADTV 缺失会阻止该证券 Swap；可选 quota 缺失本身不会阻止交易。每个证券在同一 TSV 平台的所有池共用一份日用量。LP 加减仓不增加 `usedWad`。
 
 ### 2.5 LP Receipt
 
@@ -205,7 +205,7 @@ flowchart LR
   subgraph REPORTS["A｜报告与额度"]
     direction TB
     HR["HALT_REPORTER"] -->|"市场状态"| DI["DataInbox"]
-    VO["VOLUME_ORACLE"] -->|"月度 ADTV / 指定日 quota"| DI
+    VO["VOLUME_ORACLE"] -->|"月度 ADTV / 指定日 quota / 拆并股系数"| DI
   end
 
   subgraph ASSETS["B｜资产准入与建池"]
@@ -230,7 +230,7 @@ flowchart LR
   end
 
   DI -->|"市场状态"| RG
-  DI -->|"ADTV / quota"| VL
+  DI -->|"ADTV / quota / 拆并股系数"| VL
   RG --> G["Swap / 普通 LP 门禁"]
   VL --> G
 
@@ -263,6 +263,7 @@ flowchart LR
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitAdtv(AdtvReport calldata report)` | `report` 字段见 §3.1「月度成交量」。 |
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitAdtvBatch(AdtvReport[] calldata reports)` | 同月、按 `securityId` 严格递增的 ADTV 报告数组；见 §3.1「月度成交量」。 |
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitQuota(QuotaReport calldata report)` | `report` 字段见 §3.1「指定日额度」。 |
+| `VOLUME_ORACLE_ROLE` | DataInbox | `submitSplitFactor(SplitFactorReport calldata report)` | 在未来计量日开始生效的拆/并股系数排期、更正或取消，见 §3.1「拆并股系数」。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `admitSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, TokenConfig calldata config, bytes32 evidenceHash)` | 新证券 ID、符号摘要、Tier、首个 Currency 的已审 TokenConfig、准入依据摘要；同笔登记证券并批准 Token。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `relistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 已下架证券 ID、恢复依据摘要。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `setSecurityTier(bytes32 securityId, uint8 tierId, bytes32 evidenceHash)` | 证券 ID、新 Tier、依据摘要。 |
@@ -291,7 +292,7 @@ flowchart LR
 | --- | --- | --- |
 | `sourceTimestamp` | `uint64` | 数据源生成时间（Unix 秒）。不得晚于当前链上时间；同类、同证券的来源时间不得倒退。DataInbox 保存每类报告的最新值用于后续校验，不参与 ADTV 或额度公式。 |
 | `submitDeadline` | `uint64` | 最晚可上链时间（Unix 秒）；当前时间超过它时拒绝。只在提交时校验，不存入状态或 `AdtvAccepted` 事件，也不会让已接受的 ADTV 自动过期。 |
-| `sequence` | `uint64` | 同报告类别、同证券的来源序号，必须严格大于上次接受值；DataInbox 保存最新值用于防乱序，不参与 ADTV 或额度公式。三个类别分别维护序号：市场状态、ADTV、Quota。 |
+| `sequence` | `uint64` | 同报告类别、同证券的来源序号，必须严格大于上次接受值；DataInbox 保存最新值用于防乱序，不参与 ADTV 或额度公式。四个类别分别维护序号：市场状态、ADTV、Quota、SplitFactor；换月不重置序号。 |
 | `reportId` | `bytes32` | 全局唯一的非零报告 ID；DataInbox 保存已用标记防重复，VolumeLedger 保存该证券/月 ADTV 的最新 `reportId` 并在 `AdtvAccepted` 事件中发出；不参与额度计算。 |
 | `sourceHash` | `bytes32` | 必须非零；当前实现只做非零校验，不写入合约状态或 `AdtvAccepted` 事件。可从提交交易 calldata 读取，供链下索引器关联来源材料。 |
 
@@ -379,11 +380,29 @@ struct QuotaReport {
 | `securityId` | `bytes32` | 已登记且 listed 的证券 ID。 |
 | `tradeDayId` | `uint32` | 额度生效的 TSV 计量日，格式 `YYYYMMDD`；按 UTC 起点归属，不是美股交易日历日期的自动映射。 |
 | `action` | `uint8` | `1 = SET`，`2 = CLEAR`；其他值拒绝。 |
-| `quotaWad` | `uint256` | `SET` 时须 `0 < quotaWad <=` 当日硬上限。硬上限为 `tradeDayId` 前一自然月 ADTV × 证券当前 `tierBps / 10,000`，向下取整，且必须已有该月 ADTV；`CLEAR` 时必须为零。零值不能用来停牌。 |
+| `quotaWad` | `uint256` | `SET` 时须 `0 < quotaWad <=` 当日硬上限。硬上限为 `tradeDayId` 前一自然月 ADTV × 证券当前 `tierBps / 10,000` × 当日拆并股系数，一次向下取整，且必须已有该月 ADTV；`CLEAR` 时必须为零。零值不能用来停牌。 |
 | `version` | `uint64` | 针对 `(securityId, tradeDayId)` 的版本，必须严格等于已存版本加一；清除后仍保留版本和报告 ID。 |
 | 其余字段 | — | 按通用审计字段填写；`sequence` 按 Quota 报告类别和证券递增。 |
 
-新 quota 只约束提交成功后的 Swap，并与当日已用量比较；若额度调到已用量以下，后续 Swap 会被拒绝。额度不跨日继承。需要恢复 ADTV/Tier 默认硬上限时提交 `CLEAR`。
+新 quota 只约束提交成功后的 Swap，并与当日已用量比较；若额度调到已用量以下，后续 Swap 会被拒绝。额度不跨日继承，且覆盖值为目标日单位下的绝对数，不随系数自动相乘。需要恢复 ADTV/Tier/系数默认硬上限时提交 `CLEAR`。
+
+#### 拆并股系数
+
+`submitSplitFactor(SplitFactorReport)` 保留原来的上月日均 ADTV 输入与 Tier 配置，只增加独立系数。每日硬上限为 `floor(adtvWad × tierBps × numerator / (10000 × denominator))`。例如 ADTV=1000、Tier=25bps，原限额2.5；未来日一拆二后为5。无需修改 ADTV，也无需在生效时另发交易。
+
+| 字段 | 含义 |
+| --- | --- |
+| `securityId`、`sourceMonth` | 已上市证券和目标计量日前一自然月 `YYYYMM` |
+| `effectiveTradeDayId` | 严格晚于当前计量日的 `YYYYMMDD`；只在该日 `dayStartUTC` 生效，不支持日内时间 |
+| `action` | `SET=1`：排期或更正最新待生效项；`CANCEL=2`：取消最新待生效项 |
+| `numerator`、`denominator` | `uint128` 正比例，表示相对来源月单位的绝对累计系数；SET 自动约分，CANCEL 两值均为零 |
+| `version` | 按证券/来源月严格加一，取消也消耗版本 |
+| `sourceTimestamp`、`submitDeadline`、`sequence`、`reportId`、`sourceHash` | 沿用报告校验；序号按 kind=3/证券递增；来源时间/截止时间不决定生效 |
+
+同月连续一拆二、再一拆三，系数依次为2和6。报告服务固定 ADTV 为来源月结束时的股数单位；新月 ADTV 已体现的事件不再乘入，默认新月系数为1。生效后不可修改/取消历史；变更较早待生效项时先依次取消其后待生效项。Future 查询用于排期预检查；当前有效系数通过 `currentTradeDay` 返回的日 ID 查询。
+
+新日用量独立累计，旧日用量不换算。可选 quota 是目标日绝对上限，排期时按需更正或 CLEAR。Token 更新时间不能提前/延后额度切换；逐笔成交仍由现有实时 Adapter 换算。发行方单位异常或多个 Token 不一致时按准入流程核对并暂停。准确 ABI 与存储规则见[编码规格 §7 D-37](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。
+
 
 ### 3.2 证券、Token 与股数 Adapter 准入
 
@@ -514,7 +533,8 @@ function forceExit(
 | Registry | `marketStatus(bytes32 securityId)`、`marketPauseMode(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`hasCredential(address owner)`、`isEligible(address owner)` | 市场状态从暂停模式推导为 OPEN/HALTED，未知证券的 marketStatus 查询回滚；池是否登记/允许交易/允许普通 LP，SBT 是否持有/当前是否合格。`isEligible` 同时考虑 SBT 全局暂停。isTradable 不检查 ADTV、额度或流动性。 |
 | Registry | `activePoolCountByCurrency(address currency)`、`marketSequence(bytes32 securityId)`、`emergencyPauses(uint256 recordId)`、`activePauseCount(uint8 scope, bytes32 target, uint8 mode)` | 读取活跃池计数、市场报告序号、暂停记录及指定范围/目标/精确模式的活动暂停数量；ALL 记录计入 mode=3，不重复计入 mode=1/2。 |
 | Registry | `hook()`、`lpManager()`、`dataInbox()`、`nextPauseId()`、`participantSbt()`、`sbtTokenId()` | 读取绑定地址、下一暂停记录编号和当前 SBT 配置。 |
-| DataInbox | `reportIdUsed(bytes32 reportId)`、`lastSequence(uint8 kind, bytes32 key)`、`lastSourceTimestamp(uint8 kind, bytes32 key)`、`MAX_ADTV_BATCH_SIZE()` | 核对报告去重、各类别最新序号/来源时间和批量 ADTV 上限；`kind` 为 `0=Market`、`1=ADTV`、`2=Quota`，`key` 为对应 `securityId`。 |
+| VolumeLedger | `splitFactorOf(bytes32,uint32)`、`splitFactorVersion(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)` | 指定日分子/分母（默认1/1），来源月版本及保留检查点；未来查询用于预检查，取消项通过事件审计。 |
+| DataInbox | `reportIdUsed(bytes32 reportId)`、`lastSequence(uint8 kind, bytes32 key)`、`lastSourceTimestamp(uint8 kind, bytes32 key)`、`MAX_ADTV_BATCH_SIZE()` | 核对报告去重、各类别最新序号/来源时间和批量 ADTV 上限；`kind` 为 `0=Market`、`1=ADTV`、`2=Quota`、`3=SplitFactor`，`key` 为对应 `securityId`。 |
 | DataInbox | `registry()`、`ledger()` | 读取绑定的 Registry 和 VolumeLedger。 |
 | VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()` | 查询当前计量日、指定计量日起点及日切配置历史。 |
 | VolumeLedger | `used(bytes32 securityId, uint32 tradeDayId)`、`adtvOf(bytes32 securityId, uint32 sourceMonth)`、`quotaOf(bytes32 securityId, uint32 tradeDayId)`、`remaining(bytes32 securityId, uint32 tradeDayId)` | 查询指定证券和周期的已用量、ADTV、Quota 覆盖和剩余额度；`remaining` 返回 `(valid, value)`。 |
@@ -522,28 +542,26 @@ function forceExit(
 
 ## 四、治理系统
 
-治理系统有两个不同范围：**业务权限与参数管理**，以及**合约实现升级/治理根迁移**。日常业务角色和普通业务参数由 Governor 直接管理；它们不经过 UpgradeTimelock。运营角色配置归治理权限管理，不归日常运营动作。
+治理系统有两个不同范围：**业务权限与参数管理**，以及**合约实现升级与治理身份恢复**。日常业务角色、普通业务参数和实现升级均由当前 Governor 直接管理。运营角色配置归治理权限管理，不归日常运营动作。
 
 ### 4.1 治理身份与运营角色管理
 
 #### 治理身份如何配置和变更
 
-Governor、Guardian、RecoveryCouncil 和 Executor 的初始地址来自部署配置。它们是治理身份；运营地址则通过业务角色授权获得具体的运营入口。
+Governor、Guardian、RecoveryCouncil 的初始地址来自部署配置。它们是治理身份；运营地址则通过业务角色授权获得具体的运营入口。
 
 | 治理身份 | 链上权限 | 管理方式 |
 | --- | --- | --- |
-| Governor | BusinessAuthority 的当前 Governor；六代理动态 `DEFAULT_ADMIN_ROLE`；Timelock 普通提案者；事故升级调用者 | 初始部署配置；变更须由 RecoveryCouncil 排期 `recoverAuthorities`，当前 Guardian 批准同一 operationId，再由有执行权的地址执行。 |
-| Guardian | 取消普通 Timelock 操作；冻结事故升级；批准受保护身份恢复和治理根迁移 | 初始部署配置；与 Governor 一样只通过受保护 `recoverAuthorities` 轮换，更新会同步到 Anchor、Timelock 和事故控制器。 |
-| RecoveryCouncil | 仅能排期受保护身份恢复；也能提出治理根迁移；自身始终有受保护恢复的执行权 | 当前设计中由固定 Anchor 和 Timelock 构造参数锁定，没有普通轮换入口；治理根迁移仍要求同一个 RecoveryCouncil。 |
-| Executor | 执行已到期的 Timelock 操作；RecoveryCouncil 另有受保护恢复的执行权 | Executor 地址或开放执行设置在 Timelock 部署时配置；Timelock 的角色接口禁止增删执行者。需调整执行者时，通过根迁移部署并启用新的 Timelock。 |
+| Governor | 六代理动态默认管理员；直接/批量 UUPS 升级；冻结期间所有升级均拒绝 | 初始部署配置；身份变更须由 Council 提案、当前 Guardian 批准后恢复。 |
+| Guardian | 冻结/解冻全部升级；批准或撤回身份恢复 | 仅经受保护身份恢复轮换，冻结状态保留，新 Guardian 接管开关。 |
+| RecoveryCouncil | 提议/取消身份恢复 | Anchor 构造参数固定，当前 Guardian 独立批准后方可执行。 |
 
 代理的默认管理员不是逐个写入代理的静态角色，而是沿固定 Anchor 动态读取：
 
 ```mermaid
 flowchart TB
   PX["六个业务代理"] -.->|"读取当前治理根"| AN["固定 GovernanceAnchor"]
-  AN -->|"当前 authority"| BA["BusinessAuthority"]
-  BA -->|"当前 governor"| GOV["Governor / 动态 DEFAULT_ADMIN_ROLE"]
+  AN -->|"直接读取 governor"| GOV["Governor / 动态 DEFAULT_ADMIN_ROLE"]
 
   style PX fill:#F5F1FF,stroke:#8064B5,color:#392C5C,stroke-width:1.5px
   style AN fill:#EAF7F0,stroke:#3B8A68,color:#194D36,stroke-width:1.5px
@@ -551,21 +569,7 @@ flowchart TB
   style GOV fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
 ```
 
-受保护身份恢复流程如下；Governor、Guardian 的根身份不是通过普通 `grantRole/revokeRole` 修改的：
-
-```mermaid
-flowchart TB
-  CO["RecoveryCouncil"] -->|"排期 recoverAuthorities"| TL["UpgradeTimelock"]
-  GU["当前 Guardian"] -->|"批准同一 operationId"| TL
-  EX["RecoveryCouncil 或获授权 Executor"] -->|"到期后 execute"| TL
-  TL -->|"原子更新 Governor / Guardian"| ROOT["BusinessAuthority<br/>Timelock · EmergencyUpgradeController<br/>GovernanceAnchor"]
-
-  style CO fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style GU fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style EX fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style TL fill:#EAF7F0,stroke:#3B8A68,color:#194D36,stroke-width:1.5px
-  style ROOT fill:#FFF4DE,stroke:#C58B24,color:#624300,stroke-width:1.5px
-```
+身份恢复由 Council 调用 `anchor.proposeRecovery`，当前 Guardian 调用 `approveRecovery` 后，任意地址调用 `executeRecovery` 原子切换身份。Guardian 可撤回批准，Council 可取消；提案绑定当前两个 epoch，每次成功恢复使旧批准失效。Governor 与 Guardian 根身份不通过普通角色接口修改。
 
 #### 运营角色如何授予和使用
 
@@ -586,12 +590,12 @@ flowchart TB
 | `SYMBOL_ADMIN_ROLE` | Registry 的证券登记/下架、Token 登记/状态、股数 Adapter 替换、池启停。 |
 | `POOL_CREATOR_ROLE` | LPManager 的 `initializePool`。 |
 | `HALT_REPORTER_ROLE` | DataInbox 的 `submitMarketStatus`。 |
-| `VOLUME_ORACLE_ROLE` | DataInbox 的 `submitAdtv`、`submitAdtvBatch`、`submitQuota`。 |
+| `VOLUME_ORACLE_ROLE` | DataInbox 的 `submitAdtv`、`submitAdtvBatch`、`submitQuota`、`submitSplitFactor`。 |
 | `EMERGENCY_PAUSER_ROLE` / `EMERGENCY_RESUMER_ROLE` | Registry 的 `addEmergencyPause` / `clearEmergencyPause`。 |
 | `FORCE_EXIT_ADMIN_ROLE` | LPManager 的 `forceExit` 管理员强退入口。 |
 | `REVOKE_EXIT_EXECUTOR_ROLE` | 仅在仓位原 owner 已失去 SBT 凭证时，可调用 LPManager `forceExit`。 |
 
-这些业务角色由 Governor 按地址逐项授予或撤销，合约只校验 `msg.sender`，不管理运营地址背后的多签成员或门槛。业务代理的 `DEFAULT_ADMIN_ROLE` 由固定 [GovernanceAnchor](../src/v1/governance/TSVGovernanceAnchor.sol) 动态读取当前 BusinessAuthority 中的 Governor，不能通过 `grantRole/revokeRole` 转让。`setTierPolicy`、`setSbtConfig` 等治理参数也是 Governor 专属入口；日切入口虽然同样要求 Governor，但按业务分类仍列在运营系统 §3.4。
+这些业务角色由 Governor 按地址逐项授予或撤销，合约只校验 `msg.sender`，不管理运营地址背后的多签成员或门槛。业务代理的 `DEFAULT_ADMIN_ROLE` 由固定 [GovernanceAnchor](../src/v1/governance/TSVGovernanceAnchor.sol) 动态读取Anchor 中的 Governor，不能通过 `grantRole/revokeRole` 转让。`setTierPolicy`、`setSbtConfig` 等治理参数也是 Governor 专属入口；日切入口虽然同样要求 Governor，但按业务分类仍列在运营系统 §3.4。
 
 #### Governor 直接配置入口与角色管理函数
 
@@ -608,92 +612,41 @@ flowchart TB
 
 上述 `grantRole/revokeRole/renounceRole` 是继承的 AccessControl 入口，但 TSV 覆写了默认管理员行为；治理身份轮换不通过这些入口，而走受保护恢复流程。
 
-### 4.2 两种实现升级路径
+### 4.2 一笔完成实现升级
 
-六个业务代理（Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager）使用固定代理地址和 UUPS 实现，代理地址保持不变。常规升级和事故升级分开绘制：
-
-```mermaid
-flowchart TB
-  GOV["Governor"] -->|"schedule：目标、calldata、延迟"| TL["UpgradeTimelock"]
-  EX["Executor"] -->|"ready 后 execute"| TL
-  GU["Guardian"] -->|"cancel 待执行操作"| TL
-  TL -->|"UUPS upgradeToAndCall"| PX["业务代理"]
-
-  style GOV fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style EX fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style GU fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style TL fill:#EAF7F0,stroke:#3B8A68,color:#194D36,stroke-width:1.5px
-  style PX fill:#FFF4DE,stroke:#C58B24,color:#624300,stroke-width:1.5px
-```
+Governor 多签直接调用业务代理的 `upgradeToAndCall(newImplementation, initData)`。切换实现和初始化在同笔交易中完成；初始化失败全部回滚。TimeLock、排期、等待和专用 Executor 已移除。
 
 ```mermaid
-flowchart TB
-  GOV["Governor"] -->|"executeEmergencyUpgrade"| EU["EmergencyUpgradeController"]
-  GU["Guardian"] -->|"freezeEmergencyUpgrades"| EU
-  TL["UpgradeTimelock"] -->|"setUpgradeTarget / unfreeze"| EU
-  EU -->|"未冻结且目标在名单内"| PX["业务代理"]
-
-  style GOV fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style GU fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style TL fill:#EAF7F0,stroke:#3B8A68,color:#194D36,stroke-width:1.5px
-  style EU fill:#F5F1FF,stroke:#8064B5,color:#392C5C,stroke-width:1.5px
-  style PX fill:#FFF4DE,stroke:#C58B24,color:#624300,stroke-width:1.5px
+flowchart LR
+  GOV[Governor 多签] -->|单独或批量升级| CHECK{Anchor 全局升级是否冻结}
+  GUARD[当前 Guardian] -->|冻结或显式解冻| CHECK
+  CHECK -->|已冻结| BLOCK[UpgradeFrozen 回滚]
+  CHECK -->|未冻结| PX[固定地址的业务代理]
+  PX --> IMPL[新实现及初始化]
+  IMPL -->|任一步失败| R[整笔回滚]
 ```
 
-#### Timelock 直接入口与参数
+需要同时升级多个代理时，Governor 调用 `anchor.upgradeBatch(targets, implementations, initData)`。数组等长、长度 1–6、目标为已绑定六代理且不得重复；按数组顺序升级，任一步失败整批回滚。批量初始化的调用者为 Anchor，升级初始化函数须支持该身份和活跃的 `upgradeContextActive()` 上下文。
 
-| 调用者 | 入口函数 | 参数说明与约束 |
+| 调用者 | 入口 | 约束 |
 | --- | --- | --- |
-| Governor；RecoveryCouncil 仅用于受保护身份恢复 | `schedule(address target, uint256 value, bytes data, bytes32 predecessor, bytes32 salt, uint256 delay)` | 目标合约、随调用发送的原生币数量、目标 calldata、前置操作 ID、唯一 salt、该操作的延迟秒数。普通提案只能由 Governor 排期；RecoveryCouncil 只能排期受保护的身份恢复操作。 |
-| Governor | `scheduleBatch(address[] targets, uint256[] values, bytes[] payloads, bytes32 predecessor, bytes32 salt, uint256 delay)` | 多目标、金额和 calldata 数组必须等长；前置操作 ID、唯一 salt、延迟。此入口不接受受保护恢复 selector。 |
-| `EXECUTOR_ROLE`（部署配置的 Executor；RecoveryCouncil 另有执行权） | `execute(address target, uint256 value, bytes payload, bytes32 predecessor, bytes32 salt)` | 必须与排期时的目标、金额、calldata、前置 ID 和 salt 完全相同；操作须到期可执行。受保护恢复还须 Guardian 已批准且恢复上下文未激活。 |
-| `EXECUTOR_ROLE`（RecoveryCouncil 另有执行权） | `executeBatch(address[] targets, uint256[] values, bytes[] payloads, bytes32 predecessor, bytes32 salt)` | 执行与排期完全一致的一批操作；数组必须匹配且操作须到期。受保护恢复不能通过批量入口执行。 |
-| Guardian | `cancel(bytes32 id)` | 取消普通待执行操作的 Timelock operation ID；受保护恢复操作不能由该入口取消。 |
-| Guardian | `approveRecovery(bytes32 operationId)` | 批准已排期且仍 pending 的受保护恢复操作 ID。 |
-| Guardian | `revokeRecoveryApproval(bytes32 operationId)` | 撤销此前对该恢复操作的批准；操作 ID 必须已有 Guardian 批准。 |
+| 当前 Governor | 代理 `upgradeToAndCall(address,bytes)` | 全局未冻结时单代理立即升级，可附初始化；Guardian、Council 和业务角色不能直接升级。 |
+| 当前 Governor | Anchor `upgradeBatch(address[],address[],bytes[])` | 全局未冻结时已绑定代理的原子批量升级；Anchor 仅在此调用上下文内获得升级权。 |
+| 当前 Guardian | Anchor `freezeUpgrades(bytes32 reasonHash)` | 非零原因；同时关闭单代理和批量升级，Governor 无法绕过。 |
+| 当前 Guardian | Anchor `unfreezeUpgrades(bytes32 expectedFreezeId,bytes32 evidenceHash)` | 匹配当前冻结 ID、非零证据；Governor/Council 无权解冻。 |
 
-受保护恢复最终由 Timelock 执行自身目标 `recoverAuthorities(address newGovernor, address newGuardian, bytes32 evidenceHash)`。这不是 Governor 或 Guardian 直接调用的入口：必须由 RecoveryCouncil 排期、当前 Guardian 批准，再由有执行权的调用者通过 `execute` 执行；新地址必须非零、彼此不同且不得与 RecoveryCouncil 冲突，也不能交叉等于旧 Guardian/Governor；至少一个身份必须变化，证据摘要必须非零。
+开关保存在固定 Anchor，六代理共同检查。冻结不影响交易、LP、强退、业务参数或身份恢复；更换身份不会自动解冻。新 Guardian 可解冻旧 Guardian 留下的当前冻结。所有升级仍须验证存储布局、实现代码与跨代理接口版本。
 
-#### 事故升级直接入口与 Timelock 目标调用
+### 4.3 身份恢复
 
-| 发起者/实际调用者 | 入口函数 | 参数说明与约束 |
+| 调用者 | Anchor 入口 | 约束 |
 | --- | --- | --- |
-| Governor 直接调用控制器 | `executeEmergencyUpgrade(address proxy, address newImplementation, bytes initData, bytes32 incidentId, bytes32 upgradeActionId, bytes32 reasonCode, bytes32 evidenceHash)` | 代理、目标实现、可选初始化 calldata、事故 ID、全局唯一升级动作 ID、原因码、证据摘要。控制器须未冻结，代理须在 Timelock 管理的允许名单中，目标实现须有代码；所有摘要/ID 非零，动作 ID 不可重放。 |
-| Guardian 直接调用控制器 | `freezeEmergencyUpgrades(bytes32 incidentId, bytes32 reasonHash, bytes32 freezeSalt)` | 事故 ID、冻结原因摘要、唯一 salt；均须非零，控制器尚未冻结。 |
-| 由 Governor 排期、Timelock 执行 | `setUpgradeTarget(address proxy, bool allowed)` | 将当前或候选迁移 Anchor 已绑定的六个业务代理之一加入或移出事故升级允许名单；目标必须出现在 Anchor 的固定代理列表中，任意其他代理回滚。迁移候选的 `nominatedAnchor` 还须证明自己仍绑定在旧 Timelock 上；实际 `msg.sender` 必须是候选 Timelock。 |
-| 由 Governor 排期、Timelock 执行 | `unfreezeEmergencyUpgrades(bytes32 expectedFreezeId, bytes32 evidenceHash)` | 当前冻结 ID 和非零解冻证据摘要；当前必须处于冻结状态，实际 `msg.sender` 必须是 Timelock。 |
-| 由 Governor 排期、Timelock 执行 | 代理 UUPS `upgradeToAndCall(address newImplementation, bytes data)` | 目标代理升级到有代码的新实现，并可附带初始化 calldata；代理升级授权只接受 GovernanceAnchor 中登记的 Timelock 或 EmergencyUpgradeController。 |
+| Council | `proposeRecovery(address newGovernor,address newGuardian,bytes32 salt,bytes32 evidenceHash)` | 非零、独立身份；至少变化一个；绑定当前 epoch 与 guardianEpoch。 |
+| Guardian | `approveRecovery(bytes32 id)` / `revokeRecoveryApproval(bytes32 id)` | 批准当前提案或撤回批准。 |
+| Council | `cancelRecovery(bytes32 id)` | 取消 active 提案。 |
+| 任意地址 | `executeRecovery(bytes32 id)` | 当前提案已批准；在 Anchor 内直接更新 Governor/Guardian；全局冻结保留。 |
 
-- **常规升级：**Governor 经 UpgradeTimelock 按每笔操作指定延迟排期；达到执行时间后，由有权限的 Executor 执行。当前 Timelock 最小延迟为 0，因此 0 延迟操作仍需先排期、再执行两笔交易。Guardian 可以取消普通待执行操作。
-- **事故升级：**Governor 可通过 EmergencyUpgradeController 对已预先批准的代理升级；控制器须处于未冻结状态。Timelock 只能将 Anchor 固定六代理列表中的成员加入名单，执行时控制器也会复核成员关系；候选根读取 `nominatedAnchor` 时会验证该 Anchor 仍绑定在旧 Timelock 上。Guardian 可冻结该入口，解冻和修改升级目标名单由 Timelock 控制。此路径只处理六个已绑定业务代理，不是任意调用入口。
-
-两种路径都受代理 UUPS 授权约束。升级仍须核对实现代码、存储布局、接口兼容性及跨代理版本顺序；多代理升级不会自动成为一个原子操作。
-
-### 4.3 身份恢复与治理根迁移
-
-| 调用者 | 入口函数 | 参数说明与约束 |
-| --- | --- | --- |
-| RecoveryCouncil | `proposeRoot(address newTimelock, address newAuthority, address newController, bytes32 salt, bytes32 evidenceHash) returns (bytes32 id)` | 新 Timelock、BusinessAuthority、EmergencyUpgradeController 地址，以及非零唯一 salt 和证据摘要。新治理合约必须互不相同、绑定一致；新事故控制器须处于冻结状态；代理必须已绑定。返回由当前 epoch、地址、salt 和摘要计算出的提案 ID。 |
-| Guardian | `approveRoot(bytes32 id)` | 批准当前治理 epoch 下仍 active 的提案 ID。 |
-| Guardian | `revokeRootApproval(bytes32 id)` | 撤回该 Guardian 已批准的提案 ID。 |
-| RecoveryCouncil | `cancelRoot(bytes32 id)` | 取消 active 提案；执行后不可再批准或执行。 |
-| 任意地址 | `executeRoot(bytes32 id)` | 执行 active 且已批准的当前 epoch 提案。Anchor 再次校验新合约绑定和冻结状态后切换根。 |
-
-```mermaid
-flowchart TB
-  CO["RecoveryCouncil"] -->|"proposeRoot：新 Timelock、Authority、Controller"| AN["固定 GovernanceAnchor"]
-  GU["Guardian"] -->|"approveRoot：批准同一提案"| AN
-  ANY["任意调用者"] -->|"executeRoot：提案已获批准"| AN
-  AN -->|"校验治理合约绑定、冻结新控制器并切换根"| NEW["新 Timelock / BusinessAuthority<br/>EmergencyUpgradeController"]
-
-  style CO fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style GU fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style ANY fill:#EAF2FF,stroke:#4778C7,color:#17365D,stroke-width:1.5px
-  style AN fill:#EAF7F0,stroke:#3B8A68,color:#194D36,stroke-width:1.5px
-  style NEW fill:#FFF4DE,stroke:#C58B24,color:#624300,stroke-width:1.5px
-```
-
-治理根地址迁移不等于升级一个业务代理。RecoveryCouncil 提议新的 Governor、Timelock 和事故控制器；当前 Guardian 对同一提案独立批准。任意地址都可执行已批准提案；Anchor 校验新治理合约之间的绑定关系、控制器冻结状态和代理关系后原子切换治理根，使旧根失去六个业务代理的管理/升级权限。详细步骤见[全新部署清单 §9](./DEPLOYMENT_CHECKLIST_V1.md#9-治理根迁移)。当前源码已编码此路径，但目标链部署和真实治理身份仍需发布验收。
+每次身份恢复递增 epoch，Guardian 轮换还递增 guardianEpoch，使旧批准失效。Anchor 不提供更换治理组件或迁移治理根的入口。六代理的 Anchor 地址与业务状态保留；旧 Governor（若地址变化）即时失权。详细发布步骤见[部署清单 §9](./DEPLOYMENT_CHECKLIST_V1.md#9-治理身份恢复和升级)。
 
 ## 五、三系统之间的门禁关系
 
@@ -708,7 +661,7 @@ flowchart TD
   R --> LP
   D --> E[交易系统执行 Swap]
   E --> F[Hook 按实际股票 delta 直接换算 legalSharesWad]
-  F --> G[Ledger 检查 ADTV / Tier / 可选 quota]
+  F --> G[Ledger 检查 ADTV / Tier / 拆并股系数 / 可选 quota]
   G --> H[结算成功并写入日成交量]
   G -->|任一检查失败| X[整笔交易回滚]
   R[运营报告、资产状态和暂停状态] --> D
@@ -725,13 +678,13 @@ flowchart TD
 | --- | --- |
 | [`src/v1/periphery/`](../src/v1/periphery/) | 用户交易入口：Swap Router 与 LP Manager。 |
 | [`src/v1/core/`](../src/v1/core/) | 运行时核心：Registry、Hook、Volume Ledger、Data Inbox。 |
-| [`src/v1/governance/`](../src/v1/governance/) | 业务权限根、Timelock、事故升级控制器、GovernanceAnchor 与代理。 |
+| [`src/v1/governance/`](../src/v1/governance/) | 直接保存身份和统一升级开关的 GovernanceAnchor 与代理授权。 |
 | [`src/v1/adapters/`](../src/v1/adapters/) 和 [`src/v1/libraries/`](../src/v1/libraries/) | 资产计股适配、直接结算、数学、日期和报告校验。 |
 | [`script/`](../script/) | 治理与六代理分阶段部署、部署状态验证。 |
 | [`test/`](../test/) | 单元和本地集成回归；测试夹具不代表生产发行方实例。 |
 | [`lib/`](../lib/) | V4 Core、SBT 和发行方/测试 Token 等依赖或夹具。 |
 
-当前源码包含本地标准 ERC-8056 直接结算和动态计股路径、自动 UTC 日切、可选日配额、交易和 LP 流程、暂停/强退及治理根迁移。真实 wTSLAx 与 SBT 的逐实例证据、目标链部署、生产监控和发布验收仍是外部工作；状态以[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)为准。
+当前源码包含本地标准 ERC-8056 直接结算和动态计股路径、自动 UTC 日切、可选日配额、交易和 LP 流程、暂停/强退及治理身份恢复。真实 wTSLAx 与 SBT 的逐实例证据、目标链部署、生产监控和发布验收仍是外部工作；状态以[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)为准。
 
 ## 七、公开查询、继承 ABI 与部署入口
 
@@ -741,11 +694,7 @@ flowchart TD
 
 | 合约 | 查询入口 | 返回信息 |
 | --- | --- | --- |
-| BusinessAuthority | `governor()`、`upgradeTimelock()` | 当前 Governor 和固定 UpgradeTimelock。 |
-| GovernanceAnchor | `timelock()`、`authority()`、`controller()`、`guardian()`、`recoveryCouncil()`、`epoch()`、`guardianEpoch()`、`proxiesBound()`、`proxies(uint256 index)`、`proposals(bytes32 id)` | 当前治理根、治理 epoch、六个代理地址和提案状态。 |
-| EmergencyUpgradeController | `governor()`、`guardian()`、`upgradeTimelock()`、`frozen()`、`freezeEpoch()`、`freezeId()`、`upgradeTargetAllowed(address proxy)`、`usedUpgradeActionId(bytes32 actionId)` | 当前事故升级权限、冻结状态和动作去重状态。 |
-| UpgradeTimelock | `governor()`、`guardian()`、`recoveryCouncil()`、`businessAuthority()`、`emergencyController()`、`governanceAnchor()`、`nominatedAnchor()`、`protectedRecovery(bytes32 id)`、`guardianApprovedRecovery(bytes32 id)`、`recoveryApprovalGuardian(bytes32 id)`、`recoveryContextActive()` | Timelock 身份、绑定关系和受保护恢复状态。 |
-| UpgradeTimelock（继承） | `getMinDelay()`、`hashOperation(address,uint256,bytes,bytes32,bytes32)`、`hashOperationBatch(address[],uint256[],bytes[],bytes32,bytes32)`、`getTimestamp(bytes32 id)`、`getOperationState(bytes32 id)`、`isOperation(bytes32 id)`、`isOperationPending(bytes32 id)`、`isOperationReady(bytes32 id)`、`isOperationDone(bytes32 id)` | 查询延迟、计算操作 ID 和检查 Timelock 操作状态。 |
+| GovernanceAnchor | `governor()`、`guardian()`、`recoveryCouncil()`、`epoch()`、`guardianEpoch()`、`proxiesBound()`、`proxies(uint256 index)`、`recoveries(bytes32 id)`、`upgradeContextActive()`、`upgradesFrozen()`、`freezeEpoch()`、`freezeId()` | 当前治理根和统一升级冻结状态、治理 epoch、六个代理地址和提案状态。 |
 | UUPS 代理 | `tsvImplementation()`、`governanceAnchor()` | 查询当前实现和治理 Anchor 地址；实现读取接口用于部署/升级核对。 |
 
 ### 7.2 所有受治理代理共用的角色 ABI
@@ -761,13 +710,11 @@ Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager 均继承 `T
 | `renounceRole(bytes32 role, address callerConfirmation)` | 角色持有人自行放弃非默认管理员角色，确认地址必须等于 `msg.sender`。 |
 | `supportsInterface(bytes4 interfaceId)` | 查询 AccessControl 接口支持情况。 |
 
-六个代理还自动暴露 `governanceAnchor()`、`businessAuthority()`、`upgradeTimelock()`、`emergencyUpgradeController()` 组件 getter。Hook 另暴露 `poolManager()`、`registry()`、`ledger()`、`router()`、`lpManager()` 和 `REQUIRED_HOOK_FLAGS()`；对应的 Registry、DataInbox、VolumeLedger、Router、LPManager 绑定地址 getter 已分别列于 §2.6、§3.8。
+六个代理还自动暴露 `governanceAnchor()` getter，治理身份查询通过固定 Anchor 的 `governor()`、`guardian()` 和 `recoveryCouncil()`。Hook 另暴露 `poolManager()`、`registry()`、`ledger()`、`router()`、`lpManager()` 和 `REQUIRED_HOOK_FLAGS()`；对应的 Registry、DataInbox、VolumeLedger、Router、LPManager 绑定地址 getter 已分别列于 §2.6、§3.8。
 
 `DEFAULT_ADMIN_ROLE()` 以及 `SYMBOL_ADMIN_ROLE()`、`POOL_CREATOR_ROLE()`、`HALT_REPORTER_ROLE()`、`VOLUME_ORACLE_ROLE()`、`EMERGENCY_PAUSER_ROLE()`、`EMERGENCY_RESUMER_ROLE()`、`FORCE_EXIT_ADMIN_ROLE()`、`REVOKE_EXIT_EXECUTOR_ROLE()` 均为无参数角色 ID getter。默认管理员不能通过 `grantRole`、`revokeRole` 或 `renounceRole` 变更。
 
-UpgradeTimelock 还暴露 `PROPOSER_ROLE()`、`EXECUTOR_ROLE()`、`CANCELLER_ROLE()` 角色 ID getter，以及继承的 `hasRole(bytes32 role, address account)`、`getRoleAdmin(bytes32 role)`、`supportsInterface(bytes4 interfaceId)`、`grantRole(bytes32 role, address account)`、`revokeRole(bytes32 role, address account)`、`renounceRole(bytes32 role, address callerConfirmation)`。角色修改会拒绝变更 `DEFAULT_ADMIN_ROLE`、proposer、canceller 和 executor；默认管理员只绑定 Timelock 自身，因此可执行的角色变更必须经 Timelock 自调用提案。
 
-TimelockController 继承的 `updateDelay(uint256 newDelay)` selector 也存在，但 TSV 覆写为始终回滚 `InvalidRecovery()`；不能通过它更改延迟。
 
 ### 7.3 一次性代理初始化
 
@@ -775,16 +722,16 @@ TimelockController 继承的 `updateDelay(uint256 newDelay)` selector 也存在�
 
 | 代理 | 初始化入口 |
 | --- | --- |
-| Registry | `initialize(address authority, address timelock, address controller)` |
-| VolumeLedger | `initialize(address authority, address timelock, address controller, address registry, uint32 dayStartOffsetSeconds)` |
-| DataInbox | `initialize(address authority, address timelock, address controller, address registry, address ledger)` |
-| Hook | `initialize(address authority, address timelock, address controller, address poolManager, address registry, address ledger, address router, address lpManager)` |
-| SwapRouter | `initialize(address authority, address timelock, address controller, address poolManager, address registry, address ledger)` |
-| LPManager | `initialize(address authority, address timelock, address controller, address poolManager, address registry)` |
+| Registry | `initialize(address anchor)` |
+| VolumeLedger | `initialize(address anchor, address registry, uint32 dayStartOffsetSeconds)` |
+| DataInbox | `initialize(address anchor, address registry, address ledger)` |
+| Hook | `initialize(address anchor, address poolManager, address registry, address ledger, address router, address lpManager)` |
+| SwapRouter | `initialize(address anchor, address poolManager, address registry, address ledger)` |
+| LPManager | `initialize(address anchor, address poolManager, address registry)` |
 
 ### 7.4 ABI 范围说明
 
-本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Hook 在 `afterSwap` 调用 LegalShareAdapter 的 `toLegalShares(...)` 并调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`；以及 Timelock/Anchor 在恢复和初次绑定期间调用的 `bindBusinessAuthority(...)`、`bindEmergencyController(...)`、`bindGovernanceAnchor(...)`、`activateGovernanceAnchor(...)`、`nominateGovernanceAnchor(...)`、`syncGuardian(...)`、`recoverGovernor(...)`、`setGovernor(...)`、`setGuardian(...)`。Adapter 的直接换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Timelock 执行时的人类治理目标函数已在 §4.2 单独标为 Timelock 目标调用。
+本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Hook 在 `afterSwap` 调用 LegalShareAdapter 的 `toLegalShares(...)` 并调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`。Adapter 的直接换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Governor 的升级与 Guardian 的统一开关入口见 §4.2。
 
 LP Receipt 继承的转移/授权 selector 虽在 ABI 中存在，但会回滚，见 §2.6。部署工厂 `TSVHookProxyFactory.predict(address implementation, bytes initData, bytes32 salt)` / `deploy(address implementation, bytes initData, bytes32 salt)` 属于部署工具，不属于交易、运营或治理业务入口。
 
@@ -794,5 +741,5 @@ LP Receipt 继承的转移/授权 selector 虽在 ABI 中存在，但会回滚�
 - [当前 ABI 与编码规则](./CODING_SPEC_V1.md)
 - [代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)
 - [测试与验收规格](./TEST_SPEC_V1.md)
-- [部署、发布与治理根迁移清单](./DEPLOYMENT_CHECKLIST_V1.md)
+- [部署、发布与治理身份恢复清单](./DEPLOYMENT_CHECKLIST_V1.md)
 - [实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)

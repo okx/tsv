@@ -1,0 +1,51 @@
+{
+  "chainId": 196,
+  "block": 72271000,
+  "blockHash": "0x166268472881348e8a50763787b5447abec2949c21855cc139f64365143e2dbd",
+  "rpc": "https://rpc.xlayer.tech",
+  "router": "0x7c5bee2a8091c3ef39072f64f18fac913060aeaf",
+  "version": "v1.0.10-rfq-anti-arbitrage",
+  "abiSource": "https://github.com/okxlabs/Web3-DEX-Router-EVM-V1/tree/1fc1508df3caeb18a8179dfc0ea4e956099ab481",
+  "contracts": [
+    {
+      "address": "0x7c5bee2a8091c3ef39072f64f18fac913060aeaf",
+      "codehash": "0x7766cf8785ca58e8da2204bf28f5b5cb2da420e1dbad4f5b88828a7c768da885",
+      "kind": "router"
+    },
+    {
+      "address": "0x6960308951bdb3ec525f909fbfef5b878dc706ac",
+      "codehash": "0xc06ecb2112462d9e226af6241fe6b4ae4df4949c9ed942c398acc8da4633b6bb",
+      "kind": "execution module"
+    },
+    {
+      "address": "0xe508a5bf6d01059ff08a5c6176cd7bb4c5d8b981",
+      "codehash": "0x0e380751e312aaef6cab5ef5fbbf7d0d95c2815accd37017d886d55366caabb4",
+      "kind": "execution module"
+    },
+    {
+      "address": "0x0d3aaedce40e2fec55f89c5f488d88e51dadf394",
+      "codehash": "0x13503fbaed37543dd22481ffa645e59cffaa5f59197df3d95da849ab191a9525",
+      "kind": "execution module"
+    },
+    {
+      "address": "0xd68d266765dc4709ee3245ea26a8000c8de9a63c",
+      "codehash": "0x68d976d471d08596d99fc2c734383ce9325108fd95160e7f030306263f80fcf5",
+      "kind": "execution module"
+    },
+    {
+      "address": "0xf4f2d082546e6be6da334e7e9af45ce8b440495c",
+      "codehash": "0x56e6889837edf83566f6eb7bc9be7f88cf3ca10218c6506c9fc823a7e61957a4",
+      "kind": "execution module"
+    },
+    {
+      "address": "0xfad6a9eee5b32e9b81bb217baef37742b2ca5b83",
+      "codehash": "0x09df377864a9c2e1adeae0ff142297ddfd99e6464861e45b0c7716253d5f0c4f",
+      "kind": "approval proxy"
+    },
+    {
+      "address": "0x8b773d83bc66be128c60e07e17c8901f7a64f000",
+      "codehash": "0x69c96ed2d046e83e322c31cbc8c0943dbad47bc7cc31d1f8760921c47b0d7671",
+      "kind": "token approval"
+    }
+  ]
+}

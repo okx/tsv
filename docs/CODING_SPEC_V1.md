@@ -1,6 +1,6 @@
 # TSV V1 合约编码规格
 
-版本：1.7，2026-10-03。本文记录**当前源码 ABI**、已实现/未冻结规则，接口以 `src/v1/` 为准。交易、运营、治理流程及直接入口总览见[三系统总览](./SYSTEMS_OVERVIEW.md)。[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)是资产分类、结算能力与计股能力的规范，并集中说明 wTSLAx、未接入股数 Adapter 的 ERC-8056 测试夹具及公司行动边界；当前 V1 每侧只直接收付该侧 Currency。系统设计理由见[主架构](./CONTRACT_ARCHITECTURE.md)，未编码和未冻结之处见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
+版本：1.10，2026-10-04。本文记录**当前源码 ABI**、已实现/未冻结规则，接口以 `src/v1/` 为准。交易、运营、治理流程及直接入口总览见[三系统总览](./SYSTEMS_OVERVIEW.md)。[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)是资产分类、结算能力与计股能力的规范，并集中说明 wTSLAx、未接入股数 Adapter 的 ERC-8056 测试夹具及公司行动边界；当前 V1 每侧只直接收付该侧 Currency。系统设计理由见[主架构](./CONTRACT_ARCHITECTURE.md)，未编码和未冻结之处见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
 
 | 位置 | 阅读方式 |
 | --- | --- |
@@ -107,7 +107,7 @@ Registry 使用 `mapping(address poolCurrency => TokenConfig)`；不再维护用
 
 **当前唯一实现：**`BackedAutoFeeLegalShareAdapter` 绑定发行方来源 Token 与池内 Wrapped Currency；构造时要求 Wrapped `asset()` 等于来源 Token，双方 `decimals() == 18`。每次 `toLegalShares` 调用都执行来源 Token 的 `getUnderlyingAmountByShares(rawShares)`。因此适配器不复制 multiplier 公式，也不缓存参数快照；成交采用该源方法在本次回调时返回的值。wTSLAx 场景中的源码实现为 `floor(wrappedShares × currentMultiplier / 1e18)`，但股数口径是否得到发行方与法务认可仍是生产准入条件。零 raw 输入返回零，正 raw 若来源方法返回零则回滚。其他 Adapter 实现不属于当前 V1 代码；新增发行方适配器应在单独评审后扩展。
 
-前端展示用户当前持有股数时，仍须按发行方批准的**账户权益**规则读取与计算。当前接口不提供从 legal shares 反算 raw Token 数量的函数；前端报价与 `SwapRequest`/`LPBounds` 继续使用 raw 数量。法律股数单位切换仍须暂停整个 `securityId`，按[准入标准的公司行动流程](./TOKEN_ADMISSION_STANDARD_V1.md)等待新单位 ADTV/quota 就绪后恢复，不能把新旧单位混入同一日额度。
+前端展示用户当前持有股数时，仍须按发行方批准的**账户权益**规则读取与计算。当前接口不提供从 legal shares 反算 raw Token 数量的函数；前端报价与 `SwapRequest`/`LPBounds` 继续使用 raw 数量。拆并股额度按 §7 D-37 的独立系数在未来计量日开始时切换；实际成交仍按 Adapter 实时换算。发行方单位不确定或日内突变时，按[准入标准的公司行动流程](./TOKEN_ADMISSION_STANDARD_V1.md)暂停受影响资产，不能把新旧法律单位混入同一日累计量。
 
 股票输入腿取 PoolManager caller `BalanceDelta` 的绝对含费总支出，输出腿取净收到量；准入池每笔 Swap 最多一条股票腿，按其实际方向计股。LP 操作和 `take/settle` 不调用成交记账。每笔 `legalSharesWad` 必须大于零，历史日累计量不因 multiplier、Adapter 或 Tier 后续变化而重算。
 
@@ -214,7 +214,7 @@ function forceExit(
 
 ## 7. 角色报告、计量日和额度
 
-**当前规则：**旧 SIP 日历、`TradeDayReport`、窗口追加/替换和逐日必填 quota 均不属于当前 ABI，仅在历史评审资料中保留。当前 DataInbox 接受 `MarketReport`、单条 `AdtvReport`、批量 `AdtvReport[]` 和带 `action` 的 `QuotaReport`；报告不使用 EIP-712、签名或任意 relayer 代提，`msg.sender` 必须直接持有对应的 `HALT_REPORTER_ROLE` 或 `VOLUME_ORACLE_ROLE`。`sequence`、`reportId`、`sourceTimestamp` 和 `submitDeadline` 仍用于顺序、去重、来源审计和提交时限，不是签名机制。Swap 由 participant 直接调用 Router。当前计量日由 VolumeLedger 根据 UTC 起点自动计算，不需要提交日历，也不需要心跳交易。
+**当前规则：**旧 SIP 日历、`TradeDayReport`、窗口追加/替换和逐日必填 quota 均不属于当前 ABI，仅在历史评审资料中保留。当前 DataInbox 接受 `MarketReport`、单条 `AdtvReport`、批量 `AdtvReport[]` 、带 `action` 的 `QuotaReport` 和 `SplitFactorReport`；报告不使用 EIP-712、签名或任意 relayer 代提，`msg.sender` 必须直接持有对应的 `HALT_REPORTER_ROLE` 或 `VOLUME_ORACLE_ROLE`。`sequence`、`reportId`、`sourceTimestamp` 和 `submitDeadline` 仍用于顺序、去重、来源审计和提交时限，不是签名机制。Swap 由 participant 直接调用 Router。当前计量日由 VolumeLedger 根据 UTC 起点自动计算，不需要提交日历，也不需要心跳交易。
 
 月度 ADTV 使用 `submitAdtvBatch(AdtvReport[] reports)` 批量入口。一个批次内所有报告必须属于同一 `sourceMonth`，`securityId` 必须按严格递增顺序排列且不得重复，批次长度为 `1..MAX_ADTV_BATCH_SIZE`（当前为 100），且整批由当前 `msg.sender` 以 `VOLUME_ORACLE_ROLE` 直接提交。批次采用全有或全无语义：任一报告无效，整笔交易回滚，不留下已接受的 ADTV、序号或 reportId。75 个证券的月度 ADTV 可由一笔批量交易提交；单条 `submitAdtv` 继续用于补发和纠错。批量提交不改变单报告的版本、序号、来源时间或截止时间规则。
 
@@ -223,7 +223,7 @@ function forceExit(
 1. 对每个 `(securityId,tradeDayId)` 保存 `QuotaOverride { uint256 quotaWad; bool active; uint64 version; bytes32 reportId; }`。从未提交、或已显式清除覆盖时，`active=false`；不能用 `quotaWad == 0` 判定 ADTV 缺失。新 TSV 计量日默认没有覆盖，不继承前一日状态。
 2. `QuotaReport` 增加 `uint8 action`，只允许 `SET=1` 或 `CLEAR=2`。Solidity 字段顺序为 `bytes32 securityId,uint32 tradeDayId,uint8 action,uint256 quotaWad,uint64 sourceTimestamp,uint64 submitDeadline,uint64 version,uint64 sequence,bytes32 reportId,bytes32 sourceHash`；没有 `signer` 字段或签名参数。`SET` 要求证券已登记、该日所需 ADTV 已存在、`0 < quotaWad <=` 提交时的硬上限；`CLEAR` 要求原覆盖处于 active 且 `quotaWad == 0`。两者都要求该 key 的 version 严格加一、报告 ID 唯一、报告来源序号递增，发出包含 action、值、版本、reportId 的事件。不能把零配额当作暂停；暂停仍走 §8。
 3. 每次 Swap 必须有按 D-34 自动算出的当前计量日、适用 ADTV、有效股票资产和已初始化且未暂停交易的市场状态。`hardCapWad == 0` 时拒绝；当日 `active=false` 时 `effectiveCapWad=hardCapWad`，否则 `effectiveCapWad=min(hardCapWad,quotaWad)`。要求 `usedWad[securityId][tradeDayId] + legalSharesWad <= effectiveCapWad`；`remaining` 在无覆盖但 ADTV 有效时返回有效及 `max(0,hardCapWad-usedWad)`。同日 SET/CLEAR 从成功提交交易之后影响后续 Swap，不修改已计成交或已用量；低于已用量时后续 Swap 失败。
-4. 同一计量单位内，ADTV/Tier 更正后始终重新计算硬上限并取 `min`，既有覆盖值不能使有效上限超过新硬上限；上调硬上限不会自动解除较低的覆盖值。公司行动改变股数单位时仍须先暂停并执行[准入标准的单位切换流程](./TOKEN_ADMISSION_STANDARD_V1.md)，不能拿不同单位的数值取 `min`。
+4. 硬上限为 `floor(adtvWad × tierBps × numerator / (10000 × denominator))`，系数见 D-37，整条公式仅向下取整一次。ADTV/Tier/系数变化后重新计算并取 `min`，既有覆盖不能超过新硬上限；上调硬上限不会自动解除较低覆盖。quota 是目标计量日单位下的绝对值，不随拆股系数再乘一次；运营应在排期时复核，按需 SET/CLEAR。
 5. 本版 `DataInbox` 完全移除报告签名机制。升级时必须同步切换 ABI、角色运营脚本、索引器和 Ledger；旧版待提交的签名报告不再有入口，已接受的 `reportId`、序号和账本状态保持不变。D-34 同版移除日历报告依赖。
 
 **D-34：每个日期都是独立 TSV 计量日，日切点按未来排期更新；当前 `src/v1/` 已实现以下规则。**
@@ -232,7 +232,7 @@ function forceExit(
 2. 对 UTC 日期 D，定义 `midnightUTC(D) = ordinal(D) * 86400`，`startUTC(D) = midnightUTC(D) + offsetFor(D)`，`endUTC(D) = startUTC(D+1)`。`offsetFor(D)` 为最大 `effectiveDayId <= D` 的已排期配置值，若无则为初始值。设 `N = UTCDate(block.timestamp / 86400)`；若 `block.timestamp >= startUTC(N)`，当前 `tradeDayId=N`，否则为 N 的前一日期。实现须使用覆盖闰年、月末、年末的公历整数转换，校验日期范围；不能直接把 Unix 日数强转成 `YYYYMMDD`。Ledger 在一次记账中计算日 ID，并用于额度、ADTV 源月及可选配额；Router 在 unlock 完成后再次读取当前日，仅用于 Swap 事件。`sourceMonth` 是 Ledger 所用 ID 所在月的上一自然月。`currentTradeDay()` 可保留现有 `(bool,uint32)` ABI，但初始化后的 `exists` 恒为 true，不再要求当前／下一窗口。
 3. 治理入口 `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId,bytes32 reasonHash)` 只允许当前业务 Governor；`newOffsetSeconds < 86400`、`newOffsetSeconds != oldOffsetSeconds`、`abs(newOffsetSeconds - oldOffsetSeconds) <= 14400`、`reasonHash != 0`。初始起点可设为任意 UTC 日内秒数，**运行中每次最多变更四小时**。只允许一个待生效配置；新 `effectiveDayId` 必须晚于最后一次生效日，并且排期交易发生时，`effectiveDayId` 的前一个计量日按**当前已排期规则**尚未开始。Ledger 用链上公历算法算出前一日的开始时刻并要求 `block.timestamp < startUTC(D-1)`。不得排期使当前或过去计量日的开始/结束改变。事件记录旧/新秒数、D、过渡日 ID、过渡日新结束 UTC、操作者与 `reasonHash`。生效只看区块时间，无额外激活交易。
 4. 排期一次由旧起点 `oldOffset` 改到 `newOffset` 时，只有 D-1 是过渡日，长度精确为 `86400 + newOffset - oldOffset` 秒，且在 20–28 小时范围内；此前及 D 以后均为 86400 秒。治理可在 D-1 开始**之前**取消这次尚未生效的排期并发出取消事件；D-1 一旦开始，配置锁定，不能取消或替换。生效后可为更晚日期排下一次变更；历史配置和计量日边界须永久可读。对查询日 D 的配置按生效日有序检查点选择，不能以后一次配置重算历史。较长或较短的过渡日仍只有**一份完整日硬上限**，不得按小时比例放大或缩小；已提交的 D-1/D 配额继续按原日 ID 生效，运营方在排期时复核。
-5. 当前实现已移除 `TradeDayReport`、`DAY_TYPEHASH`、`submitTradeDay`、`replaceFutureWindows`、`appendWindow`、`windowCount/getWindow` 以及旧 Ledger 的窗口门禁。`DataInbox` 仅处理 Market、ADTV、Quota 三类报告。由于本部署没有旧 SIP 日账，部署直接初始化自动日切状态，不实现旧窗口到账本的历史转换；新 ABI、角色运营脚本、索引器和部署清单必须一起发布。
+5. 当前实现已移除 `TradeDayReport`、`DAY_TYPEHASH`、`submitTradeDay`、`replaceFutureWindows`、`appendWindow`、`windowCount/getWindow` 以及旧 Ledger 的窗口门禁。`DataInbox` 处理 Market、ADTV、Quota、SplitFactor 四类报告。由于本部署没有旧 SIP 日账，部署直接初始化自动日切状态，不实现旧窗口到账本的历史转换；新 ABI、角色运营脚本、索引器和部署清单必须一起发布。
 
 当前 Ledger 日切 ABI 与事件为：
 
@@ -251,7 +251,43 @@ event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator,
 
 `cancelPendingDayStart` 仅允许当前业务 Governor、非零原因哈希，且待生效配置的 D-1 尚未开始；取消后最后一个有效检查点仍用于后续计算，已生效检查点不可删除。检查点按生效日递增存储，查询可用二分搜索，当前交易日读取不得线性遍历全部历史变更。`dayStartUTC` 对非法公历日期或超出可表示范围回滚。`dayStartCheckpoint` 返回已生效及待生效的有效检查点，不返回已取消项；取消事件保留审计记录。初始 offset 通过单独 getter 暴露，且不依赖后续治理事件重建。
 
-**当前代码**的 `VolumeLedger.recordSwap(poolId,delta0,delta1,legalShares0,legalShares1)` 只允许固定 Hook 调用。Ledger 从 Registry 读取两侧 Currency、securityId 和 Adapter 元数据；非股票侧必须传入零 shares，股票侧必须传入非零 shares，并验证 Token 的证券、Adapter 地址及版本配置。Adapter 的转换函数只由 Hook 在本回调之前调用，Ledger 信任固定 Hook 传来的 shares，不再读取或执行 Adapter。Ledger 从区块时间和日切检查点确定计量日，读取适用 ADTV 与可选 quota 覆盖，并要求 `used + charge <= effectiveCapWad`。源码逐侧处理 delta，但 Registry 建池门禁使双股票分支不可用于新池。任一必需输入缺失、交易停牌、交易暂停、零股或超额，整笔交易回滚。Ledger 不向 DataInbox 提供写 `used` 的入口。
+**D-37：拆并股系数只在未来计量日开始自动生效。**保留 `AdtvReport.adtvWad` 为上月日均成交量及现有 Tier rate，不改为上月总成交量。拆股/并股按精确正分子/分母调整硬上限，默认 `1/1`，无额外激活交易。
+
+```solidity
+struct SplitFactorReport {
+    bytes32 securityId;
+    uint32 sourceMonth;
+    uint32 effectiveTradeDayId;
+    uint8 action;
+    uint128 numerator;
+    uint128 denominator;
+    uint64 sourceTimestamp;
+    uint64 submitDeadline;
+    uint64 version;
+    uint64 sequence;
+    bytes32 reportId;
+    bytes32 sourceHash;
+}
+// DataInbox: VOLUME_ORACLE_ROLE directly submits; kind = 3.
+function submitSplitFactor(SplitFactorReport calldata report) external;
+// Ledger: fixed DataInbox is the only writer.
+function acceptSplitFactor(SplitFactorReport calldata report) external;
+function splitFactorOf(bytes32 securityId, uint32 tradeDayId) external view returns (uint128 numerator, uint128 denominator);
+function splitFactorVersion(bytes32 securityId, uint32 sourceMonth) external view returns (uint64);
+function splitFactorCheckpointCount(bytes32 securityId, uint32 sourceMonth) external view returns (uint256);
+function splitFactorCheckpoint(bytes32 securityId, uint32 sourceMonth, uint256 index) external view returns (SplitFactorCheckpoint memory);
+struct SplitFactorCheckpoint { uint32 effectiveTradeDayId; uint128 numerator; uint128 denominator; bytes32 reportId; }
+```
+
+1. `effectiveTradeDayId` 为合法 `YYYYMMDD` 且必须严格晚于当前计量日；可以选择任意未来日，无法设置当天、历史日或日内时刻。`sourceMonth` 必须等于目标日的前一自然月。生效时刻为 `dayStartUTC(effectiveTradeDayId)`，不是固定 UTC 午夜。日切排期改变后，系数仍随同一日 ID 开始；更改未来 offset 时须复核公告时间。来源时间/提交截止时间只约束提交，不决定生效。
+2. 因子是**相对该来源月 ADTV 单位的绝对累计系数**，不是相对前一检查点的增量。例如先一拆二、再一拆三，同月报告 `2/1`、`6/1`；不是 `2/1`、`3/1`。SET=1 时分子/分母非零，合约约分。按目标日递增追加，只有最后一个尚未开始的检查点可同日更正；要修改更早待生效项，先依次取消后面的待生效项。CANCEL=2 只取消最后一项、指定同一日且两比例字段为零；生效后不得更正/取消。历史保留，查询按来源月二分选择目标日最近检查点，每月最多 31 项。
+3. `version` 在 `(securityId,sourceMonth)` 内严格加一，取消也消耗版本；`sequence` 在 `(kind=3,securityId)` 内递增，换月不重置。沿用 DataInbox 全局 reportId 唯一、来源时间不倒退、非零来源摘要及 freshness/deadline 校验；失败整笔回滚，不占用 ID/版本/序号。
+4. 报告服务须固定来源月 ADTV 的基准单位为该月结束时的股数单位；同月数据更正保持这一基准，不能再把已排期的比例乘入 ADTV。换用新来源月时，已体现在该月基准中的事件不再排期，默认系数恢复 `1/1`。例如九月 ADTV=1000、Tier=25bps，十月一拆二后日限额=5；十月 ADTV=2000 已使用月末新单位，十一月默认系数 1，限额仍为5。无法确认基准单位时不得盲目提交。
+5. 可以先排期再上报 ADTV，但缺 ADTV 仍阻止 Swap。SET 及 ADTV 更正验证已存每个因子在 Tier=10000bps 时可表示，避免未来 Tier 上调产生算术溢出；超范围拒绝且状态回滚。Tier/ADTV 的正常更正仍参与实时硬上限。
+6. 切换发生在新计量日，新日用量独立累计，历史 `usedWad`、ADTV、LP 仓位不改写。可选 quota 继续是目标日绝对上限。系数功能控制额度生效时间，不替代来源 Token/Adapter 的实时成交计股、不修改外部 Token、不自动识别其法律单位；这一边界和异常暂停流程见准入标准 §4。
+7. Ledger 两个新 mapping 仅追加在旧日切字段之后；Inbox 不新增存储。已有实例升级须核对旧布局并协调发布 Ledger/Inbox ABI，建议同一 Anchor 原子批量升级二者。新旧混合阶段不能提交新系数报告；升级不重置原 ADTV、quota、used、角色或报告去重状态。
+
+**当前代码**的 `VolumeLedger.recordSwap(poolId,delta0,delta1,legalShares0,legalShares1)` 只允许固定 Hook 调用。Ledger 从 Registry 读取两侧 Currency、securityId 和 Adapter 元数据；非股票侧必须传入零 shares，股票侧必须传入非零 shares，并验证 Token 的证券、Adapter 地址及版本配置。Adapter 的转换函数只由 Hook 在本回调之前调用，Ledger 信任固定 Hook 传来的 shares，不再读取或执行 Adapter。Ledger 从区块时间和日切检查点确定计量日，读取适用 ADTV、拆并股系数与可选 quota 覆盖，并要求 `used + charge <= effectiveCapWad`。源码逐侧处理 delta，但 Registry 建池门禁使双股票分支不可用于新池。任一必需输入缺失、交易停牌、交易暂停、零股或超额，整笔交易回滚。Ledger 不向 DataInbox 提供写 `used` 的入口。
 
 ## 8. 暂停与准入状态
 
@@ -267,58 +303,45 @@ event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator,
 
 ## 9. 代理、角色和升级
 
-TSV 自有业务合约使用 UUPS 实现和 ERC-1967 代理；Hook 最终**代理地址**的低 14 位必须与固定 V4 回调权限匹配。`TSVERC1967Proxy` 继承仓库固定的 OZ `ERC1967Proxy`，在代理自身实现 `tsvImplementation()` 读取 ERC-1967 实现槽，该 selector 不能被业务实现复用。CREATE2 工厂挖掘的是代理创建字节码与初始化参数的最终地址。Hook 的回调权限和代理地址一经建池不得变化；升级只能替换逻辑。所有实现禁止直接初始化。
+TSV 自有业务合约使用 UUPS 实现和 ERC-1967 代理。Hook 最终代理地址的低 14 位必须匹配 V4 回调权限；建池后代理地址与 PoolId 保持不变，升级只替换逻辑。`TSVERC1967Proxy.tsvImplementation()` 直接读取 ERC-1967 实现槽，业务实现不得复用该 selector。实现合约禁止直接初始化。
 
-`TSVBusinessAuthority` 为非代理合约，保存一个 `governor` 地址和不可变 `upgradeTimelock`；六代理经固定 Anchor 动态读取当前 Authority 判断 `DEFAULT_ADMIN_ROLE`，不得留静态旧管理员。各业务角色的持有人是单独地址，合约只核对 `msg.sender` 的地址/角色，不检查这些地址背后的多签成员和门槛。Governor 可即时配置业务角色与参数；UpgradeTimelock 不持有业务角色。`_authorizeUpgrade` 只接受 UpgradeTimelock 或事故升级控制器，不接受业务管理员。
+**常规升级一笔完成。**当前 Governor 直接调用业务代理的 `upgradeToAndCall(newImplementation, initData)`，同笔切换实现并执行可选初始化；失败时实现槽、初始化写入和其他状态全部回滚。TimeLock、升级排期、延迟和专用 Executor 已移除。业务运营角色、Guardian 和 RecoveryCouncil 无权直接升级代理。
 
-**D-35 当前实现。**六个业务代理通过固定 GovernanceAnchor 读取当前治理根；完整 ABI 与迁移状态机见本节接口定义。治理根迁移的执行顺序见[部署清单 §9](./DEPLOYMENT_CHECKLIST_V1.md#9-治理根迁移)，目标链证据见[实现状态](./IMPLEMENTATION_STATUS_V1.md)。
+多个代理需一起升级时，Governor 调用 `anchor.upgradeBatch(targets, implementations, initData)`。三个数组必须等长且长度为 1–6；目标必须是 Anchor 已绑定的六代理成员、不得重复，实现必须有代码。按数组顺序执行 UUPS 升级及初始化，任一步失败整批回滚。批次中的初始化 `msg.sender` 为 Anchor；候选初始化函数必须允许该调用者，并可通过 `governanceAnchor.upgradeContextActive()` 验证批次上下文。代理仅在该上下文中接受 Anchor 升级；上下文之外 Anchor 无权直接升级。
 
-业务 `AccessControl` 的角色常量固定为 `keccak256("SYMBOL_ADMIN_ROLE")`、`keccak256("POOL_CREATOR_ROLE")`、`keccak256("HALT_REPORTER_ROLE")`、`keccak256("VOLUME_ORACLE_ROLE")`、`keccak256("EMERGENCY_PAUSER_ROLE")`、`keccak256("EMERGENCY_RESUMER_ROLE")`、`keccak256("REVOKE_EXIT_EXECUTOR_ROLE")`、`keccak256("FORCE_EXIT_ADMIN_ROLE")`，对应本文去掉 `_ROLE` 后缀的角色称呼。各业务合约覆写 `hasRole(DEFAULT_ADMIN_ROLE,account)`，只在 `account == BusinessAuthority.governor()` 时返回真；禁止经公开或内部授撤入口改变此根角色，其他业务角色仅由当前 Governor 授撤。`Registry.hasCredential(owner)` 只读全局配置的 `verify(owner,tokenId)`，不把 SBT 的全局 `paused()` 解释为凭证缺失；普通用户入口另外检查 `!paused()`。读取 SBT 失败时调用回滚，不将故障解释为无凭证。
+`TSVGovernanceAnchor(governor, guardian, recoveryCouncil)` 是唯一、不可升级的治理合约，直接保存 Governor、Guardian、不可变 Council 和全局升级开关。三种身份必须非零且彼此不同。独立 Authority 和治理根迁移已移除；六代理只存固定 Anchor 地址，通过 `governanceAnchor.governor()` 判断 `DEFAULT_ADMIN_ROLE` 与升级权。业务角色由当前 Governor 授撤，默认管理员不得通过公开或内部 `grantRole/revokeRole/renounceRole` 改变。Anchor 构造时设置身份，无后续治理组件绑定交易。
 
-`TSVUpgradeTimelock` 继承仓库固定 OZ `TimelockController`：父类 `minDelay` 初始化为 0；`updateDelay` 恒回滚；每笔普通 `schedule` 的 `delaySeconds` 原样传给父类，可为 0 或任意父类可表示的 `uint256`，不增加最小/最大规则。Governor 和 RecoveryCouncil 都必须持父类 `PROPOSER_ROLE`，但覆写 `schedule`：Governor 只能排期普通操作，RecoveryCouncil 只能排期下段定义的精确受保护恢复，任何其他 proposer 一律回滚。覆写 `scheduleBatch` 只接受 Governor 且拒绝任何受保护恢复 selector。Executor 地址或开放执行标志来自部署清单，并始终额外授予 RecoveryCouncil `EXECUTOR_ROLE`，保证受保护恢复能由 Council 自行执行。Guardian 是唯一外部 `CANCELLER_ROLE` 持有人；部署时撤销父类构造过程给予两个 proposer 的 canceller。父类 `DEFAULT_ADMIN_ROLE` 最终只留给 Timelock 自己。覆写 `grantRole/revokeRole/renounceRole`，禁止外部入口改变 `DEFAULT_ADMIN_ROLE/PROPOSER_ROLE/CANCELLER_ROLE/EXECUTOR_ROLE`；受保护恢复内部才可用 `_grantRole/_revokeRole` 轮换固定 proposer/canceller。Governor 的普通排期不能调用 `recoverAuthorities`，也不能通过自调用任意改变这些角色。普通执行仍使用父类 `execute/executeBatch` 的 operationId、predecessor、salt 与 ready 时间规则。
+业务角色常量固定为 `keccak256("SYMBOL_ADMIN_ROLE")`、`keccak256("POOL_CREATOR_ROLE")`、`keccak256("HALT_REPORTER_ROLE")`、`keccak256("VOLUME_ORACLE_ROLE")`、`keccak256("EMERGENCY_PAUSER_ROLE")`、`keccak256("EMERGENCY_RESUMER_ROLE")`、`keccak256("REVOKE_EXIT_EXECUTOR_ROLE")`、`keccak256("FORCE_EXIT_ADMIN_ROLE")`。治理与运营身份只核对地址/角色，不读取多签内部成员或门槛。`Registry.hasCredential(owner)` 只读 SBT 的 `verify(owner,tokenId)`；普通用户入口另检查 SBT 未暂停，读取失败时回滚。
 
-事故升级控制器非代理，初始 `frozen=true`，保存 Governor、Guardian、六个已绑定 TSV 业务代理的允许状态与已使用 `upgradeActionId`。`setUpgradeTarget(proxy,allowed)` 仅 Timelock 普通操作可调用；Controller 从 Timelock 的已绑定 Anchor 读取六代理名单。候选治理根迁移时，Controller 只接受 `nominatedAnchor` 指向当前仍绑定在旧 Timelock 上的 Anchor，再从该 Anchor 读取名单；未绑定名单或任意其他代理均回滚。`executeEmergencyUpgrade(proxy,newImplementation,initData,incidentId,upgradeActionId,reasonCode,evidenceHash)` 仅 Governor 且未冻结时可调用；目标必须仍属于 Anchor 的六代理名单且已获允许，实现有代码、行动 ID/证据非零且未用，先读代理 `tsvImplementation()`，调用 UUPS `upgradeToAndCall`，再要求代理实现地址为提交地址并记录旧新实现地址及证据哈希；代码哈希由发布清单独立核对。它不能转发任意目标调用。`freezeEmergencyUpgrades(incidentId,reasonHash,freezeSalt)` 仅 Guardian 且当前未冻结；递增 epoch，`freezeId = keccak256(abi.encode(block.chainid,address(this),epoch,guardian,incidentId,freezeSalt))`；`unfreezeEmergencyUpgrades(expectedFreezeId,evidenceHash)` 仅 Timelock 普通操作，必须匹配当前 freezeId。冻结只阻断事故即时升级，不自动停止普通排期或业务交易。
+**统一升级冻结。**事故升级控制器及其独立入口已移除。Anchor 初始 `upgradesFrozen=false`；只有当前 Guardian 可 `freezeUpgrades(reasonHash)` 和 `unfreezeUpgrades(expectedFreezeId,evidenceHash)`。冻结原因、解冻证据必须非零；每次冻结递增 `freezeEpoch` 并生成唯一 `freezeId`，重复冻结、未冻结时解冻或 ID 不匹配均拒绝。六代理在共用 `_authorizeUpgrade` 中检查固定 Anchor 的冻结状态，Anchor 批量入口也先检查；冻结后所有单代理及批量升级回滚，包括尚未绑定六代理名单的同 Anchor 代理。Governor、Council 和业务角色均不能解冻。冻结只控制升级，不暂停 Swap、LP、强退、业务配置或身份恢复。身份恢复保留 `upgradesFrozen`、`freezeEpoch`、`freezeId`；Guardian 轮换后只有新 Guardian 可显式解冻。开关生效以链上交易执行顺序为准，不能撤销此前已完成的升级。
 
-独立 RecoveryCouncil 仅能排期 `target == Timelock`、`value == 0`、`predecessor == 0`、精确 `recoverAuthorities(newGovernor,newGuardian,evidenceHash)` calldata 的单项操作；由 Council 为该笔指定 `delaySeconds`，可为 0；`scheduleBatch` 一律拒绝 Council。新身份须非零、彼此不同、都不同于 RecoveryCouncil，且不得将旧 Guardian 直接作为新 Governor 或旧 Governor 直接作为新 Guardian；交叉轮换可经中间独立地址分两笔恢复。Timelock 对该 operationId 标记 `protectedRecovery=true`。执行该 ID 时覆写 `execute`，先核对目标、payload、predecessor、保护标记和当前 Guardian 对该 operationId 的批准，仅在父类执行该 payload 的动态范围内设置与 ID 绑定的 `recoveryContext`，调用完成后清除；`executeBatch` 不得执行含受保护 selector 的批次。`recoverAuthorities` 同时要求 `msg.sender == address(this)` 和上下文 ID 有效，原子更新控制器、BusinessAuthority 以及 Timelock proposer/canceller，失败整笔回滚。Governor 排期同 selector 被覆写入口拒绝。Guardian 的 `cancel` 对受保护 ID 回滚，但可以 `approveRecovery` 或 `revokeRecoveryApproval` 控制执行；对普通 Waiting/Ready ID 调父类；已执行操作不可取消。恢复不自动解冻，旧 Governor 的普通业务授权在根切换后立即失效。RecoveryCouncil 自身地址固定，无普通更换入口。
+**身份恢复。**Council 调用 `proposeRecovery(newGovernor,newGuardian,salt,evidenceHash)`，当前 Guardian 对同一 ID 批准后，任意地址可 `executeRecovery(id)`。Guardian 可撤回批准；只有 Council 可取消提案。新身份非零、彼此不同、不同于 Council，不得交叉等于旧 Guardian/Governor，且至少一个身份变化。提案绑定 chainId、Anchor、epoch、guardianEpoch、候选身份、salt 和证据。执行只在当前两个 epoch 有效，在 Anchor 内直接更新 Governor/Guardian，不调用外部治理组件，不提供直接 setter。每次成功递增 epoch；Guardian 变化还递增 guardianEpoch，使旧批准失效。恢复不自动解冻，固定 Anchor、六代理地址和业务状态保留，旧身份立即失去对应权限。批量升级执行期间拒绝身份恢复。Council 地址固定。
 
-治理专用写入口 ABI 固定为：
+**D-35 已移除。**不再提供治理组件更换或根迁移。治理身份恢复、升级和冻结步骤见[部署清单 §9](./DEPLOYMENT_CHECKLIST_V1.md#9-治理身份恢复和升级)。
 
 ```solidity
-// TSVUpgradeTimelock；schedule/scheduleBatch/execute/executeBatch/cancel 沿用 OZ 5.5.0 ABI
-function bindBusinessAuthority(address authority) external;
-function bindEmergencyController(address controller) external;
-function bindGovernanceAnchor(address anchor) external;
-function nominateGovernanceAnchor(address anchor) external;
-function activateGovernanceAnchor(address anchor) external;
-function approveRecovery(bytes32 operationId) external;
-function revokeRecoveryApproval(bytes32 operationId) external;
-function recoverAuthorities(address newGovernor, address newGuardian, bytes32 evidenceHash) external;
-function recoveryContextActive() external view returns (bool);
-// TSVGovernanceAnchor；六代理顺序为 Registry, Ledger, DataInbox, Hook, Router, LPManager
+// 六代理共用的 UUPS 入口：当前 Governor 直接调用
+function upgradeToAndCall(address newImplementation, bytes calldata initData) external payable;
+// TSVGovernanceAnchor；代理顺序为 Registry, Ledger, DataInbox, Hook, Router, LPManager
+function governor() external view returns (address);
+function guardian() external view returns (address);
+function recoveryCouncil() external view returns (address);
 function bindProxies(address[6] calldata proxies) external;
-function proposeRoot(address newTimelock, address newAuthority, address newController,
-    bytes32 salt, bytes32 evidenceHash) external returns (bytes32 id);
-function approveRoot(bytes32 id) external;
-function revokeRootApproval(bytes32 id) external;
-function cancelRoot(bytes32 id) external;
-function executeRoot(bytes32 id) external;
-// TSVEmergencyUpgradeController
-function setUpgradeTarget(address proxy, bool allowed) external;
-function executeEmergencyUpgrade(
-    address proxy, address newImplementation, bytes calldata initData,
-    bytes32 incidentId, bytes32 upgradeActionId, bytes32 reasonCode, bytes32 evidenceHash
-) external;
-function freezeEmergencyUpgrades(bytes32 incidentId, bytes32 reasonHash, bytes32 freezeSalt) external;
-function unfreezeEmergencyUpgrades(bytes32 expectedFreezeId, bytes32 evidenceHash) external;
-function setGovernor(address expectedOldGovernor, address newGovernor, bytes32 evidenceHash) external;
-function setGuardian(address expectedOldGuardian, address newGuardian, bytes32 evidenceHash) external;
-// TSVBusinessAuthority
-function recoverGovernor(address expectedOldGovernor, address newGovernor, bytes32 evidenceHash) external;
+function upgradeBatch(address[] calldata targets, address[] calldata implementations, bytes[] calldata initData) external;
+function freezeUpgrades(bytes32 reasonHash) external returns (bytes32 id);
+function unfreezeUpgrades(bytes32 expectedFreezeId, bytes32 evidenceHash) external;
+function upgradesFrozen() external view returns (bool);
+function freezeEpoch() external view returns (uint64);
+function freezeId() external view returns (bytes32);
+function proposeRecovery(address newGovernor, address newGuardian, bytes32 salt, bytes32 evidenceHash) external returns (bytes32 id);
+function approveRecovery(bytes32 id) external;
+function revokeRecoveryApproval(bytes32 id) external;
+function cancelRecovery(bytes32 id) external;
+function executeRecovery(bytes32 id) external;
+function upgradeContextActive() external view returns (bool);
 ```
 
-`bindBusinessAuthority` 只能由 Timelock 自身普通排期调用，且只成功一次。`setUpgradeTarget/unfreezeEmergencyUpgrades` 只能由 Timelock 普通排期调用；`setUpgradeTarget` 只接受当前已绑定 Anchor，或候选迁移中仍与旧 Timelock 互相绑定的 Anchor 所列出的六个业务代理。`setGovernor/setGuardian/recoverGovernor` 同时检查 `msg.sender == Timelock` 和 `Timelock.recoveryContextActive()`，必须比较 expected old 地址；`recoverAuthorities` 是唯一协调入口。`recoveryContextActive()` 只在受保护恢复调用栈内为真，返回前清零。`freezeEmergencyUpgrades` 要求当前未冻结且 `freezeSalt != 0`；`executeEmergencyUpgrade` 要求当前未冻结。控制器部署时 `frozen=true, freezeEpoch=0, freezeId=0`，首次普通排期解冻使用 `expectedFreezeId=0` 与非零证据哈希；以后每次 Guardian 冻结都生成非零新 ID。以上身份均是地址，不检查地址背后的多签配置。
-
-代理升级、Adapter 更换和资产批准均须保留已有 PoolKey、已用日额度、暂停记录、LP 仓位/Receipt owner 与原 owner 交付路径。存储使用固定命名空间或经验证的追加布局；部署和每次升级须检查 layout、Hook 权限位、代理实现、角色、接口和历史仓位强退可达性。
+代理升级、Adapter 更换和资产批准均须保留 PoolKey、已用日额度、暂停记录、LP 仓位/Receipt owner 与原 owner 交付路径。存储使用经验证的追加布局；每次升级仍须检查 layout、Hook 权限位、实现代码、接口和历史仓位强退可达性。本次初始化 ABI 用于全新部署，不提供旧治理实例的迁移算法。
 
 ## 10. 规范事件与错误
 
@@ -339,6 +362,8 @@ AdtvAccepted(bytes32 indexed securityId,uint32 indexed sourceMonth,uint256 adtvW
 QuotaAccepted(bytes32 indexed securityId,uint32 indexed tradeDayId,uint8 action,uint256 quotaWad,uint64 version,bytes32 indexed reportId)
 DayStartScheduled(uint32 indexed effectiveDayId,uint32 indexed transitionDayId,uint32 oldOffsetSeconds,uint32 newOffsetSeconds,uint64 effectiveStartUTC,address indexed operator,bytes32 reasonHash)
 DayStartCancelled(uint32 indexed effectiveDayId,address indexed operator,bytes32 reasonHash)
+SplitFactorScheduled(bytes32 indexed securityId,uint32 indexed sourceMonth,uint32 indexed effectiveTradeDayId,uint128 numerator,uint128 denominator,uint64 version,bytes32 reportId,bytes32 sourceHash)
+SplitFactorCancelled(bytes32 indexed securityId,uint32 indexed sourceMonth,uint32 indexed effectiveTradeDayId,bytes32 scheduledReportId,uint64 version,bytes32 reportId,bytes32 sourceHash)
 SwapAccounted(bytes32 indexed poolId,bytes32 indexed securityId,address indexed poolCurrency,bool inputSide,uint32 tradeDayId,uint256 rawAmount,uint256 legalSharesWad,uint32 legalAdapterVersion)
 SwapExecuted(bytes32 indexed poolId,address indexed participant,bool zeroForOne,int128 amount0,int128 amount1,uint32 tradeDayId)
 PositionOpened(uint256 indexed positionId,address indexed owner,bytes32 indexed poolId,uint128 liquidity)
@@ -348,21 +373,22 @@ PositionClosed(uint256 indexed positionId,address indexed owner,bool forced,byte
 SbtConfigChanged(address indexed oldSbt,address indexed newSbt,uint256 oldTokenId,uint256 newTokenId,bytes32 evidenceHash)
 EmergencyPauseOpened(uint256 indexed recordId,uint8 scope,bytes32 indexed target,uint8 mode,bytes32 reasonCode)
 EmergencyPauseClosed(uint256 indexed recordId,bytes32 reasonCode)
-UpgradeTargetChanged(address indexed proxy,bool allowed)
-EmergencyUpgradeExecuted(address indexed proxy,address oldImplementation,address newImplementation,bytes32 indexed upgradeActionId,bytes32 incidentId,bytes32 initDataHash,bytes32 evidenceHash)
-EmergencyUpgradesFrozen(bytes32 indexed freezeId,uint256 epoch,bytes32 incidentId)
-EmergencyUpgradesUnfrozen(bytes32 indexed freezeId,bytes32 evidenceHash)
-BusinessAuthorityBound(address indexed authority)
-EmergencyControllerBound(address indexed controller)
-BusinessGovernorRecovered(address indexed oldGovernor,address indexed newGovernor,bytes32 evidenceHash)
-AuthoritiesRecovered(address indexed oldGovernor,address indexed newGovernor,address indexed newGuardian,bytes32 evidenceHash)
+UpgradesFrozen(bytes32 indexed id,address indexed guardian,bytes32 reasonHash)
+UpgradesUnfrozen(bytes32 indexed id,address indexed guardian,bytes32 evidenceHash)
+ProxiesBound(address[6] proxies)
+GuardianSynced(address indexed oldGuardian,address indexed newGuardian,uint64 guardianEpoch)
+AuthoritiesRecovered(address indexed oldGovernor,address indexed newGovernor,address newGuardian,bytes32 evidenceHash)
+BatchUpgraded(address indexed governor,uint256 count)
+RecoveryProposed(bytes32 indexed id,address newGovernor,address newGuardian,bytes32 evidenceHash)
+RecoveryApprovalChanged(bytes32 indexed id,bool approved)
+RecoveryCancelled(bytes32 indexed id)
 ```
 
-Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecuted`，普通取消沿用 `Cancelled`；`AccessControl` 角色变更沿用 OZ `RoleGranted/RoleRevoked`，Receipt mint/burn 沿用 ERC-721 `Transfer`。`AuthoritiesRecovered` 由 Timelock 发出，`BusinessGovernorRecovered` 由 Authority 发出；Guardian 未变化时 `newGuardian` 等于原地址。跨合约共用 custom errors 至少固定：`Unauthorized()`、`InvalidConfig()`、`InvalidPool()`、`InvalidStatus()`、`SbtNotConfigured()`、`Expired()`、`MissingReport()`、`InvalidPeriod()`、`ZeroSwapAmount()`、`InputAmountTooLarge()`、`NoFees()`、`SlippageExceeded()`、`SettlementMismatch()`、`QuotaExceeded(bytes32 securityId,uint32 tradeDayId)`、`Paused(uint8 scope,bytes32 target)`、`InvalidPosition()`、`DeliveryFailed()`、`UpgradeFrozen()`、`ProtectedOperation(bytes32 operationId)`。外部发行方 revert 应原样冒泡或包装成带底层 selector 的 `DeliveryFailed`，但不能吞掉失败继续结算。
+`AccessControl` 角色变更沿用 OZ `RoleGranted/RoleRevoked`，Receipt mint/burn 沿用 ERC-721 `Transfer`，UUPS 升级沿用 `Upgraded`。`AuthoritiesRecovered` 与恢复提案/批准/取消事件均由 Anchor 发出；Guardian 未变化时 `newGuardian` 等于原地址。跨合约共用 custom errors 至少固定：`Unauthorized()`、`InvalidConfig()`、`InvalidPool()`、`InvalidStatus()`、`SbtNotConfigured()`、`Expired()`、`MissingReport()`、`InvalidPeriod()`、`ZeroSwapAmount()`、`InputAmountTooLarge()`、`NoFees()`、`SlippageExceeded()`、`SettlementMismatch()`、`QuotaExceeded(bytes32 securityId,uint32 tradeDayId)`、`Paused(uint8 scope,bytes32 target)`、`InvalidPosition()`、`DeliveryFailed()`、`UpgradeFrozen()`、`UnauthorizedUpgrade()`、`InvalidBundle()`、`InvalidProposal()`、`InvalidFreeze()`。外部发行方 revert 应原样冒泡或包装成带底层 selector 的 `DeliveryFailed`，但不能吞掉失败继续结算。
 
 ## 11. 部署输入和验收向量
 
-部署清单必须含 chainId、官方 PoolManager 地址及代码哈希、每个 TSV 代理地址和实现 codehash、Hook 权限位、SBT 地址/tokenId、Governor/Guardian/RecoveryCouncil/Executor 与各运营报告角色地址、Tier 参数、两个资产地址/decimals/代码哈希/代理实现、股票股数 Adapter 地址和版本、发行方权益依据、制裁/暂停与升级控制者、价格依据及首批 PoolKey。新资产只登记唯一池内 Currency，不再配置第二个用户 Token 或独立结算路径；本部署没有旧 LP 仓位或旧 SIP 日账，也不需要历史账本迁移清单。Hook 初始化所需的 Router/LP Manager 地址必须通过确定性部署或 nonce 预计算后逐项比对；`TSVERC1967Proxy` 初始化数据不得为空。缺必填项部署脚本拒绝启用资产；所有身份按独立地址配置，不读取多签内部设置。完整顺序见[全新部署清单](./DEPLOYMENT_CHECKLIST_V1.md)。
+部署清单必须含 chainId、官方 PoolManager 地址及代码哈希、每个 TSV 代理地址和实现 codehash、Hook 权限位、SBT 地址/tokenId、Governor/Guardian/RecoveryCouncil 与各运营报告角色地址、Tier 参数、两个资产地址/decimals/代码哈希/代理实现、股票股数 Adapter 地址和版本、发行方权益依据、制裁/暂停与升级控制者、价格依据及首批 PoolKey。新资产只登记唯一池内 Currency，不再配置第二个用户 Token 或独立结算路径；本部署没有旧 LP 仓位或旧 SIP 日账，也不需要历史账本迁移清单。Hook 初始化所需的 Router/LP Manager 地址必须通过确定性部署或 nonce 预计算后逐项比对；`TSVERC1967Proxy` 初始化数据不得为空。缺必填项部署脚本拒绝启用资产；所有身份按独立地址配置，不读取多签内部设置。完整顺序见[全新部署清单](./DEPLOYMENT_CHECKLIST_V1.md)。
 
 编码验收至少覆盖以下**给定输入→确定结果**；这些是实现验收样例，不替代源码审计和真实代理行为核验：
 
@@ -376,7 +402,7 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 | wTSLAx 或配对币向用户、原 LP owner 精确转账失败 | V4 仓位/成交、另一侧交付、额度及 Receipt 全部回滚，仓位保持可重试；本部署不执行 TSLAx 包装或赎回 |
 | HALT 状态一整月未变化 | 无心跳要求；在下一次有效 RESUME 或紧急暂停前保持 HALTED |
 | ADTV 数值不变但进入新适用月份；新计量日没有配额覆盖报告 | 必须有新适用月份 ADTV；新日无配额时使用硬上限，不因缺配额报告拒绝 Swap |
-| Guardian 已冻结事故升级入口，普通升级已排期 | 事故即时升级失败；普通排期按其自身 ready 时间仍可执行 |
+| Guardian 已冻结全部升级，Governor 发起直接/批量升级 | 全部以 `UpgradeFrozen()` 回滚；更换 Governor/Guardian 仍保持冻结，只有当前 Guardian 可显式解冻 |
 
 完整的测试 ID、fixture、三份外部源码集成、fuzz/invariant、fork 与通过门槛见规范性文件 [V1 测试规格](./TEST_SPEC_V1.md)。上表只是手算验收向量，不能代替其中的测试覆盖。构建交付包含完整 ABI、存储布局清单、部署/配置脚本、事件索引说明、测试结果及上述行为的可复算案例。**代码完成**与**生产启用**分开验收：wTSLAx 动态权益映射的发行方/法务批准、实际代理 ABI/制裁矩阵/精确转账行为、gas 最坏情况和强退可达性仍是外部事实门禁；它们没有确认时合约可实现，但 wTSLAx 不得调用准入入口，未登记状态为 `ABSENT`，不得创建其活跃生产池。
 
@@ -394,15 +420,15 @@ Timelock 的普通与受保护排期/执行沿用父类 `CallScheduled/CallExecu
 | Registry | `addEmergencyPause(PauseScope scope,bytes32 target,PauseMode mode,bytes32 reasonCode,bytes32 sourceHash)`、`clearEmergencyPause(uint256 recordId,bytes32 reasonCode)` | 分别仅 `EMERGENCY_PAUSER` 与 `EMERGENCY_RESUMER`；mode 必须为 TRADE/LP/ALL；按 scope/target/mode 逐条更新活跃计数 |
 | Registry | `setSbtConfig(address sbt,uint256 tokenId,bytes32 evidenceHash)`、`isEligible(address owner)`、`hasCredential(address owner)`、`participantSbt()`、`sbtTokenId()` | SBT 配置仅 Governor，必须提供有代码地址和证据哈希；配置时校验 `paused()`/`verify()` ABI；所有用户 Swap/LP 使用同一份资格配置；未配置时回滚 `SbtNotConfigured()`，读取失败时调用回滚 |
 | Registry | `getToken(address poolCurrency)`、`getPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`marketPauseMode(bytes32 securityId)`、`activePauseCount(uint8 scope,bytes32 target,uint8 mode)`、`isKnownPool(bytes32 poolId)` | 只读；isTradable/isLPAllowed 分别判断交易/普通 LP；activePauseCount 返回精确 mode 的记录数；`isKnownPool` 对停用历史池仍为真，供强退 |
-| DataInbox | `submitMarketStatus(MarketReport)`、`submitAdtv(AdtvReport)`、`submitAdtvBatch(AdtvReport[])`、`submitQuota(QuotaReport)` | `msg.sender` 必须直接持有对应角色；批量 ADTV 同月、securityId 严格递增、最多 100 条且整批原子提交；不接受报告签名或任意 relayer 代提；序号、reportId 和期间规则按 §7；状态分别写 Registry/VolumeLedger 的仅 DataInbox 入口 |
+| DataInbox | `submitMarketStatus(MarketReport)`、`submitAdtv(AdtvReport)`、`submitAdtvBatch(AdtvReport[])`、`submitQuota(QuotaReport)`、`submitSplitFactor(SplitFactorReport)` | `msg.sender` 必须直接持有对应角色；批量 ADTV 同月、securityId 严格递增、最多 100 条且整批原子提交；不接受报告签名或任意 relayer 代提；序号、reportId 和期间规则按 §7；状态分别写 Registry/VolumeLedger 的仅 DataInbox 入口 |
 | VolumeLedger | `recordSwap(bytes32 poolId,int128 delta0,int128 delta1,uint256 legalShares0,uint256 legalShares1)` | 仅固定 Hook 代理；从 Registry 重读资产身份，检查 shares 与资产配置一致后双侧额度原子检查/增加 |
 | VolumeLedger | `bindWriters(address hook,address dataInbox)` | Governor 仅可首次绑定；两个地址均须有代码。部署初始化入口，不可替换已绑定写入者 |
 | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId,bytes32 reasonHash)`、`cancelPendingDayStart(bytes32 reasonHash)` | 仅 Governor；未来边界排期、单次偏差上限与过渡日锁定按 §7 |
-| VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()`、`remaining(bytes32 securityId,uint32 tradeDayId)`、`used(bytes32 securityId,uint32 tradeDayId)` | 只读；初始化后 `currentTradeDay.exists == true`；ADTV 缺失时 `remaining` 返回无效标志 |
+| VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()`、`splitFactorOf(bytes32,uint32)`、`splitFactorVersion(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)`、`remaining(bytes32 securityId,uint32 tradeDayId)`、`used(bytes32 securityId,uint32 tradeDayId)` | 只读；初始化后 `currentTradeDay.exists == true`；ADTV 缺失时 `remaining` 返回无效标志 |
 | Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用 | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；`beforeSwap` 校验 Router sender、可交易状态和完整 PoolKey，`afterSwap` 校验 Router sender 与空 hookData |
 | Router | §5 两个 Swap 入口、PoolManager `unlockCallback` | Swap 仅 participant 直接调用；资格与池校验在 unlock 前完成，非重入锁约束单笔 Swap 与解锁回调；不保存或暴露 Swap 活跃上下文 |
 | LP Manager | §6 七个 LP/建池入口、协议上下文 `activeLPContext()`、ERC-721 `ownerOf/balanceOf/tokenURI/supportsInterface` | 建池仅 POOL_CREATOR；普通 LP 仅原 owner；强退两类专职角色；Receipt 的 mint/burn 仅由 LP 生命周期内部执行；所有转移和 approve 系列入口回滚；活跃上下文只供 Hook 校验，`tokenURI` 对有效 Receipt 返回空字符串 |
-| UpgradeTimelock/事故控制器/BusinessAuthority | `bindBusinessAuthority`、`bindEmergencyController`、§9 的 schedule/execute/cancel、冻结/解冻/即时升级、受保护恢复 | 精确 caller、目标、operationId、freezeId 和恢复上下文按 §9 |
+| GovernanceAnchor | §9 的批量升级、冻结/解冻/即时升级、身份恢复 | caller、目标、提案 epoch、freezeId 和恢复/升级上下文按 §9 |
 
 `MarketReport/AdtvReport/QuotaReport` 的 Solidity 字段类型和顺序逐项等于 `src/v1/types/TSVReports.sol`，不额外嵌套、重排或使用 `string` 代替 `bytes32`；报告结构不含 `signer` 字段，也没有签名参数；`QuotaReport.action` 为 `uint8`。TradeDayReport 只属于历史资料，当前接口不再接受该类型。当前 getter 对未知主键返回 Solidity 默认结构；调用方必须检查 `status`、`poolCurrency`、`securityId`、`version` 或报告 `version/reportId` 等存在性字段，不能把零值当作有效配置。`Tier` 的规范存储为 `tierBps uint16`、`maxListed uint32`、`listedCount uint32`，Governor 修改 `tierBps/maxListed` 要求 `1 <= tierBps <= 10000` 且新 `maxListed >= listedCount`，变更对未来 Swap 立即生效而不清除历史额度。
 

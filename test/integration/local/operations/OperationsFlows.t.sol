@@ -1,0 +1,264 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Currency} from "v4-core/types/Currency.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
+import {TokenStatus, PoolStatus, PauseScope, PauseMode, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
+import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ProtocolFixture} from "../../../helpers/v1/ProtocolFixture.sol";
+
+/// @dev Operations are exercised against funded positions and a real V4 PoolManager.
+contract TSVOperationsFlowsLocalTest is ProtocolFixture {
+    using PoolIdLibrary for PoolKey;
+
+    function testQuotaLoweredBelowUsedBlocksTradeAndClearRestoresCapacity() public {
+        _trade(1e18);
+        _setQuota(DAY, 5e17);
+        assertEq(ledger.used(SECURITY, DAY), 1e18);
+        _rejectTrade(DAY);
+        _clearQuota(DAY);
+        _trade(1e17);
+        assertEq(ledger.used(SECURITY, DAY), 11e17);
+    }
+
+    function testAdtvAndTierCorrectionsClampExistingQuotaOnNextRealTrade() public {
+        _setQuota(DAY, 2e18);
+        _trade(1e18);
+        _adtv(202609, 5e17);
+        _rejectTrade(DAY);
+        _adtv(202609, 5e18);
+        (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
+        assertTrue(valid);
+        assertEq(left, 1e18);
+        registry.setTierPolicy(1, 1000, 10, keccak256("lower-tier"));
+        _rejectTrade(DAY);
+        registry.setTierPolicy(1, 10000, 10, keccak256("restore-tier"));
+        _trade(1e17);
+        assertEq(ledger.used(SECURITY, DAY), 11e17);
+        assertEq(ledger.quotaOf(SECURITY, DAY).quotaWad, 2e18);
+    }
+
+    function testMovingSecurityTierChangesRealTradeCapAndPreservesExistingPosition() public {
+        _trade(1e18);
+        _adtv(202609, 2e18);
+        registry.setTierPolicy(2, 1000, 1, keccak256("restrictive-tier"));
+        bytes32 positionBefore = keccak256(abi.encode(lpManager.getPosition(positionId)));
+        registry.setSecurityTier(SECURITY, 2, keccak256("move"));
+        _rejectTrade(DAY);
+        assertEq(keccak256(abi.encode(lpManager.getPosition(positionId))), positionBefore);
+        assertEq(lpManager.ownerOf(positionId), alice);
+        registry.setSecurityTier(SECURITY, 1, keccak256("move-back"));
+        _trade(1e17);
+        assertEq(ledger.used(SECURITY, DAY), 11e17);
+    }
+
+    function testMonthRolloverFailsClosedUntilPreviousMonthAdtvArrivesWhileLPContinues() public {
+        _trade(1e18);
+        vm.warp(1793419200); // 2026-10-31 04:00 UTC.
+        _trade(1e18);
+        vm.warp(1793505600); // 2026-11-01 04:00 UTC.
+        _rejectTrade(20261101);
+        vm.prank(alice);
+        lpManager.increaseLiquidity(positionId, 1e18, _pauseTestBounds());
+        assertEq(ledger.used(SECURITY, 20261101), 0);
+        _adtv(202610, 1e24);
+        _trade(1e18);
+        assertEq(ledger.used(SECURITY, DAY), 1e18);
+        assertEq(ledger.used(SECURITY, 20261031), 1e18);
+        assertEq(ledger.used(SECURITY, 20261101), 1e18);
+    }
+
+    function testTwentyAndTwentyEightHourTransitionsEachUseOneFullDailyQuota() public {
+        for (uint8 variant; variant < 2; ++variant) {
+            uint256 snapshot = vm.snapshotState();
+            _trade(1e17);
+            uint32 offset = variant == 0 ? 0 : 28800;
+            ledger.scheduleDayStart(offset, 20261004, keccak256(abi.encode("transition", variant)));
+            _setQuota(20261003, 1e18);
+            _setQuota(20261004, 1e18);
+            uint64 start = ledger.dayStartUTC(20261003);
+            uint64 end = ledger.dayStartUTC(20261004);
+            assertEq(end - start, variant == 0 ? 20 hours : 28 hours);
+            vm.warp(start);
+            _trade(8e17);
+            vm.warp(end - 1);
+            _rejectTrade(20261003); // 0.8 used + 0.3 requested > the same full cap.
+            assertEq(ledger.used(SECURITY, 20261003), 8e17);
+            vm.warp(end);
+            _trade(3e17);
+            assertEq(ledger.used(SECURITY, 20261004), 3e17);
+            assertEq(ledger.used(SECURITY, DAY), 1e17);
+            assertTrue(vm.revertToState(snapshot));
+        }
+    }
+
+    function testReviewedAdapterReplacementPreservesPoolPositionFeesAndUsedVolume() public {
+        _trade(1e18);
+        uint256 feeSnapshot = vm.snapshotState();
+        uint256 stockBefore = stock.balanceOf(alice);
+        uint256 quoteBefore = quote.balanceOf(alice);
+        vm.prank(alice);
+        lpManager.collectFees(positionId, _pauseTestBounds());
+        uint256 expectedStockFee = stock.balanceOf(alice) - stockBefore;
+        uint256 expectedQuoteFee = quote.balanceOf(alice) - quoteBefore;
+        assertGt(expectedStockFee + expectedQuoteFee, 0);
+        assertTrue(vm.revertToState(feeSnapshot));
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        bytes32 positionBefore = keccak256(abi.encode(lpManager.getPosition(positionId)));
+        uint128 v4Before = StateLibrary.getLiquidity(manager, key.toId());
+        uint256 pauseId = _pauseLocal(PauseScope.TOKEN, bytes32(uint256(uint160(address(stock)))), PauseMode.ALL);
+        BackedAutoFeeLegalShareAdapter next =
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
+        registry.replaceLegalShareAdapter(address(stock), address(next), keccak256("reviewed-policy"));
+        assertEq(keccak256(abi.encode(lpManager.getPosition(positionId))), positionBefore);
+        assertEq(StateLibrary.getLiquidity(manager, key.toId()), v4Before);
+        assertEq(lpManager.ownerOf(positionId), alice);
+        assertEq(keccak256(abi.encode(registry.getPool(poolId).key)), keccak256(abi.encode(key)));
+        assertEq(ledger.used(SECURITY, DAY), 1e18);
+        registry.clearEmergencyPause(pauseId, keccak256("resume"));
+        vm.prank(alice);
+        lpManager.collectFees(positionId, _pauseTestBounds());
+        assertEq(stock.balanceOf(alice) - stockBefore, expectedStockFee);
+        assertEq(quote.balanceOf(alice) - quoteBefore, expectedQuoteFee);
+        _trade(1e17);
+        assertEq(ledger.used(SECURITY, DAY), 11e17);
+        assertEq(registry.getToken(address(stock)).legalAdapterVersion, 2);
+    }
+
+    function testManualLegalUnitChangeWaitsForNextDayAndNeverRewritesHistoricalUsed() public {
+        _trade(1e18);
+        uint256 id = _pauseLocal(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
+        stockUnderlying.setMultiplier(2e18, 1);
+        _rejectTrade(DAY);
+        _adtv(202609, 2e24); // Approved new-unit ADTV is supplied while operations remain paused.
+        _setQuota(20261002, 3e18);
+        vm.warp(ledger.dayStartUTC(20261002));
+        registry.clearEmergencyPause(id, keccak256("approved-new-unit"));
+        _trade(1e18);
+        assertEq(ledger.used(SECURITY, DAY), 1e18);
+        assertEq(ledger.used(SECURITY, 20261002), 2e18);
+        vm.prank(alice);
+        lpManager.closePosition(positionId, _pauseTestBounds());
+        assertEq(ledger.used(SECURITY, 20261002), 2e18);
+    }
+
+    function testIndependentSymbolOperatorDelistsRelistsAndReopensFundedPool() public {
+        address operator = makeAddr("listing-operator");
+        bytes32 role = registry.SYMBOL_ADMIN_ROLE();
+        registry.grantRole(role, operator);
+        _trade(1e18);
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        vm.startPrank(operator);
+        registry.disablePool(poolId, keccak256("disable"));
+        registry.delistSecurity(SECURITY, keccak256("delist"));
+        vm.stopPrank();
+        _rejectTrade(DAY);
+        assertTrue(lpManager.getPosition(positionId).active);
+        assertEq(lpManager.ownerOf(positionId), alice);
+        vm.startPrank(operator);
+        registry.relistSecurity(SECURITY, keccak256("relist"));
+        registry.enablePool(poolId, keccak256("reopen"));
+        vm.stopPrank();
+        _trade(1e17);
+        assertEq(ledger.used(SECURITY, DAY), 11e17);
+        assertEq(registry.getSecurity(SECURITY).activePoolCount, 1);
+        assertEq(registry.tierPolicy(1).listedCount, 1);
+    }
+
+    function testPoolCreatorRoleIsRequiredAndRevocationLeavesNoPendingPool() public {
+        address creator = makeAddr("pool-creator");
+        bytes32 role = lpManager.POOL_CREATOR_ROLE();
+        PoolKey memory candidate = key;
+        candidate.fee = 500;
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, creator, role));
+        vm.prank(creator);
+        lpManager.initializePool(candidate, uint160(1 << 96), keccak256("price"));
+        assertFalse(registry.isKnownPool(PoolId.unwrap(candidate.toId())));
+        lpManager.grantRole(role, creator);
+        vm.prank(creator);
+        lpManager.initializePool(candidate, uint160(1 << 96), keccak256("price"));
+        (uint160 price,,,) = StateLibrary.getSlot0(manager, candidate.toId());
+        assertEq(price, uint160(1 << 96));
+        lpManager.revokeRole(role, creator);
+        candidate.fee = 10000;
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, creator, role));
+        vm.prank(creator);
+        lpManager.initializePool(candidate, uint160(1 << 96), keccak256("price"));
+        assertEq(uint8(registry.getPool(PoolId.unwrap(candidate.toId())).status), uint8(PoolStatus.ABSENT));
+        assertEq(registry.getSecurity(SECURITY).activePoolCount, 2);
+    }
+
+    function _trade(uint128 amount) private {
+        bool stockInput = address(stock) == Currency.unwrap(key.currency0);
+        SwapRequest memory request = _swapRequest(stockInput, amount);
+        (, uint32 day) = ledger.currentTradeDay();
+        uint256 beforeUsed = ledger.used(SECURITY, day);
+        uint256 beforeStock = stock.balanceOf(alice);
+        vm.prank(alice);
+        (uint256 actualIn,) = router.swapExactInput(request);
+        assertEq(beforeStock - stock.balanceOf(alice), actualIn);
+        assertEq(actualIn, amount);
+        (uint256 multiplier,,) = stockUnderlying.getCurrentMultiplier();
+        assertEq(ledger.used(SECURITY, day) - beforeUsed, actualIn * multiplier / 1e18);
+    }
+
+    function _rejectTrade(uint32 day) private {
+        SwapRequest memory request = _swapRequest(address(stock) == Currency.unwrap(key.currency0), 3e17);
+        bytes32 beforeState = _swapStateDigest(day);
+        vm.expectRevert(); // V4 wraps Hook errors; unit suites assert individual Ledger selectors.
+        vm.prank(alice);
+        router.swapExactInput(request);
+        assertEq(_swapStateDigest(day), beforeState);
+    }
+
+    function _adtv(uint32 month, uint256 value) private {
+        uint64 now_ = uint64(block.timestamp);
+        uint64 version = ledger.adtvOf(SECURITY, month).version + 1;
+        uint64 sequence = inbox.lastSequence(1, SECURITY) + 1;
+        inbox.submitAdtv(
+            AdtvReport(
+                SECURITY,
+                month,
+                value,
+                now_,
+                now_ + 100,
+                version,
+                sequence,
+                keccak256(abi.encode("ops-adtv", month, sequence)),
+                keccak256("source")
+            )
+        );
+    }
+
+    function _setQuota(uint32 day, uint256 value) private {
+        _quota(day, 1, value);
+    }
+
+    function _clearQuota(uint32 day) private {
+        _quota(day, 2, 0);
+    }
+
+    function _quota(uint32 day, uint8 action, uint256 value) private {
+        uint64 now_ = uint64(block.timestamp);
+        uint64 version = ledger.quotaOf(SECURITY, day).version + 1;
+        uint64 sequence = inbox.lastSequence(2, SECURITY) + 1;
+        inbox.submitQuota(
+            QuotaReport(
+                SECURITY,
+                day,
+                action,
+                value,
+                now_,
+                now_ + 100,
+                version,
+                sequence,
+                keccak256(abi.encode("ops-quota", day, sequence)),
+                keccak256("source")
+            )
+        );
+    }
+}

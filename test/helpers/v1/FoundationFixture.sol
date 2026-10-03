@@ -1,0 +1,246 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {Test} from "forge-std/Test.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {Currency} from "v4-core/types/Currency.sol";
+import {TokenConfig, TokenStatus, MarketStatus, MarketAction, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
+import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
+import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
+import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
+import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
+import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {V1MockIssuerShares, V1MockIssuerWrapped} from "./MockIssuerTokens.sol";
+import {V1MockToken} from "./FoundationMocks.sol";
+
+/// @dev FoundationFixture scenarios; inherited fixtures contain no test functions.
+abstract contract FoundationFixture is Test {
+    bytes32 internal constant SECURITY = keccak256("SEC_A");
+    uint32 internal constant DAY = 20261001;
+    uint64 internal constant MONTH = 202609;
+
+    TSVGovernanceAnchor internal anchor;
+    address internal guardian;
+    address internal council;
+    TSVRegistryV1 internal registry;
+    TSVVolumeLedgerV1 internal ledger;
+    TSVDataInboxV1 internal inbox;
+    V1MockIssuerShares internal stockUnderlying;
+    V1MockIssuerWrapped internal stock;
+    V1MockToken internal quote;
+    BackedAutoFeeLegalShareAdapter internal stockAdapter;
+    PoolKey internal key;
+    bytes32 internal poolId;
+
+    /// @dev Initializes the contracts, accounts and fixture state shared by this test suite.
+    function setUp() public virtual {
+        vm.warp(1_790_827_201);
+        guardian = makeAddr("guardian");
+        council = makeAddr("council");
+        anchor = new TSVGovernanceAnchor(address(this), guardian, council);
+        registry = TSVRegistryV1(
+            address(
+                new ERC1967Proxy(
+                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor)))
+                )
+            )
+        );
+        ledger = TSVVolumeLedgerV1(
+            address(
+                new ERC1967Proxy(
+                    address(new TSVVolumeLedgerV1()),
+                    abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(anchor), address(registry), 14_400))
+                )
+            )
+        );
+        inbox = TSVDataInboxV1(
+            address(
+                new ERC1967Proxy(
+                    address(new TSVDataInboxV1()),
+                    abi.encodeCall(TSVDataInboxV1.initialize, (address(anchor), address(registry), address(ledger)))
+                )
+            )
+        );
+        registry.bindComponents(address(this), address(this), address(inbox));
+        ledger.bindWriters(address(this), address(inbox));
+        registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
+        inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
+        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
+        registry.setTierPolicy(1, 25, 10, keccak256("tier"));
+
+        stockUnderlying = new V1MockIssuerShares();
+        stock = new V1MockIssuerWrapped(stockUnderlying);
+        quote = new V1MockToken("QUOTE6", 6);
+        stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
+        registry.admitSecurity(
+            SECURITY, keccak256("STDx"), 1, _config(address(stock), SECURITY, address(stockAdapter)), keccak256("stock")
+        );
+        registry.registerToken(_config(address(quote), 0, address(0)), keccak256("quote"));
+
+        address a = address(stock) < address(quote) ? address(stock) : address(quote);
+        address b = address(stock) < address(quote) ? address(quote) : address(stock);
+        key = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(this)));
+        poolId = registry.registerPendingPool(key);
+        registry.markPoolActive(poolId, uint160(1 << 96), address(this), keccak256("price"));
+    }
+
+    function _grantPauseRoles() internal {
+        registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
+        registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
+    }
+
+    function _pauseTarget(PauseScope scope) internal view returns (bytes32) {
+        if (scope == PauseScope.GLOBAL) return 0;
+        if (scope == PauseScope.SECURITY) return SECURITY;
+        if (scope == PauseScope.TOKEN) return bytes32(uint256(uint160(address(stock))));
+        return poolId;
+    }
+
+    function _pause(PauseScope scope, bytes32 target, PauseMode mode) internal returns (uint256) {
+        return registry.addEmergencyPause(scope, target, mode, keccak256("pause"), keccak256("source"));
+    }
+
+    function _assertOperationGates(bool tradeAllowed, bool lpAllowed) internal view {
+        assertEq(registry.isTradable(poolId), tradeAllowed);
+        assertEq(registry.isLPAllowed(poolId), lpAllowed);
+    }
+
+    function _assertMarketPause(PauseMode mode, bool tradeAllowed, bool lpAllowed) internal view {
+        assertEq(uint8(registry.marketPauseMode(SECURITY)), uint8(mode));
+        assertEq(
+            uint8(registry.marketStatus(SECURITY)),
+            uint8(mode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED)
+        );
+        _assertOperationGates(tradeAllowed, lpAllowed);
+    }
+
+    function _submitMarketMode(MarketAction action, PauseMode mode, uint64 sequence) internal {
+        MarketReport memory report =
+            _market(action, sequence, keccak256(abi.encode("market-mode", action, mode, sequence)));
+        report.mode = mode;
+        inbox.submitMarketStatus(report);
+    }
+
+    function _rejectMarketMode(MarketAction action, PauseMode mode, uint64 sequence, bytes4 expectedError) internal {
+        MarketReport memory report =
+            _market(action, sequence, keccak256(abi.encode("rejected-market-mode", action, mode, sequence)));
+        report.mode = mode;
+        uint64 previousSequence = registry.marketSequence(SECURITY);
+        vm.expectRevert(expectedError);
+        inbox.submitMarketStatus(report);
+        assertEq(registry.marketSequence(SECURITY), previousSequence);
+        assertEq(inbox.lastSequence(0, SECURITY), previousSequence);
+        assertFalse(inbox.reportIdUsed(report.reportId));
+    }
+
+    function _admitAdditionalSecurity(bytes32 securityId, bytes32 symbolHash) internal {
+        registry.admitSecurity(securityId, symbolHash, 1, _newStockConfig(securityId), keccak256("admission"));
+    }
+
+    function _newStockConfig(bytes32 securityId) internal returns (TokenConfig memory) {
+        V1MockIssuerShares underlying = new V1MockIssuerShares();
+        V1MockIssuerWrapped wrapped = new V1MockIssuerWrapped(underlying);
+        BackedAutoFeeLegalShareAdapter adapter =
+            new BackedAutoFeeLegalShareAdapter(address(underlying), address(wrapped), 1);
+        return _config(address(wrapped), securityId, address(adapter));
+    }
+
+    /// @dev Builds a token registration configuration for the supplied currency and security.
+    function _config(address token, bytes32 securityId, address legalAdapter)
+        internal
+        view
+        returns (TokenConfig memory c)
+    {
+        c.poolCurrency = token;
+        c.poolDecimals = IERC20Metadata(token).decimals();
+        c.securityId = securityId;
+        c.legalShareAdapter = legalAdapter;
+        c.legalAdapterVersion = securityId == 0 ? 0 : 1;
+        c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("share-policy");
+        c.status = TokenStatus.APPROVED;
+        c.poolRuntimeCodeHash = token.codehash;
+        c.legalAdapterCodeHash = legalAdapter.codehash;
+        c.reviewHash = keccak256("review");
+    }
+
+    /// @dev Builds a market-state report with the supplied action and sequence metadata.
+    function _market(MarketAction action, uint64 sequence, bytes32 reportId)
+        internal
+        view
+        returns (MarketReport memory report)
+    {
+        report = MarketReport(
+            SECURITY,
+            action,
+            PauseMode.ALL,
+            keccak256("reason"),
+            keccak256("exchange"),
+            uint64(block.timestamp - 1),
+            uint64(block.timestamp + 100),
+            sequence,
+            reportId,
+            keccak256("source")
+        );
+    }
+
+    /// @dev Submits a market-state report to the data Inbox.
+    function _submitMarket(MarketAction action, uint64 sequence, bytes32 reportId) internal {
+        MarketReport memory report = _market(action, sequence, reportId);
+        inbox.submitMarketStatus(report);
+    }
+
+    /// @dev Submits a monthly ADTV report for the configured security.
+    function _submitAdtv(uint256 value) internal {
+        AdtvReport memory report = _adtv(SECURITY, value, 1, 1, keccak256("adtv"));
+        inbox.submitAdtv(report);
+    }
+
+    /// @dev Builds an ADTV report with the supplied value and replay-protection metadata.
+    function _adtv(bytes32 securityId, uint256 value, uint64 version, uint64 sequence, bytes32 reportId)
+        internal
+        view
+        returns (AdtvReport memory)
+    {
+        return AdtvReport(
+            securityId,
+            uint32(MONTH),
+            value,
+            uint64(block.timestamp - 1),
+            uint64(block.timestamp + 100),
+            version,
+            sequence,
+            reportId,
+            keccak256("source")
+        );
+    }
+
+    /// @dev Submits a daily quota override report for the configured security.
+    function _submitQuota(uint256 value) internal {
+        QuotaReport memory report = _quota(value, 1, 1, 1, keccak256("quota"));
+        inbox.submitQuota(report);
+    }
+
+    /// @dev Builds a daily quota report with the supplied action and replay-protection metadata.
+    function _quota(uint256 value, uint8 action, uint64 version, uint64 sequence, bytes32 reportId)
+        internal
+        view
+        returns (QuotaReport memory)
+    {
+        return QuotaReport(
+            SECURITY,
+            DAY,
+            action,
+            value,
+            uint64(block.timestamp - 1),
+            uint64(block.timestamp + 100),
+            version,
+            sequence,
+            reportId,
+            keccak256("source")
+        );
+    }
+}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
+import {MarketReport, AdtvReport, QuotaReport, SplitFactorReport} from "tsv-v1/types/TSVReports.sol";
 import {PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -27,16 +27,11 @@ contract TSVDataInboxV1 is TSVGoverned {
     mapping(uint8 => mapping(bytes32 => uint64)) public lastSourceTimestamp;
 
     /// @notice Initializes governance and binds the Registry and Volume Ledger.
-    /// @param authority Business authority used by the governed base contract.
-    /// @param timelock Upgrade timelock used by the governed base contract.
-    /// @param controller Emergency upgrade controller used by the governed base contract.
+    /// @param anchor Fixed governance Anchor used by the governed base contract.
     /// @param registry_ Registry that receives market-status transitions.
     /// @param ledger_ Volume Ledger that stores ADTV and quota reports.
-    function initialize(address authority, address timelock, address controller, address registry_, address ledger_)
-        external
-        initializer
-    {
-        __TSVGoverned_init(authority, timelock, controller);
+    function initialize(address anchor, address registry_, address ledger_) external initializer {
+        __TSVGoverned_init(anchor);
         if (registry_ == address(0) || ledger_ == address(0)) revert InvalidReport();
         registry = TSVRegistryV1(registry_);
         ledger = TSVVolumeLedgerV1(ledger_);
@@ -121,6 +116,22 @@ contract TSVDataInboxV1 is TSVGoverned {
             report.sourceHash
         );
         ledger.acceptQuota(report);
+    }
+
+    /// @notice Schedules, corrects or cancels a split factor at a future trade-day start.
+    /// @param report Source-month-relative factor and the announcement's effective trade day.
+    function submitSplitFactor(SplitFactorReport calldata report) external {
+        _accept(
+            3,
+            report.securityId,
+            VOLUME_ORACLE_ROLE,
+            report.sourceTimestamp,
+            report.submitDeadline,
+            report.sequence,
+            report.reportId,
+            report.sourceHash
+        );
+        ledger.acceptSplitFactor(report);
     }
 
     /// @dev Enforces reporter authorization and shared report freshness and uniqueness rules.

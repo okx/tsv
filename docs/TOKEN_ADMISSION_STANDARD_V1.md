@@ -41,44 +41,36 @@ V4 的 `sync/settle/take` 和 Hook delta 都使用 Currency 的 raw 单位。改
 
 ## 4. 公司行动与数据单位
 
-raw 余额不变而股数权益系数变化时，V4 技术结算可以仍正确。必须区分**同一法律股数单位内的计股率变化**和拆股、合股造成的**法律股数单位切换**。同一法律单位内的参数变化可以在日内反映为不同逐笔换算结果；事件只记录 Adapter 版本，不记录每笔外部参数。法律单位切换不得在同一 `securityId` 的一个计量日内混用：生效前暂停该证券的新 Swap，至少保持到下一个计量日；确认所有获准交易 Token 的新单位和适用 ADTV／quota 后再恢复。历史 `usedWad` 不重算或清零，切换后的交易只写入新计量日。若法律生效时间无法与这个边界衔接，则继续暂停。
+拆股/并股按公告对应的**未来计量日开始**调整额度，不依赖代币什么时候完成更新。保留上月日均 `adtvWad` 和 Tier rate；硬上限为 `floor(adtvWad × tierBps × numerator / (10000 × denominator))`。`VOLUME_ORACLE_ROLE` 使用 `DataInbox.submitSplitFactor(SplitFactorReport)` 提前排期，链上按该日 `dayStartUTC` 自动选择系数，不需要激活交易。当天、历史日和日内时刻均不可选择。
 
-切换时不自动按拆股比例修改旧单位的日 quota、ADTV 或月内历史数据。例如月中 2 拆 1，旧单位日 quota 为 100 股：不得直接把同一计量日的 quota 改为 200，也不得把本月拆股前的历史日数据乘 2 后与新单位数据混算。若业务要保持同等经济额度，应先按获准的新法律单位核定数值，再为恢复交易的计量日提交新单位 quota，并准备适用的新单位 ADTV；例如核定结果确为 200 股/日时，由 `VOLUME_ORACLE_ROLE` 按新单位报告 200。未完成核定和报告前保持暂停。
+系数是相对该来源月 ADTV 基准单位的**绝对累计比例**，一拆二为 `2/1`，五合一为 `1/5`；同月再一拆三应报告 `6/1`。上月 ADTV 使用来源月结束时的股数单位，同月更正保持同一基准，不随排期事件反复改写。新的来源月已经反映事件时默认系数 `1/1`，避免重复乘入。按月末单位归一化市场源数据由报告服务负责，合约无法判别市场原始数据的单位。
 
-同一 `securityId` 下的多个 Token 可能由不同发行方在不同时间完成拆股实现。每个 Token 的转换参数可分别更新，但在该证券的新法律股数单位尚未对所有**继续交易**的 Token 验证前，相关 Token 必须保持暂停。需要延期的 Token 可继续停用；其余 Token 在下一个计量日且新单位报告就绪后恢复。仅有转换参数差异、没有法律单位变化时，可按各自经批准的实时转换方法继续交易。
+新日独立累计，旧日 `usedWad`、历史成交、LP 仓位和 raw 余额不重算。可选 quota 是目标日单位下的**绝对上限**，不会再乘系数；上限仍取调整后硬上限与覆盖值的较小者。排期时应复核已有未来 quota，按需更正或清除。
 
-如果 Adapter 调用发行方的实时 multiplier 换算方法，同一法律股数单位内的参数更新会直接反映在随后成交的换算结果中，不要求人工写入比例。成交事件只记录配置的 Adapter 版本，不记录每笔外部参数或转换结果的来源版本；需要追溯时，运营必须另行索引发行方参数事件或保存只读状态。自动读取新参数并不等于自动批准法律单位切换。发行方若可在计量日内改变法律单位，准入方必须有足够提前量暂停该 `securityId`，否则该资产不得作为 V1 的可持续交易资产准入。无法验证参数变化及法律映射时保持暂停。
+额度排期与成交计股是两项独立行为：Hook 仍逐笔调用获准的实时 LegalShareAdapter。若 Token 提前或推迟更新，额度切换时间仍由计量日决定，实际换算仍遵从来源。系统不新增通用 Token 单位归一化或 `unitEpoch`，不根据 multiplier 自动识别拆股，也不会提前修改外部 Token。对日内法律单位突变、来源含义不确定或多个 Token 单位不一致，运营须暂停受影响证券/Token，确认计量口径再恢复。同一法律单位内的正常计股率变化可继续使用实时转换。
 
-固定比例 Adapter 使用不可变参数；公式变化时须经审查后部署新 Adapter，并通过 Registry 以递增版本替换。若该 Currency 有活跃池，合约要求 `GLOBAL` 或命中该 Currency 的 `TOKEN` 紧急记录共同覆盖交易和 LP（单条 ALL，或 TRADE 与 LP 叠加）；`SECURITY` 或 `POOL` 暂停单独不能满足 Adapter 替换检查。若变化同时改变法律股数单位，还须暂停整个 `securityId`，等到下一个计量日并提交新单位 ADTV、清理或重设不兼容 quota 后再恢复。若 PoolManager raw 余额本身随公司行动变化，该 Currency 不符合第 2 节，单纯更换计股 Adapter 不足以准入。
+### 4.1 排期与发行方变更的运营步骤
 
+1. 保存拆/并股公告与法律/市场依据，确定 `securityId`、未来 `effectiveTradeDayId`、目标日开始 UTC 和适用 `sourceMonth`。若治理改排未来日切起点，重新核对公告与 `dayStartUTC`。
+2. 确认来源月 ADTV 基准单位，计算绝对累计分子/分母，检查目标日 quota；通过 `VOLUME_ORACLE_ROLE` 提交带递增版本/序号、唯一 ID 和 `sourceHash` 的 SET 报告。允许先排系数再上报 ADTV，缺 ADTV 时 Swap 仍被拒绝。
+3. 生效前可更正/取消**最后一个待生效检查点**。取消也消耗版本/序号，不复用报告 ID；修改更早项时先依次取消后面的待生效项。生效后不可修改历史。查询未来日系数用于预检查，不表示当前日已经生效。
+4. 在日开始前后核对 `currentTradeDay`、`splitFactorOf`、`remaining`、报告事件和来源单位；额度自动切换，不等待 Token 更新或人工激活。保存 Token 提前/推迟更新证据，单独判断是否允许继续按实时 Adapter 成交。
+5. 来源单位或映射异常时使用现有暂停入口。更换活跃 Currency 的 Adapter 仍须 `GLOBAL/TOKEN` 紧急记录共同覆盖交易和 LP；`SECURITY/POOL` 单独不能满足替换门槛。`SYMBOL_ADMIN_ROLE` 按递增版本、代码哈希及审查依据更换，并在新计量日及口径一致后恢复。raw 池余额随事件发生变化的 Token 不符合第 2 节，额度系数不能补救其结算能力。
+6. 新来源月 ADTV 已使用月末股数单位时，不重复排上月事件；需要更正来源数据时保留该月基准和递增版本。历史用量不清零，强退继续按原池 Currency 交付原 owner。
 
-### 4.1 法律股数单位切换的运营步骤
-
-V1 只在正向拆股、反向拆股/合股确实改变 `legalSharesWad` 的法律单位时执行单位切换流程。普通 multiplier 更新若仍表示相同法律单位，可以由实时转换方法继续计量；日内新旧法律单位不能混用。合约没有公司行动报告、`unitEpoch` 或自动发现外部单位变化的入口，运营通过既有状态与报告入口执行：
-
-1. 记录发行方公告、法律及市场生效时间、受影响 `securityId`/Token、旧新映射和依据摘要；确认事件实际改变法律计量单位。
-2. 在新单位生效前，由 `EMERGENCY_PAUSER_ROLE` 对整个证券新增 `SECURITY/ALL` 暂停，阻止其所有池和 Token 的 Swap 与普通 LP 操作。单位或映射不确定时保持暂停。
-3. 若活跃 Currency 需要更换 Adapter，还须对每个要替换的 Currency 新增 `TOKEN/ALL` 暂停，或改用 `GLOBAL/ALL` 暂停（也可用独立 TRADE 和 LP 记录叠加）；仅有 `SECURITY`/`POOL` 暂停时，`replaceLegalShareAdapter` 会回滚。无活跃池的 Currency 不受这项替换门槛限制。
-4. 若需更换 Adapter，由 `SYMBOL_ADMIN_ROLE` 按 Registry 规则登记新 Adapter 和递增版本；核对 ERC-165 直接换算接口、同一 Currency、Adapter 代码哈希、换算公式及权益依据。若直接调用发行方动态换算方法，则确认其生效时间和返回语义。
-5. 对新的 `legalSharesWad` 单位准备适用 ADTV，并按需为恢复交易的计量日提交新单位 quota；不得自动按拆股比例改写旧报告或旧单位日限额。报告仍由 `VOLUME_ORACLE_ROLE` 经 DataInbox 直接提交；若市场状态也被置为 HALTED，再由 `HALT_REPORTER_ROLE` 按市场报告入口恢复。V1 不新增公司行动报告函数或报告字段。
-6. 至少等到下一个 UTC 计量日开始后，复核所有准备恢复交易的 Token 已映射到同一新法律单位，ADTV/quota 使用的单位一致，原子结算和原 owner 强退路径可用。未完成审查的 Token 保持 `DISABLED` 或继续暂停。
-7. 记录交易哈希、报告 ID、Adapter 版本、可验证的发行方参数变更信息、监控与审批证据。历史 `usedWad`、成交事件和 LP 仓位不重算；旧仓位仍按原始池内 Currency 交付原 owner。
-
-每个事件的链下审计记录至少应包含：
+链下审计记录至少包含：
 
 | 字段 | 记录内容 |
 | --- | --- |
 | `corporateActionId`、`actionType` | 唯一事件 ID；`FORWARD_SPLIT` 或 `REVERSE_SPLIT` |
-| `securityId`、`affectedTokens` | 法律证券及受影响 Token/Adapter；未准备恢复的 Token 单独标记 |
-| `announcedAt`、`legalEffectiveAt`、`marketEffectiveAt` | 发行方公告、法律生效和市场生效时间 |
-| `tsvEffectiveTradeDay` | TSV 计划使用的新单位计量日 |
-| `old/newAdapterVersion`、发行方参数信息 | 公式版本与可识别的参数变化；Adapter 不变时记录外部参数变化的链上事件或状态证据 |
-| `pauseScope`、`pauseMode`、`status` | 实际暂停范围、TRADE/LP/ALL 模式和事件处理状态 |
-| `evidenceHash`、交易哈希、报告 ID | 公告、审批、链上暂停/恢复、Adapter 和报告操作的可追溯依据 |
+| `securityId`、`affectedTokens` | 证券与受影响 Token/Adapter |
+| `sourceMonth`、基准单位依据 | ADTV 来源月、月末单位及市场数据归一化证据 |
+| `effectiveTradeDayId`、`dayStartUTC`、分子/分母 | 链上排期日、对应 UTC 开始时间与绝对累计比例 |
+| 公告时间、法律/市场生效时间 | 公告与计量日选择依据 |
+| Adapter 版本、发行方参数事件/快照 | 实际成交换算来源与 Token 更新时间，区别于额度切换时间 |
+| 报告 ID/版本/序号、交易哈希、来源摘要 | SET/更正/CANCEL 及可选暂停/恢复的可追溯依据 |
 
-以上是运营审计记录，不是 `DataInbox` 当前 ABI 的字段；是否增设链上公司行动报告属于未来版本决策。
-
-此流程依赖发行方提前通知和链下监控，不能拦截未预告的日内法律单位变化。若资产无法提供足够预告期或无法及时暂停，不得以“Adapter 自动读 multiplier”作为持续准入依据。公司行动范围限于拆股/合股；分红、配股、并购、换股、分拆、赎回、退市、名称变化和一般代理升级不自动触发新的链上计量逻辑。旧方案曾讨论事后换算同日 `usedWad`，该方法不能修正已基于错误单位执行的链上限额，V1 不采用。
+`SplitFactorReport` 的准确 ABI、事件和版本范围见[编码规格 §7 D-37](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。公告、审批、数据单位及 Token 监控的其余证据保存在链下。功能范围限于拆股/并股的额度系数；分红、配股、并购、换股、分拆、赎回、退市和一般代理升级不自动产生系数。
 
 ## 5. 注册、持续准入与当前迁移
 
@@ -112,6 +104,6 @@ V1 不在 Swap/LP 中调用 `TSLAx.transferSharesFrom`、`wTSLAx.mint` 或 `wTSL
 legalSharesWad = floor(rawAmount × uiMultiplier / 10^decimals)
 ```
 
-V4 价格、滑点边界、Swap/LP 参数和余额均继续使用 raw 数量；multiplier 不会自动进入 TSV 的额度换算。未来若加入适配器，运行时转换结果会反映 Token 在 `afterSwap` 调用时生效的参数；如果它改变法律股数单位，则按第 4.1 节暂停流程处理。准入真实 ERC-8056 Token 还须独立核对接口/权限/代理、raw 稳定、双侧精确转账、multiplier 生效规则、有界 gas、法律单位和对应 ADTV/quota。
+V4 价格、滑点边界、Swap/LP 参数和余额均继续使用 raw 数量；multiplier 不会自动进入 TSV 的额度换算。未来若加入适配器，运行时转换结果会反映 Token 在 `afterSwap` 调用时生效的参数；如果它改变法律股数单位，则按第 4.1 节核对额度排期和单位，必要时暂停处理。准入真实 ERC-8056 Token 还须独立核对接口/权限/代理、raw 稳定、双侧精确转账、multiplier 生效规则、有界 gas、法律单位和对应 ADTV/quota。
 
 当前本地 Hook 集成测试直接接入 Backed Adapter 和 Backed 行为 mock，见 [`BackedAutoFeeLegalShareAdapter`](../src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol) 与 [`TSVProtocolLocal.t.sol`](../test/integration/local/TSVProtocolLocal.t.sol)。本地测试覆盖不能替代真实 Token 的逐实例准入。

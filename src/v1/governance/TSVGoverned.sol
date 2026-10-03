@@ -3,14 +3,15 @@ pragma solidity 0.8.26;
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {TSVBusinessAuthority} from "tsv-v1/governance/TSVBusinessAuthority.sol";
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 
 /// @notice Shared UUPS and role-control base for TSV business proxies.
-/// @dev The Governor is resolved through the fixed Governance Anchor; upgrade authority is limited to the Timelock and emergency controller.
+/// @dev The current Governor upgrades in one transaction while the fixed Anchor's global upgrade switch is open.
 abstract contract TSVGoverned is AccessControlUpgradeable, UUPSUpgradeable {
     /// @dev Reverts when the caller is not authorized to upgrade this contract.
     error UnauthorizedUpgrade();
+    /// @dev Reverts when the Guardian has frozen every upgrade entry point.
+    error UpgradeFrozen();
     /// @dev Reverts when the requested role change targets a protected role.
     error ProtectedRole();
     /// @dev Reverts when the governance contract addresses or links are invalid.
@@ -32,43 +33,27 @@ abstract contract TSVGoverned is AccessControlUpgradeable, UUPSUpgradeable {
         _disableInitializers();
     }
 
-    /// @dev Initializes role storage and verifies the supplied governance root matches the configured bundle.
-    /// @param anchor_ Governance Anchor that resolves the active authority and upgrade controllers.
-    /// @param timelock_ Expected upgrade Timelock address.
-    /// @param controller_ Expected emergency upgrade controller address.
-    function __TSVGoverned_init(address anchor_, address timelock_, address controller_) internal onlyInitializing {
-        if (anchor_.code.length == 0 || timelock_ == address(0) || controller_ == address(0)) {
-            revert InvalidGovernance();
-        }
+    /// @dev Initializes role storage and verifies the supplied governance root matches the configured identities.
+    /// @param anchor_ Governance Anchor that stores the active Governor and global upgrade switch.
+    function __TSVGoverned_init(address anchor_) internal onlyInitializing {
+        if (anchor_.code.length == 0) revert InvalidGovernance();
         TSVGovernanceAnchor root = TSVGovernanceAnchor(anchor_);
-        if (address(root.timelock()) != timelock_ || address(root.controller()) != controller_) {
+        address governor = root.governor();
+        address guardian = root.guardian();
+        address council = root.recoveryCouncil();
+        if (
+            governor == address(0) || guardian == address(0) || council == address(0) || governor == guardian
+                || governor == council || guardian == council
+        ) {
             revert InvalidGovernance();
         }
         __AccessControl_init();
         governanceAnchor = root;
     }
 
-    /// @notice Returns the currently active business authority through the Governance Anchor.
-    /// @return Current Governor authority contract.
-    function businessAuthority() public view returns (TSVBusinessAuthority) {
-        return governanceAnchor.authority();
-    }
-
-    /// @notice Returns the currently active upgrade Timelock through the Governance Anchor.
-    /// @return Current Timelock address.
-    function upgradeTimelock() public view returns (address) {
-        return address(governanceAnchor.timelock());
-    }
-
-    /// @notice Returns the currently active emergency upgrade controller through the Governance Anchor.
-    /// @return Current emergency controller address.
-    function emergencyUpgradeController() public view returns (address) {
-        return address(governanceAnchor.controller());
-    }
-
-    /// @dev Restricts the function to the Governor currently stored in the anchored business authority.
+    /// @dev Restricts the function to the Governor currently stored in the fixed Anchor.
     modifier onlyGovernor() {
-        if (msg.sender != governanceAnchor.authority().governor()) {
+        if (msg.sender != governanceAnchor.governor()) {
             revert AccessControlUnauthorizedAccount(msg.sender, DEFAULT_ADMIN_ROLE);
         }
         _;
@@ -80,7 +65,7 @@ abstract contract TSVGoverned is AccessControlUpgradeable, UUPSUpgradeable {
     /// @return Whether the account currently holds the role.
     function hasRole(bytes32 role, address account) public view virtual override returns (bool) {
         if (role == DEFAULT_ADMIN_ROLE) {
-            return account != address(0) && account == governanceAnchor.authority().governor();
+            return account != address(0) && account == governanceAnchor.governor();
         }
         return super.hasRole(role, account);
     }
@@ -127,8 +112,14 @@ abstract contract TSVGoverned is AccessControlUpgradeable, UUPSUpgradeable {
         return super._revokeRole(role, account);
     }
 
-    /// @dev Allows UUPS upgrades only when called by the anchored Timelock or emergency controller.
+    /// @dev Allows the Governor or its active Anchor batch only while global upgrades are unfrozen.
     function _authorizeUpgrade(address) internal view virtual override {
-        if (msg.sender != address(governanceAnchor.timelock()) && msg.sender != address(governanceAnchor.controller())) revert UnauthorizedUpgrade();
+        if (
+            msg.sender != governanceAnchor.governor()
+                && !(msg.sender == address(governanceAnchor) && governanceAnchor.upgradeContextActive())
+        ) {
+            revert UnauthorizedUpgrade();
+        }
+        if (governanceAnchor.upgradesFrozen()) revert UpgradeFrozen();
     }
 }

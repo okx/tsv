@@ -88,19 +88,11 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     event PositionClosed(uint256 indexed positionId, address indexed owner, bool forced, bytes32 reasonCode);
 
     /// @notice Initializes the nontransferable LP Receipt and binds the PoolManager and Registry.
-    /// @param authority Business authority used by the governed base contract.
-    /// @param timelock Upgrade timelock used by the governed base contract.
-    /// @param controller Emergency upgrade controller used by the governed base contract.
+    /// @param anchor Fixed governance Anchor used by the governed base contract.
     /// @param poolManager_ V4 PoolManager that stores all TSV positions.
     /// @param registry_ Registry used for SBT and pool-status checks.
-    function initialize(
-        address authority,
-        address timelock,
-        address controller,
-        address poolManager_,
-        address registry_
-    ) external initializer {
-        __TSVGoverned_init(authority, timelock, controller);
+    function initialize(address anchor, address poolManager_, address registry_) external initializer {
+        __TSVGoverned_init(anchor);
         __ERC721_init("TSV LP Receipt", "TSVLP");
         if (poolManager_.code.length == 0 || registry_.code.length == 0) revert InvalidPool();
         poolManager = IPoolManager(poolManager_);

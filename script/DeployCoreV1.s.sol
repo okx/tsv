@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Script, console2} from "forge-std/Script.sol";
-import {TSVBusinessAuthority} from "tsv-v1/governance/TSVBusinessAuthority.sol";
-import {TSVUpgradeTimelock} from "tsv-v1/governance/TSVUpgradeTimelock.sol";
-import {TSVEmergencyUpgradeController} from "tsv-v1/governance/TSVEmergencyUpgradeController.sol";
+import {console2} from "forge-std/Script.sol";
+import {ScriptEnvironment} from "./ScriptEnvironment.sol";
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVHookProxyFactoryV1} from "tsv-v1/deployment/TSVHookProxyFactoryV1.sol";
@@ -17,7 +15,7 @@ import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 
 /// @notice Deploys six initialized business proxies with an actual CREATE2 Hook address.
 /// @dev Governance binding, SBT configuration and asset approvals remain separate governance transactions.
-contract DeployCoreV1 is Script {
+contract DeployCoreV1 is ScriptEnvironment {
     /// @dev Reverts when the chain, external contracts, code hashes, or governance links are invalid.
     error InvalidDeploymentInput();
     /// @dev Reverts when a deployed address or linked component differs from its prediction.
@@ -34,14 +32,8 @@ contract DeployCoreV1 is Script {
         address poolManager;
         /// @dev Expected deployed bytecode hash for `poolManager`.
         bytes32 poolManagerCodeHash;
-        /// @dev Business authority bound to the governance root.
-        TSVBusinessAuthority authority;
-        /// @dev Governance root used to resolve the active authority and control contracts.
+        /// @dev Fixed governance root storing identities and the global upgrade switch.
         TSVGovernanceAnchor anchor;
-        /// @dev Timelock used for governed operations.
-        TSVUpgradeTimelock timelock;
-        /// @dev Controller used for emergency implementation upgrades.
-        TSVEmergencyUpgradeController controller;
         /// @dev Participant SBT used by the Registry for credential checks.
         address sbt;
         /// @dev Expected deployed bytecode hash for `sbt`.
@@ -94,7 +86,7 @@ contract DeployCoreV1 is Script {
     /// @dev Reads deployment inputs from the environment and checks the predicted CREATE2 Hook address.
     /// @return d The deployed proxies, Hook factory, salt and implementation addresses.
     function run() external returns (Deployment memory d) {
-        uint256 deployerKey = vm.envUint("TSV_DEPLOYER_PRIVATE_KEY");
+        uint256 deployerKey = _envUint("TSV_DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
         Input memory input = _loadInput();
         _checkInput(input);
@@ -115,11 +107,7 @@ contract DeployCoreV1 is Script {
         d.registry = TSVRegistryV1(
             address(
                 new TSVERC1967Proxy(
-                    d.implementations.registry,
-                    abi.encodeCall(
-                        TSVRegistryV1.initialize,
-                        (address(input.anchor), address(input.timelock), address(input.controller))
-                    )
+                    d.implementations.registry, abi.encodeCall(TSVRegistryV1.initialize, (address(input.anchor)))
                 )
             )
         );
@@ -129,14 +117,7 @@ contract DeployCoreV1 is Script {
                 new TSVERC1967Proxy(
                     d.implementations.ledger,
                     abi.encodeCall(
-                        TSVVolumeLedgerV1.initialize,
-                        (
-                            address(input.anchor),
-                            address(input.timelock),
-                            address(input.controller),
-                            address(d.registry),
-                            input.dayStartOffset
-                        )
+                        TSVVolumeLedgerV1.initialize, (address(input.anchor), address(d.registry), input.dayStartOffset)
                     )
                 )
             )
@@ -147,14 +128,7 @@ contract DeployCoreV1 is Script {
                 new TSVERC1967Proxy(
                     d.implementations.inbox,
                     abi.encodeCall(
-                        TSVDataInboxV1.initialize,
-                        (
-                            address(input.anchor),
-                            address(input.timelock),
-                            address(input.controller),
-                            address(d.registry),
-                            address(d.ledger)
-                        )
+                        TSVDataInboxV1.initialize, (address(input.anchor), address(d.registry), address(d.ledger))
                     )
                 )
             )
@@ -178,8 +152,6 @@ contract DeployCoreV1 is Script {
             TSVHookV1.initialize,
             (
                 address(input.anchor),
-                address(input.timelock),
-                address(input.controller),
                 input.poolManager,
                 address(d.registry),
                 address(d.ledger),
@@ -197,14 +169,7 @@ contract DeployCoreV1 is Script {
                     d.implementations.router,
                     abi.encodeCall(
                         TSVSwapRouterV1.initialize,
-                        (
-                            address(input.anchor),
-                            address(input.timelock),
-                            address(input.controller),
-                            input.poolManager,
-                            address(d.registry),
-                            address(d.ledger)
-                        )
+                        (address(input.anchor), input.poolManager, address(d.registry), address(d.ledger))
                     )
                 )
             )
@@ -214,14 +179,7 @@ contract DeployCoreV1 is Script {
                 new TSVERC1967Proxy(
                     d.implementations.lpManager,
                     abi.encodeCall(
-                        TSVLPManagerV1.initialize,
-                        (
-                            address(input.anchor),
-                            address(input.timelock),
-                            address(input.controller),
-                            input.poolManager,
-                            address(d.registry)
-                        )
+                        TSVLPManagerV1.initialize, (address(input.anchor), input.poolManager, address(d.registry))
                     )
                 )
             )
@@ -233,8 +191,8 @@ contract DeployCoreV1 is Script {
             address(d.router) != predictedRouter || address(d.lpManager) != predictedLpManager
                 || address(d.hook) != predictedHook || (uint160(address(d.hook)) & HOOK_FLAGS) != HOOK_FLAGS
                 || TSVERC1967Proxy(payable(address(d.hook))).tsvImplementation() != d.implementations.hook
-                || d.hook.router() != address(d.router)
-                || d.hook.lpManager() != address(d.lpManager) || address(d.lpManager.registry()) != address(d.registry)
+                || d.hook.router() != address(d.router) || d.hook.lpManager() != address(d.lpManager)
+                || address(d.lpManager.registry()) != address(d.registry)
         ) revert AddressPredictionMismatch();
     }
 
@@ -263,43 +221,29 @@ contract DeployCoreV1 is Script {
 
     /// @dev Loads addresses, code hashes, SBT identity and trade-day offset from environment variables.
     /// @return input Deployment configuration read from the environment.
-    function _loadInput() private view returns (Input memory input) {
-        input.poolManager = vm.envAddress("TSV_POOL_MANAGER");
-        input.poolManagerCodeHash = vm.envBytes32("TSV_POOL_MANAGER_CODEHASH");
-        input.authority = TSVBusinessAuthority(vm.envAddress("TSV_BUSINESS_AUTHORITY"));
-        input.anchor = TSVGovernanceAnchor(vm.envAddress("TSV_GOVERNANCE_ANCHOR"));
-        input.timelock = TSVUpgradeTimelock(payable(vm.envAddress("TSV_UPGRADE_TIMELOCK")));
-        input.controller = TSVEmergencyUpgradeController(vm.envAddress("TSV_EMERGENCY_CONTROLLER"));
-        input.sbt = vm.envAddress("TSV_SBT");
-        input.sbtCodeHash = vm.envBytes32("TSV_SBT_CODEHASH");
-        input.sbtTokenId = vm.envUint("TSV_SBT_TOKEN_ID");
-        uint256 offset = vm.envUint("TSV_DAY_START_OFFSET_SECONDS");
+    function _loadInput() internal view returns (Input memory input) {
+        input.poolManager = _envAddress("TSV_POOL_MANAGER");
+        input.poolManagerCodeHash = _envBytes32("TSV_POOL_MANAGER_CODEHASH");
+        input.anchor = TSVGovernanceAnchor(_envAddress("TSV_GOVERNANCE_ANCHOR"));
+        input.sbt = _envAddress("TSV_SBT");
+        input.sbtCodeHash = _envBytes32("TSV_SBT_CODEHASH");
+        input.sbtTokenId = _envUint("TSV_SBT_TOKEN_ID");
+        uint256 offset = _envUint("TSV_DAY_START_OFFSET_SECONDS");
         if (offset >= 86_400) revert InvalidDeploymentInput();
         input.dayStartOffset = uint32(offset);
     }
 
     /// @dev Verifies chain, code hashes and the pre-bound governance relationships before broadcasting.
     /// @param input Deployment configuration to validate.
-    function _checkInput(Input memory input) private view {
+    function _checkInput(Input memory input) internal view {
         if (
-            block.chainid != vm.envUint("TSV_CHAIN_ID") || input.poolManager.code.length == 0
+            block.chainid != _envUint("TSV_CHAIN_ID") || input.poolManager.code.length == 0
                 || input.poolManagerCodeHash == 0 || input.poolManager.codehash != input.poolManagerCodeHash
                 || input.sbt.code.length == 0 || input.sbtCodeHash == 0 || input.sbt.codehash != input.sbtCodeHash
-                || address(input.authority).code.length == 0 || address(input.anchor).code.length == 0
-                || address(input.timelock).code.length == 0 || address(input.controller).code.length == 0
-                || address(input.timelock.businessAuthority()) != address(input.authority)
-                || address(input.timelock.emergencyController()) != address(input.controller)
-                || address(input.timelock.governanceAnchor()) != address(input.anchor)
-                || address(input.anchor.timelock()) != address(input.timelock)
-                || address(input.anchor.authority()) != address(input.authority)
-                || address(input.anchor.controller()) != address(input.controller)
-                || input.anchor.guardian() != input.timelock.guardian()
-                || input.anchor.recoveryCouncil() != input.timelock.recoveryCouncil() || input.anchor.proxiesBound()
-                || input.authority.upgradeTimelock() != address(input.timelock)
-                || input.controller.upgradeTimelock() != address(input.timelock)
-                || input.authority.governor() != input.timelock.governor()
-                || input.controller.governor() != input.timelock.governor()
-                || input.controller.guardian() != input.timelock.guardian() || !input.controller.frozen()
+                || address(input.anchor).code.length == 0 || input.anchor.proxiesBound()
+                || input.anchor.governor() != _envAddress("TSV_GOVERNOR")
+                || input.anchor.guardian() != _envAddress("TSV_GUARDIAN")
+                || input.anchor.recoveryCouncil() != _envAddress("TSV_RECOVERY_COUNCIL")
         ) revert InvalidDeploymentInput();
         try ISmartWalletSbtV1(input.sbt).paused() returns (bool) {}
         catch {
