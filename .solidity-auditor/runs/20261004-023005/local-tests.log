@@ -1,0 +1,868 @@
+Compiling 174 files with Solc 0.8.26
+Solc 0.8.26 finished in 817.67s
+Compiler run successful with warnings:
+Warning (3628): This contract has a payable fallback function, but no receive ether function. Consider adding a receive ether function.
+ --> src/v1/deployment/TSVERC1967Proxy.sol:8:1:
+  |
+8 | contract TSVERC1967Proxy is ERC1967Proxy {
+  | ^ (Relevant source part starts here and spans across multiple lines).
+Note: The payable fallback function is defined here.
+  --> dependencies/@openzeppelin-contracts-5.5.0/proxy/Proxy.sol:66:5:
+   |
+66 |     fallback() external payable virtual {
+   |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (5740): Unreachable code.
+   --> dependencies/@openzeppelin-contracts-upgradeable-5.5.0/token/ERC721/ERC721Upgradeable.sol:158:9:
+    |
+158 |         ERC721Utils.checkOnERC721Received(_msgSender(), from, to, tokenId, data);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+Ran 1 test for test/unit/v1/trading/Initialization.t.sol:TSVRouterInitializationTest
+[PASS] testRouterRejectsEveryDependencyWithoutCode() (gas: 6806137)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 482.58µs (214.33µs CPU time)
+
+Ran 3 tests for test/unit/v1/governance/Freeze.t.sol:TSVFreezeTest
+[PASS] testFreezeTransitionsRequireEvidenceAndCurrentIncident() (gas: 94795)
+[PASS] testGuardianFreezeBlocksUpgradeBeforeProxyBindingAndUnfreezeRestoresIt() (gas: 8001906)
+[PASS] testOnlyCurrentGuardianCanFreezeAndUnfreeze() (gas: 88406)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.34ms (448.96µs CPU time)
+
+Ran 1 test for test/unit/v1/governance/RecoveryAcrossProxies.t.sol:TSVRecoveryAcrossProxiesTest
+[PASS] testGovernorRecoveryUpdatesAllSixProxiesAndPreservesBusinessRoles() (gas: 4211814)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 2.31ms (341.50µs CPU time)
+
+Ran 3 tests for test/integration/local/trading/HookCallbacks.t.sol:TSVTradingHookCallbacksTest
+[PASS] testBeforeSwapReturnsZeroHookDeltaAndFeeOverride() (gas: 93645)
+[PASS] testDonateCallbacksAreUnsupported() (gas: 31135)
+[PASS] testSwapHooksRequireManagerRouterAndEmptyHookData() (gas: 90843)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 2.14ms (101.17µs CPU time)
+
+Ran 1 test for test/unit/v1/governance/FreezeAcrossProxies.t.sol:TSVFreezeAcrossProxiesTest
+[PASS] testGuardianFreezeCoversAllSixProxiesAndBatch() (gas: 314315)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.26ms (181.71µs CPU time)
+
+Ran 15 tests for test/unit/v1/governance/RecoveryLifecycle.t.sol:TSVRecoveryLifecycleTest
+[PASS] testActiveDuplicateProposalIsRejectedWithoutLosingApproval() (gas: 126565)
+[PASS] testAnyoneCanExecuteApprovedRecoveryButItCannotBeReplayed() (gas: 123104)
+[PASS] testCancelledApprovalCanBeCleanedUpWithoutReactivatingProposal() (gas: 116927)
+[PASS] testGovernorOnlyRecoveryInvalidatesCompetingApproval() (gas: 224233)
+[PASS] testGuardianCandidateCannotApproveItsOwnRecovery() (gas: 118750)
+[PASS] testOldGuardianCannotApproveOrRevokeNewProposal() (gas: 262824)
+[PASS] testOnlyCouncilCanProposeAndCancel() (gas: 137905)
+[PASS] testProposalIdsAreSeparatedByAnchorAndChain() (gas: 1853396)
+[PASS] testProposalRequiresNonzeroSaltAndEvidence() (gas: 21005)
+[PASS] testRecoveryCannotAssignCouncilToEitherOtherRole() (gas: 33650)
+[PASS] testRecoveryCannotSwapExistingGovernorAndGuardianRoles() (gas: 37498)
+[PASS] testRecoveryMustChangeAtLeastOneIdentity() (gas: 27163)
+[PASS] testRecoveryRejectsZeroAndEqualIdentities() (gas: 43849)
+[PASS] testReproposingCancelledProposalRequiresFreshGuardianApproval() (gas: 137443)
+[PASS] testUnknownProposalCannotBeApprovedRevokedCancelledOrExecuted() (gas: 34422)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 1.30ms (1.04ms CPU time)
+
+Ran 7 tests for test/unit/v1/governance/BatchUpgrade.t.sol:TSVBatchUpgradeTest
+[PASS] testAnchorCannotUpgradeOutsideActiveBatch() (gas: 4327076)
+[PASS] testApprovedRecoveryCannotExecuteDuringBatchMigration() (gas: 8085720)
+[PASS] testBatchRejectsDuplicateTarget() (gas: 7813017)
+[PASS] testBatchRejectsMismatchedImplementationArrayLength() (gas: 41046)
+[PASS] testBatchRejectsUnboundTarget() (gas: 7812596)
+[PASS] testOnlyGovernorCanStartBatch() (gas: 7810225)
+[PASS] testTwoProxyMigrationRollsBackAndCanRetryWithAnchorCaller() (gas: 8162672)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 3.91ms (1.34ms CPU time)
+
+Ran 3 tests for test/unit/legacy/TSVIssuerAdapter.t.sol:TSVIssuerAdapterTest
+[PASS] testDisplayedDebitLimitRevertsWithoutMovingShares() (gas: 179792)
+[PASS] testForcedDeliveryRefusalRollsBackWholeOperation() (gas: 291975)
+[PASS] testWrapThenRedeemExactSharesAndDisplayBounds() (gas: 286594)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 4.95ms (318.46µs CPU time)
+
+Ran 7 tests for test/unit/v1/reports/Reports.t.sol:TSVReportsTest
+[PASS] testAdtvBatchAcceptsMultipleSecuritiesInOneSubmission() (gas: 1902501)
+[PASS] testAdtvBatchIsAtomicWhenOneReportIsInvalid() (gas: 1864254)
+[PASS] testDailyQuotaIsOptionalAndClearRestoresTheHardCap() (gas: 411798)
+[PASS] testMarketReportDoesNotNeedHeartbeatAndReplayFails() (gas: 177283)
+[PASS] testMarketReportsRejectNoneNoopsAndInvalidActionsAtomically() (gas: 650923)
+[PASS] testQuotaRejectsInvalidClearAndValuesAboveHardCapAtomically() (gas: 467240)
+[PASS] testReportsRequireDirectRoleCaller() (gas: 19456)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 1.69ms (873.42µs CPU time)
+
+Ran 3 tests for test/unit/v1/reports/Bindings.t.sol:TSVOperationsBindingsTest
+[PASS] testLedgerAndInboxInitializationRejectZeroDependenciesAndInvalidOffsets() (gas: 5303111)
+[PASS] testLedgerWriterBindingIsGovernorOnlyAtomicAndOneTime() (gas: 3193012)
+[PASS] testRegistryBindingIsGovernorOnlyAtomicAndOneTime() (gas: 4112131)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.28ms (501.42µs CPU time)
+
+Ran 1 test for test/integration/local/governance/GovernanceLifecycle.t.sol:TSVGovernanceLocalTest
+[PASS] testGlobalUpgradeFreezeAllowsSwapLiquidityChangesAndOrdinaryExit() (gas: 1208835)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 2.47ms (841.71µs CPU time)
+
+Ran 5 tests for test/unit/v1/reports/TradeDay.t.sol:TSVTradeDayTest
+[PASS] testAutomaticTradeDayUsesGregorianDatesAndPreviousMonth() (gas: 34213)
+[PASS] testCanScheduleAnotherDayStartAfterPriorCheckpointTakesEffect() (gas: 216650)
+[PASS] testDayStartCanBeCancelledBeforeTransitionWithoutRetainingCheckpoint() (gas: 108674)
+[PASS] testDayStartRejectsPastBoundaryInvalidDateAndShiftAboveFourHours() (gas: 80801)
+[PASS] testDayStartScheduleCreatesLongTransitionAndLocksAtTransitionStart() (gas: 169720)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 1.12ms (288.38µs CPU time)
+
+Ran 3 tests for test/unit/v1/registry/AdapterChanges.t.sol:TSVOperationsAdapterChangesTest
+[PASS] testInactiveCurrencyReplacementDoesNotRequirePauseAndIncrementsEveryVersion() (gas: 811314)
+[PASS] testMarketSecurityAndPoolPausesDoNotAuthorizeActiveAdapterReplacement() (gas: 933840)
+[PASS] testReplacementRejectsInvalidIdentityEvidenceInterfaceCurrencyAndVersion() (gas: 993881)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.62ms (679.46µs CPU time)
+
+Ran 3 tests for test/integration/local/liquidity/DeltaGuards.t.sol:TSVLPDeltaGuardsTest
+[PASS] testActiveCallbackRejectsTamperedRequestHashBeforePositionOrSettlementChanges() (gas: 758078)
+[PASS] testCollectAndForceExitCannotCreateNewOwnerDebt() (gas: 580987)
+[PASS] testSignedMinimumLiquidityInputRejectedBeforeSettlement() (gas: 376198)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 6.27ms (703.84µs CPU time)
+
+Ran 7 tests for test/integration/local/liquidity/HookCallbacks.t.sol:TSVLPHookCallbacksTest
+[PASS] testAfterLiquidityCallbacksReturnZeroDelta() (gas: 35616)
+[PASS] testDirectHookLiquidityCallbacksRequirePoolManager() (gas: 56483)
+[PASS] testHookInitializationRejectsEveryDependencyWithoutCodeAndCanRetry() (gas: 2465764)
+[PASS] testHookRejectsEveryMismatchedLPContextField() (gas: 123377)
+[PASS] testHookRejectsWrongModeAndLiquiditySign() (gas: 245073)
+[PASS] testInitializeHookCallbacksRejectAlreadyActivePool() (gas: 96053)
+[PASS] testLiquidityHookRejectsForeignSenderAndNonemptyHookData() (gas: 46896)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 2.05ms (442.04µs CPU time)
+
+Ran 6 tests for test/integration/local/liquidity/Liquidity.t.sol:TSVLiquidityLocalTest
+[PASS] testBackedStockLPIncreaseAndDecreaseSettleRawAmounts() (gas: 592501)
+[PASS] testClosePositionEnforcesMinimumForZeroDeltaCurrency() (gas: 728339)
+[PASS] testDirectLpLifecycleDoesNotRecordLiquidityAsTradeVolume() (gas: 1161820)
+[PASS] testLPIncreaseRevertsIfOwnerLosesMoreThanPoolDelta() (gas: 465795)
+[PASS] testLpExitRevertsIfPoolLosesMoreThanOutputDelta() (gas: 466523)
+[PASS] testLpManagerHostsNonTransferableReceipt() (gas: 37492)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 7.98ms (1.84ms CPU time)
+
+Ran 13 tests for test/unit/v1/registry/Pauses.t.sol:TSVPausesTest
+[PASS] testAdapterReplacementRejectsSingleModePauseAndAllowsCombinedCoverage() (gas: 759356)
+[PASS] testEmergencyAndMarketPauseRecoveriesAreIndependent() (gas: 544069)
+[PASS] testEmergencyPauseDoesNotAffectUnrelatedTargetsAndChecksBothCurrencies() (gas: 816280)
+[PASS] testEmergencyPauseModesAcrossAllScopes() (gas: 2177168)
+[PASS] testEmergencyPauseRecordsStackAndClearIndependently() (gas: 736576)
+[PASS] testEmergencyPauseRejectsNoneInvalidEnumsAndUnauthorizedCallers() (gas: 227576)
+[PASS] testLegalAdapterReplacementRequiresPauseAndNextVersion() (gas: 715300)
+[PASS] testMarketFirstAllPauseBlocksBoth() (gas: 209835)
+[PASS] testMarketFirstLPPauseAllowsTrading() (gas: 216422)
+[PASS] testMarketPauseModesAccumulateAndResumeIndependently() (gas: 557140)
+[PASS] testPauseEventsExposeEmergencyModeAndMarketMaskChanges() (gas: 432518)
+[PASS] testPoolEnableRequiresBothOperationTypesToBeUnpaused() (gas: 835275)
+[PASS] testRelistingRetainsMarketPauseAndReportSequence() (gas: 1657188)
+Suite result: ok. 13 passed; 0 failed; 0 skipped; finished in 3.62ms (2.61ms CPU time)
+
+Ran 2 tests for test/integration/local/registry/Admission.t.sol:TSVAdmissionLocalTest
+[PASS] testAdmissionOpensRealV4PoolWithoutMarketReport() (gas: 157510)
+[PASS] testPoolInitializationFailureLeavesNoPendingRecordOrCounts() (gas: 517174)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 1.91ms (240.96µs CPU time)
+
+Ran 3 tests for test/integration/local/trading/Accounting.t.sol:TSVTradingAccountingTest
+[PASS] testEqualRangesAccrueSeparateOwnerFeesAndClosingOnePreservesOther() (gas: 1621702)
+[PASS] testProtocolAndLPFeesAreIncludedInActualStockInputVolume() (gas: 624863)
+[PASS] testSameSecurityAcrossTwoRealPoolsConsumesOneQuota() (gas: 1552022)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 7.87ms (2.28ms CPU time)
+
+Ran 4 tests for test/unit/v1/adapters/BackedAdapter.t.sol:TSVBackedAdapterTest
+[PASS] testBackedAdapterCallsIssuerConversionAtTheTimeOfSwap() (gas: 1313473)
+[PASS] testBackedAdapterRejectsWrappedAssetMismatch() (gas: 1138720)
+[PASS] testBackedAdapterRejectsZeroConversionAndDeclaresDirectInterface() (gas: 222019)
+[PASS] testBackedAdapterValidatesCurrencyAndAllowsZeroAmount() (gas: 199947)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 871.96µs (139.17µs CPU time)
+
+Ran 2 tests for test/integration/local/trading/DeltaGuards.t.sol:TSVSwapDeltaGuardsTest
+[PASS] testInvalidDeltaSignsRejectedInEitherDirection() (gas: 821569)
+[PASS] testMinimumSignedInputDeltaRejectsBeforeNegationAndTransfers() (gas: 350088)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 2.35ms (718.62µs CPU time)
+
+Ran 6 tests for test/integration/local/operations/SplitFactorFlows.t.sol:TSVSplitFactorFlowsLocalTest
+[PASS] testAbsoluteQuotaOverrideAndClearWorkAgainstTheAdjustedCapInRealV4() (gas: 1361680)
+[PASS] testAdjustedCapAllowsAdditionalRealTradeOnlyOnTheNewDayAndFailureIsAtomic() (gas: 1224380)
+[PASS] testPendingFactorAndExistingFundsReportsQuotaRolesSurviveLedgerAndInboxUpgrades() (gas: 7024771)
+[PASS] testReverseSplitRestrictsRealSwapWhileLPAndOwnerExitRemainAvailable() (gas: 1392193)
+[PASS] testTokenMultiplierUpdatesBeforeOrAfterDayStartDoNotSelectTheCapActivationTime() (gas: 1524905)
+[PASS] testUpgradeFreezeDoesNotPreventScheduledFactorActivationOrBusinessReporting() (gas: 861650)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 10.66ms (5.53ms CPU time)
+
+Ran 1 test for test/integration/local/trading/IssuerFailures.t.sol:TSVIssuerSwapFailuresTest
+[PASS] testWrappedStockRefusalRollsBackBothSettlementDirectionsAndCanRetry() (gas: 1805034)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 2.88ms (1.26ms CPU time)
+
+Ran 14 tests for test/integration/local/trading/Trading.t.sol:TSVTradingLocalTest
+[PASS] testAdapterEntryRejectsUnallowlistedCaller() (gas: 32813)
+[PASS] testAllowlistedAdapterRequiresEligibleParticipant() (gas: 325423)
+[PASS] testAllowlistedAdapterUsesSharedSwapRequestBothDirections() (gas: 882440)
+[PASS] testBackedStockSwapBothWaysUsesLiveIssuerConversion() (gas: 627268)
+[PASS] testContractWalletCanDirectlySubmitSwap() (gas: 712075)
+[PASS] testDirectPoolManagerSwapCannotBypassHook() (gas: 51549)
+[PASS] testExactOutputRequiresFullDelivery() (gas: 388572)
+[PASS] testExactOutputStockPurchaseRecordsNetShares() (gas: 433630)
+[PASS] testMissingAdtvAllowsLiquidityButSwapRevertsAtomically() (gas: 951466)
+[PASS] testRealV4OnePoolSwapAccountsActualDelta() (gas: 415946)
+[PASS] testRealV4StockOutputCountsNetReceived() (gas: 390792)
+[PASS] testSwapRequiresEligibleDirectCaller() (gas: 418225)
+[PASS] testSwapRevertsIfPayerLosesMoreThanRawDelta() (gas: 414598)
+[PASS] testSwapRevertsIfPoolLosesMoreThanOutputDelta() (gas: 408244)
+Suite result: ok. 14 passed; 0 failed; 0 skipped; finished in 5.52ms (3.78ms CPU time)
+
+Ran 4 tests for test/unit/v1/governance/DirectUpgrade.t.sol:TSVDirectUpgradeTest
+[PASS] testGovernorUpgradeAndInitializationCompleteInOneCall() (gas: 7975583)
+[PASS] testInvalidImplementationDoesNotChangeProxy() (gas: 4022001)
+[PASS] testNonGovernorRolesCannotUpgrade() (gas: 7880854)
+[PASS] testUpgradeInitializationFailureRollsBackImplementationAndStorage() (gas: 7973304)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 1.14ms (805.75µs CPU time)
+
+Ran 2 tests for test/unit/v1/trading/VolumeAccounting.t.sol:TSVVolumeAccountingTest
+[PASS] testLedgerUsesOnlyTradingPauseForSwapAccounting() (gas: 648769)
+[PASS] testReportsAndLedgerUseRealDeltaAndSharedQuota() (gas: 533917)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 1.09ms (353.67µs CPU time)
+
+Ran 7 tests for test/unit/v1/adapters/ERC8056DirectLegalShareAdapter.t.sol:ERC8056DirectLegalShareAdapterTest
+[PASS] testConvertsUsingMultiplierActiveAtCallTime() (gas: 1013520)
+[PASS] testDeclaresDirectAdapterInterface() (gas: 978291)
+[PASS] testRejectsDecimalsAboveSupportedBound() (gas: 780187)
+[PASS] testRejectsOtherCurrency() (gas: 1721242)
+[PASS] testScalesUsingTokenDecimals() (gas: 982868)
+[PASS] testUsesFloorRounding() (gas: 1006534)
+[PASS] testZeroRawAmountConvertsToZero() (gas: 978523)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 337.75µs (268.25µs CPU time)
+
+Ran 6 tests for test/unit/v1/registry/Lifecycle.t.sol:TSVOperationsLifecycleTest
+[PASS] testDelistingDoesNotReleaseSymbolIdentity() (gas: 1357396)
+[PASS] testLifecycleRejectsUnknownNoopAndMissingEvidenceWithoutWrites() (gas: 766154)
+[PASS] testMultipleCurrenciesAndPoolsCountOneListedSecurity() (gas: 1810063)
+[PASS] testPoolEnableRechecksEachCurrencyAndDoesNotChangeCountsOnFailure() (gas: 320487)
+[PASS] testRelistingFullTierRollsBackThenSucceedsAfterCapacityRestored() (gas: 1745050)
+[PASS] testTierMoveReleasesOldSlotAndFailedMoveLeavesCountsAndCap() (gas: 509605)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 2.64ms (1.86ms CPU time)
+
+Ran 5 tests for test/integration/local/liquidity/Settlement.t.sol:TSVLiquiditySettlementTest
+[PASS] testFaultyTransferRollsBackAllOrdinaryLPActions() (gas: 6743518)
+[PASS] testForcedExitTokenFaultRollsBackAndCanRetry() (gas: 1366016)
+[PASS] testInsufficientAllowanceRollsBackOpenAndIncreaseThenRetry() (gas: 1257312)
+[PASS] testNoReturnTokenSupportsCompleteLPLifecycle() (gas: 1490522)
+[PASS] testTokenReentryRejectsEveryLPEntryAndRollsBack() (gas: 2904231)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 8.81ms (7.36ms CPU time)
+
+Ran 1 test for test/integration/local/liquidity/IssuerFailures.t.sol:TSVIssuerLPFailuresTest
+[PASS] testRefusalOnEitherExitLegPreservesPositionFeesReceiptAndCanRetry() (gas: 3430039)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 13.10ms (8.84ms CPU time)
+
+Ran 9 tests for test/unit/v1/governance/BusinessRoles.t.sol:TSVBusinessRolesTest
+[PASS] testBusinessGovernorRecoveryChangesDynamicAdmin() (gas: 137395)
+[PASS] testBusinessRoleRenunciationCannotRemoveSomeoneElse() (gas: 58927)
+[PASS] testBusinessRolesCanBeGrantedRevokedAndRenounced() (gas: 72096)
+[PASS] testDefaultAdminCannotBeGranted() (gas: 33228)
+[PASS] testDefaultAdminCannotBeRenounced() (gas: 30461)
+[PASS] testDefaultAdminCannotBeRevoked() (gas: 29026)
+[PASS] testInternalRolePathsAlsoProtectDefaultAdmin() (gas: 1081558)
+[PASS] testOnlyGovernorCanGrantOrRevokeBusinessRoles() (gas: 90487)
+[PASS] testRecoveryTransfersRoleManagementAndGovernorConfiguration() (gas: 218392)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 1.39ms (594.21µs CPU time)
+
+Ran 4 tests for test/integration/local/trading/Settlement.t.sol:TSVTradingSettlementTest
+[PASS] testBlockedOutputRecipientRollsBackThenUnblockedSwapSucceeds() (gas: 761976)
+[PASS] testExactSettlementSupportsTokensWithoutReturnData() (gas: 585285)
+[PASS] testTaxFalseAndShortTransfersRollbackBothSwapDirections() (gas: 4563506)
+[PASS] testTokenCallbackCannotReenterEitherSwapEntryAndStateCanRecover() (gas: 1616723)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 15.18ms (13.01ms CPU time)
+
+Ran 4 tests for test/unit/v1/governance/Events.t.sol:TSVGovernanceEventsTest
+[PASS] testBindingAndBatchEventsIdentifyActualProxiesAndGovernor() (gas: 361950)
+[PASS] testFreezeAndUnfreezeEventsContainIncidentAndEvidence() (gas: 70052)
+[PASS] testProposalApprovalRevocationAndCancellationEvents() (gas: 116408)
+[PASS] testRecoveryEventsContainOldAndNewIdentitiesAndGuardianEpoch() (gas: 142921)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 2.33ms (1.39ms CPU time)
+
+Ran 5 tests for test/unit/v1/reports/PayloadValidation.t.sol:TSVOperationsPayloadTest
+[PASS] testAdtvFieldsRejectAndSameIdCanBeCorrected() (gas: 4482434)
+[PASS] testCorrectionsRequireNextVersionButStreamsContinueAcrossPeriods() (gas: 660187)
+[PASS] testMarketFieldsRejectAndSameIdCanBeCorrected() (gas: 2291076)
+[PASS] testQuotaClearMustBeZeroAndKeepsVersionAndUsage() (gas: 759785)
+[PASS] testQuotaFieldsRejectAndSameIdCanBeCorrected() (gas: 4584429)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 7.61ms (6.78ms CPU time)
+
+Ran 4 tests for test/integration/local/trading/DexAdapter.t.sol:TSVDexAdapterTest
+[PASS] testBothDirectionsRefundOnlyRouteInputAndPreserveExistingDonations() (gas: 766068)
+[PASS] testMalformedLengthPrefixAndZeroParticipantRejectBeforeFunding() (gas: 168280)
+[PASS] testUntrustedCallerCannotSpoofAuthenticatedParticipantMarker() (gas: 26094)
+[PASS] testWrongPoolDirectionOrRecipientRejectsAtomically() (gas: 115694)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 2.31ms (688.96µs CPU time)
+
+Ran 4 tests for test/unit/v1/registry/Permissions.t.sol:TSVOperationsPermissionsTest
+[PASS] testBusinessOperatorsCannotChangeGovernorConfigurationOrDaySchedule() (gas: 368156)
+[PASS] testEverySymbolAdminEntryRejectsUnassignedAndRevokedRoleIncludingGovernor() (gas: 1704149)
+[PASS] testPauserAndResumerCannotActForEachOtherAndRevocationTakesEffect() (gas: 284796)
+[PASS] testPoolIntercontractEntriesRequireBoundLpManager() (gas: 131299)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 1.50ms (709.17µs CPU time)
+
+Ran 9 tests for test/integration/local/liquidity/ForceExit.t.sol:TSVForceExitLocalTest
+[PASS] testForceExitAdminCanActWhenAlsoRevokeExecutorAndOwnerStillHasSbt() (gas: 357314)
+[PASS] testForceExitBypassesEveryEmergencyAndMarketPauseMode() (gas: 2172420)
+[PASS] testForceExitEnforcesBothMinimumOutputsAtomically() (gas: 714325)
+[PASS] testForceExitRejectsOriginalOwnerRollsBackEverything() (gas: 419603)
+[PASS] testForceExitWhenSbtRevokedReturnsOriginalOwnerAssets() (gas: 343045)
+[PASS] testRegistryRejectsSbtWithoutRequiredSelectors() (gas: 48322)
+[PASS] testSbtAndDisabledAssetsStillBlockBothOperationTypes() (gas: 1579591)
+[PASS] testSbtPauseBlocksUserSwapButNotForceExit() (gas: 411306)
+[PASS] testSbtReadFailuresDoNotBecomeRevocationSignals() (gas: 128584)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 4.20ms (2.50ms CPU time)
+
+Ran 2 tests for test/unit/v1/registry/PauseBoundaries.t.sol:TSVOperationsPauseBoundariesTest
+[PASS] testInvalidPauseMetadataAndTargetsDoNotAllocateIdOrChangeGates() (gas: 300228)
+[PASS] testPauseAuditMetadataSurvivesClearAndIdsAreNeverReused() (gas: 551464)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 1.19ms (448.83µs CPU time)
+
+Ran 2 tests for test/integration/local/operations/PoolCreationBoundaries.t.sol:TSVOperationsPoolCreationLocalTest
+[PASS] testInvalidPoolKeysPricesAndEvidenceRollBackRegistryAndV4() (gas: 2426978)
+[PASS] testValidFeeTickAndPriceBoundariesInitializeRealV4Pools() (gas: 479645)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 3.67ms (2.03ms CPU time)
+
+Ran 5 tests for test/integration/local/governance/SixProxyMigration.t.sol:TSVSixProxyMigrationLocalTest
+[PASS] testFrozenRecoveryPreservesFundedPositionsAndBothUpgradeEntrypointsStayClosed() (gas: 5220246)
+[PASS] testLastMigrationFailurePreservesFundedV4StateAndEntireBusinessSnapshot() (gas: 20221011)
+[PASS] testSixProxyMigrationPreservesBusinessStateAndTradingAndLiquidityStillWork() (gas: 20798938)
+[PASS] testSixProxyMigrationPreservesPositionsForForcedExit() (gas: 20006390)
+[PASS] testUpgradeFreezeAllowsReportsConfigurationPauseAndForcedExit() (gas: 1022190)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 8.54ms (6.34ms CPU time)
+
+Ran 8 tests for test/integration/local/liquidity/PositionId.t.sol:TSVPositionIdLocalTest
+[PASS] testPositionIdClosedIdIsNotReused() (gas: 780197)
+[PASS] testPositionIdCompatibleUpgradePreservesCounterAndBlocksReinitialization() (gas: 4092438)
+[PASS] testPositionIdCounterIsSharedAcrossUsersAndPools() (gas: 1363113)
+[PASS] testPositionIdCounterOverflowRevertsInsteadOfWrapping() (gas: 739399)
+[PASS] testPositionIdFailedOpenRollsBackCounterAndV4State() (gas: 1066863)
+[PASS] testPositionIdForcedExitIdIsNotReused() (gas: 744727)
+[PASS] testPositionIdSameRangeKeepsV4PositionsSeparate() (gas: 755408)
+[PASS] testPositionIdSeparateManagerHasIndependentCounter() (gas: 3834866)
+Suite result: ok. 8 passed; 0 failed; 0 skipped; finished in 4.46ms (2.82ms CPU time)
+
+Ran 9 tests for test/integration/local/operations/OperationsFlows.t.sol:TSVOperationsFlowsLocalTest
+[PASS] testAdtvAndTierCorrectionsClampExistingQuotaOnNextRealTrade() (gas: 1221793)
+[PASS] testIndependentSymbolOperatorDelistsRelistsAndReopensFundedPool() (gas: 777710)
+[PASS] testManualLegalUnitChangeWaitsForNextDayAndNeverRewritesHistoricalUsed() (gas: 1333132)
+[PASS] testMonthRolloverFailsClosedUntilPreviousMonthAdtvArrivesWhileLPContinues() (gas: 1277844)
+[PASS] testMovingSecurityTierChangesRealTradeCapAndPreservesExistingPosition() (gas: 900957)
+[PASS] testPoolCreatorRoleIsRequiredAndRevocationLeavesNoPendingPool() (gas: 377282)
+[PASS] testQuotaLoweredBelowUsedBlocksTradeAndClearRestoresCapacity() (gas: 949587)
+[PASS] testReviewedAdapterReplacementPreservesPoolPositionFeesAndUsedVolume() (gas: 1369339)
+[PASS] testTwentyAndTwentyEightHourTransitionsEachUseOneFullDailyQuota() (gas: 2743902)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 20.34ms (18.58ms CPU time)
+
+Ran 1 test for test/integration/local/trading/Precision.t.sol:TSVTradingPrecisionTest
+[PASS] testSixDecimalQuoteSwapAndLPSettleInRawUnitsAndCountOnlyStockShares() (gas: 2362133)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 2.50ms (921.21µs CPU time)
+
+Ran 14 tests for test/unit/v1/reports/SplitFactor.t.sol:TSVSplitFactorTest
+[PASS] testActivatedFactorCannotBeEditedCancelledOrReplayed() (gas: 533326)
+[PASS] testCancelLatestPendingFactorRestoresEarlierFactorAndVersionNeverRewinds() (gas: 512822)
+[PASS] testCapUsesOneFinalFloorInsteadOfFlooringBeforeApplyingTheFactor() (gas: 429386)
+[PASS] testDefaultFactorKeepsExistingAdtvTierAndMissingReportRules() (gas: 225980)
+[PASS] testFactorCanBeScheduledBeforeMonthlyReportButDoesNotSubstituteForMissingAdtv() (gas: 510267)
+[PASS] testFactorsAreIndependentAcrossSecurities() (gas: 2331001)
+[PASS] testNewAdtvSourceMonthStartsAtOneAndDoesNotApplyPreviousMonthsSplitAgain() (gas: 714911)
+[PASS] testOnlyLatestPendingCheckpointCanBeCorrectedAndItsOldReportRemainsConsumed() (gas: 587962)
+[PASS] testQuotaRemainsAnAbsoluteTargetDayOverrideAndIsClampedByTheAdjustedHardCap() (gas: 792966)
+[PASS] testReverseSplitUsesAnExactFractionAndCanReduceTheCapToZero() (gas: 745373)
+[PASS] testSeveralAbsoluteFactorsUseTheLatestApplicableCheckpointInsteadOfMultiplyingAgain() (gas: 1507585)
+[PASS] testSplitActivatesExactlyAtDayStartWithoutAnotherTransactionAndKeepsOldUsed() (gas: 670621)
+[PASS] testTierAndAdtvCorrectionsStillParticipateInTheAdjustedCap() (gas: 484823)
+[PASS] testTwentyAndTwentyEightHourTransitionsActivateAtTheConfiguredDayStart() (gas: 911621)
+Suite result: ok. 14 passed; 0 failed; 0 skipped; finished in 4.91ms (4.07ms CPU time)
+
+Ran 9 tests for test/integration/local/registry/Pauses.t.sol:TSVPausesLocalTest
+[PASS] testEmergencyAllPauseBlocksTradingAndOrdinaryLP() (gas: 1125901)
+[PASS] testEmergencyLPPauseAllowsDirectAndAdapterTrading() (gas: 1799299)
+[PASS] testEmergencyTradePauseAllowsAllOrdinaryLPOperations() (gas: 2121444)
+[PASS] testHookIndependentlyChecksTradingAndLPPauses() (gas: 475301)
+[PASS] testMarketAllPauseBlocksTradingAndOrdinaryLP() (gas: 1060351)
+[PASS] testMarketAndEmergencyPausesRecoverSeparatelyWithRealV4() (gas: 3771663)
+[PASS] testMarketLPPauseAllowsDirectAndAdapterTrading() (gas: 1726782)
+[PASS] testMarketTradePauseAllowsAllOrdinaryLPOperations() (gas: 2056114)
+[PASS] testPoolInitializationRemainsAllowedDuringAllPauses() (gas: 617233)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 10.54ms (8.88ms CPU time)
+
+Ran 4 tests for test/unit/v1/reports/Ingress.t.sol:TSVOperationsIngressTest
+[PASS] testDirectWritersCannotBypassInboxAuthorization() (gas: 67914)
+[PASS] testEveryReportRejectsInvalidMetadataWithoutConsumingState() (gas: 2883685)
+[PASS] testReportIdsAreGlobalWhileOrderingIsPerKindAndSecurity() (gas: 2321708)
+[PASS] testReportRolesAreIndependentAndRevocationAppliesToEveryEntry() (gas: 798088)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 4.24ms (3.42ms CPU time)
+
+Ran 6 tests for test/unit/v1/governance/Initialization.t.sol:TSVGovernanceInitializationTest
+[PASS] testAnchorConstructorRejectsEveryPairOfOverlappingIdentities() (gas: 112357)
+[PASS] testAnchorConstructorRejectsEveryZeroIdentity() (gas: 111794)
+[PASS] testGovernanceIdentitiesAreStoredDirectlyInAnchor() (gas: 25162)
+[PASS] testProxyInitializationRejectsAnchorWithoutCode() (gas: 3911296)
+[PASS] testProxyInitializationRejectsInvalidGuardianAndCouncil() (gas: 4368588)
+[PASS] testProxyInitializationRejectsMissingOrConflictingAnchorGovernor() (gas: 11737395)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 901.67µs (654.04µs CPU time)
+
+Ran 13 tests for test/unit/v1/registry/Admission.t.sol:TSVAdmissionTest
+[PASS] testAdmissionAndRegistrationRequireSymbolAdmin() (gas: 1725900)
+[PASS] testAdmissionAtomicallyListsApprovesAndDefaultsToOpen() (gas: 1672444)
+[PASS] testAdmissionRejectsDuplicateSecurityAndSymbolAndFullTier() (gas: 1626165)
+[PASS] testDisabledPoolOnlyReenablesAfterMarketAndAssetChecks() (gas: 287007)
+[PASS] testFuzzAdmissionValidationFailureRollsBackAllRecords(uint8) (runs: 256, μ: 1685955, ~: 1698367)
+[PASS] testQuoteRegistrationApprovesOnceAndRequiresReview() (gas: 546193)
+[PASS] testRegistryAcceptsDirectAdapterAndStoresPolicyMetadata() (gas: 1505332)
+[PASS] testRegistryRejectsAdapterWithoutDirectInterface() (gas: 491073)
+[PASS] testRegistryRejectsDifferentSecurityStocksInSamePool() (gas: 1577775)
+[PASS] testRegistryRejectsDirectAdapterBoundToDifferentCurrency() (gas: 1315589)
+[PASS] testRegistryRejectsSameSecurityBothSides() (gas: 1483675)
+[PASS] testTokenDisableAndReenablePreserveApprovalChecks() (gas: 163922)
+[PASS] testUnknownAssetsStayAbsentAndCannotCreatePools() (gas: 1742008)
+Suite result: ok. 13 passed; 0 failed; 0 skipped; finished in 60.18ms (58.09ms CPU time)
+
+Ran 12 tests for test/integration/local/liquidity/Boundaries.t.sol:TSVLiquidityBoundariesTest
+[PASS] testClosePaysPrincipalAndUncollectedFeesInOneOperation() (gas: 1056318)
+[PASS] testDeadlineIsInclusiveForLiquidityChange() (gas: 350033)
+[PASS] testEachInputAndOutputSlippageBoundRollsBackAndCanRetry() (gas: 3636965)
+[PASS] testEveryOrdinaryOperationRejectsExpiredDeadline() (gas: 272817)
+[PASS] testEveryOrdinaryOperationRequiresOwnerAndActiveReceipt() (gas: 676312)
+[PASS] testFeeCollectionWithoutFeesRollsBackAndSecondCollectionRejects() (gas: 1122036)
+[PASS] testForceExitRequiresAuthorityReasonAndEvidenceAndCannotRepeat() (gas: 513805)
+[PASS] testFuzzInvalidTicksDoNotAllocateReceipt(int24,bool) (runs: 256, μ: 240359, ~: 240351)
+[PASS] testInactiveLPContextAndUnauthorizedCallbacksReject() (gas: 43984)
+[PASS] testInvalidLiquidityAtOpenIncreaseAndDecreaseIsAtomic() (gas: 1095616)
+[PASS] testOpenRequiresEligibleUserAndKnownPool() (gas: 136280)
+[PASS] testTickOrderAndExtremeTicksReject() (gas: 414813)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 76.20ms (74.51ms CPU time)
+
+Ran 5 tests for test/unit/v1/registry/Configuration.t.sol:TSVOperationsConfigurationTest
+[PASS] testEveryInvalidSbtConfigurationPreservesPreviousConfiguration() (gas: 532989)
+[PASS] testQuoteCannotCarryStockMetadataAndBadDecimalsRemainAbsent() (gas: 653928)
+[PASS] testSbtMustBeConfiguredAndCredentialIsSeparateFromEligibility() (gas: 320746)
+[PASS] testSbtReplacementEventAndMalformedReadsAreAtomic() (gas: 393341)
+[PASS] testTierPolicyBoundsCapacityAndEvents() (gas: 140456)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 1.40ms (573.79µs CPU time)
+
+Ran 7 tests for test/unit/v1/governance/Recovery.t.sol:TSVRecoveryTest
+[PASS] testCancelledRecoveryCannotChangeIdentitiesOrFreeze() (gas: 183783)
+[PASS] testGovernorRecoveryPreservesFreezeUntilGuardianExplicitlyUnfreezes() (gas: 7994336)
+[PASS] testGuardianRecoveryPreservesFreezeAndTransfersUnfreezeControl() (gas: 197908)
+[PASS] testRecoveryCannotBeApprovedByGovernorCouncilOrOutsider() (gas: 142900)
+[PASS] testRecoveryProposalRejectsUnauthorizedOrConflictingIdentities() (gas: 28396)
+[PASS] testRecoveryRequiresCurrentGuardianApprovalAndRevocationIsEffective() (gas: 7989315)
+[PASS] testRecoveryRotationInvalidatesOtherApprovals() (gas: 242397)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 1.25ms (951.75µs CPU time)
+
+Ran 7 tests for test/unit/v1/reports/CalendarBoundaries.t.sol:TSVOperationsCalendarTest
+[PASS] testCalendarBoundariesMatchIndependentUtcVectors() (gas: 217083)
+[PASS] testCheckpointLookupPreservesEarlierOffsetsAfterMultipleChanges() (gas: 274140)
+[PASS] testFuzzInitialOffsetAssignsEverySecondToExactlyOneDay(uint32,uint32) (runs: 256, μ: 3145520, ~: 3146513)
+[PASS] testInvalidGregorianDatesAreRejected() (gas: 80124)
+[PASS] testPendingScheduleAndCancellationBoundsKeepHistoricalUsage() (gas: 459502)
+[PASS] testScheduleLocksExactlyAtTransitionStartAndCannotCancelAfterActivation() (gas: 168227)
+[PASS] testShortestTransitionHasNoOverlapAndOneTradeDay() (gas: 147723)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 77.99ms (76.60ms CPU time)
+
+Ran 14 tests for test/unit/v1/reports/SplitFactorBoundaries.t.sol:TSVSplitFactorBoundariesTest
+[PASS] testCancellationOneSecondBeforeStartSucceedsButAtStartIsLocked() (gas: 282453)
+[PASS] testCancellationRequiresTheLatestPendingDayAndZeroFactorComponents() (gas: 916018)
+[PASS] testDelistedSecurityCannotReceiveNewFactorReports() (gas: 265558)
+[PASS] testFactorOverflowRejectsScheduleOrAdtvCorrectionWithoutPoisoningFutureCaps() (gas: 692621)
+[PASS] testFuzzAdjustedCapMatchesIndependentBoundedIntegerFormula(uint160,uint64,uint64,uint16) (runs: 256, μ: 436375, ~: 436846)
+[PASS] testInvalidBusinessFieldsDoNotConsumeReportMetadataAndTheSameIdCanBeRetried() (gas: 2359873)
+[PASS] testInvalidIngressMetadataAndReplayLeaveAllFactorStateUnchanged() (gas: 986841)
+[PASS] testLedgerFactorWriterIsOnlyTheBoundInbox() (gas: 154775)
+[PASS] testMaximumEqualFractionReducesToIdentityAndAllMonthDaysRemainQueryable() (gas: 3995107)
+[PASS] testOnlyVolumeReporterCanScheduleOrCancelAndRevocationTakesEffectImmediately() (gas: 482318)
+[PASS] testScheduleCorrectionAndCancellationEventsCarryCanonicalFactorsAndSourceEvidence() (gas: 281403)
+[PASS] testScheduledFactorBeforeAdtvAlsoGuardsTheFirstReportAgainstOverflow() (gas: 483492)
+[PASS] testSourceTimeAndSubmissionDeadlineCannotSelectAnIntradayActivationTime() (gas: 432534)
+[PASS] testSplitReportIdsAreGlobalButSequenceAndVersionScopesRemainIndependent() (gas: 409918)
+Suite result: ok. 14 passed; 0 failed; 0 skipped; finished in 65.54ms (68.91ms CPU time)
+
+Ran 13 tests for test/integration/local/trading/Boundaries.t.sol:TSVTradingBoundariesTest
+[PASS] testAdapterRevocationStopsNextSwapIncludingCodeRemovedAdapter() (gas: 233681)
+[PASS] testAllowanceFailureRollsBackPoolAndQuotaAndCanRetry() (gas: 779102)
+[PASS] testBothDirectionsSlippageRollsBackAndCanRetry() (gas: 1568667)
+[PASS] testCallbackRequiresManagerAndActiveSwap() (gas: 33520)
+[PASS] testDeadlineIsInclusiveAndSameRequestCanTradeAgain() (gas: 535207)
+[PASS] testExactOutputBothDirectionsDeliversExactlyAndCountsActualStockLeg() (gas: 607715)
+[PASS] testExpiredRequestRollsBackBothModes() (gas: 167143)
+[PASS] testFuzzInvalidAmountIsRejectedBeforeSettlement(uint128,bool) (runs: 256, μ: 157168, ~: 157218)
+[PASS] testInvalidAdapterAndUnauthorizedAllowlistChanges() (gas: 66373)
+[PASS] testPartialExactInputChargesOnlyConsumedAmount() (gas: 2174866)
+[PASS] testSourceConversionFailureOrZeroRollsBackEntireV4Swap() (gas: 910445)
+[PASS] testUnknownOrChangedPoolKeyRejectedAtomically() (gas: 661595)
+[PASS] testZeroAmountAndZeroLimitRejectBothModes() (gas: 73175)
+Suite result: ok. 13 passed; 0 failed; 0 skipped; finished in 86.47ms (87.53ms CPU time)
+
+Ran 6 tests for test/unit/v1/reports/AdtvBatch.t.sol:TSVOperationsAdtvBatchTest
+[PASS] testBatchDuplicateReportIdAcrossSecuritiesRollsBackAndCanRetry() (gas: 5642826)
+[PASS] testBatchRejectsEmptyAndAboveMaximumBeforeAnyWrite() (gas: 221447)
+[PASS] testBatchRejectsZeroDuplicateDescendingAndMixedMonthAtomically() (gas: 6442256)
+[PASS] testFuzzBatchFailureAtEverySmallBatchPositionIsAtomic(uint8,bool) (runs: 256, μ: 5089219, ~: 5093664)
+[PASS] testMaximumBatchLastFailureRollsBackAllReportsThenRetrySucceeds() (gas: 186666662)
+[PASS] testSingleElementBatchUsesSameRulesAsSingleReport() (gas: 236405)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 188.48ms (199.68ms CPU time)
+
+Ran 15 tests for test/unit/v1/governance/DeploymentChecks.t.sol:TSVDeploymentChecksTest
+[PASS] testCoreDeploymentAcceptsValidUnboundEnvironment() (gas: 110006)
+[PASS] testCoreDeploymentRejectsAlreadyBoundAnchor() (gas: 391838)
+[PASS] testCoreDeploymentRejectsEveryMismatchedGovernanceIdentity() (gas: 1254530)
+[PASS] testCoreDeploymentRejectsFailingSbtSelectors() (gas: 227753)
+[PASS] testCoreDeploymentRejectsMissingExternalCode() (gas: 1012468)
+[PASS] testCoreDeploymentRejectsWrongChain() (gas: 81147)
+[PASS] testCoreDeploymentRejectsWrongExternalCodeHashes() (gas: 766415)
+[PASS] testFuzzCoreDeploymentRejectsOffsetOutsideOneDay(uint64) (runs: 256, μ: 80792, ~: 80617)
+[PASS] testFuzzVerifierRejectsWrongImplementationAtAnyProxy(uint8) (runs: 256, μ: 646056, ~: 645711)
+[PASS] testFuzzVerifierRejectsWrongImplementationCodeHashAtAnyProxy(uint8) (runs: 256, μ: 660153, ~: 659823)
+[PASS] testGovernanceDeploymentRejectsWrongChainBeforeBroadcast() (gas: 2392699)
+[PASS] testVerifierAcceptsCorrectBoundDeployment() (gas: 655739)
+[PASS] testVerifierRejectsStaleIdentityManifestAfterRecovery() (gas: 853158)
+[PASS] testVerifierRejectsUnboundAnchor() (gas: 72260)
+[PASS] testVerifierRejectsWrongChainAndProxyOrder() (gas: 982535)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 199.27ms (231.92ms CPU time)
+
+Ran 4 tests for test/unit/v1/deployment/HookFactory.t.sol:TSVHookFactoryTest
+[PASS] testMinedProxyHasV4PermissionsAndStableImplementationGetter() (gas: 1040842803)
+[PASS] testProxyRejectsEmptyInitializationData() (gas: 2004377)
+[PASS] testSixProxyDeploymentUsesActualPredictedAddresses() (gas: 214904454)
+[PASS] testWrongPermissionSaltReverts() (gas: 2286965)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 323.43ms (323.05ms CPU time)
+
+Ran 5 tests for test/unit/v1/governance/StatefulGovernance.t.sol:TSVStatefulGovernanceTest
+[PASS] invariantBindingsAndBusinessRolesSurviveAllGovernanceSequences() (runs: 64, calls: 2048, reverts: 0)
+
+╭-------------------+---------------+-------+---------+----------╮
+| Contract          | Selector      | Calls | Reverts | Discards |
++================================================================+
+| GovernanceHandler | approve       | 215   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | cancel        | 226   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | freeze        | 220   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | propose       | 225   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | recover       | 259   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | revoke        | 223   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | unfreeze      | 236   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | upgradeBatch  | 199   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | upgradeSingle | 245   | 0       | 0        |
+╰-------------------+---------------+-------+---------+----------╯
+
+[PASS] invariantFreezeOnlyChangesThroughCurrentGuardianTransitions() (runs: 64, calls: 2048, reverts: 0)
+
+╭-------------------+---------------+-------+---------+----------╮
+| Contract          | Selector      | Calls | Reverts | Discards |
++================================================================+
+| GovernanceHandler | approve       | 215   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | cancel        | 226   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | freeze        | 220   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | propose       | 225   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | recover       | 259   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | revoke        | 223   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | unfreeze      | 236   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | upgradeBatch  | 199   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | upgradeSingle | 245   | 0       | 0        |
+╰-------------------+---------------+-------+---------+----------╯
+
+[PASS] invariantIdentitiesAndEpochsMatchApprovedRecoveries() (runs: 64, calls: 2048, reverts: 0)
+
+╭-------------------+---------------+-------+---------+----------╮
+| Contract          | Selector      | Calls | Reverts | Discards |
++================================================================+
+| GovernanceHandler | approve       | 215   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | cancel        | 226   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | freeze        | 220   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | propose       | 225   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | recover       | 259   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | revoke        | 223   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | unfreeze      | 236   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | upgradeBatch  | 199   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | upgradeSingle | 245   | 0       | 0        |
+╰-------------------+---------------+-------+---------+----------╯
+
+[PASS] invariantImplementationsOnlyChangeThroughAuthorizedUnfrozenUpgrades() (runs: 64, calls: 2048, reverts: 0)
+
+╭-------------------+---------------+-------+---------+----------╮
+| Contract          | Selector      | Calls | Reverts | Discards |
++================================================================+
+| GovernanceHandler | approve       | 215   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | cancel        | 226   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | freeze        | 220   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | propose       | 225   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | recover       | 259   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | revoke        | 223   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | unfreeze      | 236   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | upgradeBatch  | 199   | 0       | 0        |
+|-------------------+---------------+-------+---------+----------|
+| GovernanceHandler | upgradeSingle | 245   | 0       | 0        |
+╰-------------------+---------------+-------+---------+----------╯
+
+[PASS] testModelTraversesRecoveryAndRejectsStaleApprovalWhileFrozen() (gas: 1059853)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 661.05ms (1.44s CPU time)
+
+Ran 2 tests for test/integration/local/trading/StatefulTradingLP.t.sol:TSVStatefulTradingLPTest
+[PASS] invariantPositionsReceiptsBalancesVolumeAndV4DebtMatchModel() (runs: 64, calls: 2048, reverts: 0)
+
+╭------------------+------------+-------+---------+----------╮
+| Contract         | Selector   | Calls | Reverts | Discards |
++============================================================+
+| TradingLPHandler | advanceDay | 212   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | change     | 185   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | close      | 191   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | collect    | 193   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | conversion | 233   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | credential | 245   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | open       | 190   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | pause      | 184   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | quota      | 212   | 0       | 0        |
+|------------------+------------+-------+---------+----------|
+| TradingLPHandler | swap       | 203   | 0       | 0        |
+╰------------------+------------+-------+---------+----------╯
+
+[PASS] testModelTraversesSuccessfulAndRejectedSwapLPQuotaAndDayChanges() (gas: 3280257)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 1.05s (1.05s CPU time)
+
+Ran 5 tests for test/unit/v1/reports/CapCorrections.t.sol:TSVOperationsCapCorrectionsTest
+[PASS] testAcceptedReportsDoNotExpireWithSubmissionDeadline() (gas: 488121)
+[PASS] testAdtvCorrectionClampsExistingQuotaAndPreservesConsumedVolume() (gas: 704794)
+[PASS] testFutureDayQuotaDoesNotChangeCurrentDayAndRequiresApplicableMonth() (gas: 631130)
+[PASS] testFuzzHardCapUsesFloorAndExactLimitIsAllowed(uint192,uint16) (runs: 256, μ: 388052, ~: 390855)
+[PASS] testTierPolicyCorrectionImmediatelyChangesCapWithoutResettingUsedOrQuota() (gas: 559585)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 14.87s (14.87s CPU time)
+
+Ran 7 tests for test/unit/v1/governance/ProxyBinding.t.sol:TSVProxyBindingTest
+[PASS] testBatchCannotRunBeforeBinding() (gas: 30957)
+[PASS] testBindingRejectsDuplicateProxyAndWrongOrder() (gas: 453817)
+[PASS] testEveryBrokenCrossLinkRollsBackAndCanBeRetried() (gas: 4401536)
+[PASS] testFuzzBindingRejectsDifferentAnchorAtAnyPosition(uint8) (runs: 256, μ: 433185, ~: 430637)
+[PASS] testFuzzBindingRejectsMissingCodeAtAnyPosition(uint8,bool) (runs: 256, μ: 437782, ~: 434126)
+[PASS] testOnlyGovernorCanBindProxies() (gas: 373342)
+[PASS] testProxiesCannotBeReboundEvenByGovernor() (gas: 340136)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 14.88s (14.89s CPU time)
+
+Ran 4 tests for test/unit/v1/reports/StatefulOperations.t.sol:TSVStatefulOperationsTest
+[PASS] invariantCalendarMatchesIndependentModelAndHistoryIsStable() (runs: 64, calls: 2048, reverts: 0)
+
+╭-------------------+----------------+-------+---------+----------╮
+| Contract          | Selector       | Calls | Reverts | Discards |
++=================================================================+
+| OperationsHandler | advanceTime    | 264   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | cancel         | 249   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | charge         | 262   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | schedule       | 262   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | submitAdtv     | 254   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | submitFactor   | 258   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | submitQuota    | 252   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | toggleReporter | 247   | 0       | 0        |
+╰-------------------+----------------+-------+---------+----------╯
+
+[PASS] invariantReportsCapsReplayProtectionAndUsedMatchModel() (runs: 64, calls: 2048, reverts: 0)
+
+╭-------------------+----------------+-------+---------+----------╮
+| Contract          | Selector       | Calls | Reverts | Discards |
++=================================================================+
+| OperationsHandler | advanceTime    | 264   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | cancel         | 249   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | charge         | 262   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | schedule       | 262   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | submitAdtv     | 254   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | submitFactor   | 258   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | submitQuota    | 252   | 0       | 0        |
+|-------------------+----------------+-------+---------+----------|
+| OperationsHandler | toggleReporter | 247   | 0       | 0        |
+╰-------------------+----------------+-------+---------+----------╯
+
+[PASS] testModelCombinesFutureFactorsCorrectionsCancellationsDayStartsAndMonthRollover() (gas: 7779143)
+[PASS] testModelTraversesReportCorrectionsRoleFailuresAndLongShortDayChanges() (gas: 7724704)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 14.90s (17.54s CPU time)
+
+Ran 12 tests for test/unit/v1/governance/BatchBoundaries.t.sol:TSVBatchBoundariesTest
+[PASS] testBatchAuthorityTransfersToRecoveredGovernor() (gas: 4527591)
+[PASS] testBatchRejectsEmptyAndOversizedPlans() (gas: 34533)
+[PASS] testBatchRejectsImplementationWithoutCode() (gas: 68444)
+[PASS] testBatchRejectsMismatchedInitializationDataLength() (gas: 41395)
+[PASS] testBatchRejectsNonUUPSImplementationAndRollsBackEarlierUpgrade() (gas: 4456581)
+[PASS] testBatchRejectsWrongProxiableUUID() (gas: 125802)
+[PASS] testContractGovernorCanUpgradeDirectlyAndExecuteBatch() (gas: 8246999)
+[PASS] testFuzzFailureAtAnyBatchPositionRollsBackExternalWritesAndAllowsRetry(uint8) (runs: 256, μ: 19559743, ~: 19562766)
+[PASS] testGuardianFreezeDuringMigrationRejectsRemainingUpgradeAndRollsBackEntireTransaction() (gas: 8253760)
+[PASS] testNestedBatchFromGovernorCallbackIsRejectedAndOuterBatchRollsBack() (gas: 8283798)
+[PASS] testSixProxiesUpgradeToDistinctV2ImplementationsAndMigrateOnce() (gas: 19236447)
+[PASS] testUninitializedV2MigrationRequiresGovernorOrActiveAnchorBatch() (gas: 4441912)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 14.90s (14.90s CPU time)
+
+╭------------------------------------+--------+--------+---------╮
+| Test Suite                         | Passed | Failed | Skipped |
++================================================================+
+| TSVGovernanceLocalTest             | 1      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVSixProxyMigrationLocalTest      | 5      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVLiquidityBoundariesTest         | 12     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVLPDeltaGuardsTest               | 3      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVForceExitLocalTest              | 9      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVLPHookCallbacksTest             | 7      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVIssuerLPFailuresTest            | 1      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVLiquidityLocalTest              | 6      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVPositionIdLocalTest             | 8      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVLiquiditySettlementTest         | 5      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsFlowsLocalTest        | 9      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsPoolCreationLocalTest | 2      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVSplitFactorFlowsLocalTest       | 6      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVAdmissionLocalTest              | 2      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVPausesLocalTest                 | 9      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVTradingAccountingTest           | 3      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVTradingBoundariesTest           | 13     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVSwapDeltaGuardsTest             | 2      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVDexAdapterTest                  | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVTradingHookCallbacksTest        | 3      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVIssuerSwapFailuresTest          | 1      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVTradingPrecisionTest            | 1      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVTradingSettlementTest           | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVStatefulTradingLPTest           | 2      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVTradingLocalTest                | 14     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVIssuerAdapterTest               | 3      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVBackedAdapterTest               | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| ERC8056DirectLegalShareAdapterTest | 7      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVHookFactoryTest                 | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVBatchBoundariesTest             | 12     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVBatchUpgradeTest                | 7      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVBusinessRolesTest               | 9      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVDeploymentChecksTest            | 15     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVDirectUpgradeTest               | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVGovernanceEventsTest            | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVFreezeTest                      | 3      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVFreezeAcrossProxiesTest         | 1      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVGovernanceInitializationTest    | 6      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVProxyBindingTest                | 7      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVRecoveryTest                    | 7      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVRecoveryAcrossProxiesTest       | 1      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVRecoveryLifecycleTest           | 15     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVStatefulGovernanceTest          | 5      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsAdapterChangesTest    | 3      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVAdmissionTest                   | 13     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsConfigurationTest     | 5      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsLifecycleTest         | 6      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsPauseBoundariesTest   | 2      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVPausesTest                      | 13     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsPermissionsTest       | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsAdtvBatchTest         | 6      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsBindingsTest          | 3      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsCalendarTest          | 7      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsCapCorrectionsTest    | 5      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsIngressTest           | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVOperationsPayloadTest           | 5      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVReportsTest                     | 7      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVSplitFactorTest                 | 14     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVSplitFactorBoundariesTest       | 14     | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVStatefulOperationsTest          | 4      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVTradeDayTest                    | 5      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVRouterInitializationTest        | 1      | 0      | 0       |
+|------------------------------------+--------+--------+---------|
+| TSVVolumeAccountingTest            | 2      | 0      | 0       |
+╰------------------------------------+--------+--------+---------╯
+

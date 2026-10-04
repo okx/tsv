@@ -1,0 +1,24 @@
+{
+  "head": "44012cbe9b832f731806838d3e9478b0bf75c9c5",
+  "report_lines": 396,
+  "counts": {
+    "G": 187,
+    "I": 36,
+    "X": 9,
+    "E": 4
+  },
+  "declared_operational_entry_points": 59,
+  "permissionless": 2,
+  "role_or_caller_gated": 46,
+  "admin_only": 11,
+  "initializers": 6,
+  "svg_nodes": 16,
+  "svg_edges": 18,
+  "graph_validation": "PASS",
+  "visual_validation": "PASS - Quick Look square preview; third iteration fixes bottom label clipping",
+  "markdown_links_and_citations": "PASS",
+  "source_script_test_diff": "clean",
+  "coverage_exit": 0,
+  "coverage_ir_minimum": true,
+  "cleanup": "completed"
+}

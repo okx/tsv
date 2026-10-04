@@ -1,0 +1,1311 @@
+[
+  {
+    "path": "src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol",
+    "line": 44,
+    "predicate": "\n            underlying_ == address(0) || wrapped_ == address(0) || underlying_ == wrapped_ || version_ == 0\n                || underlying_.code.length == 0 || wrapped_.code.length == 0\n        ",
+    "check": "if",
+    "error": "InvalidAdapterConfig"
+  },
+  {
+    "path": "src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol",
+    "line": 48,
+    "predicate": "\n            IBackedWrappedAsset(wrapped_).asset() != underlying_\n                || IBackedShareConversionSource(underlying_).decimals() != 18\n                || IBackedWrappedAsset(wrapped_).decimals() != 18\n        ",
+    "check": "if",
+    "error": "InvalidAdapterConfig"
+  },
+  {
+    "path": "src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol",
+    "line": 75,
+    "predicate": "currency != poolCurrency",
+    "check": "if",
+    "error": "InvalidCurrency"
+  },
+  {
+    "path": "src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol",
+    "line": 79,
+    "predicate": "legalSharesWad == 0",
+    "check": "if",
+    "error": "InvalidConversion"
+  },
+  {
+    "path": "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol",
+    "line": 23,
+    "predicate": "currency_ == address(0) || currency_.code.length == 0 || version_ == 0",
+    "check": "if",
+    "error": "InvalidAdapterConfig"
+  },
+  {
+    "path": "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol",
+    "line": 25,
+    "predicate": "decimals_ > 18",
+    "check": "if",
+    "error": "InvalidAdapterConfig"
+  },
+  {
+    "path": "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol",
+    "line": 44,
+    "predicate": "legalSharesWad == 0",
+    "check": "if",
+    "error": "InvalidRate"
+  },
+  {
+    "path": "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol",
+    "line": 48,
+    "predicate": "currency != poolCurrency",
+    "check": "if",
+    "error": "InvalidCurrency"
+  },
+  {
+    "path": "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol",
+    "line": 54,
+    "predicate": "multiplier == 0 || decimals_ > 18",
+    "check": "if",
+    "error": "InvalidAdapterConfig"
+  },
+  {
+    "path": "src/v1/core/TSVDataInboxV1.sol",
+    "line": 35,
+    "predicate": "registry_ == address(0) || ledger_ == address(0)",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVDataInboxV1.sol",
+    "line": 53,
+    "predicate": "\n            report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0\n                || report.exchangeHash == 0\n        ",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVDataInboxV1.sol",
+    "line": 70,
+    "predicate": "reports.length == 0 || reports.length > MAX_ADTV_BATCH_SIZE",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVDataInboxV1.sol",
+    "line": 78,
+    "predicate": "\n                report.securityId == 0 || report.sourceMonth != sourceMonth\n                    || (i != 0 && uint256(report.securityId) <= uint256(previousSecurityId))\n            ",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVDataInboxV1.sol",
+    "line": 156,
+    "predicate": "!hasRole(role, msg.sender)",
+    "check": "if",
+    "error": "UnauthorizedReporter"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 66,
+    "predicate": "(uint160(address(this)) & FLAG_MASK) != REQUIRED_HOOK_FLAGS",
+    "check": "if",
+    "error": "InvalidHookAddress"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 67,
+    "predicate": "\n            poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0\n                || router_.code.length == 0 || lpManager_.code.length == 0\n        ",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 80,
+    "predicate": "msg.sender != address(poolManager)",
+    "check": "if",
+    "error": "UnauthorizedCallback"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 127,
+    "predicate": "\n            params.liquidityDelta <= 0 || (ctx.mode != LPOperationMode.OPEN && ctx.mode != LPOperationMode.INCREASE)\n                || !registry.isLPAllowed(ctx.poolId)\n        ",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 162,
+    "predicate": "params.liquidityDelta > 0 || ctx.mode == LPOperationMode.OPEN || ctx.mode == LPOperationMode.INCREASE",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 166,
+    "predicate": "params.liquidityDelta >= 0",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 167,
+    "predicate": "!registry.isLPAllowed(ctx.poolId)",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 202,
+    "predicate": "sender != router || hookData.length != 0",
+    "check": "if",
+    "error": "UnauthorizedCallback"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 204,
+    "predicate": "!registry.isTradable(poolId)",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 223,
+    "predicate": "sender != router || hookData.length != 0",
+    "check": "if",
+    "error": "UnauthorizedCallback"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 260,
+    "predicate": "\n            sender != lpManager || address(key.hooks) != address(this)\n                || registry.getPool(PoolId.unwrap(key.toId())).status != PoolStatus.PENDING\n        ",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 272,
+    "predicate": "keccak256(abi.encode(pool.key)) != keccak256(abi.encode(key))",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 287,
+    "predicate": "sender != lpManager || hookData.length != 0",
+    "check": "if",
+    "error": "UnauthorizedCallback"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 289,
+    "predicate": "\n            ctx.poolId == 0 || ctx.poolId != PoolId.unwrap(key.toId()) || ctx.salt != params.salt\n                || ctx.tickLower != params.tickLower || ctx.tickUpper != params.tickUpper\n                || ctx.liquidityDelta != params.liquidityDelta\n        ",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/core/TSVHookV1.sol",
+    "line": 305,
+    "predicate": "config.securityId != securityId || config.legalShareAdapter == address(0)",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 162,
+    "predicate": "hook != address(0) || lpManager != address(0) || dataInbox != address(0)",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 163,
+    "predicate": "hook_.code.length == 0 || lpManager_.code.length == 0 || dataInbox_.code.length == 0",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 179,
+    "predicate": "tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 199,
+    "predicate": "sbt_.code.length == 0 || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 221,
+    "predicate": "address(participantSbt) == address(0)",
+    "check": "if",
+    "error": "SbtNotConfigured"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 229,
+    "predicate": "address(participantSbt) == address(0)",
+    "check": "if",
+    "error": "SbtNotConfigured"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 246,
+    "predicate": "\n            securityId == 0 || symbolHash == 0 || evidenceHash == 0 || securities[securityId].securityId != 0\n                || symbolToSecurity[symbolHash] != 0 || config.securityId != securityId\n        ",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 262,
+    "predicate": "config.securityId == 0 || config.listed || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 278,
+    "predicate": "!config.listed || config.tierId == tierId || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 292,
+    "predicate": "!config.listed || config.activePoolCount != 0 || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 315,
+    "predicate": "\n            config.poolCurrency == address(0) || config.status != TokenStatus.APPROVED || evidenceHash == 0\n                || tokens[config.poolCurrency].poolCurrency != address(0) || config.poolDecimals > 18\n                || config.reviewHash == 0 || config.poolCurrency.code.length == 0\n        ",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 320,
+    "predicate": "\n            config.poolCurrency.codehash != config.poolRuntimeCodeHash\n                || IERC20DecimalsV1(config.poolCurrency).decimals() != config.poolDecimals\n        ",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 325,
+    "predicate": "\n                config.legalShareAdapter != address(0) || config.legalAdapterCodeHash != 0\n                    || config.legalAdapterVersion != 0 || config.legalSharePolicyHash != 0\n            ",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 330,
+    "predicate": "\n                !securities[config.securityId].listed || config.legalShareAdapter.code.length == 0\n                    || config.legalAdapterVersion != 1 || config.legalSharePolicyHash == 0\n                    || config.legalShareAdapter.codehash != config.legalAdapterCodeHash\n            ",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 355,
+    "predicate": "config.poolCurrency == address(0) || evidenceHash == 0 || config.status == status",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 356,
+    "predicate": "status == TokenStatus.ABSENT",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 358,
+    "predicate": "\n                config.reviewHash == 0 || (config.securityId != 0 && config.legalSharePolicyHash == 0)\n                    || config.poolCurrency.codehash != config.poolRuntimeCodeHash\n            ",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 362,
+    "predicate": "config.securityId != 0 && !securities[config.securityId].listed",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 378,
+    "predicate": "\n            config.poolCurrency == address(0) || config.securityId == 0 || newAdapter == config.legalShareAdapter\n                || newAdapter.code.length == 0 || evidenceHash == 0 || !_assetPausedForReplacement(currency)\n        ",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 403,
+    "predicate": "msg.sender != lpManager",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 406,
+    "predicate": "\n            address(key.hooks) != hook || c0 == address(0) || c0 >= c1 || key.fee >= 1_000_000 || key.tickSpacing < 1\n                || key.tickSpacing > 32767 || tokens[c0].status != TokenStatus.APPROVED\n                || tokens[c1].status != TokenStatus.APPROVED\n        ",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 413,
+    "predicate": "s0 != 0 && s1 != 0",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 415,
+    "predicate": "pools[poolId].status != PoolStatus.ABSENT",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 426,
+    "predicate": "msg.sender != lpManager || pools[poolId].status != PoolStatus.PENDING",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 443,
+    "predicate": "pool.status != PoolStatus.ACTIVE || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 458,
+    "predicate": "pool.status != PoolStatus.DISABLED || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 461,
+    "predicate": "\n            tokens[c0].status != TokenStatus.APPROVED || tokens[c1].status != TokenStatus.APPROVED\n                || (pool.securityId0 != 0 && !securities[pool.securityId0].listed)\n                || (pool.securityId1 != 0 && !securities[pool.securityId1].listed)\n        ",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 468,
+    "predicate": "!_isOperationAllowed(poolId, PauseMode.TRADE) || !_isOperationAllowed(poolId, PauseMode.LP)",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 496,
+    "predicate": "securities[securityId].securityId == 0",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 513,
+    "predicate": "\n            msg.sender != dataInbox || securityId == 0 || !securities[securityId].listed\n                || sequence <= marketSequence[securityId] || mode == PauseMode.NONE\n        ",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 523,
+    "predicate": "nextMode == oldMode",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 544,
+    "predicate": "\n            mode == PauseMode.NONE || reasonCode == 0 || sourceHash == 0 || (scope == PauseScope.GLOBAL && target != 0)\n                || (scope != PauseScope.GLOBAL && target == 0)\n        ",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 560,
+    "predicate": "!record.active || reasonCode == 0",
+    "check": "if",
+    "error": "InvalidStatus"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 607,
+    "predicate": "tierId == 0 || tier.tierBps == 0 || tier.listedCount >= tier.maxListed",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 618,
+    "predicate": "!supported",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVRegistryV1.sol",
+    "line": 622,
+    "predicate": "directAdapter.poolCurrency() != currency || directAdapter.adapterVersion() != version",
+    "check": "if",
+    "error": "InvalidConfig"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 161,
+    "predicate": "registry_ == address(0) || dayStartOffsetSeconds >= SECONDS_PER_DAY",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 170,
+    "predicate": "hook != address(0) || dataInbox != address(0) || hook_.code.length == 0 || dataInbox_.code.length == 0",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 180,
+    "predicate": "msg.sender != dataInbox",
+    "check": "if",
+    "error": "UnauthorizedWriter"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 187,
+    "predicate": "\n            report.securityId == 0 || report.adtvWad == 0 || !TradeDayLib.validMonth(report.sourceMonth)\n                || !registry.getSecurity(report.securityId).listed\n        ",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 192,
+    "predicate": "report.version != current.version + 1",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 207,
+    "predicate": "report.securityId == 0 || !registry.getSecurity(report.securityId).listed",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 209,
+    "predicate": "report.version != current.version + 1",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 213,
+    "predicate": "hardCap == 0 || report.quotaWad == 0 || report.quotaWad > hardCap",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 217,
+    "predicate": "!current.active || report.quotaWad != 0",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 235,
+    "predicate": "\n            report.securityId == 0 || !registry.getSecurity(report.securityId).listed\n                || !TradeDayLib.validMonth(report.sourceMonth)\n                || TradeDayLib.previousMonth(report.effectiveTradeDayId) != report.sourceMonth\n                || report.version != splitFactorVersions[report.securityId][report.sourceMonth] + 1\n        ",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 242,
+    "predicate": "report.effectiveTradeDayId <= currentDay",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 254,
+    "predicate": "factors[count - 1].effectiveTradeDayId != report.effectiveTradeDayId",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 270,
+    "predicate": "\n                report.numerator != 0 || report.denominator != 0 || count == 0\n                    || factors[count - 1].effectiveTradeDayId != report.effectiveTradeDayId\n            ",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 339,
+    "predicate": "newOffsetSeconds >= SECONDS_PER_DAY || reasonHash == 0",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 342,
+    "predicate": "block.timestamp < _dayStartUTC(priorEffectiveDayId)",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 346,
+    "predicate": "ordinal == 0",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 350,
+    "predicate": "newOffsetSeconds == oldOffset",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 352,
+    "predicate": "shift > MAX_DAY_START_SHIFT",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 353,
+    "predicate": "\n            dayStartCheckpoints.length != 0\n                && effectiveDayId <= dayStartCheckpoints[dayStartCheckpoints.length - 1].effectiveDayId\n        ",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 361,
+    "predicate": "block.timestamp >= _dayStartUTC(transitionDayId)",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 375,
+    "predicate": "!hasPendingDayStart || reasonHash == 0 || count == 0",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 378,
+    "predicate": "block.timestamp >= _dayStartUTC(transitionDayId)",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 412,
+    "predicate": "ordinal == 0",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 463,
+    "predicate": "msg.sender != hook",
+    "check": "if",
+    "error": "UnauthorizedWriter"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 464,
+    "predicate": "delta0 == 0 || delta1 == 0 || (delta0 < 0) == (delta1 < 0)",
+    "check": "if",
+    "error": "ZeroSwapAmount"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 466,
+    "predicate": "pool.status != PoolStatus.ACTIVE || !registry.isTradable(poolId)",
+    "check": "if",
+    "error": "InvalidPeriod"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 488,
+    "predicate": "legalSharesWad != 0",
+    "check": "if",
+    "error": "InvalidLegalShareAmount"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 491,
+    "predicate": "legalSharesWad == 0",
+    "check": "if",
+    "error": "InvalidLegalShareAmount"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 493,
+    "predicate": "\n            config.securityId != securityId || config.legalShareAdapter == address(0) || config.legalAdapterVersion == 0\n        ",
+    "check": "if",
+    "error": "InvalidLegalShareAmount"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 511,
+    "predicate": "hardCap == 0",
+    "check": "if",
+    "error": "MissingReport"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 513,
+    "predicate": "next > _effectiveCap(securityId, day, hardCap)",
+    "check": "if",
+    "error": "QuotaExceeded"
+  },
+  {
+    "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+    "line": 543,
+    "predicate": "numerator == 0 || denominator == 0",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/deployment/TSVERC1967Proxy.sol",
+    "line": 16,
+    "predicate": "data.length == 0",
+    "check": "if",
+    "error": "EmptyInitializationData"
+  },
+  {
+    "path": "src/v1/deployment/TSVHookProxyFactoryV1.sol",
+    "line": 37,
+    "predicate": "implementation.code.length == 0 || initData.length == 0",
+    "check": "if",
+    "error": "InvalidImplementation"
+  },
+  {
+    "path": "src/v1/deployment/TSVHookProxyFactoryV1.sol",
+    "line": 38,
+    "predicate": "(uint160(predict(implementation, initData, salt)) & FLAG_MASK) != REQUIRED_HOOK_FLAGS",
+    "check": "if",
+    "error": "InvalidHookAddress"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 130,
+    "predicate": "msg.sender != guardian",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 131,
+    "predicate": "upgradesFrozen || reasonHash == 0",
+    "check": "if",
+    "error": "InvalidFreeze"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 141,
+    "predicate": "msg.sender != guardian",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 142,
+    "predicate": "!upgradesFrozen || expectedFreezeId != freezeId || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidFreeze"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 154,
+    "predicate": "msg.sender != governor",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 155,
+    "predicate": "upgradesFrozen",
+    "check": "if",
+    "error": "UpgradeFrozen"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 156,
+    "predicate": "\n            !proxiesBound || upgradeContextActive || targets.length == 0 || targets.length > 6\n                || targets.length != implementations.length || targets.length != initData.length\n        ",
+    "check": "if",
+    "error": "InvalidBundle"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 165,
+    "predicate": "!bound || implementations[i].code.length == 0",
+    "check": "if",
+    "error": "InvalidBundle"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 167,
+    "predicate": "targets[i] == targets[j]",
+    "check": "if",
+    "error": "InvalidBundle"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 185,
+    "predicate": "\n            governor_ == address(0) || guardian_ == address(0) || recoveryCouncil_ == address(0)\n                || governor_ == guardian_ || governor_ == recoveryCouncil_ || guardian_ == recoveryCouncil_\n        ",
+    "check": "if",
+    "error": "InvalidBundle"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 205,
+    "predicate": "msg.sender != governor || proxiesBound",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 207,
+    "predicate": "addresses[i].code.length == 0 || IAnchoredProxyV1(addresses[i]).governanceAnchor() != address(this)",
+    "check": "if",
+    "error": "InvalidBundle"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 211,
+    "predicate": "addresses[i] == addresses[j]",
+    "check": "if",
+    "error": "InvalidBundle"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 215,
+    "predicate": "\n            IRegistryLinksV1(addresses[0]).hook() != addresses[3]\n                || IRegistryLinksV1(addresses[0]).lpManager() != addresses[5]\n                || IRegistryLinksV1(addresses[0]).dataInbox() != addresses[2]\n                || ILedgerLinksV1(addresses[1]).registry() != addresses[0]\n                || ILedgerLinksV1(addresses[1]).hook() != addresses[3]\n                || ILedgerLinksV1(addresses[1]).dataInbox() != addresses[2]\n                || IInboxLinksV1(addresses[2]).registry() != addresses[0]\n                || IInboxLinksV1(addresses[2]).ledger() != addresses[1]\n                || IHookLinksV1(addresses[3]).registry() != addresses[0]\n                || IHookLinksV1(addresses[3]).ledger() != addresses[1]\n                || IHookLinksV1(addresses[3]).router() != addresses[4]\n                || IHookLinksV1(addresses[3]).lpManager() != addresses[5]\n                || IRouterLinksV1(addresses[4]).registry() != addresses[0]\n                || IRouterLinksV1(addresses[4]).ledger() != addresses[1]\n                || ILpLinksV1(addresses[5]).registry() != addresses[0]\n                || IHookLinksV1(addresses[3]).poolManager() != IRouterLinksV1(addresses[4]).poolManager()\n                || IHookLinksV1(addresses[3]).poolManager() != ILpLinksV1(addresses[5]).poolManager()\n        ",
+    "check": "if",
+    "error": "InvalidBundle"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 243,
+    "predicate": "msg.sender != recoveryCouncil || salt == 0 || evidenceHash == 0",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 248,
+    "predicate": "recoveries[id].active",
+    "check": "if",
+    "error": "InvalidProposal"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 255,
+    "predicate": "msg.sender != guardian",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 257,
+    "predicate": "!p.active || p.epoch != epoch || p.guardianEpoch != guardianEpoch",
+    "check": "if",
+    "error": "InvalidProposal"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 264,
+    "predicate": "msg.sender != guardian || !recoveries[id].approved",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 271,
+    "predicate": "msg.sender != recoveryCouncil || !recoveries[id].active",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 279,
+    "predicate": "upgradeContextActive || !p.active || !p.approved || p.epoch != epoch || p.guardianEpoch != guardianEpoch",
+    "check": "if",
+    "error": "InvalidProposal"
+  },
+  {
+    "path": "src/v1/governance/TSVGovernanceAnchor.sol",
+    "line": 299,
+    "predicate": "\n            newGovernor == address(0) || newGuardian == address(0) || newGovernor == newGuardian\n                || newGovernor == recoveryCouncil || newGuardian == recoveryCouncil || newGovernor == guardian\n                || newGuardian == currentGovernor || (newGovernor == currentGovernor && newGuardian == guardian)\n        ",
+    "check": "if",
+    "error": "InvalidBundle"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 39,
+    "predicate": "anchor_.code.length == 0",
+    "check": "if",
+    "error": "InvalidGovernance"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 44,
+    "predicate": "\n            governor == address(0) || guardian == address(0) || council == address(0) || governor == guardian\n                || governor == council || guardian == council\n        ",
+    "check": "if",
+    "error": "InvalidGovernance"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 56,
+    "predicate": "msg.sender != governanceAnchor.governor()",
+    "check": "if",
+    "error": "AccessControlUnauthorizedAccount"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 77,
+    "predicate": "role == DEFAULT_ADMIN_ROLE",
+    "check": "if",
+    "error": "ProtectedRole"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 85,
+    "predicate": "role == DEFAULT_ADMIN_ROLE",
+    "check": "if",
+    "error": "ProtectedRole"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 93,
+    "predicate": "role == DEFAULT_ADMIN_ROLE",
+    "check": "if",
+    "error": "ProtectedRole"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 102,
+    "predicate": "role == DEFAULT_ADMIN_ROLE",
+    "check": "if",
+    "error": "ProtectedRole"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 111,
+    "predicate": "role == DEFAULT_ADMIN_ROLE",
+    "check": "if",
+    "error": "ProtectedRole"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 117,
+    "predicate": "\n            msg.sender != governanceAnchor.governor()\n                && !(msg.sender == address(governanceAnchor) && governanceAnchor.upgradeContextActive())\n        ",
+    "check": "if",
+    "error": "UnauthorizedUpgrade"
+  },
+  {
+    "path": "src/v1/governance/TSVGoverned.sol",
+    "line": 123,
+    "predicate": "governanceAnchor.upgradesFrozen()",
+    "check": "if",
+    "error": "UpgradeFrozen"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 120,
+    "predicate": "\n            underlying_.code.length == 0 || wrapped_.code.length == 0 || router_ == address(0)\n                || lpManager_ == address(0) || underlying_ == wrapped_\n                || IIssuerWrapped(wrapped_).asset() != underlying_\n        ",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 157,
+    "predicate": "\n            prepared.operationId != 0 || shares == 0 || owner == address(0) || owner == address(this)\n                || owner != contextOwner || receiver != msg.sender || maxDisplayedDebit == 0\n        ",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 172,
+    "predicate": "!underlying.transferSharesFrom(owner, address(this), shares)",
+    "check": "if",
+    "error": "SettlementMismatch"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 173,
+    "predicate": "\n            p.ownerShares < shares || underlying.sharesOf(owner) != p.ownerShares - shares\n                || underlying.sharesOf(address(this)) != p.adapterShares + shares\n        ",
+    "check": "if",
+    "error": "SettlementMismatch"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 178,
+    "predicate": "displayedAllowance == 0",
+    "check": "if",
+    "error": "SettlementMismatch"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 183,
+    "predicate": "\n            underlying.sharesOf(address(this)) != p.adapterShares\n                || underlying.sharesOf(address(wrapped)) != p.vaultShares + shares\n                || wrapped.totalSupply() != p.wrapperSupply + shares\n                || wrapped.balanceOf(address(this)) != p.adapterWrapped + shares\n        ",
+    "check": "if",
+    "error": "SettlementMismatch"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 191,
+    "predicate": "\n            wrapped.balanceOf(address(this)) != p.adapterWrapped\n                || wrapped.balanceOf(receiver) != p.receiverWrapped + shares\n        ",
+    "check": "if",
+    "error": "SettlementMismatch"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 196,
+    "predicate": "p.ownerDisplayed < ownerDisplayedAfter || p.ownerDisplayed - ownerDisplayedAfter > maxDisplayedDebit",
+    "check": "if",
+    "error": "SlippageExceeded"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 207,
+    "predicate": "prepared.operationId != 0 || operationId == 0 || shares == 0 || recipient == address(0)",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 228,
+    "predicate": "\n            p.operationId != operationId || p.caller != msg.sender || p.shares != shares || shares == 0\n                || contextRecipient != recipient || recipient == address(0) || (forceExit && minDisplayedCredit != 0)\n                || wrapped.balanceOf(address(this)) != p.wrappedBefore + shares\n        ",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 242,
+    "predicate": "\n            underlying.sharesOf(recipient) != s.recipientShares + shares || s.vaultShares < shares\n                || underlying.sharesOf(address(wrapped)) != s.vaultShares - shares || s.wrapperSupply < shares\n                || wrapped.totalSupply() != s.wrapperSupply - shares\n                || wrapped.balanceOf(address(this)) != p.wrappedBefore\n                || underlying.sharesOf(address(this)) != p.underlyingSharesBefore\n        ",
+    "check": "if",
+    "error": "SettlementMismatch"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 250,
+    "predicate": "displayedAfter < s.recipientDisplayed || displayedAfter - s.recipientDisplayed < minDisplayedCredit",
+    "check": "if",
+    "error": "SlippageExceeded"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 267,
+    "predicate": "msg.sender != router && msg.sender != lpManager",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+    "line": 270,
+    "predicate": "poolId == 0 || o == address(0) || r == address(0)",
+    "check": "if",
+    "error": "InvalidOperation"
+  },
+  {
+    "path": "src/v1/libraries/ReportValidationLib.sol",
+    "line": 32,
+    "predicate": "\n            reportId == 0 || sourceHash == 0 || reportIdUsed || sequence <= previousSequence\n                || sourceTimestamp < previousSourceTimestamp\n        ",
+    "check": "if",
+    "error": "InvalidReport"
+  },
+  {
+    "path": "src/v1/libraries/ReportValidationLib.sol",
+    "line": 36,
+    "predicate": "sourceTimestamp > currentTimestamp || currentTimestamp > submitDeadline",
+    "check": "if",
+    "error": "Expired"
+  },
+  {
+    "path": "src/v1/libraries/TSVDirectSettlementLib.sol",
+    "line": 32,
+    "predicate": "\n            payerAfter > payerBefore || payerBefore - payerAfter != amount || poolAfter < poolBefore\n                || poolAfter - poolBefore != amount || poolManager.settle() != amount\n        ",
+    "check": "if",
+    "error": "SettlementMismatch"
+  },
+  {
+    "path": "src/v1/libraries/TSVDirectSettlementLib.sol",
+    "line": 52,
+    "predicate": "\n            poolAfter > poolBefore || poolBefore - poolAfter != amount || recipientAfter < recipientBefore\n                || recipientAfter - recipientBefore != amount\n        ",
+    "check": "if",
+    "error": "SettlementMismatch"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 97,
+    "predicate": "poolManager_.code.length == 0 || registry_.code.length == 0",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 105,
+    "predicate": "entered",
+    "check": "if",
+    "error": "Reentrancy"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 120,
+    "predicate": "priceBasisHash == 0",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 142,
+    "predicate": "liquidity == 0 || liquidity > uint128(type(int128).max)",
+    "check": "if",
+    "error": "InvalidPosition"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 158,
+    "predicate": "\n            liquidity == 0 || liquidity > uint128(type(int128).max)\n                || uint256(p.liquidity) + liquidity > uint256(uint128(type(int128).max))\n        ",
+    "check": "if",
+    "error": "InvalidPosition"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 176,
+    "predicate": "liquidity == 0 || liquidity >= p.liquidity",
+    "check": "if",
+    "error": "InvalidPosition"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 188,
+    "predicate": "p.liquidity == 0",
+    "check": "if",
+    "error": "InvalidPosition"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 190,
+    "predicate": "delta.amount0() <= 0 && delta.amount1() <= 0",
+    "check": "if",
+    "error": "NoFees"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 218,
+    "predicate": "!p.active || p.liquidity == 0 || reasonCode == 0 || evidenceHash == 0",
+    "check": "if",
+    "error": "InvalidPosition"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 219,
+    "predicate": "\n            !hasRole(FORCE_EXIT_ADMIN_ROLE, msg.sender)\n                && (!hasRole(REVOKE_EXIT_EXECUTOR_ROLE, msg.sender) || registry.hasCredential(p.owner))\n        ",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 226,
+    "predicate": "!registry.isKnownPool(poolId)",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 245,
+    "predicate": "!entered || activeContext.positionId == 0",
+    "check": "if",
+    "error": "InvalidPosition"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 283,
+    "predicate": "from != address(0) && to != address(0)",
+    "check": "if",
+    "error": "NonTransferable"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 304,
+    "predicate": "\n            msg.sender != address(poolManager) || !entered || activeContext.positionId == 0\n                || keccak256(data) != activeRequestHash\n        ",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 311,
+    "predicate": "block.timestamp > request.bounds.deadline",
+    "check": "if",
+    "error": "Expired"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 375,
+    "predicate": "delta < 0 && (mode == LPOperationMode.FORCE_EXIT || mode == LPOperationMode.COLLECT)",
+    "check": "if",
+    "error": "SlippageExceeded"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 378,
+    "predicate": "delta == type(int128).min",
+    "check": "if",
+    "error": "InputAmountTooLarge"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 380,
+    "predicate": "delta < 0 && amount > maxIn",
+    "check": "if",
+    "error": "SlippageExceeded"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 381,
+    "predicate": "(delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut",
+    "check": "if",
+    "error": "SlippageExceeded"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 393,
+    "predicate": "block.timestamp > deadline",
+    "check": "if",
+    "error": "Expired"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 394,
+    "predicate": "!registry.isEligible(msg.sender)",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 395,
+    "predicate": "!registry.isLPAllowed(poolId)",
+    "check": "if",
+    "error": "InvalidPool"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 409,
+    "predicate": "!p.active || p.liquidity == 0 || p.owner != msg.sender || ownerOf(positionId) != p.owner",
+    "check": "if",
+    "error": "InvalidPosition"
+  },
+  {
+    "path": "src/v1/periphery/TSVLPManagerV1.sol",
+    "line": 421,
+    "predicate": "\n            lower >= upper || lower < TickMath.MIN_TICK || upper > TickMath.MAX_TICK || lower % key.tickSpacing != 0\n                || upper % key.tickSpacing != 0\n        ",
+    "check": "if",
+    "error": "InvalidPosition"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 83,
+    "predicate": "poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0",
+    "check": "if",
+    "error": "InvalidRequest"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 93,
+    "predicate": "entered",
+    "check": "if",
+    "error": "Reentrancy"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 135,
+    "predicate": "!isAdapterAllowed[msg.sender]",
+    "check": "if",
+    "error": "AdapterNotAllowed"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 145,
+    "predicate": "adapter == address(0) || (allowed && adapter.code.length == 0)",
+    "check": "if",
+    "error": "InvalidAdapter"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 155,
+    "predicate": "msg.sender != address(poolManager) || !entered",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 167,
+    "predicate": "inDelta >= 0 || outDelta <= 0",
+    "check": "if",
+    "error": "SlippageExceeded"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 168,
+    "predicate": "inDelta == type(int128).min",
+    "check": "if",
+    "error": "InputAmountTooLarge"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 172,
+    "predicate": "actualIn > request.amountSpecified || actualOut < request.limitAmount",
+    "check": "if",
+    "error": "SlippageExceeded"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 173,
+    "predicate": "actualOut != request.amountSpecified || actualIn > request.limitAmount",
+    "check": "if",
+    "error": "SlippageExceeded"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 225,
+    "predicate": "block.timestamp > request.deadline",
+    "check": "if",
+    "error": "Expired"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 226,
+    "predicate": "\n            request.amountSpecified == 0 || request.amountSpecified > uint128(type(int128).max)\n                || request.limitAmount == 0\n        ",
+    "check": "if",
+    "error": "InvalidRequest"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 230,
+    "predicate": "participant == address(0) || !registry.isEligible(participant)",
+    "check": "if",
+    "error": "Unauthorized"
+  },
+  {
+    "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+    "line": 232,
+    "predicate": "!registry.isTradable(poolId)",
+    "check": "if",
+    "error": "InvalidPool"
+  }
+]

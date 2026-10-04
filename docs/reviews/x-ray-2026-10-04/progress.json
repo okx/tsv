@@ -1,0 +1,14 @@
+[
+  {
+    "phase": "Phase 1: Enumerate & measure codebase",
+    "status": "completed"
+  },
+  {
+    "phase": "Phase 2: Read sources, classify entry points, synthesize invariants",
+    "status": "completed"
+  },
+  {
+    "phase": "Phase 3: Write x-ray report files",
+    "status": "completed"
+  }
+]

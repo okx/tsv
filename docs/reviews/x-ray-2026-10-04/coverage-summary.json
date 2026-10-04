@@ -1,0 +1,165 @@
+{
+  "exit_code": 0,
+  "command": "FOUNDRY_PROFILE=coverage forge coverage --offline; fallback forge coverage --offline --ir-minimum",
+  "ir_minimum_used": true,
+  "mapping_limitation": "Forge warns minimum IR optimization can make source mappings inaccurate.",
+  "summary": [
+    "Ran 63 test suites in 51.14s (62.25s CPU time): 369 tests passed, 0 failed, 0 skipped (369 total tests)"
+  ],
+  "rows": [
+    {
+      "file": "File",
+      "lines": "% Lines",
+      "statements": "% Statements",
+      "branches": "% Branches",
+      "functions": "% Funcs"
+    },
+    {
+      "file": "script/DeployCoreV1.s.sol",
+      "lines": "27.27% (24/88)",
+      "statements": "35.16% (45/128)",
+      "branches": "62.50% (5/8)",
+      "functions": "28.57% (2/7)"
+    },
+    {
+      "file": "script/DeployGovernanceV1.s.sol",
+      "lines": "46.15% (6/13)",
+      "statements": "38.46% (10/26)",
+      "branches": "0.00% (0/2)",
+      "functions": "100.00% (1/1)"
+    },
+    {
+      "file": "script/ScriptEnvironment.sol",
+      "lines": "0.00% (0/6)",
+      "statements": "0.00% (0/6)",
+      "branches": "100.00% (0/0)",
+      "functions": "0.00% (0/3)"
+    },
+    {
+      "file": "script/VerifyDeploymentV1.s.sol",
+      "lines": "98.11% (52/53)",
+      "statements": "99.28% (137/138)",
+      "branches": "90.00% (9/10)",
+      "functions": "100.00% (5/5)"
+    },
+    {
+      "file": "src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol",
+      "lines": "100.00% (18/18)",
+      "statements": "97.14% (34/35)",
+      "branches": "100.00% (5/5)",
+      "functions": "100.00% (3/3)"
+    },
+    {
+      "file": "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol",
+      "lines": "100.00% (19/19)",
+      "statements": "90.91% (30/33)",
+      "branches": "66.67% (4/6)",
+      "functions": "100.00% (4/4)"
+    },
+    {
+      "file": "src/v1/core/TSVDataInboxV1.sol",
+      "lines": "100.00% (40/40)",
+      "statements": "100.00% (47/47)",
+      "branches": "100.00% (5/5)",
+      "functions": "100.00% (8/8)"
+    },
+    {
+      "file": "src/v1/core/TSVHookV1.sol",
+      "lines": "100.00% (78/78)",
+      "statements": "97.50% (117/120)",
+      "branches": "77.78% (14/18)",
+      "functions": "100.00% (16/16)"
+    },
+    {
+      "file": "src/v1/core/TSVRegistryV1.sol",
+      "lines": "98.41% (248/252)",
+      "statements": "99.02% (403/407)",
+      "branches": "95.08% (58/61)",
+      "functions": "100.00% (36/36)"
+    },
+    {
+      "file": "src/v1/core/TSVVolumeLedgerV1.sol",
+      "lines": "99.01% (201/203)",
+      "statements": "98.65% (292/296)",
+      "branches": "90.57% (48/53)",
+      "functions": "100.00% (28/28)"
+    },
+    {
+      "file": "src/v1/deployment/TSVERC1967Proxy.sol",
+      "lines": "100.00% (4/4)",
+      "statements": "100.00% (4/4)",
+      "branches": "100.00% (1/1)",
+      "functions": "100.00% (2/2)"
+    },
+    {
+      "file": "src/v1/deployment/TSVHookProxyFactoryV1.sol",
+      "lines": "100.00% (10/10)",
+      "statements": "90.91% (10/11)",
+      "branches": "50.00% (1/2)",
+      "functions": "100.00% (2/2)"
+    },
+    {
+      "file": "src/v1/governance/TSVGovernanceAnchor.sol",
+      "lines": "100.00% (109/109)",
+      "statements": "100.00% (218/218)",
+      "branches": "100.00% (24/24)",
+      "functions": "100.00% (11/11)"
+    },
+    {
+      "file": "src/v1/governance/TSVGoverned.sol",
+      "lines": "95.24% (40/42)",
+      "statements": "96.67% (58/60)",
+      "branches": "100.00% (11/11)",
+      "functions": "100.00% (10/10)"
+    },
+    {
+      "file": "src/v1/legacy/IssuerShareSettlementAdapter.sol",
+      "lines": "79.17% (57/72)",
+      "statements": "88.96% (145/163)",
+      "branches": "7.14% (1/14)",
+      "functions": "71.43% (5/7)"
+    },
+    {
+      "file": "src/v1/libraries/ReportValidationLib.sol",
+      "lines": "100.00% (5/5)",
+      "statements": "100.00% (13/13)",
+      "branches": "100.00% (2/2)",
+      "functions": "100.00% (1/1)"
+    },
+    {
+      "file": "src/v1/libraries/TSVDirectSettlementLib.sol",
+      "lines": "100.00% (19/19)",
+      "statements": "100.00% (42/42)",
+      "branches": "100.00% (2/2)",
+      "functions": "100.00% (2/2)"
+    },
+    {
+      "file": "src/v1/libraries/TradeDayLib.sol",
+      "lines": "100.00% (44/44)",
+      "statements": "98.15% (106/108)",
+      "branches": "71.43% (5/7)",
+      "functions": "100.00% (7/7)"
+    },
+    {
+      "file": "src/v1/periphery/TSVLPManagerV1.sol",
+      "lines": "99.30% (141/142)",
+      "statements": "96.98% (193/199)",
+      "branches": "81.48% (22/27)",
+      "functions": "100.00% (25/25)"
+    },
+    {
+      "file": "src/v1/periphery/TSVSwapRouterV1.sol",
+      "lines": "98.51% (66/67)",
+      "statements": "98.97% (96/97)",
+      "branches": "100.00% (18/18)",
+      "functions": "100.00% (11/11)"
+    },
+    {
+      "file": "Total",
+      "lines": "91.98% (1181/1284)",
+      "statements": "92.98% (2000/2151)",
+      "branches": "85.14% (235/276)",
+      "functions": "94.71% (179/189)"
+    }
+  ]
+}
