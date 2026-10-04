@@ -1,0 +1,14 @@
+{
+  "command": "FOUNDRY_PROFILE=default forge test --offline --summary --fuzz-seed 0x20261004",
+  "exit_code": 0,
+  "suites": 63,
+  "passed": 369,
+  "failed": 0,
+  "skipped": 0,
+  "fork_tests_run": false,
+  "forge": "1.7.1",
+  "solc": "0.8.26",
+  "invariant_runs": 64,
+  "invariant_depth": 32,
+  "reviewed_code_drift": "Two test helper EOF blank lines only; no semantic source change."
+}

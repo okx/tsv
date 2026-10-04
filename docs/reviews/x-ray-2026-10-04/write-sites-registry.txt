@@ -1,0 +1,54 @@
+58:        uint32 listedCount;
+87:    mapping(bytes32 => bytes32) private symbolToSecurity;
+90:    mapping(address => uint32) public activePoolCountByCurrency;
+92:    mapping(bytes32 => uint64) public marketSequence;
+95:    mapping(uint8 => mapping(bytes32 => mapping(uint8 => uint256))) public activePauseCount;
+99:    mapping(bytes32 => PauseMode) public marketPauseMode;
+179:        if (tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount || evidenceHash == 0) {
+247:            securityId == 0 || symbolHash == 0 || evidenceHash == 0 || securities[securityId].securityId != 0
+248:                || symbolToSecurity[symbolHash] != 0 || config.securityId != securityId
+251:        securities[securityId] = SecurityConfig(securityId, symbolHash, tierId, true, 0, 1);
+252:        symbolToSecurity[symbolHash] = securityId;
+261:        SecurityConfig storage config = securities[securityId];
+277:        SecurityConfig storage config = securities[securityId];
+280:        tiers[config.tierId].listedCount--;
+291:        SecurityConfig storage config = securities[securityId];
+292:        if (!config.listed || config.activePoolCount != 0 || evidenceHash == 0) revert InvalidStatus();
+295:        tiers[config.tierId].listedCount--;
+303:        return securities[securityId];
+331:                !securities[config.securityId].listed || config.legalShareAdapter.code.length == 0
+355:        if (config.poolCurrency == address(0) || evidenceHash == 0 || config.status == status) revert InvalidStatus();
+362:            if (config.securityId != 0 && !securities[config.securityId].listed) revert InvalidStatus();
+365:        config.status = status;
+428:        pool.status = PoolStatus.ACTIVE;
+430:        activePoolCountByCurrency[Currency.unwrap(pool.key.currency0)]++;
+431:        activePoolCountByCurrency[Currency.unwrap(pool.key.currency1)]++;
+432:        if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount++;
+433:        if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount++;
+444:        pool.status = PoolStatus.DISABLED;
+446:        activePoolCountByCurrency[Currency.unwrap(pool.key.currency0)]--;
+447:        activePoolCountByCurrency[Currency.unwrap(pool.key.currency1)]--;
+448:        if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount--;
+449:        if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount--;
+463:                || (pool.securityId0 != 0 && !securities[pool.securityId0].listed)
+464:                || (pool.securityId1 != 0 && !securities[pool.securityId1].listed)
+466:        pool.status = PoolStatus.ACTIVE;
+471:        activePoolCountByCurrency[c0]++;
+472:        activePoolCountByCurrency[c1]++;
+473:        if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount++;
+474:        if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount++;
+496:        if (securities[securityId].securityId == 0) revert InvalidConfig();
+497:        return marketPauseMode[securityId] == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
+514:            msg.sender != dataInbox || securityId == 0 || !securities[securityId].listed
+515:                || sequence <= marketSequence[securityId] || mode == PauseMode.NONE
+517:        PauseMode oldMode = marketPauseMode[securityId];
+525:        marketPauseMode[securityId] = nextMode;
+526:        marketSequence[securityId] = sequence;
+551:        activePauseCount[uint8(scope)][target][uint8(mode)]++;
+562:        activePauseCount[uint8(record.scope)][record.target][uint8(record.mode)]--;
+599:        return securities[securityId].listed && (uint8(marketPauseMode[securityId]) & uint8(operation)) == 0
+607:        if (tierId == 0 || tier.tierBps == 0 || tier.listedCount >= tier.maxListed) revert InvalidConfig();
+608:        tier.listedCount++;
+631:        if (activePoolCountByCurrency[currency] == 0) return true;
+644:        return activePauseCount[uint8(scope)][target][uint8(operation)] != 0
+645:            || activePauseCount[uint8(scope)][target][uint8(PauseMode.ALL)] != 0;

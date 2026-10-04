@@ -1,0 +1,54 @@
+[
+  {
+    "path": "README.md",
+    "lines": 189
+  },
+  {
+    "path": "docs/TOKEN_ADMISSION_STANDARD_V1.md",
+    "lines": 109
+  },
+  {
+    "path": "docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md",
+    "lines": 67
+  },
+  {
+    "path": "docs/TEST_SPEC_V1.md",
+    "lines": 206
+  },
+  {
+    "path": "docs/CONTRACT_ARCHITECTURE.md",
+    "lines": 91
+  },
+  {
+    "path": "docs/TEST_COVERAGE_V1.md",
+    "lines": 78
+  },
+  {
+    "path": "docs/README.md",
+    "lines": 46
+  },
+  {
+    "path": "docs/DEPLOYMENT_CHECKLIST_V1.md",
+    "lines": 256
+  },
+  {
+    "path": "docs/TEST_GAPS_V1.md",
+    "lines": 75
+  },
+  {
+    "path": "docs/CODING_SPEC_V1.md",
+    "lines": 437
+  },
+  {
+    "path": "docs/SYSTEMS_OVERVIEW.md",
+    "lines": 745
+  },
+  {
+    "path": "docs/IMPLEMENTATION_STATUS_V1.md",
+    "lines": 80
+  },
+  {
+    "path": "docs/OPERATIONS_TEST_REVIEW_V1.md",
+    "lines": 100
+  }
+]

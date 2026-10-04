@@ -1,0 +1,71 @@
+ M .gitignore
+ M docs/CODING_SPEC_V1.md
+ M docs/CONTRACT_ARCHITECTURE.md
+ M docs/DEPLOYMENT_CHECKLIST_V1.md
+ M docs/DEPLOYMENT_MANIFEST_V1.example.json
+ M docs/IMPLEMENTATION_STATUS_V1.md
+ M docs/README.md
+ M docs/SYSTEMS_OVERVIEW.md
+ M docs/TEST_SPEC_V1.md
+ M docs/TOKEN_ADMISSION_STANDARD_V1.md
+ M foundry.toml
+ M script/DeployCoreV1.s.sol
+ M script/DeployGovernanceV1.s.sol
+ M script/VerifyDeploymentV1.s.sol
+ M src/v1/core/TSVDataInboxV1.sol
+ M src/v1/core/TSVHookV1.sol
+ M src/v1/core/TSVRegistryV1.sol
+ M src/v1/core/TSVVolumeLedgerV1.sol
+ D src/v1/governance/TSVBusinessAuthority.sol
+ D src/v1/governance/TSVEmergencyUpgradeController.sol
+ M src/v1/governance/TSVGovernanceAnchor.sol
+ M src/v1/governance/TSVGoverned.sol
+ D src/v1/governance/TSVUpgradeTimelock.sol
+ M src/v1/periphery/TSVLPManagerV1.sol
+ M src/v1/periphery/TSVSwapRouterV1.sol
+ M src/v1/types/TSVReports.sol
+ D test/integration/local/TSVProtocolLocal.t.sol
+ D test/unit/v1/TSVFoundation.t.sol
+ D test/unit/v1/TSVGovernance.t.sol
+ D test/unit/v1/TSVHookFactory.t.sol
+?? .audit-YeHFLn/
+?? .solidity-auditor/runs/20261004-023005/
+?? Makefile
+?? docs/OPERATIONS_TEST_REVIEW_V1.md
+?? docs/TEST_COVERAGE_V1.md
+?? docs/TEST_GAPS_V1.md
+?? docs/reviews/security-audit-2026-10-02.md
+?? lib/dexrouter-interfaces/
+?? script/ScriptEnvironment.sol
+?? script/check-test-layout.py
+?? src/v1/adapters/ERC8056DirectLegalShareAdapter.sol
+?? test/README.md
+?? test/helpers/v1/DexRouterTestAdapter.sol
+?? test/helpers/v1/DirectUpgradeMock.sol
+?? test/helpers/v1/FoundationFixture.sol
+?? test/helpers/v1/FoundationMocks.sol
+?? test/helpers/v1/GovernanceFixture.sol
+?? test/helpers/v1/GovernanceHandler.sol
+?? test/helpers/v1/GovernanceUpgradeMocks.sol
+?? test/helpers/v1/LocalMocks.sol
+?? test/helpers/v1/OperationsFixture.sol
+?? test/helpers/v1/OperationsHandler.sol
+?? test/helpers/v1/OperationsMocks.sol
+?? test/helpers/v1/ProtocolFixture.sol
+?? test/helpers/v1/SixProxyFixture.sol
+?? test/helpers/v1/SplitFactorFixture.sol
+?? test/helpers/v1/TradingLPHandler.sol
+?? test/helpers/v1/UpgradeDeployment.sol
+?? test/integration/governance/
+?? test/integration/local/governance/
+?? test/integration/local/liquidity/
+?? test/integration/local/operations/
+?? test/integration/local/registry/
+?? test/integration/local/trading/
+?? test/integration/xlayer/
+?? test/unit/v1/adapters/
+?? test/unit/v1/deployment/
+?? test/unit/v1/governance/
+?? test/unit/v1/registry/
+?? test/unit/v1/reports/
+?? test/unit/v1/trading/

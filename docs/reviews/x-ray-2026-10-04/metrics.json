@@ -1,0 +1,25 @@
+{
+  "enumerated_source_files": 20,
+  "reviewed_source_files": 18,
+  "enumerated_nsloc": 2514,
+  "reviewed_nsloc": 2491,
+  "excluded_interface_nsloc": 23,
+  "test_solidity_files": 81,
+  "test_functions": 373,
+  "stateless_fuzz_functions": 13,
+  "foundry_invariant_functions": 7,
+  "foundry_invariant_raw_skill_scan": 0,
+  "natspec_tags": 957,
+  "natspec_annotation_lines": 957,
+  "fork_creation_sites": 1,
+  "formal_verification": {
+    "certora": 0,
+    "halmos": 0,
+    "hevm": 0
+  },
+  "enumeration_notes": [
+    "BSD grep PCRE expressions were translated to equivalent ERE for this run only.",
+    "Foundry invariant functions use invariantCamelCase; supplemental prefix scan corrects skill underscore-only scan.",
+    "Skill NatSpec count 20 is a file count, not annotation count."
+  ]
+}

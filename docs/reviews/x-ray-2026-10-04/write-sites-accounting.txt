@@ -1,0 +1,43 @@
+src/v1/libraries/ReportValidationLib.sol:14:    /// @param reportIdUsed Whether the report identifier has already been accepted.
+src/v1/libraries/ReportValidationLib.sol:24:        bool reportIdUsed,
+src/v1/libraries/ReportValidationLib.sol:33:            reportId == 0 || sourceHash == 0 || reportIdUsed || sequence <= previousSequence
+src/v1/core/TSVVolumeLedgerV1.sol:79:    uint32 public initialDayStartOffsetSeconds;
+src/v1/core/TSVVolumeLedgerV1.sol:83:    mapping(bytes32 => mapping(uint32 => uint256)) private usedWad;
+src/v1/core/TSVVolumeLedgerV1.sol:84:    DayStartCheckpoint[] private dayStartCheckpoints;
+src/v1/core/TSVVolumeLedgerV1.sol:88:    mapping(bytes32 => mapping(uint32 => SplitFactorCheckpoint[])) private splitFactorCheckpoints;
+src/v1/core/TSVVolumeLedgerV1.sol:89:    mapping(bytes32 => mapping(uint32 => uint64)) private splitFactorVersions;
+src/v1/core/TSVVolumeLedgerV1.sol:163:        initialDayStartOffsetSeconds = dayStartOffsetSeconds;
+src/v1/core/TSVVolumeLedgerV1.sol:194:        SplitFactorCheckpoint[] storage factors = splitFactorCheckpoints[report.securityId][report.sourceMonth];
+src/v1/core/TSVVolumeLedgerV1.sol:239:                || report.version != splitFactorVersions[report.securityId][report.sourceMonth] + 1
+src/v1/core/TSVVolumeLedgerV1.sol:244:        SplitFactorCheckpoint[] storage factors = splitFactorCheckpoints[report.securityId][report.sourceMonth];
+src/v1/core/TSVVolumeLedgerV1.sol:288:        splitFactorVersions[report.securityId][report.sourceMonth] = report.version;
+src/v1/core/TSVVolumeLedgerV1.sol:299:            splitFactorCheckpoints[securityId][TradeDayLib.previousMonth(tradeDayId)];
+src/v1/core/TSVVolumeLedgerV1.sol:314:        return splitFactorVersions[securityId][sourceMonth];
+src/v1/core/TSVVolumeLedgerV1.sol:319:        return splitFactorCheckpoints[securityId][sourceMonth].length;
+src/v1/core/TSVVolumeLedgerV1.sol:328:        return splitFactorCheckpoints[securityId][sourceMonth][index];
+src/v1/core/TSVVolumeLedgerV1.sol:341:            uint32 priorEffectiveDayId = dayStartCheckpoints[dayStartCheckpoints.length - 1].effectiveDayId;
+src/v1/core/TSVVolumeLedgerV1.sol:354:            dayStartCheckpoints.length != 0
+src/v1/core/TSVVolumeLedgerV1.sol:355:                && effectiveDayId <= dayStartCheckpoints[dayStartCheckpoints.length - 1].effectiveDayId
+src/v1/core/TSVVolumeLedgerV1.sol:364:        dayStartCheckpoints.push(DayStartCheckpoint(effectiveDayId, newOffsetSeconds, reasonHash));
+src/v1/core/TSVVolumeLedgerV1.sol:374:        uint256 count = dayStartCheckpoints.length;
+src/v1/core/TSVVolumeLedgerV1.sol:377:            TradeDayLib.ordinalToDate(TradeDayLib.dateToOrdinal(dayStartCheckpoints[count - 1].effectiveDayId) - 1);
+src/v1/core/TSVVolumeLedgerV1.sol:379:        uint32 effectiveDayId = dayStartCheckpoints[count - 1].effectiveDayId;
+src/v1/core/TSVVolumeLedgerV1.sol:380:        dayStartCheckpoints.pop();
+src/v1/core/TSVVolumeLedgerV1.sol:395:        return dayStartCheckpoints.length;
+src/v1/core/TSVVolumeLedgerV1.sol:402:        return dayStartCheckpoints[index];
+src/v1/core/TSVVolumeLedgerV1.sol:421:        return usedWad[securityId][tradeDayId];
+src/v1/core/TSVVolumeLedgerV1.sol:449:        uint256 consumed = usedWad[securityId][tradeDayId];
+src/v1/core/TSVVolumeLedgerV1.sol:512:        uint256 next = usedWad[securityId][day] + charge;
+src/v1/core/TSVVolumeLedgerV1.sol:514:        usedWad[securityId][day] = next;
+src/v1/core/TSVVolumeLedgerV1.sol:567:        uint256 high = dayStartCheckpoints.length;
+src/v1/core/TSVVolumeLedgerV1.sol:570:            if (dayStartCheckpoints[mid].effectiveDayId <= dayId) low = mid + 1;
+src/v1/core/TSVVolumeLedgerV1.sol:573:        return low == 0 ? initialDayStartOffsetSeconds : dayStartCheckpoints[low - 1].offsetSeconds;
+src/v1/core/TSVDataInboxV1.sol:25:    mapping(bytes32 => bool) public reportIdUsed;
+src/v1/core/TSVDataInboxV1.sol:26:    mapping(uint8 => mapping(bytes32 => uint64)) public lastSequence;
+src/v1/core/TSVDataInboxV1.sol:27:    mapping(uint8 => mapping(bytes32 => uint64)) public lastSourceTimestamp;
+src/v1/core/TSVDataInboxV1.sol:158:            lastSequence[kind][key],
+src/v1/core/TSVDataInboxV1.sol:159:            lastSourceTimestamp[kind][key],
+src/v1/core/TSVDataInboxV1.sol:160:            reportIdUsed[reportId],
+src/v1/core/TSVDataInboxV1.sol:168:        lastSequence[kind][key] = sequence;
+src/v1/core/TSVDataInboxV1.sol:169:        lastSourceTimestamp[kind][key] = sourceTimestamp;
+src/v1/core/TSVDataInboxV1.sol:170:        reportIdUsed[reportId] = true;
