@@ -57,24 +57,14 @@ contract GovernanceHandler is Test {
         address nextGovernor = address(uint160(0x10000 + ++nextIdentity));
         address nextGuardian = rotateGuardian ? address(uint160(0x10000 + ++nextIdentity)) : modelGuardian;
         bytes32 salt = keccak256(abi.encode(nextIdentity, actorSeed));
-        bytes32 evidence = keccak256("handler-recovery");
         bytes32 id = keccak256(
-            abi.encode(
-                block.chainid,
-                address(anchor),
-                modelEpoch,
-                modelGuardianEpoch,
-                nextGovernor,
-                nextGuardian,
-                salt,
-                evidence
-            )
+            abi.encode(block.chainid, address(anchor), modelEpoch, modelGuardianEpoch, nextGovernor, nextGuardian, salt)
         );
         bool allowed = actor == council;
         bytes memory result = _attempt(
             actor,
             address(anchor),
-            abi.encodeCall(TSVGovernanceAnchor.proposeRecovery, (nextGovernor, nextGuardian, salt, evidence)),
+            abi.encodeCall(TSVGovernanceAnchor.proposeRecovery, (nextGovernor, nextGuardian, salt)),
             allowed
         );
         if (allowed) {
@@ -133,25 +123,22 @@ contract GovernanceHandler is Test {
 
     function freeze(uint256 actorSeed) external {
         address actor = _actor(actorSeed);
-        bytes32 reason = keccak256(abi.encode("handler-risk", actorSeed));
         bool allowed = actor == modelGuardian && !modelFrozen;
         bytes memory result =
-            _attempt(actor, address(anchor), abi.encodeCall(TSVGovernanceAnchor.freezeUpgrades, (reason)), allowed);
+            _attempt(actor, address(anchor), abi.encodeCall(TSVGovernanceAnchor.freezeUpgrades, ()), allowed);
         if (allowed) {
             ++modelFreezeEpoch;
             modelFrozen = true;
-            modelFreezeId =
-                keccak256(abi.encode(block.chainid, address(anchor), modelFreezeEpoch, modelGuardian, reason));
+            modelFreezeId = keccak256(abi.encode(block.chainid, address(anchor), modelFreezeEpoch, modelGuardian));
             assertEq(abi.decode(result, (bytes32)), modelFreezeId);
         }
     }
 
-    function unfreeze(uint256 actorSeed, bool wrongIncident, bool missingEvidence) external {
+    function unfreeze(uint256 actorSeed, bool wrongIncident) external {
         address actor = _actor(actorSeed);
         bytes32 id = wrongIncident ? keccak256("wrong-incident") : modelFreezeId;
-        bytes32 evidence = missingEvidence ? bytes32(0) : keccak256("handler-resolved");
-        bool allowed = actor == modelGuardian && modelFrozen && !wrongIncident && !missingEvidence;
-        _attempt(actor, address(anchor), abi.encodeCall(TSVGovernanceAnchor.unfreezeUpgrades, (id, evidence)), allowed);
+        bool allowed = actor == modelGuardian && modelFrozen && !wrongIncident;
+        _attempt(actor, address(anchor), abi.encodeCall(TSVGovernanceAnchor.unfreezeUpgrades, (id)), allowed);
         if (allowed) modelFrozen = false;
     }
 

@@ -15,26 +15,24 @@ contract TSVOperationsIngressTest is OperationsFixture {
             if (kind == 2) _submitAdtv(1000e18);
             ReportMetadata memory accepted = _metadata(1, 1, keccak256(abi.encode("accepted", kind)));
             _callInbox(_reportPayload(kind, accepted));
-            for (uint8 fault; fault < 9; ++fault) {
+            for (uint8 fault; fault < 8; ++fault) {
                 ReportMetadata memory good = _metadata(3, 2, keccak256(abi.encode("candidate", kind, fault)));
                 ReportMetadata memory bad = abi.decode(abi.encode(good), (ReportMetadata));
                 bytes4 expected = TSVDataInboxV1.InvalidReport.selector;
                 if (fault == 0) {
                     bad.id = 0;
                 } else if (fault == 1) {
-                    bad.source = 0;
-                } else if (fault == 2) {
                     bad.id = accepted.id;
-                } else if (fault == 3) {
+                } else if (fault == 2) {
                     bad.sequence = 0;
-                } else if (fault == 4) {
+                } else if (fault == 3) {
                     bad.sequence = 1;
-                } else if (fault == 5) {
+                } else if (fault == 4) {
                     bad.timestamp = accepted.timestamp - 1;
-                } else if (fault == 6) {
+                } else if (fault == 5) {
                     bad.timestamp = uint64(block.timestamp + 1);
                     expected = TSVDataInboxV1.Expired.selector;
-                } else if (fault == 7) {
+                } else if (fault == 6) {
                     bad.deadline = uint64(block.timestamp - 1);
                     expected = TSVDataInboxV1.Expired.selector;
                 } else {
@@ -102,7 +100,7 @@ contract TSVOperationsIngressTest is OperationsFixture {
 
     function testReportIdsAreGlobalWhileOrderingIsPerKindAndSecurity() public {
         bytes32 second = keccak256("second-report-security");
-        _admitAdditionalSecurity(second, keccak256("SECOND"));
+        _admitAdditionalSecurity(second);
         bytes32 id = keccak256("global-report-id");
         MarketReport memory market = _market(MarketAction.HALT, 10, id);
         inbox.submitMarketStatus(market);

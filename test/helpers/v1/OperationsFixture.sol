@@ -15,13 +15,10 @@ abstract contract OperationsFixture is FoundationFixture {
         uint64 sequence;
         uint64 version;
         bytes32 id;
-        bytes32 source;
     }
 
     function _metadata(uint64 sequence, uint64 version, bytes32 id) internal view returns (ReportMetadata memory) {
-        return ReportMetadata(
-            uint64(block.timestamp), uint64(block.timestamp + 100), sequence, version, id, keccak256("source")
-        );
+        return ReportMetadata(uint64(block.timestamp), uint64(block.timestamp + 100), sequence, version, id);
     }
 
     function _reportPayload(uint8 kind, ReportMetadata memory m) internal view returns (bytes memory) {
@@ -31,20 +28,20 @@ abstract contract OperationsFixture is FoundationFixture {
             market.mode = PauseMode.TRADE;
             market.sourceTimestamp = m.timestamp;
             market.submitDeadline = m.deadline;
-            market.sourceHash = m.source;
+
             return abi.encodeCall(TSVDataInboxV1.submitMarketStatus, (market));
         }
         if (kind == 1) {
             AdtvReport memory adtv = _adtv(SECURITY, 1000e18, m.version, m.sequence, m.id);
             adtv.sourceTimestamp = m.timestamp;
             adtv.submitDeadline = m.deadline;
-            adtv.sourceHash = m.source;
+
             return abi.encodeCall(TSVDataInboxV1.submitAdtv, (adtv));
         }
         QuotaReport memory quota = _quota(2e18, 1, m.version, m.sequence, m.id);
         quota.sourceTimestamp = m.timestamp;
         quota.submitDeadline = m.deadline;
-        quota.sourceHash = m.source;
+
         return abi.encodeCall(TSVDataInboxV1.submitQuota, (quota));
     }
 

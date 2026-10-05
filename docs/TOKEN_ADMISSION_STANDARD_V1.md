@@ -37,7 +37,7 @@ V4 的 `sync/settle/take` 和 Hook delta 都使用 Currency 的 raw 单位。改
 
 ### 3.1 D-36 直接换算接口与实现边界
 
-当前 `TokenConfig` 不含独立比例字段或固定/动态比例分类。Registry 用 `securityId == 0` 表示非股票配对币；非零 `securityId` 表示股票资产，必须绑定已审查 Adapter 的地址、版本、运行代码哈希、策略摘要和权益依据。`toLegalShares(currency,rawAmount)` 是 Hook 在 `afterSwap` 对真实 delta 的唯一逐笔换算入口；只有 Hook 传入 Ledger 的结果写入 `usedWad` 与 `SwapAccounted`。当前 ABI 不提供反向 `legalSharesWad → raw` 函数。前端若展示“用户当前持有多少股”，须使用发行方批准的**账户持仓权益**定义，并自行完成账户余额/显示单位换算。V1 不新增股数输入合约入口。
+当前 `TokenConfig` 不含独立比例字段或固定/动态比例分类。Registry 用 `securityId == 0` 表示非股票配对币；非零 `securityId` 表示股票资产，必须绑定已审查 Adapter 的地址和版本；权益依据保存在链下。`toLegalShares(currency,rawAmount)` 是 Hook 在 `afterSwap` 对真实 delta 的唯一逐笔换算入口；只有 Hook 传入 Ledger 的结果写入 `usedWad` 与 `SwapAccounted`。当前 ABI 不提供反向 `legalSharesWad → raw` 函数。前端若展示“用户当前持有多少股”，须使用发行方批准的**账户持仓权益**定义，并自行完成账户余额/显示单位换算。V1 不新增股数输入合约入口。
 
 ## 4. 公司行动与数据单位
 
@@ -52,10 +52,10 @@ V4 的 `sync/settle/take` 和 Hook delta 都使用 Currency 的 raw 单位。改
 ### 4.1 排期与发行方变更的运营步骤
 
 1. 保存拆/并股公告与法律/市场依据，确定 `securityId`、未来 `effectiveTradeDayId`、目标日开始 UTC 和适用 `sourceMonth`。若治理改排未来日切起点，重新核对公告与 `dayStartUTC`。
-2. 确认来源月 ADTV 基准单位，计算绝对累计分子/分母，检查目标日 quota；通过 `VOLUME_ORACLE_ROLE` 提交带递增版本/序号、唯一 ID 和 `sourceHash` 的 SET 报告。允许先排系数再上报 ADTV，缺 ADTV 时 Swap 仍被拒绝。
+2. 确认来源月 ADTV 基准单位，计算绝对累计分子/分母，检查目标日 quota；通过 `VOLUME_ORACLE_ROLE` 提交带递增版本/序号、唯一 ID 的 SET 报告。允许先排系数再上报 ADTV，缺 ADTV 时 Swap 仍被拒绝。
 3. 生效前可更正/取消**最后一个待生效检查点**。取消也消耗版本/序号，不复用报告 ID；修改更早项时先依次取消后面的待生效项。生效后不可修改历史。查询未来日系数用于预检查，不表示当前日已经生效。
 4. 在日开始前后核对 `currentTradeDay`、`splitFactorOf`、`remaining`、报告事件和来源单位；额度自动切换，不等待 Token 更新或人工激活。保存 Token 提前/推迟更新证据，单独判断是否允许继续按实时 Adapter 成交。
-5. 来源单位或映射异常时使用现有暂停入口。更换活跃 Currency 的 Adapter 仍须 `GLOBAL/TOKEN` 紧急记录共同覆盖交易和 LP；`SECURITY/POOL` 单独不能满足替换门槛。`SYMBOL_ADMIN_ROLE` 按递增版本、代码哈希及审查依据更换，并在新计量日及口径一致后恢复。raw 池余额随事件发生变化的 Token 不符合第 2 节，额度系数不能补救其结算能力。
+5. 来源单位或映射异常时使用现有暂停入口。更换活跃 Currency 的 Adapter 仍须 `GLOBAL/TOKEN` 紧急记录共同覆盖交易和 LP；`SECURITY/POOL` 单独不能满足替换门槛。`SYMBOL_ADMIN_ROLE` 按递增版本更换，审查依据在链下归档，并在新计量日及口径一致后恢复。raw 池余额随事件发生变化的 Token 不符合第 2 节，额度系数不能补救其结算能力。
 6. 新来源月 ADTV 已使用月末股数单位时，不重复排上月事件；需要更正来源数据时保留该月基准和递增版本。历史用量不清零，强退继续按原池 Currency 交付原 owner。
 
 链下审计记录至少包含：
@@ -68,13 +68,13 @@ V4 的 `sync/settle/take` 和 Hook delta 都使用 Currency 的 raw 单位。改
 | `effectiveTradeDayId`、`dayStartUTC`、分子/分母 | 链上排期日、对应 UTC 开始时间与绝对累计比例 |
 | 公告时间、法律/市场生效时间 | 公告与计量日选择依据 |
 | Adapter 版本、发行方参数事件/快照 | 实际成交换算来源与 Token 更新时间，区别于额度切换时间 |
-| 报告 ID/版本/序号、交易哈希、来源摘要 | SET/更正/CANCEL 及可选暂停/恢复的可追溯依据 |
+| 报告 ID/版本/序号、交易记录、来源材料 | SET/更正/CANCEL 及可选暂停/恢复的可追溯依据 |
 
 `SplitFactorReport` 的准确 ABI、事件和版本范围见[编码规格 §7 D-37](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。公告、审批、数据单位及 Token 监控的其余证据保存在链下。功能范围限于拆股/并股的额度系数；分红、配股、并购、换股、分拆、赎回、退市和一般代理升级不自动产生系数。
 
 ## 5. 注册、持续准入与当前迁移
 
-目标注册以 `poolCurrency` 为唯一 Token 地址和 Registry 主键，保存证券身份及股数 Adapter/版本/依据；`securityId == 0` 的配对币不绑定股数 Adapter，非零 `securityId` 的股票必须绑定股数 Adapter。用户直接支付和接收该池内 Currency；当前 ABI 不含独立用户 Token、结算模式或结算 Adapter 字段，也不提供多路径映射、路径选择、路径专用签名或 LP 路径字段。首次证券及首个 Currency 使用 `admitSecurity` 原子准入；报价币及已有上市证券新增 Currency 使用 `registerToken` 登记即批准。未登记资产为 `ABSENT`，审查未通过不得准入。准入后为 `APPROVED`，市场默认 OPEN，无需首次开市报告；后续 `APPROVED↔DISABLED` 的复审仍需证据与版本；停用阻止新 Swap/用户 LP，既有仓位强退按其原始资产交付规则处理。
+目标注册以 `poolCurrency` 为唯一 Token 地址和 Registry 主键，保存证券身份及股数 Adapter/版本；`securityId == 0` 的配对币不绑定股数 Adapter，非零 `securityId` 的股票必须绑定股数 Adapter。用户直接支付和接收该池内 Currency；当前 ABI 不含独立用户 Token、结算模式或结算 Adapter 字段，也不提供多路径映射、路径选择、路径专用签名或 LP 路径字段。首次证券及首个 Currency 使用 `admitSecurity` 原子准入；报价币及已有上市证券新增 Currency 使用 `registerToken` 登记即批准。未登记资产为 `ABSENT`，审查未通过不得准入。准入后为 `APPROVED`，市场默认 OPEN，无需首次开市报告；后续 `APPROVED↔DISABLED` 的复审材料保存在链下；停用阻止新 Swap/用户 LP，既有仓位强退按其原始资产交付规则处理。
 
 旧 `TSLAx → wTSLAx` 包装结算不属于当前注册 ABI。目标生产操作直接将 `wTSLAx` 登记为 `poolCurrency`；本部署没有旧 LP 仓位或旧账本，因此不实现旧结算兼容分支，也不提供 TSLAx 退出路径。
 
@@ -106,4 +106,4 @@ legalSharesWad = floor(rawAmount × uiMultiplier / 10^decimals)
 
 V4 价格、滑点边界、Swap/LP 参数和余额均继续使用 raw 数量；multiplier 不会自动进入 TSV 的额度换算。未来若加入适配器，运行时转换结果会反映 Token 在 `afterSwap` 调用时生效的参数；如果它改变法律股数单位，则按第 4.1 节核对额度排期和单位，必要时暂停处理。准入真实 ERC-8056 Token 还须独立核对接口/权限/代理、raw 稳定、双侧精确转账、multiplier 生效规则、有界 gas、法律单位和对应 ADTV/quota。
 
-当前本地 Hook 集成测试直接接入 Backed Adapter 和 Backed 行为 mock，见 [`BackedAutoFeeLegalShareAdapter`](../src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol) 与 [`TSVProtocolLocal.t.sol`](../test/integration/local/TSVProtocolLocal.t.sol)。本地测试覆盖不能替代真实 Token 的逐实例准入。
+当前本地 Hook 集成测试直接接入 Backed Adapter 和 Backed 行为 mock，见 [`BackedAutoFeeLegalShareAdapter`](../src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol) 与 [`Trading.t.sol`](../test/integration/local/trading/Trading.t.sol)。本地测试覆盖不能替代真实 Token 的逐实例准入。

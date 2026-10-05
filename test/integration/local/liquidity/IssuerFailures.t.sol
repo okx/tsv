@@ -33,13 +33,13 @@ contract TSVIssuerLPFailuresTest is ProtocolFixture {
             assertEq(_swapStateDigest(DAY), beforeState);
             sbt.setHolder(alice, false);
             vm.expectRevert();
-            lpManager.forceExit(positionId, 0, 0, keccak256("revoke"), keccak256("evidence"));
+            lpManager.forceExit(positionId, 0, 0, keccak256("revoke"));
             assertEq(_swapStateDigest(DAY), beforeState);
             sbt.setHolder(alice, true);
             vm.clearMockedCalls();
         }
         sbt.setHolder(alice, false);
-        lpManager.forceExit(positionId, 1, 1, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 1, 1, keccak256("revoke"));
         assertFalse(lpManager.getPosition(positionId).active);
         assertEq(lpManager.balanceOf(alice), 0);
     }

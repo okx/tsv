@@ -58,7 +58,7 @@ contract TSVRegistryV1 is TSVGoverned {
         uint32 listedCount;
     }
 
-    /// @dev Records the evidence and timing associated with an emergency pause.
+    /// @dev Records the reason, operator and timing associated with an emergency pause.
     struct EmergencyPause {
         /// @dev Scope of the pause, such as one token, security, pool, or all pools.
         PauseScope scope;
@@ -68,8 +68,6 @@ contract TSVRegistryV1 is TSVGoverned {
         PauseMode mode;
         /// @dev Operational reason assigned to the pause.
         bytes32 reasonCode;
-        /// @dev Digest of the supporting incident evidence.
-        bytes32 sourceHash;
         /// @dev Account that opened the pause.
         address openedBy;
         /// @dev Timestamp when the pause was opened.
@@ -84,7 +82,6 @@ contract TSVRegistryV1 is TSVGoverned {
     uint256 public nextPauseId;
 
     mapping(bytes32 => SecurityConfig) private securities;
-    mapping(bytes32 => bytes32) private symbolToSecurity;
     mapping(uint8 => TierPolicy) private tiers;
     mapping(address => TokenConfig) private tokens;
     mapping(address => uint32) public activePoolCountByCurrency;
@@ -100,32 +97,26 @@ contract TSVRegistryV1 is TSVGoverned {
 
     /// @notice Emitted when core component addresses were bound to the Registry.
     event ComponentsBound(address indexed hook, address indexed lpManager, address indexed dataInbox);
-    /// @notice Emitted when a security was added to the Registry with its listing tier and evidence.
-    event SecurityListed(bytes32 indexed securityId, bytes32 symbolHash, uint8 tierId, bytes32 evidenceHash);
+    /// @notice Emitted when a security was added to the Registry with its listing tier.
+    event SecurityListed(bytes32 indexed securityId, uint8 tierId);
     /// @notice Emitted when a security was removed from the active listing set.
-    event SecurityDelisted(bytes32 indexed securityId, bytes32 evidenceHash);
+    event SecurityDelisted(bytes32 indexed securityId);
     /// @notice Emitted when a listed security was assigned a different tier.
-    event SecurityTierChanged(bytes32 indexed securityId, uint8 oldTierId, uint8 newTierId, bytes32 evidenceHash);
+    event SecurityTierChanged(bytes32 indexed securityId, uint8 oldTierId, uint8 newTierId);
     /// @notice Emitted when a security tier policy was created or updated.
-    event TierPolicyChanged(uint8 indexed tierId, uint16 tierBps, uint32 maxListed, bytes32 evidenceHash);
+    event TierPolicyChanged(uint8 indexed tierId, uint16 tierBps, uint32 maxListed);
     /// @notice Emitted when a Currency and its security metadata were registered.
-    event TokenRegistered(address indexed poolCurrency, bytes32 indexed securityId, bytes32 evidenceHash);
+    event TokenRegistered(address indexed poolCurrency, bytes32 indexed securityId);
     /// @notice Emitted when a registered Currency status was changed.
-    event TokenStatusChanged(address indexed poolCurrency, uint8 oldStatus, uint8 newStatus, bytes32 evidenceHash);
+    event TokenStatusChanged(address indexed poolCurrency, uint8 oldStatus, uint8 newStatus);
     /// @notice Emitted when a Currency legal-share adapter was replaced.
     event LegalShareAdapterChanged(
-        address indexed poolCurrency,
-        address oldAdapter,
-        address newAdapter,
-        uint32 legalAdapterVersion,
-        bytes32 evidenceHash
+        address indexed poolCurrency, address oldAdapter, address newAdapter, uint32 legalAdapterVersion
     );
     /// @notice Emitted when a pending pool completed initialization and became active.
-    event PoolInitialized(
-        bytes32 indexed poolId, uint160 sqrtPriceX96, address indexed creator, bytes32 priceBasisHash
-    );
+    event PoolInitialized(bytes32 indexed poolId, uint160 sqrtPriceX96, address indexed creator);
     /// @notice Emitted when a registered pool status was changed.
-    event PoolStatusChanged(bytes32 indexed poolId, uint8 oldStatus, uint8 newStatus, bytes32 evidenceHash);
+    event PoolStatusChanged(bytes32 indexed poolId, uint8 oldStatus, uint8 newStatus);
     /// @notice Emitted when a security market-state report was accepted.
     event MarketStatusChanged(
         bytes32 indexed securityId,
@@ -143,9 +134,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Emitted when an emergency pause record was closed.
     event EmergencyPauseClosed(uint256 indexed recordId, bytes32 reasonCode);
     /// @notice Emitted when the configured participant SBT or token identifier was changed.
-    event SbtConfigChanged(
-        address indexed oldSbt, address indexed newSbt, uint256 oldTokenId, uint256 newTokenId, bytes32 evidenceHash
-    );
+    event SbtConfigChanged(address indexed oldSbt, address indexed newSbt, uint256 oldTokenId, uint256 newTokenId);
 
     /// @notice Initializes governance and starts emergency-pause IDs at one.
     /// @param anchor Fixed governance Anchor used by the governed base contract.
@@ -173,15 +162,14 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param tierId Nonzero tier identifier.
     /// @param tierBps Volume multiplier in basis points, from 1 through 10,000.
     /// @param maxListed Maximum number of securities that may be listed in this tier.
-    /// @param evidenceHash Nonzero digest of the policy evidence.
-    function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed, bytes32 evidenceHash) external onlyGovernor {
+    function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed) external onlyGovernor {
         TierPolicy storage tier = tiers[tierId];
-        if (tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount || evidenceHash == 0) {
+        if (tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount) {
             revert InvalidConfig();
         }
         tier.tierBps = tierBps;
         tier.maxListed = maxListed;
-        emit TierPolicyChanged(tierId, tierBps, maxListed, evidenceHash);
+        emit TierPolicyChanged(tierId, tierBps, maxListed);
     }
 
     /// @notice Returns the quota and listing-cap policy currently configured for `tierId`.
@@ -194,9 +182,8 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Configures the participant SBT after checking that its required view methods respond.
     /// @param sbt_ SBT contract implementing `verify` and `paused`.
     /// @param tokenId_ Credential token ID checked for participants.
-    /// @param evidenceHash Nonzero digest of the SBT configuration evidence.
-    function setSbtConfig(address sbt_, uint256 tokenId_, bytes32 evidenceHash) external onlyGovernor {
-        if (sbt_.code.length == 0 || evidenceHash == 0) revert InvalidConfig();
+    function setSbtConfig(address sbt_, uint256 tokenId_) external onlyGovernor {
+        if (sbt_.code.length == 0) revert InvalidConfig();
         // Validate both selectors at configuration time. This keeps a bad SBT
         // address from remaining latent until the first user operation.
         try ISmartWalletSbtV1(sbt_).paused() returns (bool) {}
@@ -211,7 +198,7 @@ contract TSVRegistryV1 is TSVGoverned {
         uint256 oldTokenId = sbtTokenId;
         participantSbt = ISmartWalletSbtV1(sbt_);
         sbtTokenId = tokenId_;
-        emit SbtConfigChanged(oldSbt, sbt_, oldTokenId, tokenId_, evidenceHash);
+        emit SbtConfigChanged(oldSbt, sbt_, oldTokenId, tokenId_);
     }
 
     /// @notice Returns whether `owner` holds the configured credential, without checking global pause.
@@ -232,68 +219,55 @@ contract TSVRegistryV1 is TSVGoverned {
 
     /// @notice Atomically lists a security and admits its first approved Currency.
     /// @param securityId Unique internal identifier for the security.
-    /// @param symbolHash Unique digest of its display symbol or ticker.
     /// @param tierId Configured tier with available listing capacity.
     /// @param config Reviewed Token configuration bound to the new security.
-    /// @param evidenceHash Nonzero digest of the admission evidence.
-    function admitSecurity(
-        bytes32 securityId,
-        bytes32 symbolHash,
-        uint8 tierId,
-        TokenConfig calldata config,
-        bytes32 evidenceHash
-    ) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        if (
-            securityId == 0 || symbolHash == 0 || evidenceHash == 0 || securities[securityId].securityId != 0
-                || symbolToSecurity[symbolHash] != 0 || config.securityId != securityId
-        ) revert InvalidConfig();
+    function admitSecurity(bytes32 securityId, uint8 tierId, TokenConfig calldata config)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+    {
+        if (securityId == 0 || securities[securityId].securityId != 0 || config.securityId != securityId) {
+            revert InvalidConfig();
+        }
         _takeTierSlot(tierId);
-        securities[securityId] = SecurityConfig(securityId, symbolHash, tierId, true, 0, 1);
-        symbolToSecurity[symbolHash] = securityId;
-        emit SecurityListed(securityId, symbolHash, tierId, evidenceHash);
-        _registerToken(config, evidenceHash);
+        securities[securityId] = SecurityConfig(securityId, tierId, true, 0, 1);
+        emit SecurityListed(securityId, tierId);
+        _registerToken(config);
     }
 
-    /// @notice Relists a delisted security under its existing symbol and tier.
+    /// @notice Relists a delisted security under its existing tier.
     /// @param securityId Existing security to relist.
-    /// @param evidenceHash Nonzero digest of the relisting evidence.
-    function relistSecurity(bytes32 securityId, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    function relistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
         SecurityConfig storage config = securities[securityId];
-        if (config.securityId == 0 || config.listed || evidenceHash == 0) revert InvalidStatus();
+        if (config.securityId == 0 || config.listed) revert InvalidStatus();
         _takeTierSlot(config.tierId);
         config.listed = true;
         config.version++;
-        emit SecurityListed(securityId, config.symbolHash, config.tierId, evidenceHash);
+        emit SecurityListed(securityId, config.tierId);
     }
 
     /// @notice Moves a listed security to another tier and updates both tier listing counts.
     /// @param securityId Listed security whose tier changes.
     /// @param tierId Configured destination tier with available capacity.
-    /// @param evidenceHash Nonzero digest of the tier-change evidence.
-    function setSecurityTier(bytes32 securityId, uint8 tierId, bytes32 evidenceHash)
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
+    function setSecurityTier(bytes32 securityId, uint8 tierId) external onlyRole(SYMBOL_ADMIN_ROLE) {
         SecurityConfig storage config = securities[securityId];
-        if (!config.listed || config.tierId == tierId || evidenceHash == 0) revert InvalidStatus();
+        if (!config.listed || config.tierId == tierId) revert InvalidStatus();
         _takeTierSlot(tierId);
         tiers[config.tierId].listedCount--;
         uint8 old = config.tierId;
         config.tierId = tierId;
         config.version++;
-        emit SecurityTierChanged(securityId, old, tierId, evidenceHash);
+        emit SecurityTierChanged(securityId, old, tierId);
     }
 
     /// @notice Delists a security only after all of its active pools have been disabled.
     /// @param securityId Listed security to remove from admission.
-    /// @param evidenceHash Nonzero digest of the delisting evidence.
-    function delistSecurity(bytes32 securityId, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    function delistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
         SecurityConfig storage config = securities[securityId];
-        if (!config.listed || config.activePoolCount != 0 || evidenceHash == 0) revert InvalidStatus();
+        if (!config.listed || config.activePoolCount != 0) revert InvalidStatus();
         config.listed = false;
         config.version++;
         tiers[config.tierId].listedCount--;
-        emit SecurityDelisted(securityId, evidenceHash);
+        emit SecurityDelisted(securityId);
     }
 
     /// @notice Returns the stored listing, tier, version, and active-pool data for a security.
@@ -305,88 +279,65 @@ contract TSVRegistryV1 is TSVGoverned {
 
     /// @notice Admits a quote token or another Currency for an already listed security.
     /// @param config Reviewed Token configuration; status must be APPROVED.
-    /// @param evidenceHash Nonzero digest of the token admission evidence.
-    function registerToken(TokenConfig calldata config, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        _registerToken(config, evidenceHash);
+    function registerToken(TokenConfig calldata config) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        _registerToken(config);
     }
 
     /// @dev Validates and stores an approved Currency without leaving a pending review state.
-    function _registerToken(TokenConfig calldata config, bytes32 evidenceHash) private {
+    function _registerToken(TokenConfig calldata config) private {
         if (
-            config.poolCurrency == address(0) || config.status != TokenStatus.APPROVED || evidenceHash == 0
+            config.poolCurrency == address(0) || config.status != TokenStatus.APPROVED
                 || tokens[config.poolCurrency].poolCurrency != address(0) || config.poolDecimals > 18
-                || config.reviewHash == 0 || config.poolCurrency.code.length == 0
+                || config.poolCurrency.code.length == 0
         ) revert InvalidConfig();
-        if (
-            config.poolCurrency.codehash != config.poolRuntimeCodeHash
-                || IERC20DecimalsV1(config.poolCurrency).decimals() != config.poolDecimals
-        ) revert InvalidConfig();
+        if (IERC20DecimalsV1(config.poolCurrency).decimals() != config.poolDecimals) revert InvalidConfig();
         if (config.securityId == 0) {
-            if (
-                config.legalShareAdapter != address(0) || config.legalAdapterCodeHash != 0
-                    || config.legalAdapterVersion != 0 || config.legalSharePolicyHash != 0
-            ) revert InvalidConfig();
+            if (config.legalShareAdapter != address(0) || config.legalAdapterVersion != 0) revert InvalidConfig();
         } else {
             if (
                 !securities[config.securityId].listed || config.legalShareAdapter.code.length == 0
-                    || config.legalAdapterVersion != 1 || config.legalSharePolicyHash == 0
-                    || config.legalShareAdapter.codehash != config.legalAdapterCodeHash
+                    || config.legalAdapterVersion != 1
             ) {
                 revert InvalidConfig();
             }
             _validateLegalShareAdapter(config.legalShareAdapter, config.poolCurrency, config.legalAdapterVersion);
         }
         tokens[config.poolCurrency] = config;
-        emit TokenRegistered(config.poolCurrency, config.securityId, evidenceHash);
-        emit TokenStatusChanged(
-            config.poolCurrency, uint8(TokenStatus.ABSENT), uint8(TokenStatus.APPROVED), evidenceHash
-        );
+        emit TokenRegistered(config.poolCurrency, config.securityId);
+        emit TokenStatusChanged(config.poolCurrency, uint8(TokenStatus.ABSENT), uint8(TokenStatus.APPROVED));
     }
 
     /// @notice Disables or re-enables an admitted token, enforcing approval prerequisites.
     /// @param currency Registered pool Currency to update.
     /// @param status APPROVED or DISABLED; ABSENT is not a valid transition.
-    /// @param evidenceHash Nonzero digest of the status-change evidence.
-    function setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
+    function setTokenStatus(address currency, TokenStatus status) external onlyRole(SYMBOL_ADMIN_ROLE) {
         TokenConfig storage config = tokens[currency];
-        if (config.poolCurrency == address(0) || evidenceHash == 0 || config.status == status) revert InvalidStatus();
+        if (config.poolCurrency == address(0) || config.status == status) revert InvalidStatus();
         if (status == TokenStatus.ABSENT) revert InvalidStatus();
         if (status == TokenStatus.APPROVED) {
-            if (
-                config.reviewHash == 0 || (config.securityId != 0 && config.legalSharePolicyHash == 0)
-                    || config.poolCurrency.codehash != config.poolRuntimeCodeHash
-            ) revert InvalidConfig();
+            if (config.poolCurrency.code.length == 0) revert InvalidConfig();
             if (config.securityId != 0 && !securities[config.securityId].listed) revert InvalidStatus();
         }
         TokenStatus old = config.status;
         config.status = status;
-        emit TokenStatusChanged(currency, uint8(old), uint8(status), evidenceHash);
+        emit TokenStatusChanged(currency, uint8(old), uint8(status));
     }
 
     /// @notice Replaces a security token's share adapter while its asset is paused for replacement.
     /// @param currency Registered stock Currency whose adapter is replaced.
     /// @param newAdapter Replacement direct legal-share adapter with the next version.
-    /// @param evidenceHash Nonzero digest of the new conversion-policy evidence.
-    function replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
+    function replaceLegalShareAdapter(address currency, address newAdapter) external onlyRole(SYMBOL_ADMIN_ROLE) {
         TokenConfig storage config = tokens[currency];
         if (
             config.poolCurrency == address(0) || config.securityId == 0 || newAdapter == config.legalShareAdapter
-                || newAdapter.code.length == 0 || evidenceHash == 0 || !_assetPausedForReplacement(currency)
+                || newAdapter.code.length == 0 || !_assetPausedForReplacement(currency)
         ) revert InvalidConfig();
         uint32 nextVersion = config.legalAdapterVersion + 1;
         _validateLegalShareAdapter(newAdapter, currency, nextVersion);
         address oldAdapter = config.legalShareAdapter;
         config.legalShareAdapter = newAdapter;
-        config.legalAdapterCodeHash = newAdapter.codehash;
         config.legalAdapterVersion = nextVersion;
-        config.legalSharePolicyHash = evidenceHash;
-        emit LegalShareAdapterChanged(currency, oldAdapter, newAdapter, nextVersion, evidenceHash);
+        emit LegalShareAdapterChanged(currency, oldAdapter, newAdapter, nextVersion);
     }
 
     /// @notice Returns the registered token configuration for `currency`.
@@ -414,15 +365,14 @@ contract TSVRegistryV1 is TSVGoverned {
         poolId = PoolId.unwrap(key.toId());
         if (pools[poolId].status != PoolStatus.ABSENT) revert InvalidPool();
         pools[poolId] = PoolConfig(key, s0, s1, PoolStatus.PENDING, 1);
-        emit PoolStatusChanged(poolId, uint8(PoolStatus.ABSENT), uint8(PoolStatus.PENDING), 0);
+        emit PoolStatusChanged(poolId, uint8(PoolStatus.ABSENT), uint8(PoolStatus.PENDING));
     }
 
     /// @notice Activates a pending pool and increments its currencies' and security's active-pool counts.
     /// @param poolId Registered pending pool to activate.
     /// @param sqrtPriceX96 Initial price used by PoolManager.
     /// @param creator Address that created the pool.
-    /// @param priceBasisHash Nonzero digest of the initial-price evidence.
-    function markPoolActive(bytes32 poolId, uint160 sqrtPriceX96, address creator, bytes32 priceBasisHash) external {
+    function markPoolActive(bytes32 poolId, uint160 sqrtPriceX96, address creator) external {
         if (msg.sender != lpManager || pools[poolId].status != PoolStatus.PENDING) revert InvalidPool();
         PoolConfig storage pool = pools[poolId];
         pool.status = PoolStatus.ACTIVE;
@@ -431,31 +381,29 @@ contract TSVRegistryV1 is TSVGoverned {
         activePoolCountByCurrency[Currency.unwrap(pool.key.currency1)]++;
         if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount++;
         if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount++;
-        emit PoolInitialized(poolId, sqrtPriceX96, creator, priceBasisHash);
-        emit PoolStatusChanged(poolId, uint8(PoolStatus.PENDING), uint8(PoolStatus.ACTIVE), 0);
+        emit PoolInitialized(poolId, sqrtPriceX96, creator);
+        emit PoolStatusChanged(poolId, uint8(PoolStatus.PENDING), uint8(PoolStatus.ACTIVE));
     }
 
     /// @notice Disables an active pool and decrements its currencies' and security's active-pool counts.
     /// @param poolId Active pool to disable.
-    /// @param evidenceHash Nonzero digest of the disabling evidence.
-    function disablePool(bytes32 poolId, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    function disablePool(bytes32 poolId) external onlyRole(SYMBOL_ADMIN_ROLE) {
         PoolConfig storage pool = pools[poolId];
-        if (pool.status != PoolStatus.ACTIVE || evidenceHash == 0) revert InvalidStatus();
+        if (pool.status != PoolStatus.ACTIVE) revert InvalidStatus();
         pool.status = PoolStatus.DISABLED;
         pool.version++;
         activePoolCountByCurrency[Currency.unwrap(pool.key.currency0)]--;
         activePoolCountByCurrency[Currency.unwrap(pool.key.currency1)]--;
         if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount--;
         if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount--;
-        emit PoolStatusChanged(poolId, uint8(PoolStatus.ACTIVE), uint8(PoolStatus.DISABLED), evidenceHash);
+        emit PoolStatusChanged(poolId, uint8(PoolStatus.ACTIVE), uint8(PoolStatus.DISABLED));
     }
 
     /// @notice Re-enables a disabled pool only when both tokens and listed securities remain valid.
     /// @param poolId Disabled pool to enable.
-    /// @param evidenceHash Nonzero digest of the re-enablement evidence.
-    function enablePool(bytes32 poolId, bytes32 evidenceHash) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    function enablePool(bytes32 poolId) external onlyRole(SYMBOL_ADMIN_ROLE) {
         PoolConfig storage pool = pools[poolId];
-        if (pool.status != PoolStatus.DISABLED || evidenceHash == 0) revert InvalidStatus();
+        if (pool.status != PoolStatus.DISABLED) revert InvalidStatus();
         address c0 = Currency.unwrap(pool.key.currency0);
         address c1 = Currency.unwrap(pool.key.currency1);
         if (
@@ -472,7 +420,7 @@ contract TSVRegistryV1 is TSVGoverned {
         activePoolCountByCurrency[c1]++;
         if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount++;
         if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount++;
-        emit PoolStatusChanged(poolId, uint8(PoolStatus.DISABLED), uint8(PoolStatus.ACTIVE), evidenceHash);
+        emit PoolStatusChanged(poolId, uint8(PoolStatus.DISABLED), uint8(PoolStatus.ACTIVE));
     }
 
     /// @notice Returns the registered key, securities, status, and version for a pool.
@@ -534,20 +482,19 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param target Scope-specific target key; zero only for GLOBAL.
     /// @param mode TRADE, LP, or ALL; NONE cannot open a pause record.
     /// @param reasonCode Nonzero operational reason code.
-    /// @param sourceHash Nonzero digest of the incident source material.
     /// @return recordId New emergency-pause record identifier.
-    function addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode, bytes32 sourceHash)
+    function addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode)
         external
         onlyRole(EMERGENCY_PAUSER_ROLE)
         returns (uint256 recordId)
     {
         if (
-            mode == PauseMode.NONE || reasonCode == 0 || sourceHash == 0 || (scope == PauseScope.GLOBAL && target != 0)
+            mode == PauseMode.NONE || reasonCode == 0 || (scope == PauseScope.GLOBAL && target != 0)
                 || (scope != PauseScope.GLOBAL && target == 0)
         ) revert InvalidConfig();
         recordId = nextPauseId++;
         emergencyPauses[recordId] =
-            EmergencyPause(scope, target, mode, reasonCode, sourceHash, msg.sender, uint64(block.timestamp), true);
+            EmergencyPause(scope, target, mode, reasonCode, msg.sender, uint64(block.timestamp), true);
         activePauseCount[uint8(scope)][target][uint8(mode)]++;
         emit EmergencyPauseOpened(recordId, uint8(scope), target, uint8(mode), reasonCode);
     }

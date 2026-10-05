@@ -50,8 +50,8 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
 | R01 U/I | 按目标配置登记 wTSLAx 行为 mock、普通 `QUOTE`/`QUOTE6` Currency，查询 Token/Currency 配置；尝试将无适配器的 `STDx` 登记为股票 | 股票身份及 `BackedAutoFeeLegalShareAdapter` 绑定同一 wTSLAx Currency；新证券经 admitSecurity 同笔登记与批准，新增 Currency/报价币 registerToken 登记即 APPROVED；默认市场 OPEN、序号为零；无兼容 Adapter 的股票配置失败；旧 TSLAx→wTSLAx 结算 ABI 不属于当前 Registry |
-| R02 U | Currency 为零、无代码、代码哈希/decimals 错、重复 Currency、quote 携带 securityId、动态逐笔公式不可复算、股数 Adapter 报错或资产对不匹配 | 每种注册失败且无 TokenConfig 残留；目标 Registry 不用独立静态比例字段判定公式 |
-| R03 U/I | 没有审查/股数依据就批准；`APPROVED→DISABLED→APPROVED` 携新依据；活动仓位时更换股数 Adapter 或 Token 关键实现 | 无依据拒绝；合法状态转换成功；未暂停或新 Adapter 公式/版本不符则拒绝；变更不改写旧仓位资产；发行方实际拒转则强退原子回滚 |
+| R02 U | Currency 为零、无代码、decimals 错、重复 Currency、quote 携带 securityId、动态逐笔公式不可复算、股数 Adapter 报错或资产对不匹配 | 每种注册失败且无 TokenConfig 残留；目标 Registry 不用独立静态比例字段判定公式 |
+| R03 U/I | 非法状态、无代码 Currency 或已下架证券恢复批准；合法 `APPROVED→DISABLED→APPROVED`；活动仓位时更换股数 Adapter | 非法配置拒绝；合法状态转换成功；未暂停或新 Adapter 接口/绑定/版本不符则拒绝；变更不改写旧仓位资产；发行方实际拒转则强退原子回滚 |
 | R04 U/I | Tier 名额上限边界、证券重复登记/下架/重上架、跨 Token 同 securityId | `listedCount` 按 securityId 去重；活动池未处理前不能下架；同证券不同 Currency 合并日额度 |
 | R05 I | POOL_CREATOR 提交有序 PoolKey、静态 fee、tickSpacing、sqrtPriceX96；随后尝试重复初始化 | 代理 Hook 地址位 `0x3FFF`；PENDING→ACTIVE 与 V4 Initialize 同笔完成；初始价格等于提交值；重复拒绝 |
 | R06 U/I | 非 POOL_CREATOR、错 Hook、两侧均为股票（相同或不同 `securityId`）、倒序 Currency、动态费、fee=1_000_000、tickSpacing=0/32768、越界价格 | 全部拒绝；Registry 不残留 PENDING；V4 不创建池 |
@@ -143,7 +143,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | G01 U/I | CREATE2 部署 Hook 代理、错误 salt、实现升级前后读 `tsvImplementation()`；真实 V4 下触发预留的 afterAdd/afterRemove 回调 | **代理**地址低 14 位为 `0x3FFF`；实现地址无需具备该位；V1 四种返回 delta 均为零、donate 仍回滚；升级不变 Hook 地址与池 PoolId |
 | G02 U/I | Governor 单次 upgradeToAndCall 携带初始化；初始化写入后回滚；坏实现；批量升级第二项初始化失败 | 实现与初始化同笔成功，无排期/等待；失败回滚实现槽与全部存储；批量失败连同前项升级全部回滚 |
 | G03 U/I | Guardian 冻结后对六代理逐个/批量升级；绑定前升级；Swap/LP/退出 | 所有升级以 UpgradeFrozen 回滚；冻结不暂停 Swap、LP 或退出 |
-| G04 U/I | 非 Guardian 冻结/解冻；零证据；重复冻结；旧 freezeId；正常 Guardian 解冻 | 只有当前 Guardian 能切换；拒绝无证据/无冻结/重复冻结/过期 ID；解冻恢复直接及批量升级 |
+| G04 U/I | 非 Guardian 冻结/解冻；未冻结时解冻；重复冻结；旧 freezeId；正常 Guardian 解冻 | 只有当前 Guardian 能切换；拒绝无冻结/重复冻结/过期 ID；解冻恢复直接及批量升级 |
 | G05 U/I | Council proposeRecovery、Governor/Guardian 越权提案；当前 Guardian 批准/撤回；Guardian 取消 | 仅 Council 提案/取消；未经当前 Guardian 批准或已撤回不得执行；无延迟、无任意调用权限 |
 | G06 U/I | 取消已批准恢复；完整轮换；旧 epoch 批准继续使用 | 失败全部回滚；成功同笔更新 Anchor 内身份并保留升级冻结，旧 Governor 立即失去业务 admin 和升级权，旧 Guardian 失去冻结/批准权；旧提案失效 |
 | G07 U/I | 业务角色、Guardian、Council 直接升级；绕过 Guardian 批准恢复；Anchor 在上下文外升级；批量错长度/重复/未绑定目标 | 全部拒绝；只有当前 Governor 或有效批量上下文中的 Anchor 在全局未冻结时可升级 |
@@ -153,10 +153,10 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | G11 U | 三身份零地址/重叠；绑定错 Anchor/缺代码/重复/顺序/逐项交叉链接；重复绑定与失败重试 | 非法部署/绑定拒绝；失败不留下部分代理地址；修正后可重试，成功绑定后不可重绑 |
 | G12 U | 重复提案、未知 ID、取消后重提、仅 Governor 轮换后的旧审批、候选/旧 Guardian 越权 | 重提必须重新批准；任何身份轮换使旧 epoch 提案失效；只有当前 Guardian 批准/撤回；获批执行可由任意账户触发但不可重放 |
 | G13 U/I | 空/超长/错长度批次；坏实现/UUID；任意位置迁移失败；合约 Governor 回调嵌套批次；初始化中冻结 | 拒绝非法输入；整批实现/迁移/外部写入回滚；批量上下文不泄漏；嵌套批量拒绝；冻结阻止后续升级，外层失败则全部事务回滚 |
-| G14 U | 绑定、批量、冻结/解冻、提案/批准/撤回/取消、身份恢复事件 | 校验事件发出地址、indexed 身份/ID、数量、证据和 Guardian epoch |
-| G15 U | 部署输入校验与部署清单 verifier；错链/依赖 codehash/SBT ABI/治理身份/绑定状态/实现地址与 hash | 有效环境和清单通过；每项不符拒绝；身份恢复后旧清单失效，更新后通过；实际广播与生产多签另行验收 |
+| G14 U | 绑定、批量、冻结/解冻、提案/批准/撤回/取消、身份恢复事件 | 校验事件发出地址、indexed 身份/ID、数量和 Guardian epoch |
+| G15 U | 部署输入校验与部署清单 verifier；错链/无代码依赖/SBT ABI/治理身份/绑定状态/实现地址 | 有效环境和清单通过；每项不符拒绝；身份恢复后旧清单失效，更新后通过；实际广播与生产多签另行验收 |
 
-准入回归还须覆盖：准入失败后证券、符号预留、Tier 名额和 Token 配置全部回滚；重复证券/符号/Currency、Tier 超额、缺审查/法律依据、decimals/代码哈希/Adapter 不匹配均拒绝；未登记资产保持 ABSENT，不能建池；重新上市保留市场暂停和报告序号。真实 V4 用例验证缺 ADTV 时可提供 LP，但 Swap 的余额、价格、费用与用量全部回滚，提交有效 ADTV 后可成交；初始化失败不留下 PENDING 记录或活动池计数。
+准入回归还须覆盖：准入失败后证券、Tier 名额和 Token 配置全部回滚；重复证券/Currency、Tier 超额、无代码、decimals/Adapter 不匹配均拒绝；未登记资产保持 ABSENT，不能建池；重新上市保留市场暂停和报告序号。真实 V4 用例验证缺 ADTV 时可提供 LP，但 Swap 的余额、价格、费用与用量全部回滚，提交有效 ADTV 后可成交；初始化失败不留下 PENDING 记录或活动池计数。
 
 ## 4. 三个外部协议的专项集成
 

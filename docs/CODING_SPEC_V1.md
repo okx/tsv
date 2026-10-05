@@ -1,5 +1,7 @@
 # TSV V1 合约编码规格
 
+当前 ABI 已移除业务 hash 参数和配置字段，部署脚本及 manifest 也不接收 CODEHASH 输入。业务 ID、reasonCode、salt 与内部哈希计算保留。此变更改变函数/事件 ABI 和存储布局，须全新部署；不得直接升级使用旧字段布局的实例。链下审查材料按证券、资产、报告 ID 和交易记录归档。
+
 版本：1.10，2026-10-04。本文记录**当前源码 ABI**、已实现/未冻结规则，接口以 `src/v1/` 为准。交易、运营、治理流程及直接入口总览见[三系统总览](./SYSTEMS_OVERVIEW.md)。[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)是资产分类、结算能力与计股能力的规范，并集中说明 wTSLAx、未接入股数 Adapter 的 ERC-8056 测试夹具及公司行动边界；当前 V1 每侧只直接收付该侧 Currency。系统设计理由见[主架构](./CONTRACT_ARCHITECTURE.md)，未编码和未冻结之处见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
 
 | 位置 | 阅读方式 |
@@ -48,17 +50,10 @@ struct TokenConfig {
     address legalShareAdapter;       // securityId == 0 时使用 address(0)
     uint32 legalAdapterVersion;
     TokenStatus status;
-    bytes32 poolRuntimeCodeHash;
-    bytes32 legalAdapterCodeHash;
-    bytes32 poolImplementationHash;  // 非代理可为 0
-    bytes32 reviewHash;
-    bytes32 restrictionsHash;
-    bytes32 legalSharePolicyHash;
 }
 
 struct SecurityConfig {
     bytes32 securityId;
-    bytes32 symbolHash;
     uint8 tierId;
     bool listed;
     uint32 activePoolCount;
@@ -89,11 +84,11 @@ Registry 使用 `mapping(address poolCurrency => TokenConfig)`；不再维护用
 
 **首次部署与后续升级：**V1 当前尚未在目标链部署，本次注册 ABI 精简在首次部署前完成；此前未部署的源码 ABI 不需要迁移兼容。首次部署后，六个代理的后续实现升级必须通过存储布局检查，不得删除或重排已部署的字段。V1 首次部署不迁移旧 wTSLAx 条目、LP 仓位或旧账本。
 
-**当前实现的准入组合如下；完整业务门槛以[新版准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准。**首次证券准入由 `SYMBOL_ADMIN` 调用 `admitSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, TokenConfig config, bytes32 evidenceHash)`，同笔登记证券、预留唯一符号与 Tier 名额、批准首个 Currency；要求证券 ID 与配置一致。任何校验失败均回滚，移除独立首次证券登记入口。`registerToken(TokenConfig, bytes32 evidenceHash)` 同样仅 `SYMBOL_ADMIN`，用于报价 Currency 或已有上市证券新增 Currency，登记即批准。两个入口只接收一个非零且有代码的池内 Currency 地址，输入状态必须 `APPROVED`、`reviewHash` 必须非零，`poolDecimals` 须等于 ERC-20 `decimals()` 实测值且不超过 18；合约核对池内 Currency 和非零股数 Adapter 的代码哈希。结算固定为 Router/LP Manager 对实际池内 Currency 直接执行 raw ERC-20 收付，ABI 不接受结算模式、版本、Adapter 或用户 Token 字段。
+**当前实现的准入组合如下；完整业务门槛以[新版准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准。**首次证券准入由 `SYMBOL_ADMIN` 调用 `admitSecurity(bytes32 securityId, uint8 tierId, TokenConfig config)`，同笔登记证券、占用 Tier 名额、批准首个 Currency；要求证券 ID 与配置一致。任何校验失败均回滚，移除独立首次证券登记入口。`registerToken(TokenConfig)` 同样仅 `SYMBOL_ADMIN`，用于报价 Currency 或已有上市证券新增 Currency，登记即批准。两个入口只接收一个非零且有代码的池内 Currency 地址，输入状态必须 `APPROVED`，`poolDecimals` 须等于 ERC-20 `decimals()` 实测值且不超过 18；合约检查池内 Currency 和股数 Adapter 地址有代码。结算固定为 Router/LP Manager 对实际池内 Currency 直接执行 raw ERC-20 收付，ABI 不接受结算模式、版本、Adapter 或用户 Token 字段。
 
-非股票配对币要求 `securityId == 0` 且不绑定股数 Adapter；股票要求 `securityId != 0`、证券已上市、Adapter 已部署且代码哈希匹配、Adapter 版本从 1 开始、`legalSharePolicyHash != 0`。Registry 通过 ERC-165 检查 `IDirectLegalShareAdapter`，并核对其 `poolCurrency()` 与 `adapterVersion()`；Registry 不读取、缓存或验证实时换算结果。换算公式及参数来源由经审查的 Adapter 定义。代理 `implementationHash` 是链下审查证据，链上不能读取另一合约的 ERC-1967 存储槽；运维监测实际实现变化。
+非股票配对币要求 `securityId == 0` 且不绑定股数 Adapter；股票要求 `securityId != 0`、证券已上市、Adapter 已部署、Adapter 版本从 1 开始。Registry 通过 ERC-165 检查 `IDirectLegalShareAdapter`，并核对其 `poolCurrency()` 与 `adapterVersion()`；Registry 不读取、缓存或验证实时换算结果。换算公式及参数来源由经审查的 Adapter 定义。资产和 Adapter 的实现、法律换算依据及升级由链下审查和监测。
 
-准入发出 TokenRegistered 和 ABSENT→APPROVED 的 TokenStatusChanged；`admitSecurity` 先发出 SecurityListed。Token 状态只允许准入时 `ABSENT→APPROVED`，随后 `APPROVED↔DISABLED`，禁止将已登记 Token 设置为 ABSENT；重新批准必须附新审查依据。停用、恢复和股数 Adapter 更新都发事件。转入 `APPROVED` 时要求非零 `reviewHash`、`evidenceHash`；其哈希证明文件本身由链下评审，合约不推断法律真实性。只有 `APPROVED` 可用于新 Swap/用户 LP。`DISABLED` 保留配置供原 owner 强退。
+准入发出 TokenRegistered 和 ABSENT→APPROVED 的 TokenStatusChanged；`admitSecurity` 先发出 SecurityListed。Token 状态只允许准入时 `ABSENT→APPROVED`，随后 `APPROVED↔DISABLED`，禁止将已登记 Token 设置为 ABSENT。停用、恢复和股数 Adapter 更新都发事件。恢复批准时要求 Currency 地址仍有代码；股票所属证券仍须上市。准入材料由链下评审和归档。只有 `APPROVED` 可用于新 Swap/用户 LP。`DISABLED` 保留配置供原 owner 强退。
 
 **当前实现的替换入口：**当前 ABI 没有结算 Adapter 替换入口。更换法定股数 Adapter 仍要求暂停、版本递增和历史成交不重算。现有 Backed Adapter 每次转换都调用发行方 `getUnderlyingAmountByShares(rawShares)`，因此发行方方法所采用的实时 multiplier 会直接体现在该笔成交的计股结果中。Token 代理实现、制裁权限或关键规则变化时先停用，再复核恢复。
 
@@ -186,7 +181,7 @@ struct LPBounds {
     uint256 minPoolOut1;
     uint64 deadline;
 }
-function initializePool(PoolKey calldata key, uint160 sqrtPriceX96, bytes32 priceBasisHash) external;
+function initializePool(PoolKey calldata key, uint160 sqrtPriceX96) external;
 function openPosition(PoolKey calldata key, int24 tickLower, int24 tickUpper, uint128 liquidity, LPBounds calldata bounds)
     external returns (uint256 positionId);
 function increaseLiquidity(uint256 positionId, uint128 liquidity, LPBounds calldata bounds) external;
@@ -197,12 +192,11 @@ function forceExit(
     uint256 positionId,
     uint256 minPoolOut0,
     uint256 minPoolOut1,
-    bytes32 reasonCode,
-    bytes32 evidenceHash
+    bytes32 reasonCode
 ) external;
 ```
 
-建池仅 `POOL_CREATOR`，要求 `key.hooks == Hook`、`currency0 < currency1`、两侧都有已批准 TokenConfig、`0 <= key.fee < 1_000_000` pips 且 `1 <= key.tickSpacing <= 32767`；拒绝 V4 动态费率哨兵与 100% LP fee。Registry 先标记 PENDING，LP Manager 调用 PoolManager `initialize`，Hook 只允许来自 LP Manager 的准确 PoolKey，成功后 Registry 改为 ACTIVE；任一失败全部回滚。初始价格由 POOL_CREATOR 提交，只校验 V4 范围；`priceBasisHash` 只用于审计。
+建池仅 `POOL_CREATOR`，要求 `key.hooks == Hook`、`currency0 < currency1`、两侧都有已批准 TokenConfig、`0 <= key.fee < 1_000_000` pips 且 `1 <= key.tickSpacing <= 32767`；拒绝 V4 动态费率哨兵与 100% LP fee。Registry 先标记 PENDING，LP Manager 调用 PoolManager `initialize`，Hook 只允许来自 LP Manager 的准确 PoolKey，成功后 Registry 改为 ACTIVE；任一失败全部回滚。初始价格由 POOL_CREATOR 提交，只校验 V4 范围；初始定价依据由链下归档。
 
 `positionId` 从 1 单调递增，V4 salt 直接取 `bytes32(positionId)`；在同一 LP Manager 内 positionId 唯一，且 V4 仓位键还包含 manager、PoolKey 和 ticks。每次 LP 操作在 `PoolManager.unlock` 前保存活跃 `LPContext`，并保存完整 `ModifyRequest` 的 `activeRequestHash`；unlock data 是该请求编码，LP `modifyLiquidity` 的 `hookData` 为空。PoolManager 回调要求调用者为 PoolManager、Manager 正处于非重入操作中、活跃 positionId 非零，并核对 unlock data 哈希后才解码和结算。Hook 通过无参 `activeLPContext()` 读取只含自身校验所需字段的 `LPHookContext`，并将 poolId、PoolKey、ticks、salt、liquidityDelta 与 V4 参数逐项比对；`beforeAddLiquidity/beforeRemoveLiquidity` 再按模式限制增加或移除，强退只允许全额负 delta。操作成功后 Manager 清除活跃上下文与请求哈希；任何回滚会原子恢复状态。这里不使用 LP operationId 或 nonce。仓位保存不可变 owner、PoolKey、ticks、salt，流动性严格为正。LP Manager 内置 Receipt ERC-721，tokenId 等于 positionId，mint/burn 仅由 LP 生命周期内部执行；所有转移和授权入口回滚。用户 LP 操作仅允许 `msg.sender == position.owner == ownerOf(positionId)` 且 Registry 的共用 SBT 当前有效、未暂停；无资格回滚 `Unauthorized()`，`isLPAllowed(poolId)` 为 false 时回滚 `InvalidPool()`。强退例外见下段。
 
@@ -223,7 +217,7 @@ Position ID 的唯一性范围是单个 LP Manager 代理，跨链或跨代理�
 **D-33：日配额是可选整日覆盖；当前 `src/v1/` 已实现以下规则。**当前 ABI 使用 `action` 字段；`VOLUME_ORACLE_ROLE` 地址直接提交：
 
 1. 对每个 `(securityId,tradeDayId)` 保存 `QuotaOverride { uint256 quotaWad; bool active; uint64 version; bytes32 reportId; }`。从未提交、或已显式清除覆盖时，`active=false`；不能用 `quotaWad == 0` 判定 ADTV 缺失。新 TSV 计量日默认没有覆盖，不继承前一日状态。
-2. `QuotaReport` 增加 `uint8 action`，只允许 `SET=1` 或 `CLEAR=2`。Solidity 字段顺序为 `bytes32 securityId,uint32 tradeDayId,uint8 action,uint256 quotaWad,uint64 sourceTimestamp,uint64 submitDeadline,uint64 version,uint64 sequence,bytes32 reportId,bytes32 sourceHash`；没有 `signer` 字段或签名参数。`SET` 要求证券已登记、该日所需 ADTV 已存在、`0 < quotaWad <=` 提交时的硬上限；`CLEAR` 要求原覆盖处于 active 且 `quotaWad == 0`。两者都要求该 key 的 version 严格加一、报告 ID 唯一、报告来源序号递增，发出包含 action、值、版本、reportId 的事件。不能把零配额当作暂停；暂停仍走 §8。
+2. `QuotaReport` 增加 `uint8 action`，只允许 `SET=1` 或 `CLEAR=2`。Solidity 字段顺序为 `bytes32 securityId,uint32 tradeDayId,uint8 action,uint256 quotaWad,uint64 sourceTimestamp,uint64 submitDeadline,uint64 version,uint64 sequence,bytes32 reportId`；没有 `signer` 字段或签名参数。`SET` 要求证券已登记、该日所需 ADTV 已存在、`0 < quotaWad <=` 提交时的硬上限；`CLEAR` 要求原覆盖处于 active 且 `quotaWad == 0`。两者都要求该 key 的 version 严格加一、报告 ID 唯一、报告来源序号递增，发出包含 action、值、版本、reportId 的事件。不能把零配额当作暂停；暂停仍走 §8。
 3. 每次 Swap 必须有按 D-34 自动算出的当前计量日、适用 ADTV、有效股票资产和已初始化且未暂停交易的市场状态。`hardCapWad == 0` 时拒绝；当日 `active=false` 时 `effectiveCapWad=hardCapWad`，否则 `effectiveCapWad=min(hardCapWad,quotaWad)`。要求 `usedWad[securityId][tradeDayId] + legalSharesWad <= effectiveCapWad`；`remaining` 在无覆盖但 ADTV 有效时返回有效及 `max(0,hardCapWad-usedWad)`。同日 SET/CLEAR 从成功提交交易之后影响后续 Swap，不修改已计成交或已用量；低于已用量时后续 Swap 失败。
 4. 硬上限为 `floor(adtvWad × tierBps × numerator / (10000 × denominator))`，系数见 D-37，整条公式仅向下取整一次。ADTV/Tier/系数变化后重新计算并取 `min`，既有覆盖不能超过新硬上限；上调硬上限不会自动解除较低覆盖。quota 是目标计量日单位下的绝对值，不随拆股系数再乘一次；运营应在排期时复核，按需 SET/CLEAR。
 5. 本版 `DataInbox` 完全移除报告签名机制。升级时必须同步切换 ABI、角色运营脚本、索引器和 Ledger；旧版待提交的签名报告不再有入口，已接受的 `reportId`、序号和账本状态保持不变。D-34 同版移除日历报告依赖。
@@ -232,26 +226,26 @@ Position ID 的唯一性范围是单个 LP Manager 代理，跨链或跨代理�
 
 1. 初始配置 `dayStartOffsetSeconds` 是部署清单中的 `uint32`，范围 `0..86399`；示例为 `14400`，即 UTC 04:00。配置在 Ledger 初始化时设置，禁止未初始化或超范围值。`tradeDayId` 是周期**开始时的 UTC 公历日期** `YYYYMMDD`，不是成交所在 UTC 自然日期，也不再表示外部 SIP 归属日。所有公历日期，包括周末和节假日，都有自己的 ID、额度和 `usedWad`。时间区间左闭右开，链上以 `block.timestamp` 判定；不引入本地时区或夏令时。
 2. 对 UTC 日期 D，定义 `midnightUTC(D) = ordinal(D) * 86400`，`startUTC(D) = midnightUTC(D) + offsetFor(D)`，`endUTC(D) = startUTC(D+1)`。`offsetFor(D)` 为最大 `effectiveDayId <= D` 的已排期配置值，若无则为初始值。设 `N = UTCDate(block.timestamp / 86400)`；若 `block.timestamp >= startUTC(N)`，当前 `tradeDayId=N`，否则为 N 的前一日期。实现须使用覆盖闰年、月末、年末的公历整数转换，校验日期范围；不能直接把 Unix 日数强转成 `YYYYMMDD`。Ledger 在一次记账中计算日 ID，并用于额度、ADTV 源月及可选配额；Router 在 unlock 完成后再次读取当前日，仅用于 Swap 事件。`sourceMonth` 是 Ledger 所用 ID 所在月的上一自然月。`currentTradeDay()` 可保留现有 `(bool,uint32)` ABI，但初始化后的 `exists` 恒为 true，不再要求当前／下一窗口。
-3. 治理入口 `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId,bytes32 reasonHash)` 只允许当前业务 Governor；`newOffsetSeconds < 86400`、`newOffsetSeconds != oldOffsetSeconds`、`abs(newOffsetSeconds - oldOffsetSeconds) <= 14400`、`reasonHash != 0`。初始起点可设为任意 UTC 日内秒数，**运行中每次最多变更四小时**。只允许一个待生效配置；新 `effectiveDayId` 必须晚于最后一次生效日，并且排期交易发生时，`effectiveDayId` 的前一个计量日按**当前已排期规则**尚未开始。Ledger 用链上公历算法算出前一日的开始时刻并要求 `block.timestamp < startUTC(D-1)`。不得排期使当前或过去计量日的开始/结束改变。事件记录旧/新秒数、D、过渡日 ID、过渡日新结束 UTC、操作者与 `reasonHash`。生效只看区块时间，无额外激活交易。
+3. 治理入口 `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId)` 只允许当前业务 Governor；`newOffsetSeconds < 86400`、`newOffsetSeconds != oldOffsetSeconds`、`abs(newOffsetSeconds - oldOffsetSeconds) <= 14400`。初始起点可设为任意 UTC 日内秒数，**运行中每次最多变更四小时**。只允许一个待生效配置；新 `effectiveDayId` 必须晚于最后一次生效日，并且排期交易发生时，`effectiveDayId` 的前一个计量日按**当前已排期规则**尚未开始。Ledger 用链上公历算法算出前一日的开始时刻并要求 `block.timestamp < startUTC(D-1)`。不得排期使当前或过去计量日的开始/结束改变。事件记录旧/新秒数、D、过渡日 ID、过渡日新结束 UTC、操作者。生效只看区块时间，无额外激活交易。
 4. 排期一次由旧起点 `oldOffset` 改到 `newOffset` 时，只有 D-1 是过渡日，长度精确为 `86400 + newOffset - oldOffset` 秒，且在 20–28 小时范围内；此前及 D 以后均为 86400 秒。治理可在 D-1 开始**之前**取消这次尚未生效的排期并发出取消事件；D-1 一旦开始，配置锁定，不能取消或替换。生效后可为更晚日期排下一次变更；历史配置和计量日边界须永久可读。对查询日 D 的配置按生效日有序检查点选择，不能以后一次配置重算历史。较长或较短的过渡日仍只有**一份完整日硬上限**，不得按小时比例放大或缩小；已提交的 D-1/D 配额继续按原日 ID 生效，运营方在排期时复核。
 5. 当前实现已移除 `TradeDayReport`、`DAY_TYPEHASH`、`submitTradeDay`、`replaceFutureWindows`、`appendWindow`、`windowCount/getWindow` 以及旧 Ledger 的窗口门禁。`DataInbox` 处理 Market、ADTV、Quota、SplitFactor 四类报告。由于本部署没有旧 SIP 日账，部署直接初始化自动日切状态，不实现旧窗口到账本的历史转换；新 ABI、角色运营脚本、索引器和部署清单必须一起发布。
 
 当前 Ledger 日切 ABI 与事件为：
 
 ```solidity
-struct DayStartCheckpoint { uint32 effectiveDayId; uint32 offsetSeconds; bytes32 reasonHash; }
-function scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId, bytes32 reasonHash) external;
-function cancelPendingDayStart(bytes32 reasonHash) external;
+struct DayStartCheckpoint { uint32 effectiveDayId; uint32 offsetSeconds; }
+function scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId) external;
+function cancelPendingDayStart() external;
 function dayStartUTC(uint32 dayId) external view returns (uint64);
 function initialDayStartOffsetSeconds() external view returns (uint32);
 function dayStartCheckpointCount() external view returns (uint256);
 function dayStartCheckpoint(uint256 index) external view returns (DayStartCheckpoint memory);
 function currentTradeDay() external view returns (bool exists, uint32 tradeDayId);
-event DayStartScheduled(uint32 indexed effectiveDayId, uint32 indexed transitionDayId, uint32 oldOffsetSeconds, uint32 newOffsetSeconds, uint64 effectiveStartUTC, address indexed operator, bytes32 reasonHash);
-event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator, bytes32 reasonHash);
+event DayStartScheduled(uint32 indexed effectiveDayId, uint32 indexed transitionDayId, uint32 oldOffsetSeconds, uint32 newOffsetSeconds, uint64 effectiveStartUTC, address indexed operator);
+event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator);
 ```
 
-`cancelPendingDayStart` 仅允许当前业务 Governor、非零原因哈希，且待生效配置的 D-1 尚未开始；取消后最后一个有效检查点仍用于后续计算，已生效检查点不可删除。检查点按生效日递增存储，查询可用二分搜索，当前交易日读取不得线性遍历全部历史变更。`dayStartUTC` 对非法公历日期或超出可表示范围回滚。`dayStartCheckpoint` 返回已生效及待生效的有效检查点，不返回已取消项；取消事件保留审计记录。初始 offset 通过单独 getter 暴露，且不依赖后续治理事件重建。
+`cancelPendingDayStart` 仅允许当前业务 Governor，且待生效配置的 D-1 尚未开始；取消后最后一个有效检查点仍用于后续计算，已生效检查点不可删除。检查点按生效日递增存储，查询可用二分搜索，当前交易日读取不得线性遍历全部历史变更。`dayStartUTC` 对非法公历日期或超出可表示范围回滚。`dayStartCheckpoint` 返回已生效及待生效的有效检查点，不返回已取消项；取消事件保留审计记录。初始 offset 通过单独 getter 暴露，且不依赖后续治理事件重建。
 
 **D-37：拆并股系数只在未来计量日开始自动生效。**保留 `AdtvReport.adtvWad` 为上月日均成交量及现有 Tier rate，不改为上月总成交量。拆股/并股按精确正分子/分母调整硬上限，默认 `1/1`，无额外激活交易。
 
@@ -268,7 +262,6 @@ struct SplitFactorReport {
     uint64 version;
     uint64 sequence;
     bytes32 reportId;
-    bytes32 sourceHash;
 }
 // DataInbox: VOLUME_ORACLE_ROLE directly submits; kind = 3.
 function submitSplitFactor(SplitFactorReport calldata report) external;
@@ -283,7 +276,7 @@ struct SplitFactorCheckpoint { uint32 effectiveTradeDayId; uint128 numerator; ui
 
 1. `effectiveTradeDayId` 为合法 `YYYYMMDD` 且必须严格晚于当前计量日；可以选择任意未来日，无法设置当天、历史日或日内时刻。`sourceMonth` 必须等于目标日的前一自然月。生效时刻为 `dayStartUTC(effectiveTradeDayId)`，不是固定 UTC 午夜。日切排期改变后，系数仍随同一日 ID 开始；更改未来 offset 时须复核公告时间。来源时间/提交截止时间只约束提交，不决定生效。
 2. 因子是**相对该来源月 ADTV 单位的绝对累计系数**，不是相对前一检查点的增量。例如先一拆二、再一拆三，同月报告 `2/1`、`6/1`；不是 `2/1`、`3/1`。SET=1 时分子/分母非零，合约约分。按目标日递增追加，只有最后一个尚未开始的检查点可同日更正；要修改更早待生效项，先依次取消后面的待生效项。CANCEL=2 只取消最后一项、指定同一日且两比例字段为零；生效后不得更正/取消。历史保留，查询按来源月二分选择目标日最近检查点，每月最多 31 项。
-3. `version` 在 `(securityId,sourceMonth)` 内严格加一，取消也消耗版本；`sequence` 在 `(kind=3,securityId)` 内递增，换月不重置。沿用 DataInbox 全局 reportId 唯一、来源时间不倒退、非零来源摘要及 freshness/deadline 校验；失败整笔回滚，不占用 ID/版本/序号。
+3. `version` 在 `(securityId,sourceMonth)` 内严格加一，取消也消耗版本；`sequence` 在 `(kind=3,securityId)` 内递增，换月不重置。沿用 DataInbox 全局 reportId 唯一、来源时间不倒退及 freshness/deadline 校验；失败整笔回滚，不占用 ID/版本/序号。
 4. 报告服务须固定来源月 ADTV 的基准单位为该月结束时的股数单位；同月数据更正保持这一基准，不能再把已排期的比例乘入 ADTV。换用新来源月时，已体现在该月基准中的事件不再排期，默认系数恢复 `1/1`。例如九月 ADTV=1000、Tier=25bps，十月一拆二后日限额=5；十月 ADTV=2000 已使用月末新单位，十一月默认系数 1，限额仍为5。无法确认基准单位时不得盲目提交。
 5. 可以先排期再上报 ADTV，但缺 ADTV 仍阻止 Swap。SET 及 ADTV 更正验证已存每个因子在 Tier=10000bps 时可表示，避免未来 Tier 上调产生算术溢出；超范围拒绝且状态回滚。Tier/ADTV 的正常更正仍参与实时硬上限。
 6. 切换发生在新计量日，新日用量独立累计，历史 `usedWad`、ADTV、LP 仓位不改写。可选 quota 继续是目标日绝对上限。系数功能控制额度生效时间，不替代来源 Token/Adapter 的实时成交计股、不修改外部 Token、不自动识别其法律单位；这一边界和异常暂停流程见准入标准 §4。
@@ -295,7 +288,7 @@ struct SplitFactorCheckpoint { uint32 effectiveTradeDayId; uint128 numerator; ui
 
 暂停模式为 `TRADE=1`（仅交易）、`LP=2`（全部普通 LP）、`ALL=3`（交易和 LP）。`NONE=0` 只表示无市场暂停，不能作为暂停/恢复请求模式。普通 LP 包括开仓、加仓、减仓、领取手续费和关闭仓位。Router、Hook Swap 和 VolumeLedger 使用 `isTradable(poolId)`；LP Manager 与 Hook LP 使用 `isLPAllowed(poolId)`。单项暂停允许另一类操作通过暂停门禁，其他资产、池、证券和 SBT 准入仍须满足。
 
-紧急暂停记录以递增 `recordId` 为主键，保存 `scope,target,mode,reasonCode,sourceHash,openedBy,openedAt,active`；`GLOBAL/SECURITY/TOKEN/POOL` 目标分别是零、securityId、Token 地址、PoolId。`EMERGENCY_PAUSER` 新增记录，`EMERGENCY_RESUMER` 关闭指定仍活跃记录；`activePauseCount(scope,target,mode)` 返回该精确模式的活跃记录数。交易检查 TRADE 或 ALL，LP 检查 LP 或 ALL；命中的记录叠加生效，关闭一条不会关闭其他记录或解除市场暂停。
+紧急暂停记录以递增 `recordId` 为主键，保存 `scope,target,mode,reasonCode,openedBy,openedAt,active`；`GLOBAL/SECURITY/TOKEN/POOL` 目标分别是零、securityId、Token 地址、PoolId。`EMERGENCY_PAUSER` 新增记录，`EMERGENCY_RESUMER` 关闭指定仍活跃记录；`activePauseCount(scope,target,mode)` 返回该精确模式的活跃记录数。交易检查 TRADE 或 ALL，LP 检查 LP 或 ALL；命中的记录叠加生效，关闭一条不会关闭其他记录或解除市场暂停。
 
 `MarketReport` 在 `action` 后新增 `PauseMode mode`，DataInbox 调用 `applyMarketStatus(securityId,action,mode,sequence,reportId)`。新证券准入后默认 NONE/OPEN，不再提交首次开市报告。MarketAction 仅 HALT=0、RESUME=1；首份报告可直接 HALT。HALT 按位叠加指定模式，RESUME 只清除指定模式；不产生状态变化的报告回滚，报告序号和去重状态也回滚。`marketPauseMode(securityId)` 保存当前模式，`marketStatus(securityId)` 从该模式推导，任一位暂停时市场为 HALTED，全部恢复时为 OPEN；未知证券查询回滚，下架证券仍由 listed 门禁阻断，重新上市不清除暂停或报告序号。不再保存重复的市场状态映射。例如 TRADE → HALT LP → ALL → RESUME TRADE → LP → RESUME LP → NONE/OPEN。模式改变时即使市场仍为 HALTED，也发出带旧/新模式的 MarketStatusChanged。暂停不会因报告年龄自动恢复。
 
@@ -315,9 +308,9 @@ TSV 自有业务合约使用 UUPS 实现和 ERC-1967 代理。Hook 最终代理�
 
 业务角色常量固定为 `keccak256("SYMBOL_ADMIN_ROLE")`、`keccak256("POOL_CREATOR_ROLE")`、`keccak256("HALT_REPORTER_ROLE")`、`keccak256("VOLUME_ORACLE_ROLE")`、`keccak256("EMERGENCY_PAUSER_ROLE")`、`keccak256("EMERGENCY_RESUMER_ROLE")`、`keccak256("REVOKE_EXIT_EXECUTOR_ROLE")`、`keccak256("FORCE_EXIT_ADMIN_ROLE")`。治理与运营身份只核对地址/角色，不读取多签内部成员或门槛。`Registry.hasCredential(owner)` 只读 SBT 的 `verify(owner,tokenId)`；普通用户入口另检查 SBT 未暂停，读取失败时回滚。
 
-**统一升级冻结。**事故升级控制器及其独立入口已移除。Anchor 初始 `upgradesFrozen=false`；只有当前 Guardian 可 `freezeUpgrades(reasonHash)` 和 `unfreezeUpgrades(expectedFreezeId,evidenceHash)`。冻结原因、解冻证据必须非零；每次冻结递增 `freezeEpoch` 并生成唯一 `freezeId`，重复冻结、未冻结时解冻或 ID 不匹配均拒绝。六代理在共用 `_authorizeUpgrade` 中检查固定 Anchor 的冻结状态，Anchor 批量入口也先检查；冻结后所有单代理及批量升级回滚，包括尚未绑定六代理名单的同 Anchor 代理。Governor、Council 和业务角色均不能解冻。冻结只控制升级，不暂停 Swap、LP、强退、业务配置或身份恢复。身份恢复保留 `upgradesFrozen`、`freezeEpoch`、`freezeId`；Guardian 轮换后只有新 Guardian 可显式解冻。开关生效以链上交易执行顺序为准，不能撤销此前已完成的升级。
+**统一升级冻结。**事故升级控制器及其独立入口已移除。Anchor 初始 `upgradesFrozen=false`；只有当前 Guardian 可 `freezeUpgrades()` 和 `unfreezeUpgrades(expectedFreezeId)`。每次冻结递增 `freezeEpoch` 并生成唯一 `freezeId`，重复冻结、未冻结时解冻或 ID 不匹配均拒绝。六代理在共用 `_authorizeUpgrade` 中检查固定 Anchor 的冻结状态，Anchor 批量入口也先检查；冻结后所有单代理及批量升级回滚，包括尚未绑定六代理名单的同 Anchor 代理。Governor、Council 和业务角色均不能解冻。冻结只控制升级，不暂停 Swap、LP、强退、业务配置或身份恢复。身份恢复保留 `upgradesFrozen`、`freezeEpoch`、`freezeId`；Guardian 轮换后只有新 Guardian 可显式解冻。开关生效以链上交易执行顺序为准，不能撤销此前已完成的升级。
 
-**身份恢复。**Council 调用 `proposeRecovery(newGovernor,newGuardian,salt,evidenceHash)`，当前 Guardian 对同一 ID 批准后，任意地址可 `executeRecovery(id)`。Guardian 可撤回批准；只有 Council 可取消提案。新身份非零、彼此不同、不同于 Council，不得交叉等于旧 Guardian/Governor，且至少一个身份变化。提案绑定 chainId、Anchor、epoch、guardianEpoch、候选身份、salt 和证据。执行只在当前两个 epoch 有效，在 Anchor 内直接更新 Governor/Guardian，不调用外部治理组件，不提供直接 setter。每次成功递增 epoch；Guardian 变化还递增 guardianEpoch，使旧批准失效。恢复不自动解冻，固定 Anchor、六代理地址和业务状态保留，旧身份立即失去对应权限。批量升级执行期间拒绝身份恢复。Council 地址固定。
+**身份恢复。**Council 调用 `proposeRecovery(newGovernor,newGuardian,salt)`，当前 Guardian 对同一 ID 批准后，任意地址可 `executeRecovery(id)`。Guardian 可撤回批准；只有 Council 可取消提案。新身份非零、彼此不同、不同于 Council，不得交叉等于旧 Guardian/Governor，且至少一个身份变化。提案绑定 chainId、Anchor、epoch、guardianEpoch、候选身份和非零 salt。执行只在当前两个 epoch 有效，在 Anchor 内直接更新 Governor/Guardian，不调用外部治理组件，不提供直接 setter。每次成功递增 epoch；Guardian 变化还递增 guardianEpoch，使旧批准失效。恢复不自动解冻，固定 Anchor、六代理地址和业务状态保留，旧身份立即失去对应权限。批量升级执行期间拒绝身份恢复。Council 地址固定。
 
 **D-35 已移除。**不再提供治理组件更换或根迁移。治理身份恢复、升级和冻结步骤见[部署清单 §9](./DEPLOYMENT_CHECKLIST_V1.md#9-治理身份恢复和升级)。
 
@@ -330,12 +323,12 @@ function guardian() external view returns (address);
 function recoveryCouncil() external view returns (address);
 function bindProxies(address[6] calldata proxies) external;
 function upgradeBatch(address[] calldata targets, address[] calldata implementations, bytes[] calldata initData) external;
-function freezeUpgrades(bytes32 reasonHash) external returns (bytes32 id);
-function unfreezeUpgrades(bytes32 expectedFreezeId, bytes32 evidenceHash) external;
+function freezeUpgrades() external returns (bytes32 id);
+function unfreezeUpgrades(bytes32 expectedFreezeId) external;
 function upgradesFrozen() external view returns (bool);
 function freezeEpoch() external view returns (uint64);
 function freezeId() external view returns (bytes32);
-function proposeRecovery(address newGovernor, address newGuardian, bytes32 salt, bytes32 evidenceHash) external returns (bytes32 id);
+function proposeRecovery(address newGovernor, address newGuardian, bytes32 salt) external returns (bytes32 id);
 function approveRecovery(bytes32 id) external;
 function revokeRecoveryApproval(bytes32 id) external;
 function cancelRecovery(bytes32 id) external;
@@ -347,41 +340,41 @@ function upgradeContextActive() external view returns (bool);
 
 ## 10. 规范事件与错误
 
-实现可增加诊断事件，但以下事件的名称、字段顺序和索引字段为对外契约；动态大对象以哈希记录，链下通过交易 calldata/归档状态复核。
+实现可增加诊断事件，但以下事件的名称、字段顺序和索引字段为对外契约；链下通过交易 calldata、receipt 和归档状态复核。
 
 ```text
-SecurityListed(bytes32 indexed securityId,bytes32 symbolHash,uint8 tierId,bytes32 evidenceHash)
-SecurityDelisted(bytes32 indexed securityId,bytes32 evidenceHash)
-SecurityTierChanged(bytes32 indexed securityId,uint8 oldTierId,uint8 newTierId,bytes32 evidenceHash)
-TierPolicyChanged(uint8 indexed tierId,uint16 tierBps,uint32 maxListed,bytes32 evidenceHash)
-TokenRegistered(address indexed poolCurrency,bytes32 indexed securityId,bytes32 evidenceHash)
-TokenStatusChanged(address indexed poolCurrency,uint8 oldStatus,uint8 newStatus,bytes32 evidenceHash)
-LegalShareAdapterChanged(address indexed poolCurrency,address oldAdapter,address newAdapter,uint32 legalAdapterVersion,bytes32 evidenceHash)
-PoolInitialized(bytes32 indexed poolId,uint160 sqrtPriceX96,address indexed creator,bytes32 priceBasisHash)
-PoolStatusChanged(bytes32 indexed poolId,uint8 oldStatus,uint8 newStatus,bytes32 evidenceHash)
+SecurityListed(bytes32 indexed securityId,uint8 tierId)
+SecurityDelisted(bytes32 indexed securityId)
+SecurityTierChanged(bytes32 indexed securityId,uint8 oldTierId,uint8 newTierId)
+TierPolicyChanged(uint8 indexed tierId,uint16 tierBps,uint32 maxListed)
+TokenRegistered(address indexed poolCurrency,bytes32 indexed securityId)
+TokenStatusChanged(address indexed poolCurrency,uint8 oldStatus,uint8 newStatus)
+LegalShareAdapterChanged(address indexed poolCurrency,address oldAdapter,address newAdapter,uint32 legalAdapterVersion)
+PoolInitialized(bytes32 indexed poolId,uint160 sqrtPriceX96,address indexed creator)
+PoolStatusChanged(bytes32 indexed poolId,uint8 oldStatus,uint8 newStatus)
 MarketStatusChanged(bytes32 indexed securityId,uint8 oldStatus,uint8 newStatus,uint8 oldPauseMode,uint8 newPauseMode,uint64 sequence,bytes32 indexed reportId)
 AdtvAccepted(bytes32 indexed securityId,uint32 indexed sourceMonth,uint256 adtvWad,uint64 version,bytes32 indexed reportId)
 QuotaAccepted(bytes32 indexed securityId,uint32 indexed tradeDayId,uint8 action,uint256 quotaWad,uint64 version,bytes32 indexed reportId)
-DayStartScheduled(uint32 indexed effectiveDayId,uint32 indexed transitionDayId,uint32 oldOffsetSeconds,uint32 newOffsetSeconds,uint64 effectiveStartUTC,address indexed operator,bytes32 reasonHash)
-DayStartCancelled(uint32 indexed effectiveDayId,address indexed operator,bytes32 reasonHash)
-SplitFactorScheduled(bytes32 indexed securityId,uint32 indexed sourceMonth,uint32 indexed effectiveTradeDayId,uint128 numerator,uint128 denominator,uint64 version,bytes32 reportId,bytes32 sourceHash)
-SplitFactorCancelled(bytes32 indexed securityId,uint32 indexed sourceMonth,uint32 indexed effectiveTradeDayId,bytes32 scheduledReportId,uint64 version,bytes32 reportId,bytes32 sourceHash)
+DayStartScheduled(uint32 indexed effectiveDayId,uint32 indexed transitionDayId,uint32 oldOffsetSeconds,uint32 newOffsetSeconds,uint64 effectiveStartUTC,address indexed operator)
+DayStartCancelled(uint32 indexed effectiveDayId,address indexed operator)
+SplitFactorScheduled(bytes32 indexed securityId,uint32 indexed sourceMonth,uint32 indexed effectiveTradeDayId,uint128 numerator,uint128 denominator,uint64 version,bytes32 reportId)
+SplitFactorCancelled(bytes32 indexed securityId,uint32 indexed sourceMonth,uint32 indexed effectiveTradeDayId,bytes32 scheduledReportId,uint64 version,bytes32 reportId)
 SwapAccounted(bytes32 indexed poolId,bytes32 indexed securityId,address indexed poolCurrency,bool inputSide,uint32 tradeDayId,uint256 rawAmount,uint256 legalSharesWad,uint32 legalAdapterVersion)
 SwapExecuted(bytes32 indexed poolId,address indexed participant,bool zeroForOne,int128 amount0,int128 amount1,uint32 tradeDayId)
 PositionOpened(uint256 indexed positionId,address indexed owner,bytes32 indexed poolId,uint128 liquidity)
 PositionChanged(uint256 indexed positionId,uint128 oldLiquidity,uint128 newLiquidity)
 FeesCollected(uint256 indexed positionId,uint256 amount0,uint256 amount1)
 PositionClosed(uint256 indexed positionId,address indexed owner,bool forced,bytes32 reasonCode)
-SbtConfigChanged(address indexed oldSbt,address indexed newSbt,uint256 oldTokenId,uint256 newTokenId,bytes32 evidenceHash)
+SbtConfigChanged(address indexed oldSbt,address indexed newSbt,uint256 oldTokenId,uint256 newTokenId)
 EmergencyPauseOpened(uint256 indexed recordId,uint8 scope,bytes32 indexed target,uint8 mode,bytes32 reasonCode)
 EmergencyPauseClosed(uint256 indexed recordId,bytes32 reasonCode)
-UpgradesFrozen(bytes32 indexed id,address indexed guardian,bytes32 reasonHash)
-UpgradesUnfrozen(bytes32 indexed id,address indexed guardian,bytes32 evidenceHash)
+UpgradesFrozen(bytes32 indexed id,address indexed guardian)
+UpgradesUnfrozen(bytes32 indexed id,address indexed guardian)
 ProxiesBound(address[6] proxies)
 GuardianSynced(address indexed oldGuardian,address indexed newGuardian,uint64 guardianEpoch)
-AuthoritiesRecovered(address indexed oldGovernor,address indexed newGovernor,address newGuardian,bytes32 evidenceHash)
+AuthoritiesRecovered(address indexed oldGovernor,address indexed newGovernor,address newGuardian)
 BatchUpgraded(address indexed governor,uint256 count)
-RecoveryProposed(bytes32 indexed id,address newGovernor,address newGuardian,bytes32 evidenceHash)
+RecoveryProposed(bytes32 indexed id,address newGovernor,address newGuardian)
 RecoveryApprovalChanged(bytes32 indexed id,bool approved)
 RecoveryCancelled(bytes32 indexed id)
 ```
@@ -390,7 +383,7 @@ RecoveryCancelled(bytes32 indexed id)
 
 ## 11. 部署输入和验收向量
 
-部署清单必须含 chainId、官方 PoolManager 地址及代码哈希、每个 TSV 代理地址和实现 codehash、Hook 权限位、SBT 地址/tokenId、Governor/Guardian/RecoveryCouncil 与各运营报告角色地址、Tier 参数、两个资产地址/decimals/代码哈希/代理实现、股票股数 Adapter 地址和版本、发行方权益依据、制裁/暂停与升级控制者、价格依据及首批 PoolKey。新资产只登记唯一池内 Currency，不再配置第二个用户 Token 或独立结算路径；本部署没有旧 LP 仓位或旧 SIP 日账，也不需要历史账本迁移清单。Hook 初始化所需的 Router/LP Manager 地址必须通过确定性部署或 nonce 预计算后逐项比对；`TSVERC1967Proxy` 初始化数据不得为空。缺必填项部署脚本拒绝启用资产；所有身份按独立地址配置，不读取多签内部设置。完整顺序见[全新部署清单](./DEPLOYMENT_CHECKLIST_V1.md)。
+部署清单必须含 chainId、官方 PoolManager 地址及版本、每个 TSV 代理地址和实现地址、Hook 权限位、SBT 地址/tokenId、Governor/Guardian/RecoveryCouncil 与各运营报告角色地址、Tier 参数、两个资产地址/decimals/代理实现、股票股数 Adapter 地址和版本、发行方权益依据、制裁/暂停与升级控制者、价格依据及首批 PoolKey。新资产只登记唯一池内 Currency，不再配置第二个用户 Token 或独立结算路径；本部署没有旧 LP 仓位或旧 SIP 日账，也不需要历史账本迁移清单。Hook 初始化所需的 Router/LP Manager 地址必须通过确定性部署或 nonce 预计算后逐项比对；`TSVERC1967Proxy` 初始化数据不得为空。缺必填项部署脚本拒绝启用资产；所有身份按独立地址配置，不读取多签内部设置。完整顺序见[全新部署清单](./DEPLOYMENT_CHECKLIST_V1.md)。
 
 编码验收至少覆盖以下**给定输入→确定结果**；这些是实现验收样例，不替代源码审计和真实代理行为核验：
 
@@ -414,18 +407,18 @@ RecoveryCancelled(bytes32 indexed id)
 
 | 合约 | 外部入口 | 调用者及主要约束 |
 | --- | --- | --- |
-| Registry | `admitSecurity(bytes32 securityId,bytes32 symbolHash,uint8 tierId,TokenConfig config,bytes32 evidenceHash)`、`relistSecurity(bytes32 securityId,bytes32 evidenceHash)`、`setSecurityTier(bytes32 securityId,uint8 tierId,bytes32 evidenceHash)`、`delistSecurity(bytes32 securityId,bytes32 evidenceHash)`、`setTierPolicy(uint8 tierId,uint16 tierBps,uint32 maxListed,bytes32 evidenceHash)` | 前四项 `SYMBOL_ADMIN`，政策修改仅 Governor；activePoolCount/version 由合约派生，Tier 名额按不同 securityId 计算，活动池未全停用不得下架 |
-| Registry | `registerToken(TokenConfig,bytes32 evidenceHash)`、`setTokenStatus(address poolCurrency,TokenStatus,bytes32 evidenceHash)`、`replaceLegalShareAdapter(address poolCurrency,address newAdapter,bytes32 evidenceHash)` | `SYMBOL_ADMIN`；仅按 §2 的状态、暂停、版本和旧仓位不变量变更 |
+| Registry | `admitSecurity(bytes32 securityId,uint8 tierId,TokenConfig config)`、`relistSecurity(bytes32 securityId)`、`setSecurityTier(bytes32 securityId,uint8 tierId)`、`delistSecurity(bytes32 securityId)`、`setTierPolicy(uint8 tierId,uint16 tierBps,uint32 maxListed)` | 前四项 `SYMBOL_ADMIN`，政策修改仅 Governor；activePoolCount/version 由合约派生，Tier 名额按不同 securityId 计算，活动池未全停用不得下架 |
+| Registry | `registerToken(TokenConfig)`、`setTokenStatus(address poolCurrency,TokenStatus)`、`replaceLegalShareAdapter(address poolCurrency,address newAdapter)` | `SYMBOL_ADMIN`；仅按 §2 的状态、暂停、版本和旧仓位不变量变更 |
 | Registry | `bindComponents(address hook,address lpManager,address dataInbox)` | Governor 仅可首次绑定；三个地址均须有代码。部署初始化入口，不可替换已绑定组件 |
-| Registry | `registerPendingPool(PoolKey)`、`markPoolActive(bytes32 poolId,uint160 sqrtPriceX96,address creator,bytes32 priceBasisHash)` | 仅 LP Manager；两个调用与 PoolManager.initialize 必须在同一外部交易成功 |
-| Registry | `disablePool(bytes32 poolId,bytes32 evidenceHash)`、`enablePool(bytes32 poolId,bytes32 evidenceHash)` | `SYMBOL_ADMIN`；enable 重查两侧资产批准、市场与准入，不更改 PoolKey |
-| Registry | `addEmergencyPause(PauseScope scope,bytes32 target,PauseMode mode,bytes32 reasonCode,bytes32 sourceHash)`、`clearEmergencyPause(uint256 recordId,bytes32 reasonCode)` | 分别仅 `EMERGENCY_PAUSER` 与 `EMERGENCY_RESUMER`；mode 必须为 TRADE/LP/ALL；按 scope/target/mode 逐条更新活跃计数 |
-| Registry | `setSbtConfig(address sbt,uint256 tokenId,bytes32 evidenceHash)`、`isEligible(address owner)`、`hasCredential(address owner)`、`participantSbt()`、`sbtTokenId()` | SBT 配置仅 Governor，必须提供有代码地址和证据哈希；配置时校验 `paused()`/`verify()` ABI；所有用户 Swap/LP 使用同一份资格配置；未配置时回滚 `SbtNotConfigured()`，读取失败时调用回滚 |
+| Registry | `registerPendingPool(PoolKey)`、`markPoolActive(bytes32 poolId,uint160 sqrtPriceX96,address creator)` | 仅 LP Manager；两个调用与 PoolManager.initialize 必须在同一外部交易成功 |
+| Registry | `disablePool(bytes32 poolId)`、`enablePool(bytes32 poolId)` | `SYMBOL_ADMIN`；enable 重查两侧资产批准、市场与准入，不更改 PoolKey |
+| Registry | `addEmergencyPause(PauseScope scope,bytes32 target,PauseMode mode,bytes32 reasonCode)`、`clearEmergencyPause(uint256 recordId,bytes32 reasonCode)` | 分别仅 `EMERGENCY_PAUSER` 与 `EMERGENCY_RESUMER`；mode 必须为 TRADE/LP/ALL；按 scope/target/mode 逐条更新活跃计数 |
+| Registry | `setSbtConfig(address sbt,uint256 tokenId)`、`isEligible(address owner)`、`hasCredential(address owner)`、`participantSbt()`、`sbtTokenId()` | SBT 配置仅 Governor，必须提供有代码地址；配置时校验 `paused()`/`verify()` ABI；所有用户 Swap/LP 使用同一份资格配置；未配置时回滚 `SbtNotConfigured()`，读取失败时调用回滚 |
 | Registry | `getToken(address poolCurrency)`、`getPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`marketPauseMode(bytes32 securityId)`、`activePauseCount(uint8 scope,bytes32 target,uint8 mode)`、`isKnownPool(bytes32 poolId)` | 只读；isTradable/isLPAllowed 分别判断交易/普通 LP；activePauseCount 返回精确 mode 的记录数；`isKnownPool` 对停用历史池仍为真，供强退 |
 | DataInbox | `submitMarketStatus(MarketReport)`、`submitAdtv(AdtvReport)`、`submitAdtvBatch(AdtvReport[])`、`submitQuota(QuotaReport)`、`submitSplitFactor(SplitFactorReport)` | `msg.sender` 必须直接持有对应角色；批量 ADTV 同月、securityId 严格递增、最多 100 条且整批原子提交；不接受报告签名或任意 relayer 代提；序号、reportId 和期间规则按 §7；状态分别写 Registry/VolumeLedger 的仅 DataInbox 入口 |
 | VolumeLedger | `recordSwap(bytes32 poolId,int128 delta0,int128 delta1,uint256 legalShares0,uint256 legalShares1)` | 仅固定 Hook 代理；从 Registry 重读资产身份，检查 shares 与资产配置一致后双侧额度原子检查/增加 |
 | VolumeLedger | `bindWriters(address hook,address dataInbox)` | Governor 仅可首次绑定；两个地址均须有代码。部署初始化入口，不可替换已绑定写入者 |
-| VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId,bytes32 reasonHash)`、`cancelPendingDayStart(bytes32 reasonHash)` | 仅 Governor；未来边界排期、单次偏差上限与过渡日锁定按 §7 |
+| VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId)`、`cancelPendingDayStart()` | 仅 Governor；未来边界排期、单次偏差上限与过渡日锁定按 §7 |
 | VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()`、`splitFactorOf(bytes32,uint32)`、`splitFactorVersion(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)`、`remaining(bytes32 securityId,uint32 tradeDayId)`、`used(bytes32 securityId,uint32 tradeDayId)` | 只读；初始化后 `currentTradeDay.exists == true`；ADTV 缺失时 `remaining` 返回无效标志 |
 | Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用 | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；`beforeSwap` 校验 Router sender、可交易状态和完整 PoolKey，`afterSwap` 校验 Router sender 与空 hookData |
 | Router | §5 两个 Swap 入口、PoolManager `unlockCallback` | Swap 仅 participant 直接调用；资格与池校验在 unlock 前完成，非重入锁约束单笔 Swap 与解锁回调；不保存或暴露 Swap 活跃上下文 |

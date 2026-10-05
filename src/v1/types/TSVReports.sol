@@ -13,8 +13,6 @@ struct MarketReport {
     PauseMode mode;
     /// @notice Nonzero operational reason code included for audit.
     bytes32 reasonCode;
-    /// @notice Nonzero digest identifying the exchange or market source.
-    bytes32 exchangeHash;
     /// @notice Time when the source produced this market information.
     uint64 sourceTimestamp;
     /// @notice Latest timestamp at which DataInbox may accept the report.
@@ -23,8 +21,6 @@ struct MarketReport {
     uint64 sequence;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
-    /// @notice Nonzero digest of the supporting source material.
-    bytes32 sourceHash;
 }
 
 /// @notice Versioned monthly average-daily-volume input for one listed security.
@@ -45,8 +41,6 @@ struct AdtvReport {
     uint64 sequence;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
-    /// @notice Nonzero digest of the supporting source material.
-    bytes32 sourceHash;
 }
 
 /// @notice Versioned optional quota override for one security and TSV trade day.
@@ -69,8 +63,6 @@ struct QuotaReport {
     uint64 sequence;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
-    /// @notice Nonzero digest of the supporting source material.
-    bytes32 sourceHash;
 }
 
 /// @notice Schedules or cancels an absolute split factor relative to one month's ADTV units.
@@ -97,6 +89,4 @@ struct SplitFactorReport {
     uint64 sequence;
     /// @notice Globally unique nonzero report identifier.
     bytes32 reportId;
-    /// @notice Nonzero digest of the announcement and supporting source material.
-    bytes32 sourceHash;
 }

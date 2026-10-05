@@ -18,7 +18,7 @@ contract TSVForceExitLocalTest is ProtocolFixture {
         uint256 stockBefore = stock.balanceOf(alice);
         uint256 quoteBefore = quote.balanceOf(alice);
         sbt.setHolder(alice, false);
-        lpManager.forceExit(positionId, 1, 1, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 1, 1, keccak256("revoke"));
         assertGt(stock.balanceOf(alice), stockBefore);
         assertGt(quote.balanceOf(alice), quoteBefore);
         assertFalse(lpManager.getPosition(positionId).active);
@@ -30,7 +30,7 @@ contract TSVForceExitLocalTest is ProtocolFixture {
     function testForceExitAdminCanActWhenAlsoRevokeExecutorAndOwnerStillHasSbt() public {
         lpManager.grantRole(lpManager.FORCE_EXIT_ADMIN_ROLE(), address(this));
         assertTrue(registry.hasCredential(alice));
-        lpManager.forceExit(positionId, 1, 1, keccak256("incident"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 1, 1, keccak256("incident"));
         assertFalse(lpManager.getPosition(positionId).active);
     }
 
@@ -43,7 +43,7 @@ contract TSVForceExitLocalTest is ProtocolFixture {
         uint256 beforeUsed = ledger.used(SECURITY, DAY);
         uint128 beforeLiquidity = lpManager.getPosition(positionId).liquidity;
         vm.expectRevert();
-        lpManager.forceExit(positionId, 0, 0, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("revoke"));
         assertEq(stock.balanceOf(alice), beforeStock);
         assertEq(quote.balanceOf(alice), beforeQuote);
         assertEq(ledger.used(SECURITY, DAY), beforeUsed);
@@ -60,9 +60,9 @@ contract TSVForceExitLocalTest is ProtocolFixture {
         vm.expectRevert();
         router.swapExactInput(_swapRequest(true, 1e18));
         vm.expectRevert();
-        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"));
         sbt.setHolder(alice, false);
-        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"));
     }
 
     /// @dev Verifies failed SBT reads are not treated as revocation.
@@ -71,7 +71,7 @@ contract TSVForceExitLocalTest is ProtocolFixture {
         vm.expectRevert();
         registry.hasCredential(alice);
         vm.expectRevert();
-        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"));
         assertEq(lpManager.ownerOf(positionId), alice);
 
         sbt.setFailReads(false, true);
@@ -84,7 +84,7 @@ contract TSVForceExitLocalTest is ProtocolFixture {
     function testRegistryRejectsSbtWithoutRequiredSelectors() public {
         address oldSbt = address(registry.participantSbt());
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(address(quote), 1, keccak256("bad-sbt"));
+        registry.setSbtConfig(address(quote), 1);
         assertEq(address(registry.participantSbt()), oldSbt);
         assertTrue(registry.isEligible(alice));
     }
@@ -98,10 +98,10 @@ contract TSVForceExitLocalTest is ProtocolFixture {
         uint256 usedBefore = ledger.used(SECURITY, DAY);
 
         vm.expectRevert(TSVLPManagerV1.SlippageExceeded.selector);
-        lpManager.forceExit(positionId, type(uint256).max, 0, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, type(uint256).max, 0, keccak256("revoke"));
 
         vm.expectRevert(TSVLPManagerV1.SlippageExceeded.selector);
-        lpManager.forceExit(positionId, 0, type(uint256).max, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, type(uint256).max, keccak256("revoke"));
 
         TSVLPManagerV1.Position memory position = lpManager.getPosition(positionId);
         assertTrue(position.active);
@@ -119,7 +119,7 @@ contract TSVForceExitLocalTest is ProtocolFixture {
             uint256 id = _pauseLocal(PauseScope.GLOBAL, 0, PauseMode(mode));
             uint256 stockBefore = stock.balanceOf(alice);
             uint256 quoteBefore = quote.balanceOf(alice);
-            lpManager.forceExit(positionId, 1, 1, keccak256("pause-exit"), keccak256("evidence"));
+            lpManager.forceExit(positionId, 1, 1, keccak256("pause-exit"));
             assertFalse(lpManager.getPosition(positionId).active);
             assertGt(stock.balanceOf(alice), stockBefore);
             assertGt(quote.balanceOf(alice), quoteBefore);
@@ -148,11 +148,11 @@ contract TSVForceExitLocalTest is ProtocolFixture {
         sbt.setPaused(false);
         registry.clearEmergencyPause(id, keccak256("resume"));
 
-        registry.setTokenStatus(address(stock), TokenStatus.DISABLED, keccak256("disable-token"));
+        registry.setTokenStatus(address(stock), TokenStatus.DISABLED);
         _assertTradingBlocked();
         _assertOrdinaryLPBlocked();
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("approve-token"));
-        registry.disablePool(PoolId.unwrap(key.toId()), keccak256("disable-pool"));
+        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
+        registry.disablePool(PoolId.unwrap(key.toId()));
         _assertTradingBlocked();
         _assertOrdinaryLPBlocked();
     }

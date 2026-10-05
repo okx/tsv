@@ -70,22 +70,20 @@ abstract contract FoundationFixture is Test {
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
         inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
-        registry.setTierPolicy(1, 25, 10, keccak256("tier"));
+        registry.setTierPolicy(1, 25, 10);
 
         stockUnderlying = new V1MockIssuerShares();
         stock = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1MockToken("QUOTE6", 6);
         stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
-        registry.admitSecurity(
-            SECURITY, keccak256("STDx"), 1, _config(address(stock), SECURITY, address(stockAdapter)), keccak256("stock")
-        );
-        registry.registerToken(_config(address(quote), 0, address(0)), keccak256("quote"));
+        registry.admitSecurity(SECURITY, 1, _config(address(stock), SECURITY, address(stockAdapter)));
+        registry.registerToken(_config(address(quote), 0, address(0)));
 
         address a = address(stock) < address(quote) ? address(stock) : address(quote);
         address b = address(stock) < address(quote) ? address(quote) : address(stock);
         key = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(this)));
         poolId = registry.registerPendingPool(key);
-        registry.markPoolActive(poolId, uint160(1 << 96), address(this), keccak256("price"));
+        registry.markPoolActive(poolId, uint160(1 << 96), address(this));
     }
 
     function _grantPauseRoles() internal {
@@ -101,7 +99,7 @@ abstract contract FoundationFixture is Test {
     }
 
     function _pause(PauseScope scope, bytes32 target, PauseMode mode) internal returns (uint256) {
-        return registry.addEmergencyPause(scope, target, mode, keccak256("pause"), keccak256("source"));
+        return registry.addEmergencyPause(scope, target, mode, keccak256("pause"));
     }
 
     function _assertOperationGates(bool tradeAllowed, bool lpAllowed) internal view {
@@ -137,8 +135,8 @@ abstract contract FoundationFixture is Test {
         assertFalse(inbox.reportIdUsed(report.reportId));
     }
 
-    function _admitAdditionalSecurity(bytes32 securityId, bytes32 symbolHash) internal {
-        registry.admitSecurity(securityId, symbolHash, 1, _newStockConfig(securityId), keccak256("admission"));
+    function _admitAdditionalSecurity(bytes32 securityId) internal {
+        registry.admitSecurity(securityId, 1, _newStockConfig(securityId));
     }
 
     function _newStockConfig(bytes32 securityId) internal returns (TokenConfig memory) {
@@ -160,11 +158,8 @@ abstract contract FoundationFixture is Test {
         c.securityId = securityId;
         c.legalShareAdapter = legalAdapter;
         c.legalAdapterVersion = securityId == 0 ? 0 : 1;
-        c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("share-policy");
+
         c.status = TokenStatus.APPROVED;
-        c.poolRuntimeCodeHash = token.codehash;
-        c.legalAdapterCodeHash = legalAdapter.codehash;
-        c.reviewHash = keccak256("review");
     }
 
     /// @dev Builds a market-state report with the supplied action and sequence metadata.
@@ -178,12 +173,10 @@ abstract contract FoundationFixture is Test {
             action,
             PauseMode.ALL,
             keccak256("reason"),
-            keccak256("exchange"),
             uint64(block.timestamp - 1),
             uint64(block.timestamp + 100),
             sequence,
-            reportId,
-            keccak256("source")
+            reportId
         );
     }
 
@@ -213,8 +206,7 @@ abstract contract FoundationFixture is Test {
             uint64(block.timestamp + 100),
             version,
             sequence,
-            reportId,
-            keccak256("source")
+            reportId
         );
     }
 
@@ -239,8 +231,7 @@ abstract contract FoundationFixture is Test {
             uint64(block.timestamp + 100),
             version,
             sequence,
-            reportId,
-            keccak256("source")
+            reportId
         );
     }
 }

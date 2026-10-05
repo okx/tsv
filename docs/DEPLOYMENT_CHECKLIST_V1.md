@@ -1,5 +1,7 @@
 # TSV V1 全新部署与发布验收清单
 
+当前 ABI 已移除业务 hash 参数和配置字段，部署脚本及 manifest 也不接收 CODEHASH 输入。业务 ID、reasonCode、salt 与内部哈希计算保留。此变更改变函数/事件 ABI 和存储布局，须全新部署；不得直接升级使用旧字段布局的实例。链下审查材料按证券、资产、报告 ID 和交易记录归档。
+
 版本：1.1，2026-10-03
 目标链：X Layer，chainId `196`
 
@@ -13,7 +15,7 @@
 | --- | --- | --- |
 | 业务代理 | Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager | 六个地址全部新建；使用非空初始化数据部署 `TSVERC1967Proxy` |
 | 治理合约 | `TSVGovernanceAnchor` | 非代理、不可升级；直接保存 Governor/Guardian/Council 和升级冻结状态，六代理只保存 Anchor 地址 |
-| 外部依赖 | 官方 V4 `PoolManager`、SmartWalletSbt、发行方 Token、实现 `IDirectLegalShareAdapter` 的 Adapter | 地址、代码哈希、ABI/ERC-165 接口声明及法律换算依据必须写入发布清单 |
+| 外部依赖 | 官方 V4 `PoolManager`、SmartWalletSbt、发行方 Token、实现 `IDirectLegalShareAdapter` 的 Adapter | 地址、版本、ABI/ERC-165 接口声明及法律换算依据必须写入发布清单 |
 | 历史源码 | `src/v1/legacy/` 下的旧包装/赎回 Adapter | 只用于隔离回归测试，不部署、不登记、不写入核心配置 |
 
 不得把旧 `TSVReceiptV1`、旧 `TSVSBTAdapterV1`、旧 Router 或旧 LP Manager 地址填入新清单。旧 LP 仓位和旧 SIP 日账不属于本部署状态，因此不执行迁移，也不保留兼容分支。
@@ -25,18 +27,18 @@
 部署前将以下内容保存到同一个 manifest，并对 manifest 做版本化。字段模板见 [`DEPLOYMENT_MANIFEST_V1.example.json`](./DEPLOYMENT_MANIFEST_V1.example.json)：
 
 - Git commit、工作区是否干净、Solidity `0.8.26`、Cancun、优化器参数、`viaIR = true` 和 OpenZeppelin 版本。
-- `lib/v4-core`、`lib/soul-bound-token-1155`、`lib/TestToken/backed-token-contract` 的提交或源码哈希。
-- 官方 `PoolManager` 地址、链 ID、运行时代码哈希和 V4 版本。
-- 六个实现合约的运行时代码哈希、六个代理地址及 `tsvImplementation()` 返回值。
+- `lib/v4-core`、`lib/soul-bound-token-1155`、`lib/TestToken/backed-token-contract` 的提交版本。
+- 官方 `PoolManager` 地址、链 ID 和 V4 版本。
+- 六个实现合约地址、六个代理地址及 `tsvImplementation()` 返回值。
 - Hook 工厂地址、CREATE2 salt、预测地址、实际地址及低 14 位权限校验结果。
-- SBT、股票 Token、报价 Token、LegalShareAdapter 的地址、代码哈希、decimals、版本、ERC-165 接口声明和准入证据哈希。
+- SBT、股票 Token、报价 Token、LegalShareAdapter 的地址、decimals、版本、ERC-165 接口声明和准入审查材料。
 - Governor、Guardian、RecoveryCouncil 以及每个业务角色的独立地址。
 
 manifest 中不能只写“由多签控制”。链上只识别具体地址，必须记录每个地址当前承担的角色。
 
 ## 3. 治理合约部署顺序
 
-仓库提供 [`DeployGovernanceV1.s.sol`](../script/DeployGovernanceV1.s.sol)、[`DeployCoreV1.s.sol`](../script/DeployCoreV1.s.sol) 和只读的 [`VerifyDeploymentV1.s.sol`](../script/VerifyDeploymentV1.s.sol)。先以目标链 RPC 对两者执行无 `--broadcast` 的模拟，再在已冻结 manifest、链 ID、官方 PoolManager 与 SBT 运行代码哈希核对后广播。Core 脚本在广播交易之外枚举 CREATE2 salt；模拟时按本仓库 Foundry CLI 的 `--disable-block-gas-limit` 关闭本地枚举的区块 gas 检查，实际广播的每笔交易仍须满足目标链 gas 限制。脚本从环境读取 `TSV_DEPLOYER_PRIVATE_KEY`，由密钥管理器注入，不能写入仓库或命令行文本。主要输入为 `TSV_CHAIN_ID`、`TSV_GOVERNOR`、`TSV_GUARDIAN`、`TSV_RECOVERY_COUNCIL`；第二阶段还需 `TSV_GOVERNANCE_ANCHOR`、`TSV_POOL_MANAGER`、`TSV_POOL_MANAGER_CODEHASH`、`TSV_SBT`、`TSV_SBT_CODEHASH`、`TSV_SBT_TOKEN_ID` 和 `TSV_DAY_START_OFFSET_SECONDS`。两个脚本只部署并验证其明确列出的合约；后续 Anchor/Registry/Ledger 绑定、资产与角色操作由治理身份分别执行。发布事务及代码哈希须回填 manifest。完成 Anchor、Registry、Ledger、SBT 绑定后，使用 `VerifyDeploymentV1` 只读检查六代理地址、实现、代码哈希、Hook 权限位及所有交叉引用；校验脚本还需从 manifest 注入六组 `TSV_*_IMPLEMENTATION` 和 `TSV_*_IMPLEMENTATION_CODEHASH`，以及六个代理地址 `TSV_REGISTRY`、`TSV_VOLUME_LEDGER`、`TSV_DATA_INBOX`、`TSV_HOOK`、`TSV_SWAP_ROUTER`、`TSV_LP_MANAGER`。
+仓库提供 [`DeployGovernanceV1.s.sol`](../script/DeployGovernanceV1.s.sol)、[`DeployCoreV1.s.sol`](../script/DeployCoreV1.s.sol) 和只读的 [`VerifyDeploymentV1.s.sol`](../script/VerifyDeploymentV1.s.sol)。先以目标链 RPC 对两者执行无 `--broadcast` 的模拟，再在已冻结 manifest、链 ID、官方 PoolManager 与 SBT 地址、版本和接口核对后广播。Core 脚本在广播交易之外枚举 CREATE2 salt；模拟时按本仓库 Foundry CLI 的 `--disable-block-gas-limit` 关闭本地枚举的区块 gas 检查，实际广播的每笔交易仍须满足目标链 gas 限制。脚本从环境读取 `TSV_DEPLOYER_PRIVATE_KEY`，由密钥管理器注入，不能写入仓库或命令行文本。主要输入为 `TSV_CHAIN_ID`、`TSV_GOVERNOR`、`TSV_GUARDIAN`、`TSV_RECOVERY_COUNCIL`；第二阶段还需 `TSV_GOVERNANCE_ANCHOR`、`TSV_POOL_MANAGER`、`TSV_SBT`、`TSV_SBT_TOKEN_ID` 和 `TSV_DAY_START_OFFSET_SECONDS`。两个脚本只部署并验证其明确列出的合约；后续 Anchor/Registry/Ledger 绑定、资产与角色操作由治理身份分别执行。发布事务须回填 manifest。完成 Anchor、Registry、Ledger、SBT 绑定后，使用 `VerifyDeploymentV1` 只读检查六代理地址、实现地址、Hook 权限位及所有交叉引用；校验脚本还需从 manifest 注入六组 `TSV_*_IMPLEMENTATION`，以及六个代理地址 `TSV_REGISTRY`、`TSV_VOLUME_LEDGER`、`TSV_DATA_INBOX`、`TSV_HOOK`、`TSV_SWAP_ROUTER`、`TSV_LP_MANAGER`。
 
 1. 部署 `TSVGovernanceAnchor(governor, guardian, recoveryCouncil)`；直接设置 Governor/Guardian/Council。
 2. 回填 Anchor 地址及三身份到 manifest 与第二阶段环境变量。
@@ -149,7 +151,7 @@ Hook 地址低 14 位 == 0x3FFF
 先调用：
 
 ```solidity
-Registry.setSbtConfig(sbt, tokenId, evidenceHash)
+Registry.setSbtConfig(sbt, tokenId)
 ```
 
 当前实现会在配置时读取 `paused()` 和 `verify(address, tokenId)`，用于确认目标地址具备所需 ABI。未配置 SBT 时，`hasCredential` 和 `isEligible` 明确回滚 `SbtNotConfigured()`；这属于 fail-closed 行为。
@@ -160,7 +162,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 - 无资格地址：`isEligible(user) == false`
 - SBT paused：`isEligible(user) == false`
 - `verify` 调用失败：交易回滚
-- SBT 配置事件包含正确的旧地址、新地址、tokenId 和证据哈希
+- SBT 配置事件包含正确的旧地址、新地址以及旧/新 tokenId
 
 ### 5.2 业务角色
 
@@ -181,7 +183,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 
 资产准入证据和实例边界以[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准；本节只列上线时的执行顺序：
 
-1. 完成链下审查后，由 `SYMBOL_ADMIN` 一次调用 `admitSecurity`，登记 `securityId`、Tier、首个 Currency 和 LegalShareAdapter 并批准 Token；输入 status=APPROVED、reviewHash 非零，市场默认 OPEN。证据未齐不得准入。
+1. 完成链下审查后，由 `SYMBOL_ADMIN` 一次调用 `admitSecurity`，登记 `securityId`、Tier、首个 Currency 和 LegalShareAdapter 并批准 Token；输入 status=APPROVED，市场默认 OPEN。证据未齐不得准入。
 2. 报价 Currency 若未准入，调用 `registerToken` 登记即批准；已有上市证券的新增 Currency 也使用此入口。
 3. 由 `VOLUME_ORACLE` 提交当前适用月份 ADTV；quota 仅在需要覆盖某计量日硬上限时提交。拆/并股按公告提前提交 SplitFactor，默认系数1无需报告；仅可选择未来计量日开始。报告服务须固定 ADTV 来源月月末单位、kind=3 独立序号和最新待生效项版本，复核绝对 quota 及未来日切起点。无需首次开市报告。
 4. 由 `POOL_CREATOR` 调用 `LPManager.initializePool`。Registry pending、V4 initialize 和 Registry active 必须在同一交易完成；建池和 ADTV 可按任意顺序执行。
@@ -191,7 +193,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 
 发布脚本成功后，必须保存每项交易 receipt、事件和状态快照：
 
-- 六个业务代理和一个固定治理合约的地址、代码哈希及绑定关系。
+- 六个业务代理和一个固定治理合约的地址及绑定关系。
 - Hook 地址权限位、实现地址和初始化事件。
 - SBT 配置、角色授予、资产配置和 TokenStatus。
 - 准入后默认 OPEN、marketSequence=0；ADTV、可选 quota、SplitFactor 排期/取消及后续 HALT/RESUME 的 reportId 和 sequence；新 Ledger/Inbox ABI 与索引器同时发布，已有实例升级核对追加布局并建议原子批量升级二者。
@@ -235,7 +237,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 ### 9.1 Governor / Guardian 身份恢复
 
 1. 保存 Governor/Guardian/Council、epoch、guardianEpoch、upgradesFrozen/freezeEpoch/freezeId 及业务状态快照。Governor 有风险时，由当前 Guardian 先冻结全部升级；业务暂停通过独立入口处理。
-2. Council 调用 `anchor.proposeRecovery(newGovernor,newGuardian,salt,evidenceHash)`，记录返回 ID。新身份必须非零、彼此不同、不同于 Council，不得对调旧 Governor/Guardian，且至少变化一个。
+2. Council 调用 `anchor.proposeRecovery(newGovernor,newGuardian,salt)`，记录返回 ID。新身份必须非零、彼此不同、不同于 Council，不得对调旧 Governor/Guardian，且至少变化一个。
 3. 当前 Guardian 核对后 `approveRecovery(id)`；可撤回批准，Council 可取消提案。
 4. 任意地址执行 `executeRecovery(id)`，Anchor 再校验批准与两个 epoch 后，在同笔直接更新 Governor/Guardian；失败全部回滚。每次成功递增 epoch，Guardian 变化还递增 guardianEpoch，旧批准失效。
 5. 核验六代理仍指向同一 Anchor，旧 Governor 失去默认管理员和升级权，新 Governor 接管默认管理员；升级冻结状态保留，Guardian 变化后由新 Guardian 接管冻结/解冻权。运营角色、Token/Pool/暂停、Ledger 用量、LP 仓位和 Receipt 保留。
@@ -250,7 +252,7 @@ Registry.setSbtConfig(sbt, tokenId, evidenceHash)
 
 ### 9.3 Guardian 全局冻结/解冻
 
-1. 风险发生时，当前 Guardian 调用 `anchor.freezeUpgrades(reasonHash)`；原因非零，记录返回 freezeId 与 `UpgradesFrozen` 事件。此后六代理单独/批量升级全部拒绝，Governor 无法解冻。
+1. 风险发生时，当前 Guardian 调用 `anchor.freezeUpgrades()`；记录返回 freezeId 与 `UpgradesFrozen` 事件。此后六代理单独/批量升级全部拒绝，Governor 无法解冻。
 2. Council 与当前 Guardian 可继续完成身份恢复；核验 upgradesFrozen、freezeEpoch、freezeId 均保持原值。业务暂停须通过独立暂停入口处理。
-3. 风险解除后，由当前 Guardian 调用 `anchor.unfreezeUpgrades(expectedFreezeId,evidenceHash)`；ID 必须匹配当前冻结，证据非零。Guardian 轮换后由新 Guardian 解冻。
+3. 风险解除后，由当前 Guardian 调用 `anchor.unfreezeUpgrades(expectedFreezeId)`；ID 必须匹配当前冻结。Guardian 轮换后由新 Guardian 解冻。
 4. 核验事件、实现地址及业务状态，并将最新冻结状态回填 manifest。该开关不能回滚冻结交易之前已完成的升级。

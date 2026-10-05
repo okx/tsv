@@ -13,7 +13,7 @@ contract TSVRecoveryTest is GovernanceFixture {
         TSVERC1967Proxy proxy = _newRegistryProxy();
         TSVRegistryV1 next = new TSVRegistryV1();
         vm.prank(guardian);
-        bytes32 freeze = anchor.freezeUpgrades(keccak256("compromised-governor"));
+        bytes32 freeze = anchor.freezeUpgrades();
         address nextGovernor = makeAddr("recovered-governor");
         bytes32 recovery = _proposeRecovery(nextGovernor, guardian, "frozen-recovery");
         vm.prank(guardian);
@@ -27,9 +27,9 @@ contract TSVRecoveryTest is GovernanceFixture {
         TSVRegistryV1(address(proxy)).upgradeToAndCall(address(next), "");
         vm.prank(nextGovernor);
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.unfreezeUpgrades(freeze, keccak256("evidence"));
+        anchor.unfreezeUpgrades(freeze);
         vm.prank(guardian);
-        anchor.unfreezeUpgrades(freeze, keccak256("evidence"));
+        anchor.unfreezeUpgrades(freeze);
         vm.prank(nextGovernor);
         TSVRegistryV1(address(proxy)).upgradeToAndCall(address(next), "");
         assertEq(proxy.tsvImplementation(), address(next));
@@ -37,7 +37,7 @@ contract TSVRecoveryTest is GovernanceFixture {
 
     function testGuardianRecoveryPreservesFreezeAndTransfersUnfreezeControl() public {
         vm.prank(guardian);
-        bytes32 freeze = anchor.freezeUpgrades(keccak256("incident"));
+        bytes32 freeze = anchor.freezeUpgrades();
         address nextGuardian = makeAddr("recovered-guardian");
         bytes32 recovery = _proposeRecovery(address(this), nextGuardian, "guardian-recovery");
         vm.prank(guardian);
@@ -47,15 +47,15 @@ contract TSVRecoveryTest is GovernanceFixture {
         assertEq(anchor.freezeId(), freeze);
         vm.prank(guardian);
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.unfreezeUpgrades(freeze, keccak256("evidence"));
+        anchor.unfreezeUpgrades(freeze);
         vm.prank(nextGuardian);
-        anchor.unfreezeUpgrades(freeze, keccak256("evidence"));
+        anchor.unfreezeUpgrades(freeze);
         assertFalse(anchor.upgradesFrozen());
         vm.prank(guardian);
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.freezeUpgrades(keccak256("incident"));
+        anchor.freezeUpgrades();
         vm.prank(nextGuardian);
-        anchor.freezeUpgrades(keccak256("incident"));
+        anchor.freezeUpgrades();
     }
 
     function testRecoveryRequiresCurrentGuardianApprovalAndRevocationIsEffective() public {
@@ -95,7 +95,7 @@ contract TSVRecoveryTest is GovernanceFixture {
 
     function testCancelledRecoveryCannotChangeIdentitiesOrFreeze() public {
         vm.prank(guardian);
-        bytes32 freeze = anchor.freezeUpgrades(keccak256("incident"));
+        bytes32 freeze = anchor.freezeUpgrades();
         bytes32 id = _proposeRecovery(makeAddr("new-governor"), makeAddr("new-guardian"), "cancelled");
         vm.prank(guardian);
         anchor.approveRecovery(id);
@@ -128,13 +128,13 @@ contract TSVRecoveryTest is GovernanceFixture {
 
     function testRecoveryProposalRejectsUnauthorizedOrConflictingIdentities() public {
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.proposeRecovery(makeAddr("new-governor"), guardian, keccak256("salt"), keccak256("evidence"));
+        anchor.proposeRecovery(makeAddr("new-governor"), guardian, keccak256("salt"));
         vm.prank(council);
         vm.expectRevert(TSVGovernanceAnchor.InvalidBundle.selector);
-        anchor.proposeRecovery(council, guardian, keccak256("salt"), keccak256("evidence"));
+        anchor.proposeRecovery(council, guardian, keccak256("salt"));
         vm.prank(council);
         vm.expectRevert(TSVGovernanceAnchor.InvalidBundle.selector);
-        anchor.proposeRecovery(guardian, makeAddr("new-guardian"), keccak256("salt"), keccak256("evidence"));
+        anchor.proposeRecovery(guardian, makeAddr("new-guardian"), keccak256("salt"));
     }
 
     function testRecoveryCannotBeApprovedByGovernorCouncilOrOutsider() public {

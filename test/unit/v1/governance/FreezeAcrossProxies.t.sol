@@ -17,7 +17,7 @@ contract TSVFreezeAcrossProxiesTest is SixProxyFixture {
             implementations[i] = TSVERC1967Proxy(payable(businessProxies[i])).tsvImplementation();
         }
         vm.prank(anchor.guardian());
-        bytes32 id = anchor.freezeUpgrades(keccak256("governor-risk"));
+        bytes32 id = anchor.freezeUpgrades();
         for (uint256 i; i < 6; ++i) {
             vm.expectRevert(TSVGoverned.UpgradeFrozen.selector);
             TSVGoverned(businessProxies[i]).upgradeToAndCall(implementations[i], "");
@@ -27,9 +27,9 @@ contract TSVFreezeAcrossProxiesTest is SixProxyFixture {
         anchor.upgradeBatch(targets, implementations, initData);
         assertFalse(anchor.upgradeContextActive());
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.unfreezeUpgrades(id, keccak256("evidence"));
+        anchor.unfreezeUpgrades(id);
         vm.prank(anchor.guardian());
-        anchor.unfreezeUpgrades(id, keccak256("evidence"));
+        anchor.unfreezeUpgrades(id);
         // Reopening the global switch restores the complete six-proxy batch entry point.
         anchor.upgradeBatch(targets, implementations, initData);
         assertFalse(anchor.upgradesFrozen());

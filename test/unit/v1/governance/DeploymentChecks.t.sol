@@ -29,10 +29,6 @@ contract DeployCoreValidationHarness is DeployCoreV1, ScriptInputStore {
         return vm.parseAddress(_input(name));
     }
 
-    function _envBytes32(string memory name) internal view override returns (bytes32) {
-        return vm.parseBytes32(_input(name));
-    }
-
     function _envUint(string memory name) internal view override returns (uint256) {
         return vm.parseUint(_input(name));
     }
@@ -43,10 +39,6 @@ contract VerifyDeploymentHarness is VerifyDeploymentV1, ScriptInputStore {
         return vm.parseAddress(_input(name));
     }
 
-    function _envBytes32(string memory name) internal view override returns (bytes32) {
-        return vm.parseBytes32(_input(name));
-    }
-
     function _envUint(string memory name) internal view override returns (uint256) {
         return vm.parseUint(_input(name));
     }
@@ -55,10 +47,6 @@ contract VerifyDeploymentHarness is VerifyDeploymentV1, ScriptInputStore {
 contract GovernanceDeploymentHarness is DeployGovernanceV1, ScriptInputStore {
     function _envAddress(string memory name) internal view override returns (address) {
         return vm.parseAddress(_input(name));
-    }
-
-    function _envBytes32(string memory name) internal view override returns (bytes32) {
-        return vm.parseBytes32(_input(name));
     }
 
     function _envUint(string memory name) internal view override returns (uint256) {
@@ -100,14 +88,6 @@ contract TSVDeploymentChecksTest is ProtocolFixture {
         _expectInvalidCoreInput();
         _setEnvironment();
         _setInput("TSV_GOVERNANCE_ANCHOR", vm.toString(makeAddr("missing-anchor")));
-        _expectInvalidCoreInput();
-    }
-
-    function testCoreDeploymentRejectsWrongExternalCodeHashes() public {
-        _setInput("TSV_POOL_MANAGER_CODEHASH", vm.toString(keccak256("wrong-manager-code")));
-        _expectInvalidCoreInput();
-        _setEnvironment();
-        _setInput("TSV_SBT_CODEHASH", vm.toString(keccak256("wrong-sbt-code")));
         _expectInvalidCoreInput();
     }
 
@@ -173,22 +153,12 @@ contract TSVDeploymentChecksTest is ProtocolFixture {
         verifier.run();
     }
 
-    function testFuzzVerifierRejectsWrongImplementationCodeHashAtAnyProxy(uint8 index) public {
-        index = uint8(bound(index, 0, 5));
-        anchor.bindProxies(_proxies());
-        _setInput(
-            string.concat(_proxyEnvName(index), "_IMPLEMENTATION_CODEHASH"), vm.toString(keccak256("wrong-code-hash"))
-        );
-        vm.expectRevert(VerifyDeploymentV1.VerificationFailed.selector);
-        verifier.run();
-    }
-
     function testVerifierRejectsStaleIdentityManifestAfterRecovery() public {
         anchor.bindProxies(_proxies());
         address next = makeAddr("next-governor");
         address currentGuardian = anchor.guardian();
         vm.prank(anchor.recoveryCouncil());
-        bytes32 id = anchor.proposeRecovery(next, currentGuardian, keccak256("manifest"), keccak256("evidence"));
+        bytes32 id = anchor.proposeRecovery(next, currentGuardian, keccak256("manifest"));
         vm.prank(anchor.guardian());
         anchor.approveRecovery(id);
         anchor.executeRecovery(id);
@@ -215,9 +185,9 @@ contract TSVDeploymentChecksTest is ProtocolFixture {
         _setInput("TSV_GUARDIAN", vm.toString(anchor.guardian()));
         _setInput("TSV_RECOVERY_COUNCIL", vm.toString(anchor.recoveryCouncil()));
         _setInput("TSV_POOL_MANAGER", vm.toString(address(manager)));
-        _setInput("TSV_POOL_MANAGER_CODEHASH", vm.toString(address(manager).codehash));
+
         _setInput("TSV_SBT", vm.toString(address(sbt)));
-        _setInput("TSV_SBT_CODEHASH", vm.toString(address(sbt).codehash));
+
         _setInput("TSV_SBT_TOKEN_ID", "1");
         _setInput("TSV_DAY_START_OFFSET_SECONDS", "14400");
         address[6] memory proxies = _proxies();
@@ -226,7 +196,6 @@ contract TSVDeploymentChecksTest is ProtocolFixture {
             string memory name = _proxyEnvName(i);
             _setInput(name, vm.toString(proxies[i]));
             _setInput(string.concat(name, "_IMPLEMENTATION"), vm.toString(implementation));
-            _setInput(string.concat(name, "_IMPLEMENTATION_CODEHASH"), vm.toString(implementation.codehash));
         }
     }
 

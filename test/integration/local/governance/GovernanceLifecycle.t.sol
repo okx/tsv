@@ -7,7 +7,7 @@ import {ProtocolFixture} from "../../../helpers/v1/ProtocolFixture.sol";
 contract TSVGovernanceLocalTest is ProtocolFixture {
     function testGlobalUpgradeFreezeAllowsSwapLiquidityChangesAndOrdinaryExit() public {
         vm.prank(anchor.guardian());
-        bytes32 freeze = anchor.freezeUpgrades(keccak256("upgrade-risk"));
+        bytes32 freeze = anchor.freezeUpgrades();
         _assertDirectLpLifecycle();
         assertTrue(anchor.upgradesFrozen());
         assertEq(anchor.freezeId(), freeze);

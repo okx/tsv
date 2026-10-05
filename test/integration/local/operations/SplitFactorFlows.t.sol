@@ -106,7 +106,7 @@ contract TSVSplitFactorFlowsLocalTest is ProtocolFixture {
         _scheduleFactor(20261002, 202609, 2, 1);
         address guardian = anchor.guardian();
         vm.prank(guardian);
-        anchor.freezeUpgrades(keccak256("freeze"));
+        anchor.freezeUpgrades();
         vm.warp(ledger.dayStartUTC(20261002));
         _trade(15e16);
         assertEq(ledger.used(SECURITY, 20261002), 15e16);
@@ -115,7 +115,7 @@ contract TSVSplitFactorFlowsLocalTest is ProtocolFixture {
     }
 
     function _basis(uint32 month, uint256 amount) private {
-        registry.setTierPolicy(1, 25, 10, keccak256("factor-tier"));
+        registry.setTierPolicy(1, 25, 10);
         uint64 version = ledger.adtvOf(SECURITY, month).version + 1;
         uint64 sequence = inbox.lastSequence(1, SECURITY) + 1;
         inbox.submitAdtv(
@@ -127,8 +127,7 @@ contract TSVSplitFactorFlowsLocalTest is ProtocolFixture {
                 uint64(vm.getBlockTimestamp() + 100),
                 version,
                 sequence,
-                keccak256(abi.encode("factor-basis", month, version)),
-                keccak256("source")
+                keccak256(abi.encode("factor-basis", month, version))
             )
         );
     }
@@ -148,8 +147,7 @@ contract TSVSplitFactorFlowsLocalTest is ProtocolFixture {
                 uint64(vm.getBlockTimestamp() + 100),
                 version,
                 sequence,
-                keccak256(abi.encode("local-factor", day, sequence)),
-                keccak256("announcement")
+                keccak256(abi.encode("local-factor", day, sequence))
             )
         );
     }
@@ -166,8 +164,7 @@ contract TSVSplitFactorFlowsLocalTest is ProtocolFixture {
                 uint64(vm.getBlockTimestamp() + 100),
                 version,
                 sequence,
-                keccak256(abi.encode("factor-quota", day, sequence)),
-                keccak256("source")
+                keccak256(abi.encode("factor-quota", day, sequence))
             )
         );
     }

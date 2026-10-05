@@ -8,21 +8,19 @@ import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 contract TSVOperationsPauseBoundariesTest is FoundationFixture {
     function testInvalidPauseMetadataAndTargetsDoNotAllocateIdOrChangeGates() public {
         _grantPauseRoles();
-        for (uint8 fault; fault < 7; ++fault) {
+        for (uint8 fault; fault < 6; ++fault) {
             PauseScope scope = PauseScope.GLOBAL;
             bytes32 target;
             PauseMode mode = PauseMode.ALL;
             bytes32 reason = keccak256("incident");
-            bytes32 source = keccak256("source");
             if (fault == 0) reason = 0;
-            else if (fault == 1) source = 0;
-            else if (fault == 2) target = SECURITY;
-            else if (fault == 3) scope = PauseScope.SECURITY;
-            else if (fault == 4) scope = PauseScope.TOKEN;
-            else if (fault == 5) scope = PauseScope.POOL;
+            else if (fault == 1) target = SECURITY;
+            else if (fault == 2) scope = PauseScope.SECURITY;
+            else if (fault == 3) scope = PauseScope.TOKEN;
+            else if (fault == 4) scope = PauseScope.POOL;
             else mode = PauseMode.NONE;
             vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            registry.addEmergencyPause(scope, target, mode, reason, source);
+            registry.addEmergencyPause(scope, target, mode, reason);
             assertEq(registry.nextPauseId(), 1);
             assertEq(registry.activePauseCount(uint8(scope), target, uint8(mode)), 0);
             _assertOperationGates(true, true);
@@ -34,8 +32,7 @@ contract TSVOperationsPauseBoundariesTest is FoundationFixture {
                     uint8(4),
                     bytes32(0),
                     uint8(PauseMode.ALL),
-                    keccak256("incident"),
-                    keccak256("source")
+                    keccak256("incident")
                 )
             );
         assertFalse(ok);
@@ -45,15 +42,13 @@ contract TSVOperationsPauseBoundariesTest is FoundationFixture {
     function testPauseAuditMetadataSurvivesClearAndIdsAreNeverReused() public {
         _grantPauseRoles();
         bytes32 reason = keccak256("incident");
-        bytes32 source = keccak256("source");
         uint64 opened = uint64(block.timestamp);
-        uint256 id = registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.LP, reason, source);
+        uint256 id = registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.LP, reason);
         (
             PauseScope scope,
             bytes32 target,
             PauseMode mode,
             bytes32 savedReason,
-            bytes32 savedSource,
             address operator,
             uint64 timestamp,
             bool active
@@ -62,7 +57,6 @@ contract TSVOperationsPauseBoundariesTest is FoundationFixture {
         assertEq(target, SECURITY);
         assertEq(uint8(mode), uint8(PauseMode.LP));
         assertEq(savedReason, reason);
-        assertEq(savedSource, source);
         assertEq(operator, address(this));
         assertEq(timestamp, opened);
         assertTrue(active);
@@ -76,10 +70,9 @@ contract TSVOperationsPauseBoundariesTest is FoundationFixture {
         vm.expectEmit(true, false, false, true, address(registry));
         emit TSVRegistryV1.EmergencyPauseClosed(id, keccak256("resolved"));
         registry.clearEmergencyPause(id, keccak256("resolved"));
-        (,,, savedReason, savedSource, operator, timestamp, active) = registry.emergencyPauses(id);
+        (,,, savedReason, operator, timestamp, active) = registry.emergencyPauses(id);
         assertFalse(active);
         assertEq(savedReason, reason);
-        assertEq(savedSource, source);
         assertEq(operator, address(this));
         assertEq(timestamp, opened);
         assertEq(_pause(PauseScope.SECURITY, SECURITY, PauseMode.LP), id + 1);
@@ -94,7 +87,6 @@ contract TSVOperationsPauseBoundariesTest is FoundationFixture {
             bytes32 target,
             PauseMode mode,
             bytes32 reason,
-            bytes32 source,
             address operator,
             uint64 timestamp,
             bool active
@@ -105,7 +97,6 @@ contract TSVOperationsPauseBoundariesTest is FoundationFixture {
                 target,
                 mode,
                 reason,
-                source,
                 operator,
                 timestamp,
                 active,

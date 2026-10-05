@@ -49,7 +49,7 @@ contract TSVLPDeltaGuardsTest is ProtocolFixture {
         assertEq(_swapStateDigest(DAY), beforeState);
         sbt.setHolder(alice, false);
         vm.expectRevert(TSVLPManagerV1.SlippageExceeded.selector);
-        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"));
         assertEq(_swapStateDigest(DAY), beforeState);
         vm.clearMockedCalls();
     }

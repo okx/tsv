@@ -264,21 +264,21 @@ flowchart LR
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitAdtvBatch(AdtvReport[] calldata reports)` | 同月、按 `securityId` 严格递增的 ADTV 报告数组；见 §3.1「月度成交量」。 |
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitQuota(QuotaReport calldata report)` | `report` 字段见 §3.1「指定日额度」。 |
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitSplitFactor(SplitFactorReport calldata report)` | 在未来计量日开始生效的拆/并股系数排期、更正或取消，见 §3.1「拆并股系数」。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `admitSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, TokenConfig calldata config, bytes32 evidenceHash)` | 新证券 ID、符号摘要、Tier、首个 Currency 的已审 TokenConfig、准入依据摘要；同笔登记证券并批准 Token。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `relistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 已下架证券 ID、恢复依据摘要。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `setSecurityTier(bytes32 securityId, uint8 tierId, bytes32 evidenceHash)` | 证券 ID、新 Tier、依据摘要。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `delistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 证券 ID、下架依据摘要。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `registerToken(TokenConfig calldata config, bytes32 evidenceHash)` | 完整 `TokenConfig` 和登记依据摘要；字段见 §3.2。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)` | 池内 Currency、目标状态、状态变更依据摘要。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)` | 股票 Currency、新 Adapter、政策/法律依据摘要。 |
-| `EMERGENCY_PAUSER_ROLE` | Registry | `addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode, bytes32 sourceHash) returns (uint256 recordId)` | 暂停范围、范围目标、TRADE/LP/ALL 模式、原因码、来源摘要；返回新暂停记录 ID。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `admitSecurity(bytes32 securityId, uint8 tierId, TokenConfig calldata config)` | 新证券 ID、Tier、首个 Currency 的已审 TokenConfig；同笔登记证券并批准 Token。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `relistSecurity(bytes32 securityId)` | 已下架证券 ID。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `setSecurityTier(bytes32 securityId, uint8 tierId)` | 证券 ID、新 Tier。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `delistSecurity(bytes32 securityId)` | 证券 ID。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `registerToken(TokenConfig calldata config)` | 完整 `TokenConfig`；字段见 §3.2。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `setTokenStatus(address currency, TokenStatus status)` | 池内 Currency、目标状态。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `replaceLegalShareAdapter(address currency, address newAdapter)` | 股票 Currency、新 Adapter。 |
+| `EMERGENCY_PAUSER_ROLE` | Registry | `addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode) returns (uint256 recordId)` | 暂停范围、范围目标、TRADE/LP/ALL 模式、原因码；返回新暂停记录 ID。 |
 | `EMERGENCY_RESUMER_ROLE` | Registry | `clearEmergencyPause(uint256 recordId, bytes32 reasonCode)` | 暂停记录 ID、清除原因码。 |
-| Governor | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId, bytes32 reasonHash)` | 新 UTC 偏移秒数、生效日、理由摘要。 |
-| Governor | VolumeLedger | `cancelPendingDayStart(bytes32 reasonHash)` | 非零取消理由摘要。 |
-| `POOL_CREATOR_ROLE` | LPManager | `initializePool(PoolKey calldata key, uint160 sqrtPriceX96, bytes32 priceBasisHash)` | V4 池键、初始平方根价格、定价依据摘要。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `disablePool(bytes32 poolId, bytes32 evidenceHash)` | 池 ID、停用依据摘要。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `enablePool(bytes32 poolId, bytes32 evidenceHash)` | 池 ID、恢复依据摘要。 |
-| `FORCE_EXIT_ADMIN_ROLE` 或 `REVOKE_EXIT_EXECUTOR_ROLE` | LPManager | `forceExit(uint256 positionId, uint256 minPoolOut0, uint256 minPoolOut1, bytes32 reasonCode, bytes32 evidenceHash)` | 仓位 ID、两侧最低返还量、原因码、证据摘要。 |
+| Governor | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId)` | 新 UTC 偏移秒数、生效日。 |
+| Governor | VolumeLedger | `cancelPendingDayStart()` | 无参数。 |
+| `POOL_CREATOR_ROLE` | LPManager | `initializePool(PoolKey calldata key, uint160 sqrtPriceX96)` | V4 池键、初始平方根价格。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `disablePool(bytes32 poolId)` | 池 ID。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `enablePool(bytes32 poolId)` | 池 ID。 |
+| `FORCE_EXIT_ADMIN_ROLE` 或 `REVOKE_EXIT_EXECUTOR_ROLE` | LPManager | `forceExit(uint256 positionId, uint256 minPoolOut0, uint256 minPoolOut1, bytes32 reasonCode)` | 仓位 ID、两侧最低返还量、原因码。 |
 
 以上是运营直接写入口全集。`Registry.registerPendingPool/markPoolActive`、`Registry.applyMarketStatus`、`VolumeLedger.acceptAdtv/acceptQuota/recordSwap` 是由 LPManager、DataInbox 或 Hook 调用的合约间入口，不属于此清单。
 
@@ -286,7 +286,7 @@ flowchart LR
 
 #### 通用审计字段
 
-三个报告都携带来源时间、提交截止、递增序号、唯一报告 ID 和来源哈希：
+四类报告都携带来源时间、提交截止、递增序号和唯一报告 ID：
 
 | 参数 | 类型 | 含义和校验 |
 | --- | --- | --- |
@@ -294,7 +294,6 @@ flowchart LR
 | `submitDeadline` | `uint64` | 最晚可上链时间（Unix 秒）；当前时间超过它时拒绝。只在提交时校验，不存入状态或 `AdtvAccepted` 事件，也不会让已接受的 ADTV 自动过期。 |
 | `sequence` | `uint64` | 同报告类别、同证券的来源序号，必须严格大于上次接受值；DataInbox 保存最新值用于防乱序，不参与 ADTV 或额度公式。四个类别分别维护序号：市场状态、ADTV、Quota、SplitFactor；换月不重置序号。 |
 | `reportId` | `bytes32` | 全局唯一的非零报告 ID；DataInbox 保存已用标记防重复，VolumeLedger 保存该证券/月 ADTV 的最新 `reportId` 并在 `AdtvAccepted` 事件中发出；不参与额度计算。 |
-| `sourceHash` | `bytes32` | 必须非零；当前实现只做非零校验，不写入合约状态或 `AdtvAccepted` 事件。可从提交交易 calldata 读取，供链下索引器关联来源材料。 |
 
 这些校验在 `TSVDataInboxV1` 入口统一执行；成功后才调用 Registry 或 VolumeLedger 写入业务状态。`sourceTimestamp` 的单调性按报告类别和证券分别维护，`reportId` 则跨类别全局去重。
 
@@ -308,12 +307,10 @@ struct MarketReport {
     MarketAction action;
     PauseMode mode;
     bytes32 reasonCode;
-    bytes32 exchangeHash;
     uint64 sourceTimestamp;
     uint64 submitDeadline;
     uint64 sequence;
     bytes32 reportId;
-    bytes32 sourceHash;
 }
 ```
 
@@ -323,7 +320,6 @@ struct MarketReport {
 | `action` | `MarketAction` | `HALT=0` 或 `RESUME=1`。准入后默认开放，首份报告可以直接 HALT；HALT 叠加模式，RESUME 清除指定模式，无模式变化的报告回滚。 |
 | `mode` | `PauseMode` | `TRADE=1`、`LP=2`、`ALL=3`；禁止 NONE；只影响指定模式，另一类操作开放。 |
 | `reasonCode` | `bytes32` | 非零原因码；建议在运营字典中维护稳定编码。仅在提交时校验，不写入 Registry 状态或 `MarketStatusChanged` 事件；可从提交交易 calldata 读取。 |
-| `exchangeHash` | `bytes32` | 非零交易所/市场来源标识摘要。仅在提交时校验，不写入 Registry 状态或 `MarketStatusChanged` 事件；可从提交交易 calldata 读取。 |
 | 其余字段 | — | 按上面的通用审计字段填写。 |
 
 `HALT` 一直有效到对应模式的有效 `RESUME` 被接受，不会按报告年龄自动恢复。市场在任一模式暂停时保持 HALTED，全部恢复后变为 OPEN；首次准入后默认 NONE/OPEN，无需首次开市报告；重新上市保留原暂停模式及报告序号。例如先 HALT TRADE，再 HALT LP 得到 ALL；RESUME TRADE 后仅剩 LP 暂停。MarketStatusChanged 包含 oldPauseMode/newPauseMode，HALTED 内的模式变化也会发事件。该入口不能增删或解除紧急暂停记录。
@@ -342,7 +338,6 @@ struct AdtvReport {
     uint64 version;
     uint64 sequence;
     bytes32 reportId;
-    bytes32 sourceHash;
 }
 ```
 
@@ -371,7 +366,6 @@ struct QuotaReport {
     uint64 version;
     uint64 sequence;
     bytes32 reportId;
-    bytes32 sourceHash;
 }
 ```
 
@@ -397,7 +391,7 @@ struct QuotaReport {
 | `action` | `SET=1`：排期或更正最新待生效项；`CANCEL=2`：取消最新待生效项 |
 | `numerator`、`denominator` | `uint128` 正比例，表示相对来源月单位的绝对累计系数；SET 自动约分，CANCEL 两值均为零 |
 | `version` | 按证券/来源月严格加一，取消也消耗版本 |
-| `sourceTimestamp`、`submitDeadline`、`sequence`、`reportId`、`sourceHash` | 沿用报告校验；序号按 kind=3/证券递增；来源时间/截止时间不决定生效 |
+| `sourceTimestamp`、`submitDeadline`、`sequence`、`reportId` | 沿用报告校验；序号按 kind=3/证券递增；来源时间/截止时间不决定生效 |
 
 同月连续一拆二、再一拆三，系数依次为2和6。报告服务固定 ADTV 为来源月结束时的股数单位；新月 ADTV 已体现的事件不再乘入，默认新月系数为1。生效后不可修改/取消历史；变更较早待生效项时先依次取消其后待生效项。Future 查询用于排期预检查；当前有效系数通过 `currentTradeDay` 返回的日 ID 查询。
 
@@ -410,13 +404,13 @@ struct QuotaReport {
 
 | 入口 | 参数 | 主要效果和约束 |
 | --- | --- | --- |
-| `admitSecurity(bytes32 securityId, bytes32 symbolHash, uint8 tierId, TokenConfig calldata config, bytes32 evidenceHash)` | 内部证券 ID、ticker/符号摘要、Tier 编号、首个 Currency 的 TokenConfig、依据摘要 | 原子登记证券并批准首个 Token，`config.securityId` 必须匹配；失败回滚证券、符号预留及 Tier 名额；`securityId`、`symbolHash`、`evidenceHash` 均非零；`securityId` 和 `symbolHash` 分别不能已登记；Tier 必须已配置且尚有名额。 |
-| `relistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 已下架证券 ID、恢复依据摘要 | 恢复原证券并增加版本；证券必须存在且当前未 listed，原 Tier 仍须有名额。 |
-| `setSecurityTier(bytes32 securityId, uint8 tierId, bytes32 evidenceHash)` | 证券 ID、新 Tier、依据摘要 | 修改已上市证券的 Tier；扣减旧 Tier 名额、占用新 Tier 名额并增加证券版本。 |
-| `delistSecurity(bytes32 securityId, bytes32 evidenceHash)` | 证券 ID、下架依据摘要 | 下架证券并释放 Tier 名额；必须已 listed 且 `activePoolCount == 0`。 |
-| `registerToken(TokenConfig calldata config, bytes32 evidenceHash)` | 下方完整 TokenConfig、登记依据摘要 | 登记即批准报价 Currency 或已上市证券的新增 Currency；输入 `status` 必须为 `APPROVED` 且 `reviewHash` 非零。地址、代码哈希、decimals 和直接结算规则均按下表校验。 |
-| `setTokenStatus(address currency, TokenStatus status, bytes32 evidenceHash)` | TokenConfig 主键 Currency、目标状态、状态变更依据摘要 | 只允许 `APPROVED → DISABLED`、`DISABLED → APPROVED`；不能设置 `ABSENT`，也不能重复设置当前状态。恢复批准时须已有非零 `reviewHash`；股票还须有非零 `legalSharePolicyHash`、证券仍 listed，且 Token 运行时代码哈希匹配登记值。 |
-| `replaceLegalShareAdapter(address currency, address newAdapter, bytes32 evidenceHash)` | 股票 Currency、新 Adapter、公式/法律依据摘要 | 只对已登记股票 Token；新 Adapter 版本须等于旧版本加一，通过 ERC-165 声明 `IDirectLegalShareAdapter` 并绑定相同 Currency。`evidenceHash` 同时作为更新后的 `legalSharePolicyHash` 保存。若该 Currency 仍有活跃池，GLOBAL 或该 TOKEN 范围的紧急记录必须共同覆盖交易和 LP（单条 ALL 或分别叠加 TRADE、LP）；单项暂停、SECURITY 或 POOL 范围暂停均不足。Registry 不调用换算函数验证其结果。 |
+| `admitSecurity(bytes32 securityId, uint8 tierId, TokenConfig calldata config)` | 内部证券 ID、Tier 编号、首个 Currency 的 TokenConfig | 原子登记证券并批准首个 Token，`config.securityId` 必须匹配；失败回滚证券、Token 及 Tier 名额；`securityId` 必须非零且未登记；Tier 必须已配置且尚有名额。 |
+| `relistSecurity(bytes32 securityId)` | 已下架证券 ID | 恢复原证券并增加版本；证券必须存在且当前未 listed，原 Tier 仍须有名额。 |
+| `setSecurityTier(bytes32 securityId, uint8 tierId)` | 证券 ID、新 Tier | 修改已上市证券的 Tier；扣减旧 Tier 名额、占用新 Tier 名额并增加证券版本。 |
+| `delistSecurity(bytes32 securityId)` | 证券 ID | 下架证券并释放 Tier 名额；必须已 listed 且 `activePoolCount == 0`。 |
+| `registerToken(TokenConfig calldata config)` | 下方完整 TokenConfig | 登记即批准报价 Currency 或已上市证券的新增 Currency；输入 `status` 必须为 `APPROVED`。地址的代码存在性、decimals 和直接结算规则均按下表校验。 |
+| `setTokenStatus(address currency, TokenStatus status)` | TokenConfig 主键 Currency、目标状态 | 只允许 `APPROVED → DISABLED`、`DISABLED → APPROVED`；不能设置 `ABSENT`，也不能重复设置当前状态。恢复批准时 Currency 地址必须仍有代码；股票证券仍须 listed。 |
+| `replaceLegalShareAdapter(address currency, address newAdapter)` | 股票 Currency、新 Adapter | 只对已登记股票 Token；新 Adapter 版本须等于旧版本加一，通过 ERC-165 声明 `IDirectLegalShareAdapter` 并绑定相同 Currency。若该 Currency 仍有活跃池，GLOBAL 或该 TOKEN 范围的紧急记录必须共同覆盖交易和 LP（单条 ALL 或分别叠加 TRADE、LP）；单项暂停、SECURITY 或 POOL 范围暂停均不足。Registry 不调用换算函数验证其结果。 |
 
 `TokenConfig` 的 ABI 字段顺序如下：
 
@@ -428,12 +422,6 @@ struct TokenConfig {
     address legalShareAdapter;
     uint32 legalAdapterVersion;
     TokenStatus status;
-    bytes32 poolRuntimeCodeHash;
-    bytes32 legalAdapterCodeHash;
-    bytes32 poolImplementationHash;
-    bytes32 reviewHash;
-    bytes32 restrictionsHash;
-    bytes32 legalSharePolicyHash;
 }
 ```
 
@@ -445,14 +433,8 @@ struct TokenConfig {
 | `legalShareAdapter` | 股票的法律股数换算 Adapter；普通配对币必须为零，股票必须提供有效合约并绑定同一 Currency。 |
 | `legalAdapterVersion` | 股数 Adapter 版本；普通币为 `0`，新登记股票当前为 `1`。 |
 | `status` | `ABSENT=0`、`APPROVED=1` 或 `DISABLED=2`；未登记为 ABSENT，准入输入必须为 APPROVED。 |
-| `poolRuntimeCodeHash` | 登记时与链上代码哈希核对；Token 恢复批准时再次核对，交易期间不持续检查。 |
-| `legalAdapterCodeHash` | 股票登记/更换 Adapter 时与 Adapter 代码哈希核对并更新。运行时 Hook 调用配置 Adapter 的直接换算方法；不读取此字段重新校验代码哈希。 |
-| `poolImplementationHash` | 当前合约只保存并通过 `getToken` 返回；不做链上校验、不参与准入或交易门禁。需要核验代理实现时须由链下流程读取并比对。 |
-| `reviewHash` | Token 准入和恢复批准时检查非零；不解析或验证其摘要对应的审查材料。 |
-| `restrictionsHash` | 当前合约只保存并通过 `getToken` 返回；不校验非零，也不参与任何交易门禁。 |
-| `legalSharePolicyHash` | 股票准入/恢复批准时要求非零；更换股数 Adapter 时会以新 `evidenceHash` 更新。当前不参与股数换算公式或 Swap 额度公式。 |
 
-`TokenConfig` 只描述实际池内 Currency 和股数计量配置；用户结算 Token 与池内 Currency 不再分别登记，V1 也没有结算 Adapter 替换入口。`poolImplementationHash` 和 `restrictionsHash` 是当前链上逻辑未消费的被动字段。ABI 首次部署后，后续代理升级必须遵守已部署的存储布局。SBT 地址/tokenId、角色授权和 Tier 风险参数由 Governor 控制，见治理系统；运营角色不能自行更换这些治理根配置。
+`TokenConfig` 只描述实际池内 Currency 和股数计量配置；用户结算 Token 与池内 Currency 不再分别登记，V1 也没有结算 Adapter 替换入口。ABI 首次部署后，后续代理升级必须遵守已部署的存储布局。SBT 地址/tokenId、角色授权和 Tier 风险参数由 Governor 控制，见治理系统；运营角色不能自行更换这些治理根配置。
 
 ### 3.3 紧急暂停与恢复
 
@@ -468,7 +450,7 @@ struct TokenConfig {
 
 | 入口 | 角色 | 参数含义与约束 |
 | --- | --- | --- |
-| `addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode, bytes32 sourceHash) returns (uint256 recordId)` | `EMERGENCY_PAUSER_ROLE` | 新建独立暂停记录并返回递增的 `recordId`。`scope` 为 `GLOBAL`、`SECURITY`、`TOKEN` 或 `POOL`；GLOBAL 的 `target` 必须为零，其余 scope 的 target 必须非零。`mode` 必须为 TRADE/LP/ALL；`reasonCode` 和 `sourceHash` 必须非零。 |
+| `addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode) returns (uint256 recordId)` | `EMERGENCY_PAUSER_ROLE` | 新建独立暂停记录并返回递增的 `recordId`。`scope` 为 `GLOBAL`、`SECURITY`、`TOKEN` 或 `POOL`；GLOBAL 的 `target` 必须为零，其余 scope 的 target 必须非零。`mode` 必须为 TRADE/LP/ALL；`reasonCode` 必须非零。 |
 | `clearEmergencyPause(uint256 recordId, bytes32 reasonCode)` | `EMERGENCY_RESUMER_ROLE` | 按记录 ID 清除一条暂停；记录必须存在且仍 active，清除原因码非零。不同记录独立计数，清除一条不会清除其他暂停。 |
 
 `target` 的编码按范围解释：GLOBAL 使用 `bytes32(0)`；SECURITY 使用 `securityId`；TOKEN 使用地址左侧补零转为 `bytes32(uint256(uint160(token)))`；POOL 使用 `PoolId.unwrap(key.toId())`。命中的 TRADE 或 ALL 记录阻止交易，LP 或 ALL 记录阻止开仓、加仓、减仓、收费、关闭等全部普通 LP 操作。记录按 scope/target/mode 分别计数，并与市场暂停叠加；清除一条记录仅解除该记录，不影响其他记录或市场 HALT。授权 forceExit 继续可用。
@@ -479,8 +461,8 @@ struct TokenConfig {
 
 | 入口 | 参数 | 含义与约束 |
 | --- | --- | --- |
-| `scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId, bytes32 reasonHash)` | 新 UTC 偏移秒数、起效日期 `YYYYMMDD`、非零理由摘要 | 偏移须小于 `86,400` 秒；相对当前日切每次最多变化 `14,400` 秒（4 小时）；起效日期必须晚于已有检查点，并且其前一日的过渡周期尚未开始。不能重写已开始或历史周期。 |
-| `cancelPendingDayStart(bytes32 reasonHash)` | 非零取消理由摘要 | 只能取消尚未开始过渡日的待生效排期；无待处理项目、理由为零或过渡日已开始时拒绝。 |
+| `scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId)` | 新 UTC 偏移秒数、起效日期 `YYYYMMDD` | 偏移须小于 `86,400` 秒；相对当前日切每次最多变化 `14,400` 秒（4 小时）；起效日期必须晚于已有检查点，并且其前一日的过渡周期尚未开始。不能重写已开始或历史周期。 |
+| `cancelPendingDayStart()` | 无参数 | 只能取消尚未开始过渡日的待生效排期；无待处理项目或过渡日已开始时拒绝。 |
 
 每次偏移变化使起效日前一计量日成为 20–28 小时的过渡日；新偏移只从 `effectiveDayId` 开始生效。历史 dayId、边界和已用额度不回写。更完整的日期例子见[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。
 
@@ -488,9 +470,9 @@ struct TokenConfig {
 
 | 入口 | 角色 | 参数含义与约束 |
 | --- | --- | --- |
-| `initializePool(PoolKey calldata key, uint160 sqrtPriceX96, bytes32 priceBasisHash)` | `POOL_CREATOR_ROLE`，调用 `TSVLPManagerV1` | 创建 V4 池并在同一交易中登记 PENDING→ACTIVE。`key` 由 `currency0/currency1/fee/tickSpacing/hooks` 组成，字段含义见交易系统 §2.2；两侧 Token 都须 APPROVED，Currency 地址须排序且不能为零，Hook 必须为 TSV Hook，fee `< 1,000,000`，tickSpacing 为 `1..32767`，最多一侧可为股票。`sqrtPriceX96` 是 V4 初始 Q64.96 平方根价格；范围及池是否已初始化由 PoolManager 校验。`priceBasisHash` 必须非零，用于留存定价依据摘要。 |
-| `disablePool(bytes32 poolId, bytes32 evidenceHash)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 ACTIVE 池可停用；`evidenceHash` 非零。池状态变为 DISABLED，禁止新 Swap 和普通 LP 操作，但不自动清退存量仓位；历史池身份仍保留供强退使用。 |
-| `enablePool(bytes32 poolId, bytes32 evidenceHash)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 DISABLED 池可恢复；`evidenceHash` 非零。两侧 Token 必须仍为 APPROVED，所含证券必须仍 listed；恢复时要求交易和 LP 两类门禁均通过，因此全局/池/Token/证券的两类暂停均须解除，股票市场状态必须为 OPEN。 |
+| `initializePool(PoolKey calldata key, uint160 sqrtPriceX96)` | `POOL_CREATOR_ROLE`，调用 `TSVLPManagerV1` | 创建 V4 池并在同一交易中登记 PENDING→ACTIVE。`key` 由 `currency0/currency1/fee/tickSpacing/hooks` 组成，字段含义见交易系统 §2.2；两侧 Token 都须 APPROVED，Currency 地址须排序且不能为零，Hook 必须为 TSV Hook，fee `< 1,000,000`，tickSpacing 为 `1..32767`，最多一侧可为股票。`sqrtPriceX96` 是 V4 初始 Q64.96 平方根价格；范围及池是否已初始化由 PoolManager 校验。初始定价依据在链下归档。 |
+| `disablePool(bytes32 poolId)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 ACTIVE 池可停用。池状态变为 DISABLED，禁止新 Swap 和普通 LP 操作，但不自动清退存量仓位；历史池身份仍保留供强退使用。 |
+| `enablePool(bytes32 poolId)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 DISABLED 池可恢复。两侧 Token 必须仍为 APPROVED，所含证券必须仍 listed；恢复时要求交易和 LP 两类门禁均通过，因此全局/池/Token/证券的两类暂停均须解除，股票市场状态必须为 OPEN。 |
 
 `initializePool` 的原子流程是 LP Manager 调用 Registry 登记 PENDING、调用 PoolManager `initialize`，成功后再由 Manager 通知 Registry 标为 ACTIVE 并更新 active-pool 计数。失败时三步全部回滚。运营不直接调用 Registry 的 `registerPendingPool`/`markPoolActive`；这两个入口仅允许已绑定的 LP Manager 调用。
 
@@ -501,8 +483,7 @@ function forceExit(
     uint256 positionId,
     uint256 minPoolOut0,
     uint256 minPoolOut1,
-    bytes32 reasonCode,
-    bytes32 evidenceHash
+    bytes32 reasonCode
 ) external;
 ```
 
@@ -513,13 +494,12 @@ function forceExit(
 | `positionId` | 要全额退出的 LP 仓位 ID；仓位必须存在、活跃且流动性大于零。 |
 | `minPoolOut0` / `minPoolOut1` | `currency0/1` 返还仓位 owner 的最小 raw 数量；任一侧未达到即整笔回滚。 |
 | `reasonCode` | 非零处置原因编码。 |
-| `evidenceHash` | 非零事件/处置材料摘要。 |
 
-两种角色都必须提供非零 `reasonCode` 和 `evidenceHash`。`FORCE_EXIT_ADMIN_ROLE` 可按管理员授权执行；`REVOKE_EXIT_EXECUTOR_ROLE` 只有在仓位原 owner 已失去 SBT 凭证时才能执行，单独的 SBT 全局 paused 不等同撤证。资产固定返还仓位原 owner，调用者不能指定收款地址。强退不要求池仍可交易，也不受一般市场暂停门禁阻挡；若 Token 拒绝转账或最低返还量不满足，仓位、Receipt 和资产变化全部回滚。
+两种角色都必须提供非零 `reasonCode`。`FORCE_EXIT_ADMIN_ROLE` 可按管理员授权执行；`REVOKE_EXIT_EXECUTOR_ROLE` 只有在仓位原 owner 已失去 SBT 凭证时才能执行，单独的 SBT 全局 paused 不等同撤证。资产固定返还仓位原 owner，调用者不能指定收款地址。强退不要求池仍可交易，也不受一般市场暂停门禁阻挡；若 Token 拒绝转账或最低返还量不满足，仓位、Receipt 和资产变化全部回滚。
 
 ### 3.7 运营入口与治理入口的边界
 
-运营地址不会自行授予角色。Governor 通过各业务代理的 `grantRole(bytes32 role, address account)` / `revokeRole(bytes32 role, address account)` 配置运营角色；权限配置属于治理。`setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed, bytes32 evidenceHash)` 和 `setSbtConfig(address sbt, uint256 tokenId, bytes32 evidenceHash)` 同样仅 Governor 可调用，故分别属于风险参数和资格体系治理，不授予 `SYMBOL_ADMIN` 执行权。日切虽然由 Governor 调用，但在本系统业务分类中作为运营计量周期配置列于 §3.4。
+运营地址不会自行授予角色。Governor 通过各业务代理的 `grantRole(bytes32 role, address account)` / `revokeRole(bytes32 role, address account)` 配置运营角色；权限配置属于治理。`setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed)` 和 `setSbtConfig(address sbt, uint256 tokenId)` 同样仅 Governor 可调用，故分别属于风险参数和资格体系治理，不授予 `SYMBOL_ADMIN` 执行权。日切虽然由 Governor 调用，但在本系统业务分类中作为运营计量周期配置列于 §3.4。
 
 资产先经链下审查，再由 `SYMBOL_ADMIN` 一次调用 `admitSecurity` 完成证券和首个 Currency 准入，市场默认开放。随后 `VOLUME_ORACLE` 提交 ADTV、`POOL_CREATOR` 初始化获批的 PoolKey，两者可按任意顺序完成。LP 可在 ADTV 提交前提供流动性，首笔股票 Swap 必须有适用 ADTV 和流动性。普通 Pool 创建权限不意味着可以跳过 Registry 的资产准入或运行期交易门禁。
 
@@ -604,8 +584,8 @@ flowchart TB
 | Governor | 六个业务代理的 `grantRole(bytes32 role, address account)` | `role` 是该代理定义的业务角色 ID；`account` 是获授权地址。Governor 通过动态 `DEFAULT_ADMIN_ROLE` 授权。不能授予 `DEFAULT_ADMIN_ROLE`。 |
 | Governor | 六个业务代理的 `revokeRole(bytes32 role, address account)` | 撤销指定地址的业务角色；不能撤销动态 `DEFAULT_ADMIN_ROLE`。 |
 | 角色持有人 | 六个业务代理的 `renounceRole(bytes32 role, address callerConfirmation)` | 持有人主动放弃自己的业务角色；`callerConfirmation` 必须等于 `msg.sender`；不能放弃动态 `DEFAULT_ADMIN_ROLE`。 |
-| Governor | Registry 的 `setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed, bytes32 evidenceHash)` | `tierId` 必须非零；`tierBps` 范围 `1..10000`；`maxListed` 不得低于当前已上市数量；`evidenceHash` 非零。 |
-| Governor | Registry 的 `setSbtConfig(address sbt, uint256 tokenId, bytes32 evidenceHash)` | SBT 合约地址、资格 Token ID、变更依据摘要。地址须有代码、摘要非零；配置时探测 `paused()` 与 `verify()` 是否可调用。 |
+| Governor | Registry 的 `setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed)` | `tierId` 必须非零；`tierBps` 范围 `1..10000`；`maxListed` 不得低于当前已上市数量。 |
+| Governor | Registry 的 `setSbtConfig(address sbt, uint256 tokenId)` | SBT 合约地址、资格 Token ID。地址须有代码；配置时探测 `paused()` 与 `verify()` 是否可调用。 |
 | Governor（首次绑定） | Registry 的 `bindComponents(address hook, address lpManager, address dataInbox)` | 三个组件地址都须有代码，且只能绑定一次。 |
 | Governor（首次绑定） | VolumeLedger 的 `bindWriters(address hook, address dataInbox)` | Hook 与 DataInbox 地址都须有代码，且只能绑定一次。 |
 | Governor（首次绑定） | GovernanceAnchor 的 `bindProxies(address[6] addresses)` | 按固定顺序绑定 Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager；地址必须是互不相同且组件交叉绑定一致的已部署代理；只能绑定一次。 |
@@ -632,8 +612,8 @@ flowchart LR
 | --- | --- | --- |
 | 当前 Governor | 代理 `upgradeToAndCall(address,bytes)` | 全局未冻结时单代理立即升级，可附初始化；Guardian、Council 和业务角色不能直接升级。 |
 | 当前 Governor | Anchor `upgradeBatch(address[],address[],bytes[])` | 全局未冻结时已绑定代理的原子批量升级；Anchor 仅在此调用上下文内获得升级权。 |
-| 当前 Guardian | Anchor `freezeUpgrades(bytes32 reasonHash)` | 非零原因；同时关闭单代理和批量升级，Governor 无法绕过。 |
-| 当前 Guardian | Anchor `unfreezeUpgrades(bytes32 expectedFreezeId,bytes32 evidenceHash)` | 匹配当前冻结 ID、非零证据；Governor/Council 无权解冻。 |
+| 当前 Guardian | Anchor `freezeUpgrades()` | 同时关闭单代理和批量升级，Governor 无法绕过。 |
+| 当前 Guardian | Anchor `unfreezeUpgrades(bytes32 expectedFreezeId)` | 匹配当前冻结 ID；Governor/Council 无权解冻。 |
 
 开关保存在固定 Anchor，六代理共同检查。冻结不影响交易、LP、强退、业务参数或身份恢复；更换身份不会自动解冻。新 Guardian 可解冻旧 Guardian 留下的当前冻结。所有升级仍须验证存储布局、实现代码与跨代理接口版本。
 
@@ -641,7 +621,7 @@ flowchart LR
 
 | 调用者 | Anchor 入口 | 约束 |
 | --- | --- | --- |
-| Council | `proposeRecovery(address newGovernor,address newGuardian,bytes32 salt,bytes32 evidenceHash)` | 非零、独立身份；至少变化一个；绑定当前 epoch 与 guardianEpoch。 |
+| Council | `proposeRecovery(address newGovernor,address newGuardian,bytes32 salt)` | 非零、独立身份；至少变化一个；绑定当前 epoch 与 guardianEpoch。 |
 | Guardian | `approveRecovery(bytes32 id)` / `revokeRecoveryApproval(bytes32 id)` | 批准当前提案或撤回批准。 |
 | Council | `cancelRecovery(bytes32 id)` | 取消 active 提案。 |
 | 任意地址 | `executeRecovery(bytes32 id)` | 当前提案已批准；在 Anchor 内直接更新 Governor/Guardian；全局冻结保留。 |

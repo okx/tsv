@@ -11,25 +11,25 @@ import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 contract TSVPausesTest is FoundationFixture {
     function testRelistingRetainsMarketPauseAndReportSequence() public {
         _submitMarketMode(MarketAction.HALT, PauseMode.ALL, 1);
-        registry.disablePool(poolId, keccak256("disable"));
-        registry.delistSecurity(SECURITY, keccak256("delist"));
+        registry.disablePool(poolId);
+        registry.delistSecurity(SECURITY);
         _assertOperationGates(false, false);
-        registry.setTokenStatus(address(stock), TokenStatus.DISABLED, keccak256("disable-token"));
+        registry.setTokenStatus(address(stock), TokenStatus.DISABLED);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("delisted-token"));
+        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
         TokenConfig memory another = _newStockConfig(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(another, keccak256("delisted-security"));
-        registry.relistSecurity(SECURITY, keccak256("relist"));
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("reenable-token"));
+        registry.registerToken(another);
+        registry.relistSecurity(SECURITY);
+        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
         assertEq(uint8(registry.marketStatus(SECURITY)), uint8(MarketStatus.HALTED));
         assertEq(uint8(registry.marketPauseMode(SECURITY)), uint8(PauseMode.ALL));
         assertEq(registry.marketSequence(SECURITY), 1);
         assertEq(inbox.lastSequence(0, SECURITY), 1);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.enablePool(poolId, keccak256("still-halted"));
+        registry.enablePool(poolId);
         _submitMarketMode(MarketAction.RESUME, PauseMode.ALL, 2);
-        registry.enablePool(poolId, keccak256("enable"));
+        registry.enablePool(poolId);
         _assertOperationGates(true, true);
         assertEq(registry.activePoolCountByCurrency(address(stock)), 1);
         assertEq(registry.getSecurity(SECURITY).activePoolCount, 1);
@@ -41,24 +41,20 @@ contract TSVPausesTest is FoundationFixture {
         BackedAutoFeeLegalShareAdapter replacement =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
+        registry.replaceLegalShareAdapter(address(stock), address(replacement));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         uint256 pauseId = registry.addEmergencyPause(
-            PauseScope.TOKEN,
-            bytes32(uint256(uint160(address(stock)))),
-            PauseMode.ALL,
-            keccak256("replace"),
-            keccak256("source")
+            PauseScope.TOKEN, bytes32(uint256(uint160(address(stock)))), PauseMode.ALL, keccak256("replace")
         );
         BackedAutoFeeLegalShareAdapter wrongVersion =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 3);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(wrongVersion), keccak256("review"));
-        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
+        registry.replaceLegalShareAdapter(address(stock), address(wrongVersion));
+        registry.replaceLegalShareAdapter(address(stock), address(replacement));
         TokenConfig memory config = registry.getToken(address(stock));
         assertEq(config.legalShareAdapter, address(replacement));
         assertEq(config.legalAdapterVersion, 2);
-        assertEq(config.legalAdapterCodeHash, address(replacement).codehash);
+
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
         registry.clearEmergencyPause(pauseId, keccak256("done"));
     }
@@ -68,11 +64,9 @@ contract TSVPausesTest is FoundationFixture {
         for (uint8 scope = 0; scope < 4; scope++) {
             bytes32 target = _pauseTarget(PauseScope(scope));
             for (uint8 mode = 1; mode <= 3; mode++) {
-                uint256 id = registry.addEmergencyPause(
-                    PauseScope(scope), target, PauseMode(mode), keccak256("pause"), keccak256("source")
-                );
+                uint256 id = registry.addEmergencyPause(PauseScope(scope), target, PauseMode(mode), keccak256("pause"));
                 assertEq(registry.activePauseCount(scope, target, mode), 1);
-                (PauseScope savedScope, bytes32 savedTarget, PauseMode savedMode,,,,, bool active) =
+                (PauseScope savedScope, bytes32 savedTarget, PauseMode savedMode,,,, bool active) =
                     registry.emergencyPauses(id);
                 assertEq(uint8(savedScope), scope);
                 assertEq(savedTarget, target);
@@ -143,7 +137,7 @@ contract TSVPausesTest is FoundationFixture {
     function testEmergencyPauseRejectsNoneInvalidEnumsAndUnauthorizedCallers() public {
         _grantPauseRoles();
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.NONE, keccak256("pause"), keccak256("source"));
+        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.NONE, keccak256("pause"));
         (bool success,) = address(registry)
             .call(
                 abi.encodeWithSelector(
@@ -151,8 +145,7 @@ contract TSVPausesTest is FoundationFixture {
                     uint8(PauseScope.GLOBAL),
                     bytes32(0),
                     uint8(4),
-                    keccak256("pause"),
-                    keccak256("source")
+                    keccak256("pause")
                 )
             );
         assertFalse(success);
@@ -160,7 +153,7 @@ contract TSVPausesTest is FoundationFixture {
         address stranger = makeAddr("pause-stranger");
         vm.expectRevert();
         vm.prank(stranger);
-        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("pause"), keccak256("source"));
+        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("pause"));
         uint256 id = _pause(PauseScope.GLOBAL, 0, PauseMode.ALL);
         vm.expectRevert();
         vm.prank(stranger);
@@ -228,22 +221,22 @@ contract TSVPausesTest is FoundationFixture {
         _grantPauseRoles();
         for (uint8 mode = 1; mode <= 3; mode++) {
             uint256 id = _pause(PauseScope.GLOBAL, 0, PauseMode(mode));
-            registry.disablePool(poolId, keccak256("disable"));
+            registry.disablePool(poolId);
             uint32 version = registry.getPool(poolId).version;
             vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-            registry.enablePool(poolId, keccak256("enable"));
+            registry.enablePool(poolId);
             assertEq(registry.getPool(poolId).version, version);
             assertEq(registry.activePoolCountByCurrency(address(stock)), 0);
             registry.clearEmergencyPause(id, keccak256("resume"));
-            registry.enablePool(poolId, keccak256("enable"));
+            registry.enablePool(poolId);
             _assertOperationGates(true, true);
         }
-        registry.disablePool(poolId, keccak256("disable"));
+        registry.disablePool(poolId);
         _submitMarketMode(MarketAction.HALT, PauseMode.LP, 2);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.enablePool(poolId, keccak256("enable"));
+        registry.enablePool(poolId);
         _submitMarketMode(MarketAction.RESUME, PauseMode.LP, 3);
-        registry.enablePool(poolId, keccak256("enable"));
+        registry.enablePool(poolId);
     }
 
     function testAdapterReplacementRejectsSingleModePauseAndAllowsCombinedCoverage() public {
@@ -252,13 +245,13 @@ contract TSVPausesTest is FoundationFixture {
         BackedAutoFeeLegalShareAdapter replacement =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
+        registry.replaceLegalShareAdapter(address(stock), address(replacement));
         registry.clearEmergencyPause(trade, keccak256("resume"));
         _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.LP);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
+        registry.replaceLegalShareAdapter(address(stock), address(replacement));
         _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("review"));
+        registry.replaceLegalShareAdapter(address(stock), address(replacement));
         assertEq(registry.getToken(address(stock)).legalAdapterVersion, 2);
     }
 }

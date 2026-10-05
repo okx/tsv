@@ -15,10 +15,9 @@ contract TSVRecoveryAcrossProxiesTest is SixProxyFixture {
         address nextGovernor = makeAddr("next-governor");
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), council);
         vm.prank(guardian);
-        bytes32 freeze = anchor.freezeUpgrades(keccak256("governor-recovery-risk"));
+        bytes32 freeze = anchor.freezeUpgrades();
         vm.prank(council);
-        bytes32 id =
-            anchor.proposeRecovery(nextGovernor, guardian, keccak256("recovery-salt"), keccak256("recovery-evidence"));
+        bytes32 id = anchor.proposeRecovery(nextGovernor, guardian, keccak256("recovery-salt"));
         vm.prank(guardian);
         anchor.approveRecovery(id);
         anchor.executeRecovery(id);
@@ -42,9 +41,9 @@ contract TSVRecoveryAcrossProxiesTest is SixProxyFixture {
         }
         vm.prank(nextGovernor);
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.unfreezeUpgrades(freeze, keccak256("evidence"));
+        anchor.unfreezeUpgrades(freeze);
         vm.prank(guardian);
-        anchor.unfreezeUpgrades(freeze, keccak256("evidence"));
+        anchor.unfreezeUpgrades(freeze);
         TSVRegistryV1 newImplementation = new TSVRegistryV1();
         vm.prank(nextGovernor);
         registry.upgradeToAndCall(address(newImplementation), "");

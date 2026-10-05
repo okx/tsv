@@ -20,7 +20,7 @@ abstract contract GovernanceFixture is Test {
 
     function _proposeRecovery(address governor_, address guardian_, string memory salt) internal returns (bytes32) {
         vm.prank(council);
-        return anchor.proposeRecovery(governor_, guardian_, keccak256(bytes(salt)), keccak256("evidence"));
+        return anchor.proposeRecovery(governor_, guardian_, keccak256(bytes(salt)));
     }
 
     function _newRegistryProxy() internal returns (TSVERC1967Proxy) {

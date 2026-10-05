@@ -38,7 +38,7 @@ contract TSVDataInboxV1 is TSVGoverned {
     }
 
     /// @notice Validates and records the next market-state report for a listed security.
-    /// @param report Market action, source metadata, ordering fields, and evidence hashes.
+    /// @param report Market action, reason code, source timestamps, ordering fields and report ID.
     function submitMarketStatus(MarketReport calldata report) external {
         _accept(
             0,
@@ -47,13 +47,9 @@ contract TSVDataInboxV1 is TSVGoverned {
             report.sourceTimestamp,
             report.submitDeadline,
             report.sequence,
-            report.reportId,
-            report.sourceHash
+            report.reportId
         );
-        if (
-            report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0
-                || report.exchangeHash == 0
-        ) revert InvalidReport();
+        if (report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0) revert InvalidReport();
         registry.applyMarketStatus(report.securityId, report.action, report.mode, report.sequence, report.reportId);
     }
 
@@ -96,8 +92,7 @@ contract TSVDataInboxV1 is TSVGoverned {
             report.sourceTimestamp,
             report.submitDeadline,
             report.sequence,
-            report.reportId,
-            report.sourceHash
+            report.reportId
         );
         ledger.acceptAdtv(report);
     }
@@ -112,8 +107,7 @@ contract TSVDataInboxV1 is TSVGoverned {
             report.sourceTimestamp,
             report.submitDeadline,
             report.sequence,
-            report.reportId,
-            report.sourceHash
+            report.reportId
         );
         ledger.acceptQuota(report);
     }
@@ -128,8 +122,7 @@ contract TSVDataInboxV1 is TSVGoverned {
             report.sourceTimestamp,
             report.submitDeadline,
             report.sequence,
-            report.reportId,
-            report.sourceHash
+            report.reportId
         );
         ledger.acceptSplitFactor(report);
     }
@@ -142,7 +135,6 @@ contract TSVDataInboxV1 is TSVGoverned {
     /// @param submitDeadline Last timestamp at which the report may be submitted.
     /// @param sequence Monotonically increasing sequence for this category and security.
     /// @param reportId Globally unique nonzero report identifier.
-    /// @param sourceHash Nonzero digest identifying the supporting source material.
     function _accept(
         uint8 kind,
         bytes32 key,
@@ -150,8 +142,7 @@ contract TSVDataInboxV1 is TSVGoverned {
         uint64 sourceTimestamp,
         uint64 submitDeadline,
         uint64 sequence,
-        bytes32 reportId,
-        bytes32 sourceHash
+        bytes32 reportId
     ) private {
         if (!hasRole(role, msg.sender)) revert UnauthorizedReporter();
         ReportValidationLib.validate(
@@ -162,7 +153,6 @@ contract TSVDataInboxV1 is TSVGoverned {
             submitDeadline,
             sequence,
             reportId,
-            sourceHash,
             block.timestamp
         );
         lastSequence[kind][key] = sequence;

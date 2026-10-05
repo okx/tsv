@@ -69,7 +69,7 @@ contract TSVOperationsCalendarTest is OperationsFixture {
     }
 
     function testShortestTransitionHasNoOverlapAndOneTradeDay() public {
-        ledger.scheduleDayStart(0, 20261004, keccak256("minus-four-hours"));
+        ledger.scheduleDayStart(0, 20261004);
         assertEq(ledger.dayStartUTC(20261004) - ledger.dayStartUTC(20261003), 20 hours);
         vm.warp(1791072000 - 1);
         (, uint32 day) = ledger.currentTradeDay();
@@ -85,56 +85,52 @@ contract TSVOperationsCalendarTest is OperationsFixture {
         _charge(1e18);
         uint64 historicalStart = ledger.dayStartUTC(DAY);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-        ledger.cancelPendingDayStart(keccak256("none"));
+        ledger.cancelPendingDayStart();
         uint32[4] memory badOffsets = [uint32(86400), 14400, 28801, type(uint32).max];
         for (uint256 i; i < badOffsets.length; ++i) {
             vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-            ledger.scheduleDayStart(badOffsets[i], 20261004, keccak256("invalid-offset"));
+            ledger.scheduleDayStart(badOffsets[i], 20261004);
             assertEq(ledger.dayStartCheckpointCount(), 0);
         }
-        vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-        ledger.scheduleDayStart(18000, 20261004, 0);
-        bytes32 reason = keccak256("schedule");
+
         vm.expectEmit(true, true, true, true, address(ledger));
-        emit TSVVolumeLedgerV1.DayStartScheduled(20261004, 20261003, 14400, 18000, 1791090000, address(this), reason);
-        ledger.scheduleDayStart(18000, 20261004, reason);
+        emit TSVVolumeLedgerV1.DayStartScheduled(20261004, 20261003, 14400, 18000, 1791090000, address(this));
+        ledger.scheduleDayStart(18000, 20261004);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-        ledger.scheduleDayStart(21600, 20261005, keccak256("second-pending"));
-        vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-        ledger.cancelPendingDayStart(0);
+        ledger.scheduleDayStart(21600, 20261005);
         assertEq(ledger.dayStartCheckpointCount(), 1);
         vm.warp(1791000000 - 1); // Last second before transition day 2026-10-03 begins.
         vm.expectEmit(true, true, false, true, address(ledger));
-        emit TSVVolumeLedgerV1.DayStartCancelled(20261004, address(this), keccak256("cancel"));
-        ledger.cancelPendingDayStart(keccak256("cancel"));
+        emit TSVVolumeLedgerV1.DayStartCancelled(20261004, address(this));
+        ledger.cancelPendingDayStart();
         assertEq(ledger.dayStartCheckpointCount(), 0);
         assertEq(ledger.dayStartUTC(DAY), historicalStart);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
     }
 
     function testScheduleLocksExactlyAtTransitionStartAndCannotCancelAfterActivation() public {
-        ledger.scheduleDayStart(18000, 20261004, keccak256("schedule"));
+        ledger.scheduleDayStart(18000, 20261004);
         uint64 transitionStart = ledger.dayStartUTC(20261003);
         vm.warp(transitionStart);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-        ledger.cancelPendingDayStart(keccak256("too-late"));
+        ledger.cancelPendingDayStart();
         vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-        ledger.scheduleDayStart(21600, 20261005, keccak256("replace-locked"));
+        ledger.scheduleDayStart(21600, 20261005);
         vm.warp(ledger.dayStartUTC(20261004));
         vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-        ledger.cancelPendingDayStart(keccak256("already-active"));
+        ledger.cancelPendingDayStart();
         assertEq(ledger.dayStartCheckpointCount(), 1);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
-        ledger.scheduleDayStart(14400, 20261004, keccak256("same-effective-day"));
+        ledger.scheduleDayStart(14400, 20261004);
         assertEq(ledger.dayStartCheckpointCount(), 1);
     }
 
     function testCheckpointLookupPreservesEarlierOffsetsAfterMultipleChanges() public {
-        ledger.scheduleDayStart(18000, 20261004, keccak256("first"));
+        ledger.scheduleDayStart(18000, 20261004);
         vm.warp(1791090000);
-        ledger.scheduleDayStart(3600, 20261007, keccak256("second"));
+        ledger.scheduleDayStart(3600, 20261007);
         vm.warp(1791334800); // 2026-10-07 01:00 UTC.
-        ledger.scheduleDayStart(14400, 20261010, keccak256("third"));
+        ledger.scheduleDayStart(14400, 20261010);
         assertEq(ledger.dayStartCheckpointCount(), 3);
         assertEq(ledger.dayStartUTC(20261001), 1790827200);
         assertEq(ledger.dayStartUTC(20261004), 1791090000);

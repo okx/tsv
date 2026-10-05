@@ -34,11 +34,11 @@ contract TSVLiquiditySettlementTest is ProtocolFixture {
             quote.setTransferMode(fault);
             bytes32 beforeState = _swapStateDigest(DAY);
             vm.expectRevert();
-            lpManager.forceExit(positionId, 0, 0, keccak256("revoke"), keccak256("evidence"));
+            lpManager.forceExit(positionId, 0, 0, keccak256("revoke"));
             assertEq(_swapStateDigest(DAY), beforeState);
         }
         quote.setTransferMode(0);
-        lpManager.forceExit(positionId, 1, 1, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 1, 1, keccak256("revoke"));
         assertFalse(lpManager.getPosition(positionId).active);
         assertEq(lpManager.balanceOf(alice), 0);
         _assertNoPeripheryBalances();
@@ -72,9 +72,7 @@ contract TSVLiquiditySettlementTest is ProtocolFixture {
             if (i == 3) data = abi.encodeCall(TSVLPManagerV1.collectFees, (positionId, b));
             if (i == 4) data = abi.encodeCall(TSVLPManagerV1.closePosition, (positionId, b));
             if (i == 5) {
-                data = abi.encodeCall(
-                    TSVLPManagerV1.forceExit, (positionId, 0, 0, keccak256("reason"), keccak256("evidence"))
-                );
+                data = abi.encodeCall(TSVLPManagerV1.forceExit, (positionId, 0, 0, keccak256("reason")));
             }
             quote.setCallback(address(lpManager), data);
             bytes32 beforeState = _swapStateDigest(DAY);

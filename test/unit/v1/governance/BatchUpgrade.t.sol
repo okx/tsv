@@ -39,7 +39,7 @@ contract TSVBatchUpgradeTest is SixProxyFixture {
         _assertImplementations(old);
         assertEq(anchor.epoch(), 0);
         assertEq(anchor.guardian(), guardian);
-        (,,,,, bool active, bool approved) = anchor.recoveries(id);
+        (,,,, bool active, bool approved) = anchor.recoveries(id);
         assertTrue(active);
         assertTrue(approved);
         anchor.executeRecovery(id);

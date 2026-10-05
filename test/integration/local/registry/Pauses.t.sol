@@ -94,7 +94,7 @@ contract TSVPausesLocalTest is ProtocolFixture {
         _submitLocalMarket(MarketAction.HALT, PauseMode.ALL);
         PoolKey memory otherPool = key;
         otherPool.fee = 500;
-        lpManager.initializePool(otherPool, uint160(1 << 96), keccak256("paused-price"));
+        lpManager.initializePool(otherPool, uint160(1 << 96));
         bytes32 otherPoolId = PoolId.unwrap(otherPool.toId());
         assertTrue(registry.isKnownPool(otherPoolId));
         assertFalse(registry.isTradable(otherPoolId));

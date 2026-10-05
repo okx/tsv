@@ -12,23 +12,22 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
     function testInactiveCurrencyReplacementDoesNotRequirePauseAndIncrementsEveryVersion() public {
         _submitAdtv(1000e18);
         _charge(1e18);
-        registry.disablePool(poolId, keccak256("disable"));
+        registry.disablePool(poolId);
         for (uint32 version = 2; version <= 3; ++version) {
             BackedAutoFeeLegalShareAdapter replacement =
                 new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), version);
-            bytes32 evidence = keccak256(abi.encode("policy", version));
+
             address old = registry.getToken(address(stock)).legalShareAdapter;
             vm.expectEmit(true, false, false, true, address(registry));
-            emit TSVRegistryV1.LegalShareAdapterChanged(address(stock), old, address(replacement), version, evidence);
-            registry.replaceLegalShareAdapter(address(stock), address(replacement), evidence);
+            emit TSVRegistryV1.LegalShareAdapterChanged(address(stock), old, address(replacement), version);
+            registry.replaceLegalShareAdapter(address(stock), address(replacement));
             TokenConfig memory stored = registry.getToken(address(stock));
             assertEq(stored.legalShareAdapter, address(replacement));
             assertEq(stored.legalAdapterVersion, version);
-            assertEq(stored.legalAdapterCodeHash, address(replacement).codehash);
-            assertEq(stored.legalSharePolicyHash, evidence);
+
             assertEq(ledger.used(SECURITY, DAY), 1e18);
         }
-        registry.enablePool(poolId, keccak256("enable"));
+        registry.enablePool(poolId);
         _assertOperationGates(true, true);
     }
 
@@ -41,13 +40,13 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
         bytes32 beforeState = keccak256(abi.encode(registry.getToken(address(stock))));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("wrong-pause-scope"));
+        registry.replaceLegalShareAdapter(address(stock), address(replacement));
         assertEq(keccak256(abi.encode(registry.getToken(address(stock)))), beforeState);
         _pause(PauseScope.GLOBAL, 0, PauseMode.ALL);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement), keccak256("correct-scope"));
+        registry.replaceLegalShareAdapter(address(stock), address(replacement));
     }
 
-    function testReplacementRejectsInvalidIdentityEvidenceInterfaceCurrencyAndVersion() public {
+    function testReplacementRejectsInvalidIdentityInterfaceCurrencyAndVersion() public {
         _grantPauseRoles();
         _pause(PauseScope.GLOBAL, 0, PauseMode.ALL);
         BackedAutoFeeLegalShareAdapter good =
@@ -56,10 +55,10 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 3);
         BackedAutoFeeLegalShareAdapter wrongCurrency =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
-        for (uint8 fault; fault < 8; ++fault) {
+        for (uint8 fault; fault < 7; ++fault) {
             address currency = address(stock);
             address adapter = address(good);
-            bytes32 evidence = keccak256("policy");
+
             if (fault == 0) {
                 currency = address(quote);
             } else if (fault == 1) {
@@ -69,10 +68,8 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
             } else if (fault == 3) {
                 adapter = makeAddr("no-code-adapter");
             } else if (fault == 4) {
-                evidence = 0;
-            } else if (fault == 5) {
                 adapter = address(wrongVersion);
-            } else if (fault == 6) {
+            } else if (fault == 5) {
                 adapter = address(wrongCurrency);
                 vm.mockCall(
                     adapter,
@@ -86,10 +83,10 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
             }
             bytes32 beforeState = keccak256(abi.encode(registry.getToken(address(stock))));
             vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            registry.replaceLegalShareAdapter(currency, adapter, evidence);
+            registry.replaceLegalShareAdapter(currency, adapter);
             assertEq(keccak256(abi.encode(registry.getToken(address(stock)))), beforeState);
             vm.clearMockedCalls();
         }
-        registry.replaceLegalShareAdapter(address(stock), address(good), keccak256("retry"));
+        registry.replaceLegalShareAdapter(address(stock), address(good));
     }
 }

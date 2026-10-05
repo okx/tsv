@@ -93,7 +93,7 @@ contract TSVXLayerDexRouterTest is ProtocolFixture, TSVAdapterFixture {
         V1MockIssuerWrapped finalStock = new V1MockIssuerWrapped(stockUnderlying);
         BackedAutoFeeLegalShareAdapter legalAdapter =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(finalStock), 1);
-        registry.registerToken(_config(address(finalStock), SECURITY, address(legalAdapter)), keccak256("second-stock"));
+        registry.registerToken(_config(address(finalStock), SECURITY, address(legalAdapter)));
         PoolKey memory finalKey = PoolKey(
             Currency.wrap(address(finalStock) < address(quote) ? address(finalStock) : address(quote)),
             Currency.wrap(address(finalStock) < address(quote) ? address(quote) : address(finalStock)),
@@ -101,7 +101,7 @@ contract TSVXLayerDexRouterTest is ProtocolFixture, TSVAdapterFixture {
             60,
             IHooks(address(hook))
         );
-        lpManager.initializePool(finalKey, uint160(1 << 96), keccak256("second-hop-price"));
+        lpManager.initializePool(finalKey, uint160(1 << 96));
         finalStock.mintTestShares(alice, 1e24);
         vm.startPrank(alice);
         finalStock.approve(address(lpManager), type(uint256).max);

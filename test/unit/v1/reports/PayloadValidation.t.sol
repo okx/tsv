@@ -10,7 +10,7 @@ import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 
 contract TSVOperationsPayloadTest is OperationsFixture {
     function testMarketFieldsRejectAndSameIdCanBeCorrected() public {
-        for (uint8 fault; fault < 6; ++fault) {
+        for (uint8 fault; fault < 5; ++fault) {
             uint256 snapshot = vm.snapshotState();
             MarketReport memory r = _market(MarketAction.HALT, 1, keccak256(abi.encode("market-field", fault)));
             bytes32 id = r.reportId;
@@ -21,15 +21,13 @@ contract TSVOperationsPayloadTest is OperationsFixture {
                 r.mode = PauseMode.NONE;
             } else if (fault == 2) {
                 r.reasonCode = 0;
-            } else if (fault == 3) {
-                r.exchangeHash = 0;
             } else {
                 expected = TSVRegistryV1.InvalidStatus.selector;
-                if (fault == 4) {
+                if (fault == 3) {
                     r.securityId = keccak256("absent");
                 } else {
-                    registry.disablePool(poolId, keccak256("disable"));
-                    registry.delistSecurity(SECURITY, keccak256("delist"));
+                    registry.disablePool(poolId);
+                    registry.delistSecurity(SECURITY);
                 }
             }
             bytes32 beforeState = _reportState(id);
@@ -38,7 +36,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             inbox.submitMarketStatus(r);
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, uint32(MONTH), DAY, id), targetBefore);
-            if (fault == 5) registry.relistSecurity(SECURITY, keccak256("relist"));
+            if (fault == 4) registry.relistSecurity(SECURITY);
             r = _market(MarketAction.HALT, 1, id);
             inbox.submitMarketStatus(r);
             assertTrue(inbox.reportIdUsed(id));
@@ -65,8 +63,8 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             } else if (fault < 10) {
                 r.sourceMonth = invalidMonths[fault - 5];
             } else {
-                registry.disablePool(poolId, keccak256("disable"));
-                registry.delistSecurity(SECURITY, keccak256("delist"));
+                registry.disablePool(poolId);
+                registry.delistSecurity(SECURITY);
             }
             bytes32 beforeState = _reportState(id);
             bytes32 targetBefore = _reportState(r.securityId, r.sourceMonth, DAY, id);
@@ -74,7 +72,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             inbox.submitAdtv(r);
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, r.sourceMonth, DAY, id), targetBefore);
-            if (fault == 10) registry.relistSecurity(SECURITY, keccak256("relist"));
+            if (fault == 10) registry.relistSecurity(SECURITY);
             inbox.submitAdtv(_adtv(SECURITY, 1000e18, 1, 1, id));
             assertTrue(vm.revertToState(snapshot));
         }
@@ -112,8 +110,8 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             } else if (fault == 10) {
                 r.action = 2; // CLEAR without an active SET, even with nonzero amount.
             } else {
-                registry.disablePool(poolId, keccak256("disable"));
-                registry.delistSecurity(SECURITY, keccak256("delist"));
+                registry.disablePool(poolId);
+                registry.delistSecurity(SECURITY);
             }
             bytes32 beforeState = _reportState(id);
             bytes32 targetBefore = _reportState(r.securityId, uint32(MONTH), r.tradeDayId, id);
@@ -121,7 +119,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             inbox.submitQuota(r);
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, uint32(MONTH), r.tradeDayId, id), targetBefore);
-            if (fault == 11) registry.relistSecurity(SECURITY, keccak256("relist"));
+            if (fault == 11) registry.relistSecurity(SECURITY);
             inbox.submitQuota(_quota(2e18, 1, 1, 1, id));
             assertTrue(vm.revertToState(snapshot));
         }

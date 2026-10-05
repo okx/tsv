@@ -23,8 +23,7 @@ abstract contract SplitFactorFixture is OperationsFixture {
             uint64(block.timestamp + 100),
             version,
             sequence,
-            id,
-            keccak256("split-announcement")
+            id
         );
     }
 

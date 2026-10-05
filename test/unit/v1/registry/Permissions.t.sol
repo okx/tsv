@@ -14,27 +14,22 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         address operator = makeAddr("symbol-operator");
         TokenConfig memory config = _newStockConfig(keccak256("new-security"));
         bytes[] memory calls = new bytes[](9);
-        calls[0] = abi.encodeCall(
-            TSVRegistryV1.admitSecurity, (config.securityId, keccak256("symbol"), 1, config, keccak256("evidence"))
-        );
-        calls[1] = abi.encodeCall(TSVRegistryV1.registerToken, (config, keccak256("evidence")));
-        calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY, keccak256("evidence")));
-        calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY, keccak256("evidence")));
-        calls[4] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2, keccak256("evidence")));
-        calls[5] =
-            abi.encodeCall(TSVRegistryV1.setTokenStatus, (address(stock), TokenStatus.DISABLED, keccak256("evidence")));
-        calls[6] = abi.encodeCall(
-            TSVRegistryV1.replaceLegalShareAdapter, (address(stock), address(stockAdapter), keccak256("evidence"))
-        );
-        calls[7] = abi.encodeCall(TSVRegistryV1.disablePool, (poolId, keccak256("evidence")));
-        calls[8] = abi.encodeCall(TSVRegistryV1.enablePool, (poolId, keccak256("evidence")));
+        calls[0] = abi.encodeCall(TSVRegistryV1.admitSecurity, (config.securityId, 1, config));
+        calls[1] = abi.encodeCall(TSVRegistryV1.registerToken, (config));
+        calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
+        calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY));
+        calls[4] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2));
+        calls[5] = abi.encodeCall(TSVRegistryV1.setTokenStatus, (address(stock), TokenStatus.DISABLED));
+        calls[6] = abi.encodeCall(TSVRegistryV1.replaceLegalShareAdapter, (address(stock), address(stockAdapter)));
+        calls[7] = abi.encodeCall(TSVRegistryV1.disablePool, (poolId));
+        calls[8] = abi.encodeCall(TSVRegistryV1.enablePool, (poolId));
         bytes32 beforeState = _state();
         _denyCalls(calls, operator, role);
         registry.grantRole(role, operator);
         vm.prank(operator);
-        registry.setTokenStatus(address(stock), TokenStatus.DISABLED, keccak256("operator-success"));
+        registry.setTokenStatus(address(stock), TokenStatus.DISABLED);
         vm.prank(operator);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("operator-success"));
+        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
         registry.revokeRole(role, operator);
         _denyCalls(calls, operator, role);
         registry.revokeRole(role, address(this));
@@ -51,10 +46,9 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         registry.grantRole(resumeRole, resumer);
         vm.expectRevert(_denied(resumer, pauseRole));
         vm.prank(resumer);
-        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"), keccak256("source"));
+        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"));
         vm.prank(pauser);
-        uint256 id =
-            registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"), keccak256("source"));
+        uint256 id = registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"));
         vm.expectRevert(_denied(pauser, resumeRole));
         vm.prank(pauser);
         registry.clearEmergencyPause(id, keccak256("resume"));
@@ -70,7 +64,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         registry.revokeRole(pauseRole, pauser);
         vm.expectRevert(_denied(pauser, pauseRole));
         vm.prank(pauser);
-        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"), keccak256("source"));
+        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"));
         assertEq(registry.nextPauseId(), 2);
     }
 
@@ -81,17 +75,17 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         OperationsSbt sbt = new OperationsSbt();
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
-        registry.setTierPolicy(2, 10, 1, keccak256("tier"));
+        registry.setTierPolicy(2, 10, 1);
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
-        registry.setSbtConfig(address(sbt), 1, keccak256("sbt"));
+        registry.setSbtConfig(address(sbt), 1);
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
-        ledger.scheduleDayStart(18000, 20261004, keccak256("schedule"));
-        ledger.scheduleDayStart(18000, 20261004, keccak256("valid"));
+        ledger.scheduleDayStart(18000, 20261004);
+        ledger.scheduleDayStart(18000, 20261004);
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
-        ledger.cancelPendingDayStart(keccak256("cancel"));
+        ledger.cancelPendingDayStart();
         assertEq(ledger.dayStartCheckpointCount(), 1);
         assertEq(registry.tierPolicy(2).tierBps, 0);
         assertEq(address(registry.participantSbt()), address(0));
@@ -105,7 +99,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         registry.registerPendingPool(key);
         vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
         vm.prank(stranger);
-        registry.markPoolActive(poolId, uint160(1 << 96), stranger, keccak256("price"));
+        registry.markPoolActive(poolId, uint160(1 << 96), stranger);
         vm.expectRevert(TSVVolumeLedgerV1.UnauthorizedWriter.selector);
         vm.prank(stranger);
         _charge(1e18);

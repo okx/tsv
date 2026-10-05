@@ -34,9 +34,9 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 1e18);
-        registry.setTierPolicy(1, 1000, 10, keccak256("lower-tier"));
+        registry.setTierPolicy(1, 1000, 10);
         _rejectTrade(DAY);
-        registry.setTierPolicy(1, 10000, 10, keccak256("restore-tier"));
+        registry.setTierPolicy(1, 10000, 10);
         _trade(1e17);
         assertEq(ledger.used(SECURITY, DAY), 11e17);
         assertEq(ledger.quotaOf(SECURITY, DAY).quotaWad, 2e18);
@@ -45,13 +45,13 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
     function testMovingSecurityTierChangesRealTradeCapAndPreservesExistingPosition() public {
         _trade(1e18);
         _adtv(202609, 2e18);
-        registry.setTierPolicy(2, 1000, 1, keccak256("restrictive-tier"));
+        registry.setTierPolicy(2, 1000, 1);
         bytes32 positionBefore = keccak256(abi.encode(lpManager.getPosition(positionId)));
-        registry.setSecurityTier(SECURITY, 2, keccak256("move"));
+        registry.setSecurityTier(SECURITY, 2);
         _rejectTrade(DAY);
         assertEq(keccak256(abi.encode(lpManager.getPosition(positionId))), positionBefore);
         assertEq(lpManager.ownerOf(positionId), alice);
-        registry.setSecurityTier(SECURITY, 1, keccak256("move-back"));
+        registry.setSecurityTier(SECURITY, 1);
         _trade(1e17);
         assertEq(ledger.used(SECURITY, DAY), 11e17);
     }
@@ -77,7 +77,7 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
             uint256 snapshot = vm.snapshotState();
             _trade(1e17);
             uint32 offset = variant == 0 ? 0 : 28800;
-            ledger.scheduleDayStart(offset, 20261004, keccak256(abi.encode("transition", variant)));
+            ledger.scheduleDayStart(offset, 20261004);
             _setQuota(20261003, 1e18);
             _setQuota(20261004, 1e18);
             uint64 start = ledger.dayStartUTC(20261003);
@@ -113,7 +113,7 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
         uint256 pauseId = _pauseLocal(PauseScope.TOKEN, bytes32(uint256(uint160(address(stock)))), PauseMode.ALL);
         BackedAutoFeeLegalShareAdapter next =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
-        registry.replaceLegalShareAdapter(address(stock), address(next), keccak256("reviewed-policy"));
+        registry.replaceLegalShareAdapter(address(stock), address(next));
         assertEq(keccak256(abi.encode(lpManager.getPosition(positionId))), positionBefore);
         assertEq(StateLibrary.getLiquidity(manager, key.toId()), v4Before);
         assertEq(lpManager.ownerOf(positionId), alice);
@@ -153,15 +153,15 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
         _trade(1e18);
         bytes32 poolId = PoolId.unwrap(key.toId());
         vm.startPrank(operator);
-        registry.disablePool(poolId, keccak256("disable"));
-        registry.delistSecurity(SECURITY, keccak256("delist"));
+        registry.disablePool(poolId);
+        registry.delistSecurity(SECURITY);
         vm.stopPrank();
         _rejectTrade(DAY);
         assertTrue(lpManager.getPosition(positionId).active);
         assertEq(lpManager.ownerOf(positionId), alice);
         vm.startPrank(operator);
-        registry.relistSecurity(SECURITY, keccak256("relist"));
-        registry.enablePool(poolId, keccak256("reopen"));
+        registry.relistSecurity(SECURITY);
+        registry.enablePool(poolId);
         vm.stopPrank();
         _trade(1e17);
         assertEq(ledger.used(SECURITY, DAY), 11e17);
@@ -176,18 +176,18 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
         candidate.fee = 500;
         vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, creator, role));
         vm.prank(creator);
-        lpManager.initializePool(candidate, uint160(1 << 96), keccak256("price"));
+        lpManager.initializePool(candidate, uint160(1 << 96));
         assertFalse(registry.isKnownPool(PoolId.unwrap(candidate.toId())));
         lpManager.grantRole(role, creator);
         vm.prank(creator);
-        lpManager.initializePool(candidate, uint160(1 << 96), keccak256("price"));
+        lpManager.initializePool(candidate, uint160(1 << 96));
         (uint160 price,,,) = StateLibrary.getSlot0(manager, candidate.toId());
         assertEq(price, uint160(1 << 96));
         lpManager.revokeRole(role, creator);
         candidate.fee = 10000;
         vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, creator, role));
         vm.prank(creator);
-        lpManager.initializePool(candidate, uint160(1 << 96), keccak256("price"));
+        lpManager.initializePool(candidate, uint160(1 << 96));
         assertEq(uint8(registry.getPool(PoolId.unwrap(candidate.toId())).status), uint8(PoolStatus.ABSENT));
         assertEq(registry.getSecurity(SECURITY).activePoolCount, 2);
     }
@@ -228,8 +228,7 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
                 now_ + 100,
                 version,
                 sequence,
-                keccak256(abi.encode("ops-adtv", month, sequence)),
-                keccak256("source")
+                keccak256(abi.encode("ops-adtv", month, sequence))
             )
         );
     }
@@ -256,8 +255,7 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
                 now_ + 100,
                 version,
                 sequence,
-                keccak256(abi.encode("ops-quota", day, sequence)),
-                keccak256("source")
+                keccak256(abi.encode("ops-quota", day, sequence))
             )
         );
     }

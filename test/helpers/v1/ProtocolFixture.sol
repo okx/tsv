@@ -81,7 +81,7 @@ abstract contract ProtocolFixture is Test {
         );
         sbt = new V1LocalSBT();
         sbt.setHolder(alice, true);
-        registry.setSbtConfig(address(sbt), 1, keccak256("sbt-config"));
+        registry.setSbtConfig(address(sbt), 1);
         router = TSVSwapRouterV1(
             _newProxy(
                 address(new TSVSwapRouterV1()),
@@ -108,20 +108,18 @@ abstract contract ProtocolFixture is Test {
         lpManager.grantRole(lpManager.REVOKE_EXIT_EXECUTOR_ROLE(), address(this));
         inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
         inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
-        registry.setTierPolicy(1, 10_000, 10, keccak256("tier"));
+        registry.setTierPolicy(1, 10_000, 10);
         stockUnderlying = new V1MockIssuerShares();
         stock = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1LocalERC20("QUOTE");
         BackedAutoFeeLegalShareAdapter adapter =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
-        registry.admitSecurity(
-            SECURITY, keccak256("STDx"), 1, _config(address(stock), SECURITY, address(adapter)), keccak256("stock")
-        );
-        registry.registerToken(_config(address(quote), 0, address(0)), keccak256("quote"));
+        registry.admitSecurity(SECURITY, 1, _config(address(stock), SECURITY, address(adapter)));
+        registry.registerToken(_config(address(quote), 0, address(0)));
         address a = address(stock) < address(quote) ? address(stock) : address(quote);
         address b = address(stock) < address(quote) ? address(quote) : address(stock);
         key = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(hook)));
-        lpManager.initializePool(key, uint160(1 << 96), keccak256("price"));
+        lpManager.initializePool(key, uint160(1 << 96));
         stock.mintTestShares(alice, 1e24);
         quote.mint(alice, 1e24);
         vm.startPrank(alice);
@@ -307,7 +305,7 @@ abstract contract ProtocolFixture is Test {
     function _pauseLocal(PauseScope scope, bytes32 target, PauseMode mode) internal returns (uint256) {
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
-        return registry.addEmergencyPause(scope, target, mode, keccak256("pause"), keccak256("source"));
+        return registry.addEmergencyPause(scope, target, mode, keccak256("pause"));
     }
 
     function _submitLocalMarket(MarketAction action, PauseMode mode) internal {
@@ -317,12 +315,10 @@ abstract contract ProtocolFixture is Test {
             action,
             mode,
             keccak256("reason"),
-            keccak256("exchange"),
             uint64(block.timestamp - 1),
             uint64(block.timestamp + 100),
             sequence,
-            keccak256(abi.encode("pause-mode-report", action, mode, sequence)),
-            keccak256("source")
+            keccak256(abi.encode("pause-mode-report", action, mode, sequence))
         );
         inbox.submitMarketStatus(report);
     }
@@ -357,11 +353,8 @@ abstract contract ProtocolFixture is Test {
         c.legalShareAdapter = legalAdapter;
         c.legalAdapterVersion = securityId == 0 ? 0 : 1;
         // Stock classification follows securityId and the bound adapter.
-        c.legalSharePolicyHash = securityId == 0 ? bytes32(0) : keccak256("backed-policy");
+
         c.status = TokenStatus.APPROVED;
-        c.poolRuntimeCodeHash = token.codehash;
-        c.legalAdapterCodeHash = legalAdapter == address(0) ? bytes32(0) : legalAdapter.codehash;
-        c.reviewHash = keccak256("review");
     }
 
     /// @dev Reads an account balance in the token display denomination.
@@ -400,8 +393,7 @@ abstract contract ProtocolFixture is Test {
     /// @dev Submits the monthly ADTV report required by the test; admission already opens the market.
     function _submitReports() internal {
         uint64 now_ = uint64(block.timestamp);
-        AdtvReport memory adtv =
-            AdtvReport(SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, 1, keccak256("adtv"), keccak256("source"));
+        AdtvReport memory adtv = AdtvReport(SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, 1, keccak256("adtv"));
         inbox.submitAdtv(adtv);
     }
 }

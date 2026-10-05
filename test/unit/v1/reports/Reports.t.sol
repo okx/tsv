@@ -13,7 +13,7 @@ contract TSVReportsTest is FoundationFixture {
     /// @dev Verifies one ADTV batch can include multiple securities.
     function testAdtvBatchAcceptsMultipleSecuritiesInOneSubmission() public {
         bytes32 secondSecurity = bytes32(type(uint256).max);
-        _admitAdditionalSecurity(secondSecurity, keccak256("STD_y"));
+        _admitAdditionalSecurity(secondSecurity);
 
         bytes32 firstSecurity = uint256(SECURITY) < uint256(secondSecurity) ? SECURITY : secondSecurity;
         bytes32 lastSecurity = firstSecurity == SECURITY ? secondSecurity : SECURITY;
@@ -34,7 +34,7 @@ contract TSVReportsTest is FoundationFixture {
     /// @dev Verifies an ADTV batch reverts atomically when one report is invalid.
     function testAdtvBatchIsAtomicWhenOneReportIsInvalid() public {
         bytes32 secondSecurity = bytes32(type(uint256).max);
-        _admitAdditionalSecurity(secondSecurity, keccak256("STD_z"));
+        _admitAdditionalSecurity(secondSecurity);
 
         bytes32 firstSecurity = uint256(SECURITY) < uint256(secondSecurity) ? SECURITY : secondSecurity;
         bytes32 lastSecurity = firstSecurity == SECURITY ? secondSecurity : SECURITY;

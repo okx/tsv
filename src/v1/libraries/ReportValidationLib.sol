@@ -16,7 +16,6 @@ library ReportValidationLib {
     /// @param submitDeadline Latest timestamp at which this report may be accepted.
     /// @param sequence Sequence supplied by the reporter for this stream.
     /// @param reportId Unique report identifier.
-    /// @param sourceHash Digest of the report's supporting source material.
     /// @param currentTimestamp Current block timestamp supplied by the caller.
     function validate(
         uint64 previousSequence,
@@ -26,13 +25,9 @@ library ReportValidationLib {
         uint64 submitDeadline,
         uint64 sequence,
         bytes32 reportId,
-        bytes32 sourceHash,
         uint256 currentTimestamp
     ) internal pure {
-        if (
-            reportId == 0 || sourceHash == 0 || reportIdUsed || sequence <= previousSequence
-                || sourceTimestamp < previousSourceTimestamp
-        ) revert InvalidReport();
+        if (reportId == 0 || reportIdUsed || sequence <= previousSequence || sourceTimestamp < previousSourceTimestamp) revert InvalidReport();
         if (sourceTimestamp > currentTimestamp || currentTimestamp > submitDeadline) revert Expired();
     }
 }

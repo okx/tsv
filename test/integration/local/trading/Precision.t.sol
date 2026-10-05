@@ -11,7 +11,7 @@ import {V1LocalERC20Decimals} from "../../../helpers/v1/LocalMocks.sol";
 contract TSVTradingPrecisionTest is ProtocolFixture {
     function testSixDecimalQuoteSwapAndLPSettleInRawUnitsAndCountOnlyStockShares() public {
         V1LocalERC20Decimals quote6 = new V1LocalERC20Decimals("QUOTE6", 6);
-        registry.registerToken(_config(address(quote6), 0, address(0)), keccak256("quote6"));
+        registry.registerToken(_config(address(quote6), 0, address(0)));
         bool stock0 = address(stock) < address(quote6);
         PoolKey memory precisionKey = PoolKey(
             Currency.wrap(stock0 ? address(stock) : address(quote6)),
@@ -21,7 +21,7 @@ contract TSVTradingPrecisionTest is ProtocolFixture {
             IHooks(address(hook))
         );
         uint160 price = stock0 ? uint160(uint256(1 << 96) / 1e6) : uint160((1 << 96) * 1e6);
-        lpManager.initializePool(precisionKey, price, keccak256("precision-price"));
+        lpManager.initializePool(precisionKey, price);
         quote6.mint(alice, 1e16);
         vm.startPrank(alice);
         quote6.approve(address(lpManager), type(uint256).max);
