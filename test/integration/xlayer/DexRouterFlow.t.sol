@@ -11,11 +11,12 @@ import {SwapRequest, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {IDexRouter, IDexApproveProxy} from "../../../lib/dexrouter-interfaces/IDexRouter.sol";
 import {ProtocolFixture} from "../../helpers/v1/ProtocolFixture.sol";
-import {DexRouterTestAdapter, DexRouterTestWallet} from "../../helpers/v1/DexRouterTestAdapter.sol";
+import {TSVAdapterFixture, DexRouterTestWallet} from "../../helpers/v1/TSVAdapterFixture.sol";
+import {TSVAdapter} from "dex-adapters/adapters/uniswap-v4/TSVAdapter.sol";
 
 /// @dev Actual deployed DEX and approval contracts; TSV/V4/issuer/SBT fixtures are deployed on the fork.
 ///      No router etching, approval-list mutation, production-admin impersonation, or skip fallback.
-contract TSVXLayerDexRouterTest is ProtocolFixture {
+contract TSVXLayerDexRouterTest is ProtocolFixture, TSVAdapterFixture {
     struct ContractPin {
         address deployed;
         bytes32 codehash;
@@ -25,7 +26,7 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
     address internal constant DEX = 0x7c5bEE2a8091C3ef39072f64F18Fac913060AEaF;
     bytes32 internal constant DEX_CODEHASH = 0x7766cf8785ca58e8da2204bf28f5b5cb2da420e1dbad4f5b88828a7c768da885;
     IDexRouter internal dex;
-    DexRouterTestAdapter internal adapter;
+    TSVAdapter internal adapter;
     address internal approveProxy;
     address internal tokenApprove;
 
@@ -42,7 +43,7 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
         assertTrue(IDexApproveProxy(approveProxy).isAllowedProxy(DEX), "DEX not authorized by approval proxy");
         assertGt(tokenApprove.code.length, 0);
         super.setUp();
-        adapter = new DexRouterTestAdapter(DEX, router);
+        adapter = new TSVAdapter(address(router), vm.addr(TEST_AUTH_KEY));
         router.setAdapterAllowed(address(adapter), true);
         vm.startPrank(alice);
         stock.approve(tokenApprove, type(uint256).max);
@@ -76,7 +77,7 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
             split.assetTo[i] = address(adapter);
             split.rawData[i] = uint256(uint160(address(router))) | (uint256(5000) << 160) | (uint256(1) << 176)
                 | (direction ? 0 : uint256(1) << 255);
-            split.extraData[i] = abi.encode(_swapRequest(direction, 5e17));
+            split.extraData[i] = _adapterRoute(adapter, DEX, key);
         }
         paths[0] = split;
         uint256 beforeStock = stock.balanceOf(alice);
@@ -117,9 +118,7 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
         paths[0] = first[0];
         paths[1] = second[0];
         bool finalDirection = Currency.unwrap(finalKey.currency0) == address(quote);
-        SwapRequest memory finalRequest = _swapRequest(finalDirection, uint128(intermediateAmount));
-        finalRequest.key = finalKey;
-        paths[1].extraData[0] = abi.encode(finalRequest);
+        paths[1].extraData[0] = _adapterRoute(adapter, DEX, finalKey);
         // First edge 0->1 settles to the DEX; second edge 1->2 delivers to the original caller.
         paths[1].rawData[0] = uint256(uint160(address(router))) | (uint256(10_000) << 160) | (uint256(1) << 184)
             | (uint256(2) << 176) | (finalDirection ? 0 : uint256(1) << 255);
@@ -127,10 +126,11 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
         uint256 beforeStock = stock.balanceOf(alice);
         uint256 beforeFinalStock = finalStock.balanceOf(alice);
         uint256 beforeUsed = ledger.used(SECURITY, DAY);
+        vm.recordLogs();
         vm.prank(alice);
         uint256 finalOutput = dex.dagSwapByOrderId(49, base, paths);
+        _assertSwapParticipant(address(router), alice);
         assertGt(finalOutput, 0);
-        assertEq(adapter.lastParticipant(), alice);
         assertEq(beforeStock - stock.balanceOf(alice), 1e18);
         assertEq(finalStock.balanceOf(alice) - beforeFinalStock, finalOutput);
         assertEq(ledger.used(SECURITY, DAY) - beforeUsed, 1e18 + finalOutput);
@@ -144,7 +144,6 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
         address recipient = makeAddr("recipient-without-sbt");
         assertFalse(registry.isEligible(recipient));
         _trade(alice, true, 1e18, recipient);
-        assertEq(adapter.lastParticipant(), alice);
     }
 
     function testContractWalletMarkerUsesWalletInsteadOfTransactionOrigin() public {
@@ -156,9 +155,10 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
         wallet.execute(address(quote), abi.encodeCall(IERC20.approve, (tokenApprove, type(uint256).max)));
         (IDexRouter.BaseRequest memory base, IDexRouter.RouterPath[] memory paths) = _route(true, 1e18);
         assertFalse(registry.isEligible(address(this)));
+        vm.recordLogs();
         wallet.execute(DEX, abi.encodeCall(IDexRouter.dagSwapByOrderId, (42, base, paths)));
-        assertEq(adapter.lastParticipant(), address(wallet));
-        assertGt(adapter.lastActualOut(), 0);
+        _assertSwapParticipant(address(router), address(wallet));
+        assertGt(IERC20(Currency.unwrap(key.currency1)).balanceOf(address(wallet)), 1e21);
         _assertNoTransitBalances();
     }
 
@@ -183,15 +183,17 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
         vm.prank(alice);
         dex.dagSwapByOrderId(44, base, paths);
         assertEq(_swapStateDigest(DAY), beforeState);
-        assertEq(adapter.lastParticipant(), address(0));
+        assertFalse(adapter.isNonceUsed(0));
         _assertNoTransitBalances();
         _trade(alice, true, 1e18, alice);
     }
 
     function testPartialFillRefundsUnusedInputToAuthenticatedParticipant() public {
+        uint256 beforeInput = stock.balanceOf(alice);
         _trade(alice, address(stock) == Currency.unwrap(key.currency0), 1e22, alice);
-        assertLt(adapter.lastActualIn(), 1e22);
-        assertGt(adapter.lastActualIn(), 0);
+        uint256 actualIn = beforeInput - stock.balanceOf(alice);
+        assertLt(actualIn, 1e22);
+        assertGt(actualIn, 0);
         _assertNoTransitBalances();
     }
 
@@ -232,10 +234,8 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
 
     function _route(bool direction, uint128 amount)
         internal
-        view
         returns (IDexRouter.BaseRequest memory base, IDexRouter.RouterPath[] memory paths)
     {
-        SwapRequest memory request = _swapRequest(direction, amount);
         address input = Currency.unwrap(direction ? key.currency0 : key.currency1);
         address output = Currency.unwrap(direction ? key.currency1 : key.currency0);
         base = IDexRouter.BaseRequest(uint256(uint160(input)), output, amount, 1, block.timestamp + 100);
@@ -249,7 +249,7 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
         // DAG input index 0, output index 1, weight 10_000; bit 255 selects sellQuote.
         paths[0].rawData[0] = uint256(uint160(address(router))) | (uint256(10_000) << 160) | (uint256(1) << 176)
             | (direction ? 0 : uint256(1) << 255);
-        paths[0].extraData[0] = abi.encode(request);
+        paths[0].extraData[0] = _adapterRoute(adapter, DEX, key);
         paths[0].fromToken = uint256(uint160(input));
     }
 
@@ -260,14 +260,17 @@ contract TSVXLayerDexRouterTest is ProtocolFixture {
         uint256 inputBefore = input.balanceOf(participant);
         uint256 outputBefore = output.balanceOf(recipient);
         uint256 usedBefore = ledger.used(SECURITY, DAY);
+        vm.recordLogs();
         vm.prank(participant);
         uint256 reportedOut = dex.dagSwapTo(47, recipient, base, paths);
-        assertEq(adapter.lastParticipant(), participant);
-        assertEq(inputBefore - input.balanceOf(participant), adapter.lastActualIn());
-        assertEq(output.balanceOf(recipient) - outputBefore, adapter.lastActualOut());
-        assertEq(reportedOut, adapter.lastActualOut());
+        _assertSwapParticipant(address(router), participant);
+        uint256 actualIn = inputBefore - input.balanceOf(participant);
+        uint256 actualOut = output.balanceOf(recipient) - outputBefore;
+        assertGt(actualIn, 0);
+        assertGt(actualOut, 0);
+        assertEq(reportedOut, actualOut);
         bool stockInput = address(input) == address(stock);
-        assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockInput ? adapter.lastActualIn() : adapter.lastActualOut());
+        assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockInput ? actualIn : actualOut);
         _assertNoTransitBalances();
     }
 
