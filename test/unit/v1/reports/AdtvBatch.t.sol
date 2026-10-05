@@ -100,11 +100,11 @@ contract TSVOperationsAdtvBatchTest is OperationsFixture {
     }
 
     function _batch(uint256 size) private returns (AdtvReport[] memory reports) {
-        registry.setTierPolicy(1, 25, uint32(size + 1), keccak256("batch-capacity"));
+        registry.setTierPolicy(1, 25, uint32(size + 1));
         reports = new AdtvReport[](size);
         for (uint256 i; i < size; ++i) {
             bytes32 security = bytes32(i + 1);
-            _admitAdditionalSecurity(security, keccak256(abi.encode("batch-symbol", i)));
+            _admitAdditionalSecurity(security);
             reports[i] = _adtv(security, (i + 1) * 1000e18, 1, 1, keccak256(abi.encode("batch-id", i)));
         }
     }

@@ -111,16 +111,14 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     /// @notice Registers and initializes a pool, then marks it active in the same transaction.
     /// @param key V4 pool key whose currencies and Hook have been approved by the Registry.
     /// @param sqrtPriceX96 Initial Q64.96 square-root price passed to PoolManager.
-    /// @param priceBasisHash Nonzero digest of the evidence supporting the initial price.
-    function initializePool(PoolKey calldata key, uint160 sqrtPriceX96, bytes32 priceBasisHash)
+    function initializePool(PoolKey calldata key, uint160 sqrtPriceX96)
         external
         nonReentrant
         onlyRole(POOL_CREATOR_ROLE)
     {
-        if (priceBasisHash == 0) revert InvalidPool();
         bytes32 poolId = registry.registerPendingPool(key);
         poolManager.initialize(key, sqrtPriceX96);
-        registry.markPoolActive(poolId, sqrtPriceX96, msg.sender, priceBasisHash);
+        registry.markPoolActive(poolId, sqrtPriceX96, msg.sender);
     }
 
     /// @notice Opens a positive-liquidity position and mints its nontransferable Receipt to the caller.
@@ -206,16 +204,12 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     /// @param minPoolOut0 Minimum currency0 amount that must reach the original owner.
     /// @param minPoolOut1 Minimum currency1 amount that must reach the original owner.
     /// @param reasonCode Nonzero code describing the forced-exit reason.
-    /// @param evidenceHash Nonzero digest of the supporting evidence.
-    function forceExit(
-        uint256 positionId,
-        uint256 minPoolOut0,
-        uint256 minPoolOut1,
-        bytes32 reasonCode,
-        bytes32 evidenceHash
-    ) external nonReentrant {
+    function forceExit(uint256 positionId, uint256 minPoolOut0, uint256 minPoolOut1, bytes32 reasonCode)
+        external
+        nonReentrant
+    {
         Position storage p = positions[positionId];
-        if (!p.active || p.liquidity == 0 || reasonCode == 0 || evidenceHash == 0) revert InvalidPosition();
+        if (!p.active || p.liquidity == 0 || reasonCode == 0) revert InvalidPosition();
         if (
             !hasRole(FORCE_EXIT_ADMIN_ROLE, msg.sender)
                 && (!hasRole(REVOKE_EXIT_EXECUTOR_ROLE, msg.sender) || registry.hasCredential(p.owner))

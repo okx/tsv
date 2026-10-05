@@ -32,13 +32,13 @@ contract TSVOperationsCapCorrectionsTest is OperationsFixture {
         _submitAdtv(1000e18);
         _submitQuota(2e18);
         _charge(1e18);
-        registry.setTierPolicy(1, 5, 10, keccak256("lower-tier-policy"));
+        registry.setTierPolicy(1, 5, 10);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 0);
         vm.expectRevert(abi.encodeWithSelector(TSVVolumeLedgerV1.QuotaExceeded.selector, SECURITY, DAY));
         _charge(1);
-        registry.setTierPolicy(1, 100, 10, keccak256("raise-tier-policy"));
+        registry.setTierPolicy(1, 100, 10);
         (, left) = ledger.remaining(SECURITY, DAY);
         assertEq(left, 1e18);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
@@ -59,7 +59,7 @@ contract TSVOperationsCapCorrectionsTest is OperationsFixture {
     function testFuzzHardCapUsesFloorAndExactLimitIsAllowed(uint192 adtv, uint16 bps) public {
         adtv = uint192(bound(adtv, 1, 1e24));
         bps = uint16(bound(bps, 1, 10000));
-        registry.setTierPolicy(1, bps, 10, keccak256("fuzz-policy"));
+        registry.setTierPolicy(1, bps, 10);
         _submitAdtv(adtv);
         uint256 expected = uint256(adtv) * bps / 10000;
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);

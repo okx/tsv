@@ -11,31 +11,27 @@ import {SplitFactorFixture} from "../../../helpers/v1/SplitFactorFixture.sol";
 
 /// @dev Authorization, malformed reports, locked history, arithmetic limits and failure-state preservation.
 contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
-    function testScheduleCorrectionAndCancellationEventsCarryCanonicalFactorsAndSourceEvidence() public {
+    function testScheduleCorrectionAndCancellationEventsCarryCanonicalFactorsAndReportIds() public {
         SplitFactorReport memory first = _factor(20261002, 2, 10, 1, 1, keccak256("event-first"));
         vm.expectEmit(true, true, true, true, address(ledger));
-        emit TSVVolumeLedgerV1.SplitFactorScheduled(
-            SECURITY, 202609, 20261002, 1, 5, 1, first.reportId, first.sourceHash
-        );
+        emit TSVVolumeLedgerV1.SplitFactorScheduled(SECURITY, 202609, 20261002, 1, 5, 1, first.reportId);
         inbox.submitSplitFactor(first);
         SplitFactorReport memory correction = _factor(20261002, 3, 1, 2, 2, keccak256("event-correction"));
         vm.expectEmit(true, true, true, true, address(ledger));
-        emit TSVVolumeLedgerV1.SplitFactorScheduled(
-            SECURITY, 202609, 20261002, 3, 1, 2, correction.reportId, correction.sourceHash
-        );
+        emit TSVVolumeLedgerV1.SplitFactorScheduled(SECURITY, 202609, 20261002, 3, 1, 2, correction.reportId);
         inbox.submitSplitFactor(correction);
         SplitFactorReport memory cancelled = _factor(20261002, 0, 0, 3, 3, keccak256("event-cancellation"));
         cancelled.action = 2;
         vm.expectEmit(true, true, true, true, address(ledger));
         emit TSVVolumeLedgerV1.SplitFactorCancelled(
-            SECURITY, 202609, 20261002, correction.reportId, 3, cancelled.reportId, cancelled.sourceHash
+            SECURITY, 202609, 20261002, correction.reportId, 3, cancelled.reportId
         );
         inbox.submitSplitFactor(cancelled);
     }
 
     function testDelistedSecurityCannotReceiveNewFactorReports() public {
-        registry.disablePool(poolId, keccak256("disable"));
-        registry.delistSecurity(SECURITY, keccak256("delist"));
+        registry.disablePool(poolId);
+        registry.delistSecurity(SECURITY);
         SplitFactorReport memory report = _factor(20261002, 2, 1, 1, 1, keccak256("delisted-factor"));
         bytes32 beforeState = _factorState(report);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
@@ -109,20 +105,19 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
 
     function testInvalidIngressMetadataAndReplayLeaveAllFactorStateUnchanged() public {
         _setFactor(20261002, 2, 1, 1, 1);
-        for (uint8 fault; fault < 8; ++fault) {
+        for (uint8 fault; fault < 7; ++fault) {
             SplitFactorReport memory report =
                 _factor(20261003, 3, 1, 2, 2, keccak256(abi.encode("factor-ingress", fault)));
             if (fault == 0) report.reportId = 0;
-            else if (fault == 1) report.sourceHash = 0;
-            else if (fault == 2) report.sequence = 0;
-            else if (fault == 3) report.sequence = 1;
-            else if (fault == 4) report.sourceTimestamp = uint64(block.timestamp - 1);
-            else if (fault == 5) report.sourceTimestamp = uint64(block.timestamp + 1);
-            else if (fault == 6) report.submitDeadline = uint64(block.timestamp - 1);
+            else if (fault == 1) report.sequence = 0;
+            else if (fault == 2) report.sequence = 1;
+            else if (fault == 3) report.sourceTimestamp = uint64(block.timestamp - 1);
+            else if (fault == 4) report.sourceTimestamp = uint64(block.timestamp + 1);
+            else if (fault == 5) report.submitDeadline = uint64(block.timestamp - 1);
             else report.reportId = ledger.splitFactorCheckpoint(SECURITY, uint32(MONTH), 0).reportId;
             bytes32 beforeState = _factorState(report);
             vm.expectRevert(
-                fault == 5 || fault == 6
+                fault == 4 || fault == 5
                     ? ReportValidationLib.Expired.selector
                     : ReportValidationLib.InvalidReport.selector
             );
@@ -207,7 +202,7 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
 
         inbox.submitAdtv(_adtv(SECURITY, type(uint256).max / 2, 2, 2, keccak256("safe-large-basis")));
         inbox.submitSplitFactor(report); // Reuse the rejected report ID after fixing the basis.
-        registry.setTierPolicy(1, 10000, 10, keccak256("maximum-tier"));
+        registry.setTierPolicy(1, 10000, 10);
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, type(uint256).max - 1);
 
@@ -253,7 +248,7 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
         n = uint64(bound(n, 1, type(uint64).max));
         d = uint64(bound(d, 1, type(uint64).max));
         bps = uint16(bound(bps, 1, 10000));
-        registry.setTierPolicy(1, bps, 10, keccak256("factor-fuzz-tier"));
+        registry.setTierPolicy(1, bps, 10);
         _submitAdtv(value);
         _setFactor(20261002, n, d, 1, 1);
         // This oracle uses ordinary integer multiplication in a proven < 238-bit input range.

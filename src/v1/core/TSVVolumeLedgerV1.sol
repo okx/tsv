@@ -61,8 +61,6 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint32 effectiveDayId;
         /// @dev UTC seconds after midnight used as the new day start.
         uint32 offsetSeconds;
-        /// @dev Digest of the evidence supporting the schedule change.
-        bytes32 reasonHash;
     }
 
     /// @dev Immutable once its first trade day starts; the fraction is reduced before storage.
@@ -125,11 +123,10 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint32 oldOffsetSeconds,
         uint32 newOffsetSeconds,
         uint64 effectiveStartUTC,
-        address indexed operator,
-        bytes32 reasonHash
+        address indexed operator
     );
     /// @notice Emitted when a pending trade-day boundary change was cancelled.
-    event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator, bytes32 reasonHash);
+    event DayStartCancelled(uint32 indexed effectiveDayId, address indexed operator);
     /// @notice Records a new or corrected future factor; the trade-day ID determines activation.
     event SplitFactorScheduled(
         bytes32 indexed securityId,
@@ -138,8 +135,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint128 numerator,
         uint128 denominator,
         uint64 version,
-        bytes32 reportId,
-        bytes32 sourceHash
+        bytes32 reportId
     );
     /// @notice Records removal of the latest pending checkpoint without reusing its version.
     event SplitFactorCancelled(
@@ -148,8 +144,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint32 indexed effectiveTradeDayId,
         bytes32 scheduledReportId,
         uint64 version,
-        bytes32 reportId,
-        bytes32 sourceHash
+        bytes32 reportId
     );
 
     /// @notice Initializes governance, the Registry, and the starting UTC day boundary.
@@ -263,8 +258,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
                 numerator,
                 denominator,
                 report.version,
-                report.reportId,
-                report.sourceHash
+                report.reportId
             );
         } else if (report.action == SPLIT_FACTOR_CANCEL) {
             if (
@@ -279,8 +273,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
                 report.effectiveTradeDayId,
                 scheduledReportId,
                 report.version,
-                report.reportId,
-                report.sourceHash
+                report.reportId
             );
         } else {
             revert InvalidReport();
@@ -331,12 +324,8 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     /// @notice Schedules a bounded UTC day-start change without rewriting an active transition day.
     /// @param newOffsetSeconds New offset from UTC midnight, less than one day.
     /// @param effectiveDayId First trade-day ID that uses the new offset.
-    /// @param reasonHash Nonzero digest recording the reason for the schedule.
-    function scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId, bytes32 reasonHash)
-        external
-        onlyGovernor
-    {
-        if (newOffsetSeconds >= SECONDS_PER_DAY || reasonHash == 0) revert InvalidPeriod();
+    function scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId) external onlyGovernor {
+        if (newOffsetSeconds >= SECONDS_PER_DAY) revert InvalidPeriod();
         if (hasPendingDayStart) {
             uint32 priorEffectiveDayId = dayStartCheckpoints[dayStartCheckpoints.length - 1].effectiveDayId;
             if (block.timestamp < _dayStartUTC(priorEffectiveDayId)) revert InvalidPeriod();
@@ -361,25 +350,24 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         if (block.timestamp >= _dayStartUTC(transitionDayId)) revert InvalidPeriod();
         uint64 newEffectiveStart =
             TradeDayLib.timestamp64(TradeDayLib.dateToOrdinal(effectiveDayId) * SECONDS_PER_DAY + newOffsetSeconds);
-        dayStartCheckpoints.push(DayStartCheckpoint(effectiveDayId, newOffsetSeconds, reasonHash));
+        dayStartCheckpoints.push(DayStartCheckpoint(effectiveDayId, newOffsetSeconds));
         hasPendingDayStart = true;
         emit DayStartScheduled(
-            effectiveDayId, transitionDayId, oldOffset, newOffsetSeconds, newEffectiveStart, msg.sender, reasonHash
+            effectiveDayId, transitionDayId, oldOffset, newOffsetSeconds, newEffectiveStart, msg.sender
         );
     }
 
     /// @notice Cancels a scheduled day-start change before its transition day begins.
-    /// @param reasonHash Nonzero digest recording the cancellation reason.
-    function cancelPendingDayStart(bytes32 reasonHash) external onlyGovernor {
+    function cancelPendingDayStart() external onlyGovernor {
         uint256 count = dayStartCheckpoints.length;
-        if (!hasPendingDayStart || reasonHash == 0 || count == 0) revert InvalidPeriod();
+        if (!hasPendingDayStart || count == 0) revert InvalidPeriod();
         uint32 transitionDayId =
             TradeDayLib.ordinalToDate(TradeDayLib.dateToOrdinal(dayStartCheckpoints[count - 1].effectiveDayId) - 1);
         if (block.timestamp >= _dayStartUTC(transitionDayId)) revert InvalidPeriod();
         uint32 effectiveDayId = dayStartCheckpoints[count - 1].effectiveDayId;
         dayStartCheckpoints.pop();
         hasPendingDayStart = false;
-        emit DayStartCancelled(effectiveDayId, msg.sender, reasonHash);
+        emit DayStartCancelled(effectiveDayId, msg.sender);
     }
 
     /// @notice Returns the UTC timestamp at which `dayId` begins under the stored schedule.
@@ -397,7 +385,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
 
     /// @notice Returns the day-start checkpoint at `index`.
     /// @param index Zero-based checkpoint index.
-    /// @return checkpoint Effective day, offset, and reason hash stored at that index.
+    /// @return checkpoint Effective day and offset stored at that index.
     function dayStartCheckpoint(uint256 index) external view returns (DayStartCheckpoint memory) {
         return dayStartCheckpoints[index];
     }

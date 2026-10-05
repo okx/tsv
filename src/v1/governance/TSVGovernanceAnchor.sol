@@ -92,7 +92,7 @@ contract TSVGovernanceAnchor {
     error InvalidProposal();
     /// @dev Reverts when the Guardian has frozen all business-proxy upgrades.
     error UpgradeFrozen();
-    /// @dev Reverts when a freeze transition lacks evidence or references a stale freeze.
+    /// @dev Reverts when a freeze transition is invalid or references a stale freeze.
     error InvalidFreeze();
 
     address public governor;
@@ -109,7 +109,6 @@ contract TSVGovernanceAnchor {
         address newGuardian;
         uint64 epoch;
         uint64 guardianEpoch;
-        bytes32 evidenceHash;
         bool active;
         bool approved;
     }
@@ -122,26 +121,26 @@ contract TSVGovernanceAnchor {
     uint64 public freezeEpoch;
     bytes32 public freezeId;
 
-    event UpgradesFrozen(bytes32 indexed id, address indexed guardian, bytes32 reasonHash);
-    event UpgradesUnfrozen(bytes32 indexed id, address indexed guardian, bytes32 evidenceHash);
+    event UpgradesFrozen(bytes32 indexed id, address indexed guardian);
+    event UpgradesUnfrozen(bytes32 indexed id, address indexed guardian);
 
     /// @notice Freezes single and batch upgrades. Business operations and recovery remain available.
-    function freezeUpgrades(bytes32 reasonHash) external returns (bytes32 id) {
+    function freezeUpgrades() external returns (bytes32 id) {
         if (msg.sender != guardian) revert Unauthorized();
-        if (upgradesFrozen || reasonHash == 0) revert InvalidFreeze();
+        if (upgradesFrozen) revert InvalidFreeze();
         ++freezeEpoch;
-        id = keccak256(abi.encode(block.chainid, address(this), freezeEpoch, guardian, reasonHash));
+        id = keccak256(abi.encode(block.chainid, address(this), freezeEpoch, guardian));
         freezeId = id;
         upgradesFrozen = true;
-        emit UpgradesFrozen(id, msg.sender, reasonHash);
+        emit UpgradesFrozen(id, msg.sender);
     }
 
     /// @notice Reopens upgrades only when the current Guardian explicitly resolves the current freeze.
-    function unfreezeUpgrades(bytes32 expectedFreezeId, bytes32 evidenceHash) external {
+    function unfreezeUpgrades(bytes32 expectedFreezeId) external {
         if (msg.sender != guardian) revert Unauthorized();
-        if (!upgradesFrozen || expectedFreezeId != freezeId || evidenceHash == 0) revert InvalidFreeze();
+        if (!upgradesFrozen || expectedFreezeId != freezeId) revert InvalidFreeze();
         upgradesFrozen = false;
-        emit UpgradesUnfrozen(freezeId, msg.sender, evidenceHash);
+        emit UpgradesUnfrozen(freezeId, msg.sender);
     }
 
     event BatchUpgraded(address indexed governor, uint256 count);
@@ -191,12 +190,10 @@ contract TSVGovernanceAnchor {
         governor = governor_;
     }
 
-    event RecoveryProposed(bytes32 indexed id, address newGovernor, address newGuardian, bytes32 evidenceHash);
+    event RecoveryProposed(bytes32 indexed id, address newGovernor, address newGuardian);
     event RecoveryApprovalChanged(bytes32 indexed id, bool approved);
     event RecoveryCancelled(bytes32 indexed id);
-    event AuthoritiesRecovered(
-        address indexed oldGovernor, address indexed newGovernor, address newGuardian, bytes32 evidenceHash
-    );
+    event AuthoritiesRecovered(address indexed oldGovernor, address indexed newGovernor, address newGuardian);
 
     /// @notice Permanently binds and cross-checks the six business proxy addresses.
     /// @dev Array order is Registry, Ledger, DataInbox, Hook, Router, and LP Manager.
@@ -236,18 +233,13 @@ contract TSVGovernanceAnchor {
     }
 
     /// @notice Proposes a narrowly scoped Governor/Guardian recovery as the Recovery Council.
-    function proposeRecovery(address newGovernor, address newGuardian, bytes32 salt, bytes32 evidenceHash)
-        external
-        returns (bytes32 id)
-    {
-        if (msg.sender != recoveryCouncil || salt == 0 || evidenceHash == 0) revert Unauthorized();
+    function proposeRecovery(address newGovernor, address newGuardian, bytes32 salt) external returns (bytes32 id) {
+        if (msg.sender != recoveryCouncil || salt == 0) revert Unauthorized();
         _validateRecovery(newGovernor, newGuardian);
-        id = keccak256(
-            abi.encode(block.chainid, address(this), epoch, guardianEpoch, newGovernor, newGuardian, salt, evidenceHash)
-        );
+        id = keccak256(abi.encode(block.chainid, address(this), epoch, guardianEpoch, newGovernor, newGuardian, salt));
         if (recoveries[id].active) revert InvalidProposal();
-        recoveries[id] = RecoveryProposal(newGovernor, newGuardian, epoch, guardianEpoch, evidenceHash, true, false);
-        emit RecoveryProposed(id, newGovernor, newGuardian, evidenceHash);
+        recoveries[id] = RecoveryProposal(newGovernor, newGuardian, epoch, guardianEpoch, true, false);
+        emit RecoveryProposed(id, newGovernor, newGuardian);
     }
 
     /// @notice Approves a current recovery as the current Guardian.
@@ -291,7 +283,7 @@ contract TSVGovernanceAnchor {
             emit GuardianSynced(oldGuardian, guardian, guardianEpoch);
         }
         ++epoch;
-        emit AuthoritiesRecovered(oldGovernor, p.newGovernor, p.newGuardian, p.evidenceHash);
+        emit AuthoritiesRecovered(oldGovernor, p.newGovernor, p.newGuardian);
     }
 
     function _validateRecovery(address newGovernor, address newGuardian) private view {

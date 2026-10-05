@@ -44,13 +44,13 @@ contract TSVStatefulOperationsTest is Test {
         handler.toggleReporter();
         handler.submitAdtv(1, 1000e18, 0);
         handler.submitAdtv(2, 1000e18, 6); // Cross-period duplicate ID.
-        handler.schedule(28800, 3, false);
-        handler.cancel(false);
-        handler.schedule(0, 3, false);
+        handler.schedule(28800, 3);
+        handler.cancel();
+        handler.schedule(0, 3);
         handler.advanceTime(3 days);
-        handler.cancel(false); // Transition has started; cancellation must fail.
+        handler.cancel(); // Transition has started; cancellation must fail.
         handler.advanceTime(3 days);
-        handler.schedule(14400, 3, false);
+        handler.schedule(14400, 3);
         handler.advanceTime(20 days);
         handler.advanceTime(10 days);
         handler.charge(1); // November uses the already supplied October ADTV.
@@ -79,7 +79,7 @@ contract TSVStatefulOperationsTest is Test {
         handler.submitFactor(4, 5, 0, false, 0); // 6/1, October 5.
         handler.submitFactor(1, 2, 0, false, 0); // Cannot correct an intermediate checkpoint.
         handler.submitFactor(4, 0, 0, true, 0);
-        handler.schedule(28800, 3, false);
+        handler.schedule(28800, 3);
         handler.advanceTime(1 days);
         handler.submitFactor(1, 0, 0, true, 0); // Activated checkpoint is locked.
         handler.charge(3e18);

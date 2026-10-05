@@ -1,12 +1,11 @@
 {
-  "schemaVersion": "tsv-v1-deployment-4",
+  "schemaVersion": "tsv-v1-deployment-5",
   "status": "TEMPLATE",
   "network": {
     "name": "xlayer",
     "chainId": 196,
     "poolManager": {
       "address": "",
-      "runtimeCodeHash": "",
       "v4Version": ""
     }
   },
@@ -31,12 +30,30 @@
     "freezeId": ""
   },
   "businessProxies": {
-    "registry": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
-    "volumeLedger": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
-    "dataInbox": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
-    "hook": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
-    "swapRouter": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" },
-    "lpManager": { "proxy": "", "implementation": "", "runtimeCodeHash": "", "initDataHash": "" }
+    "registry": {
+      "proxy": "",
+      "implementation": ""
+    },
+    "volumeLedger": {
+      "proxy": "",
+      "implementation": ""
+    },
+    "dataInbox": {
+      "proxy": "",
+      "implementation": ""
+    },
+    "hook": {
+      "proxy": "",
+      "implementation": ""
+    },
+    "swapRouter": {
+      "proxy": "",
+      "implementation": ""
+    },
+    "lpManager": {
+      "proxy": "",
+      "implementation": ""
+    }
   },
   "hookDeployment": {
     "factory": "",
@@ -67,9 +84,7 @@
   },
   "sbt": {
     "address": "",
-    "tokenId": 0,
-    "runtimeCodeHash": "",
-    "evidenceHash": ""
+    "tokenId": 0
   },
   "roles": {
     "symbolAdmins": [],

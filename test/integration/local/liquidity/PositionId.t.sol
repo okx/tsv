@@ -54,7 +54,7 @@ contract TSVPositionIdLocalTest is ProtocolFixture {
 
         PoolKey memory otherPool = key;
         otherPool.fee = 500;
-        lpManager.initializePool(otherPool, uint160(1 << 96), keccak256("position-id-other-pool"));
+        lpManager.initializePool(otherPool, uint160(1 << 96));
         vm.prank(alice);
         uint256 otherPoolId = lpManager.openPosition(otherPool, -600, 600, 1e18, _positionBounds());
 
@@ -91,7 +91,7 @@ contract TSVPositionIdLocalTest is ProtocolFixture {
 
     function testPositionIdForcedExitIdIsNotReused() public {
         sbt.setHolder(alice, false);
-        lpManager.forceExit(positionId, 0, 0, keccak256("position-id-revoke"), keccak256("position-id-evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("position-id-revoke"));
         assertEq(lpManager.nextPositionId(), 2);
         assertFalse(lpManager.getPosition(positionId).active);
         assertEq(_v4Liquidity(positionId), 0);

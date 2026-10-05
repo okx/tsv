@@ -16,7 +16,7 @@ contract TSVFreezeTest is GovernanceFixture {
         address oldImplementation = proxy.tsvImplementation();
         V1RegistryUpgradeMock next = new V1RegistryUpgradeMock();
         vm.prank(guardian);
-        bytes32 id = anchor.freezeUpgrades(keccak256("governor-compromised"));
+        bytes32 id = anchor.freezeUpgrades();
         assertTrue(anchor.upgradesFrozen());
         assertEq(anchor.freezeId(), id);
         assertEq(anchor.freezeEpoch(), 1);
@@ -26,7 +26,7 @@ contract TSVFreezeTest is GovernanceFixture {
         assertEq(registry.nextPauseId(), 1);
         assertFalse(anchor.proxiesBound());
         vm.prank(guardian);
-        anchor.unfreezeUpgrades(id, keccak256("risk-resolved"));
+        anchor.unfreezeUpgrades(id);
         assertFalse(anchor.upgradesFrozen());
         registry.upgradeToAndCall(address(next), abi.encodeCall(V1RegistryUpgradeMock.initializeV2, (99, false)));
         assertEq(V1RegistryUpgradeMock(address(proxy)).upgradeMarker(), 99);
@@ -37,39 +37,35 @@ contract TSVFreezeTest is GovernanceFixture {
         for (uint256 i; i < callers.length; ++i) {
             vm.prank(callers[i]);
             vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-            anchor.freezeUpgrades(keccak256("reason"));
+            anchor.freezeUpgrades();
         }
         vm.prank(guardian);
-        bytes32 id = anchor.freezeUpgrades(keccak256("reason"));
+        bytes32 id = anchor.freezeUpgrades();
         for (uint256 i; i < callers.length; ++i) {
             vm.prank(callers[i]);
             vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-            anchor.unfreezeUpgrades(id, keccak256("evidence"));
+            anchor.unfreezeUpgrades(id);
             assertTrue(anchor.upgradesFrozen());
         }
     }
 
-    function testFreezeTransitionsRequireEvidenceAndCurrentIncident() public {
+    function testFreezeTransitionsRequireCurrentIncident() public {
         vm.startPrank(guardian);
         vm.expectRevert(TSVGovernanceAnchor.InvalidFreeze.selector);
-        anchor.freezeUpgrades(0);
+        anchor.unfreezeUpgrades(0);
+        bytes32 first = anchor.freezeUpgrades();
         vm.expectRevert(TSVGovernanceAnchor.InvalidFreeze.selector);
-        anchor.unfreezeUpgrades(0, keccak256("evidence"));
-        bytes32 first = anchor.freezeUpgrades(keccak256("same-reason"));
+        anchor.freezeUpgrades();
         vm.expectRevert(TSVGovernanceAnchor.InvalidFreeze.selector);
-        anchor.freezeUpgrades(keccak256("other-reason"));
-        vm.expectRevert(TSVGovernanceAnchor.InvalidFreeze.selector);
-        anchor.unfreezeUpgrades(first, 0);
-        vm.expectRevert(TSVGovernanceAnchor.InvalidFreeze.selector);
-        anchor.unfreezeUpgrades(keccak256("wrong-id"), keccak256("evidence"));
-        anchor.unfreezeUpgrades(first, keccak256("evidence"));
-        bytes32 second = anchor.freezeUpgrades(keccak256("same-reason"));
+        anchor.unfreezeUpgrades(keccak256("wrong-id"));
+        anchor.unfreezeUpgrades(first);
+        bytes32 second = anchor.freezeUpgrades();
         assertNotEq(first, second);
         assertEq(anchor.freezeEpoch(), 2);
         vm.expectRevert(TSVGovernanceAnchor.InvalidFreeze.selector);
-        anchor.unfreezeUpgrades(first, keccak256("evidence"));
+        anchor.unfreezeUpgrades(first);
         assertTrue(anchor.upgradesFrozen());
-        anchor.unfreezeUpgrades(second, keccak256("evidence"));
+        anchor.unfreezeUpgrades(second);
         vm.stopPrank();
     }
 }

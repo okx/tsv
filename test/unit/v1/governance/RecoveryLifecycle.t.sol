@@ -6,16 +6,14 @@ import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 
 /// @dev Invalid inputs, competing proposals and authority changes around recovery.
 contract TSVRecoveryLifecycleTest is GovernanceFixture {
-    bytes32 internal constant EVIDENCE = keccak256("recovery-evidence");
     bytes32 internal constant SALT = keccak256("recovery-salt");
 
-    function testProposalRequiresNonzeroSaltAndEvidence() public {
+    function testProposalRequiresNonzeroSalt() public {
         address next = makeAddr("next-governor");
         vm.startPrank(council);
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.proposeRecovery(next, guardian, bytes32(0), EVIDENCE);
-        vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.proposeRecovery(next, guardian, SALT, bytes32(0));
+        anchor.proposeRecovery(next, guardian, bytes32(0));
+        anchor.proposeRecovery(next, guardian, SALT);
         vm.stopPrank();
         assertEq(anchor.epoch(), 0);
     }
@@ -46,12 +44,12 @@ contract TSVRecoveryLifecycleTest is GovernanceFixture {
         for (uint256 i; i < callers.length; ++i) {
             vm.startPrank(callers[i]);
             vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-            anchor.proposeRecovery(makeAddr("another-governor"), guardian, SALT, EVIDENCE);
+            anchor.proposeRecovery(makeAddr("another-governor"), guardian, SALT);
             vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
             anchor.cancelRecovery(id);
             vm.stopPrank();
         }
-        (,,,,, bool active,) = anchor.recoveries(id);
+        (,,,, bool active,) = anchor.recoveries(id);
         assertTrue(active);
     }
 
@@ -77,8 +75,8 @@ contract TSVRecoveryLifecycleTest is GovernanceFixture {
         anchor.approveRecovery(id);
         vm.prank(council);
         vm.expectRevert(TSVGovernanceAnchor.InvalidProposal.selector);
-        anchor.proposeRecovery(next, guardian, keccak256("duplicate"), keccak256("evidence"));
-        (,,,,, bool active, bool approved) = anchor.recoveries(id);
+        anchor.proposeRecovery(next, guardian, keccak256("duplicate"));
+        (,,,, bool active, bool approved) = anchor.recoveries(id);
         assertTrue(active);
         assertTrue(approved);
     }
@@ -91,7 +89,7 @@ contract TSVRecoveryLifecycleTest is GovernanceFixture {
         vm.prank(council);
         anchor.cancelRecovery(id);
         assertEq(_proposeRecovery(next, guardian, "reused-salt"), id);
-        (,,,,, bool active, bool approved) = anchor.recoveries(id);
+        (,,,, bool active, bool approved) = anchor.recoveries(id);
         assertTrue(active);
         assertFalse(approved);
         vm.expectRevert(TSVGovernanceAnchor.InvalidProposal.selector);
@@ -125,7 +123,7 @@ contract TSVRecoveryLifecycleTest is GovernanceFixture {
         vm.prank(next);
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
         anchor.approveRecovery(id);
-        (,,,,,, bool approved) = anchor.recoveries(id);
+        (,,,,, bool approved) = anchor.recoveries(id);
         assertFalse(approved);
     }
 
@@ -144,7 +142,7 @@ contract TSVRecoveryLifecycleTest is GovernanceFixture {
         vm.prank(guardian);
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
         anchor.revokeRecoveryApproval(id);
-        (,,,,,, bool approved) = anchor.recoveries(id);
+        (,,,,, bool approved) = anchor.recoveries(id);
         assertTrue(approved);
     }
 
@@ -159,7 +157,7 @@ contract TSVRecoveryLifecycleTest is GovernanceFixture {
         anchor.executeRecovery(id);
         vm.stopPrank();
         assertEq(anchor.governor(), next);
-        (,,,,, bool active, bool approved) = anchor.recoveries(id);
+        (,,,, bool active, bool approved) = anchor.recoveries(id);
         assertFalse(active);
         assertFalse(approved);
     }
@@ -189,7 +187,7 @@ contract TSVRecoveryLifecycleTest is GovernanceFixture {
         bytes32 first = _proposeRecovery(next, guardian, "domain");
         TSVGovernanceAnchor other = new TSVGovernanceAnchor(address(this), guardian, council);
         vm.prank(council);
-        bytes32 differentAnchor = other.proposeRecovery(next, guardian, keccak256("domain"), keccak256("evidence"));
+        bytes32 differentAnchor = other.proposeRecovery(next, guardian, keccak256("domain"));
         vm.chainId(block.chainid + 1);
         bytes32 differentChain = _proposeRecovery(next, guardian, "domain");
         assertNotEq(first, differentAnchor);
@@ -199,7 +197,7 @@ contract TSVRecoveryLifecycleTest is GovernanceFixture {
     function _rejectIdentities(address nextGovernor, address nextGuardian) private {
         vm.prank(council);
         vm.expectRevert(TSVGovernanceAnchor.InvalidBundle.selector);
-        anchor.proposeRecovery(nextGovernor, nextGuardian, SALT, EVIDENCE);
+        anchor.proposeRecovery(nextGovernor, nextGuardian, SALT);
         assertEq(anchor.governor(), address(this));
         assertEq(anchor.guardian(), guardian);
         assertEq(anchor.epoch(), 0);

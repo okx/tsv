@@ -13,29 +13,29 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
 
     function testMultipleCurrenciesAndPoolsCountOneListedSecurity() public {
         TokenConfig memory secondCurrency = _newStockConfig(SECURITY);
-        registry.registerToken(secondCurrency, keccak256("second-currency"));
+        registry.registerToken(secondCurrency);
         PoolKey memory secondKey = key;
         address a = secondCurrency.poolCurrency < address(quote) ? secondCurrency.poolCurrency : address(quote);
         address b = secondCurrency.poolCurrency < address(quote) ? address(quote) : secondCurrency.poolCurrency;
         secondKey.currency0 = Currency.wrap(a);
         secondKey.currency1 = Currency.wrap(b);
         bytes32 secondPool = registry.registerPendingPool(secondKey);
-        registry.markPoolActive(secondPool, uint160(1 << 96), address(this), keccak256("price"));
+        registry.markPoolActive(secondPool, uint160(1 << 96), address(this));
         assertEq(registry.tierPolicy(1).listedCount, 1);
         assertEq(registry.getSecurity(SECURITY).activePoolCount, 2);
         assertEq(registry.activePoolCountByCurrency(address(quote)), 2);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.delistSecurity(SECURITY, keccak256("active-pools"));
-        registry.disablePool(poolId, keccak256("disable-first"));
+        registry.delistSecurity(SECURITY);
+        registry.disablePool(poolId);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.delistSecurity(SECURITY, keccak256("one-active-pool"));
-        registry.disablePool(secondPool, keccak256("disable-second"));
-        registry.delistSecurity(SECURITY, keccak256("delist"));
+        registry.delistSecurity(SECURITY);
+        registry.disablePool(secondPool);
+        registry.delistSecurity(SECURITY);
         assertEq(registry.tierPolicy(1).listedCount, 0);
         assertEq(registry.activePoolCountByCurrency(address(quote)), 0);
-        registry.relistSecurity(SECURITY, keccak256("relist"));
-        registry.enablePool(poolId, keccak256("enable-first"));
-        registry.enablePool(secondPool, keccak256("enable-second"));
+        registry.relistSecurity(SECURITY);
+        registry.enablePool(poolId);
+        registry.enablePool(secondPool);
         assertEq(registry.tierPolicy(1).listedCount, 1);
         assertEq(registry.getSecurity(SECURITY).activePoolCount, 2);
         assertEq(registry.activePoolCountByCurrency(address(quote)), 2);
@@ -43,16 +43,16 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
     }
 
     function testRelistingFullTierRollsBackThenSucceedsAfterCapacityRestored() public {
-        registry.setTierPolicy(1, 25, 1, keccak256("capacity-one"));
-        registry.disablePool(poolId, keccak256("disable"));
-        registry.delistSecurity(SECURITY, keccak256("delist"));
-        _admitAdditionalSecurity(keccak256("other-security"), keccak256("OTHER"));
+        registry.setTierPolicy(1, 25, 1);
+        registry.disablePool(poolId);
+        registry.delistSecurity(SECURITY);
+        _admitAdditionalSecurity(keccak256("other-security"));
         bytes32 beforeState = _lifecycleState();
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.relistSecurity(SECURITY, keccak256("full"));
+        registry.relistSecurity(SECURITY);
         assertEq(_lifecycleState(), beforeState);
-        registry.setTierPolicy(1, 25, 2, keccak256("capacity-two"));
-        registry.relistSecurity(SECURITY, keccak256("retry"));
+        registry.setTierPolicy(1, 25, 2);
+        registry.relistSecurity(SECURITY);
         assertEq(registry.tierPolicy(1).listedCount, 2);
         assertEq(registry.getSecurity(SECURITY).version, 3);
     }
@@ -60,15 +60,15 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
     function testTierMoveReleasesOldSlotAndFailedMoveLeavesCountsAndCap() public {
         _submitAdtv(1000e18);
         _charge(1e18);
-        registry.setTierPolicy(2, 10, 0, keccak256("full-tier"));
+        registry.setTierPolicy(2, 10, 0);
         bytes32 beforeState = _lifecycleState();
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSecurityTier(SECURITY, 2, keccak256("full"));
+        registry.setSecurityTier(SECURITY, 2);
         assertEq(_lifecycleState(), beforeState);
-        registry.setTierPolicy(2, 10, 1, keccak256("capacity"));
+        registry.setTierPolicy(2, 10, 1);
         vm.expectEmit(true, false, false, true, address(registry));
-        emit TSVRegistryV1.SecurityTierChanged(SECURITY, 1, 2, keccak256("move"));
-        registry.setSecurityTier(SECURITY, 2, keccak256("move"));
+        emit TSVRegistryV1.SecurityTierChanged(SECURITY, 1, 2);
+        registry.setSecurityTier(SECURITY, 2);
         assertEq(registry.tierPolicy(1).listedCount, 0);
         assertEq(registry.tierPolicy(2).listedCount, 1);
         assertEq(registry.getSecurity(SECURITY).version, 2);
@@ -76,75 +76,73 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 0);
-        registry.setSecurityTier(SECURITY, 1, keccak256("move-back"));
+        registry.setSecurityTier(SECURITY, 1);
         assertEq(registry.tierPolicy(1).listedCount, 1);
         assertEq(registry.tierPolicy(2).listedCount, 0);
         (, left) = ledger.remaining(SECURITY, DAY);
         assertEq(left, 1.5e18);
     }
 
-    function testLifecycleRejectsUnknownNoopAndMissingEvidenceWithoutWrites() public {
+    function testLifecycleRejectsUnknownAndNoopWithoutWrites() public {
         bytes32 absent = keccak256("absent-security");
-        bytes[] memory calls = new bytes[](9);
-        calls[0] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY, keccak256("already-listed")));
-        calls[1] = abi.encodeCall(TSVRegistryV1.relistSecurity, (absent, keccak256("unknown")));
-        calls[2] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 1, keccak256("same-tier")));
-        calls[3] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2, bytes32(0)));
-        calls[4] = abi.encodeCall(TSVRegistryV1.delistSecurity, (absent, keccak256("unknown")));
-        calls[5] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY, bytes32(0)));
-        calls[6] = abi.encodeCall(TSVRegistryV1.disablePool, (poolId, bytes32(0)));
-        calls[7] = abi.encodeCall(TSVRegistryV1.disablePool, (bytes32(0), keccak256("unknown")));
-        calls[8] = abi.encodeCall(TSVRegistryV1.enablePool, (poolId, keccak256("already-active")));
+        bytes[] memory calls = new bytes[](7);
+        calls[0] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
+        calls[1] = abi.encodeCall(TSVRegistryV1.relistSecurity, (absent));
+        calls[2] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 1));
+        calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (absent));
+        calls[4] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY));
+        calls[5] = abi.encodeCall(TSVRegistryV1.disablePool, (bytes32(0)));
+        calls[6] = abi.encodeCall(TSVRegistryV1.enablePool, (poolId));
         for (uint256 i; i < calls.length; ++i) {
             bytes32 beforeState = _lifecycleState();
             vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
             _registryCall(calls[i]);
             assertEq(_lifecycleState(), beforeState);
         }
-        registry.disablePool(poolId, keccak256("disable"));
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setSecurityTier(SECURITY, 2);
+        registry.disablePool(poolId);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.disablePool(poolId, keccak256("twice"));
-        registry.delistSecurity(SECURITY, keccak256("delist"));
+        registry.disablePool(poolId);
+        registry.delistSecurity(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.delistSecurity(SECURITY, keccak256("twice"));
+        registry.delistSecurity(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.relistSecurity(SECURITY, 0);
+        registry.setSecurityTier(SECURITY, 2);
+        registry.relistSecurity(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setSecurityTier(SECURITY, 2, keccak256("delisted"));
+        registry.relistSecurity(SECURITY);
     }
 
     function testPoolEnableRechecksEachCurrencyAndDoesNotChangeCountsOnFailure() public {
-        registry.disablePool(poolId, keccak256("disable"));
+        registry.disablePool(poolId);
         address[2] memory currencies = [address(stock), address(quote)];
         for (uint256 i; i < currencies.length; ++i) {
-            registry.setTokenStatus(currencies[i], TokenStatus.DISABLED, keccak256("disable-currency"));
+            registry.setTokenStatus(currencies[i], TokenStatus.DISABLED);
             bytes32 beforeState = _lifecycleState();
             vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-            registry.enablePool(poolId, keccak256("blocked"));
+            registry.enablePool(poolId);
             assertEq(_lifecycleState(), beforeState);
-            registry.setTokenStatus(currencies[i], TokenStatus.APPROVED, keccak256("reenable-currency"));
+            registry.setTokenStatus(currencies[i], TokenStatus.APPROVED);
         }
-        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.enablePool(poolId, 0);
-        registry.enablePool(poolId, keccak256("enable"));
+        registry.enablePool(poolId);
         assertEq(registry.getPool(poolId).version, 4);
         assertEq(registry.getSecurity(SECURITY).activePoolCount, 1);
         assertEq(registry.activePoolCountByCurrency(address(stock)), 1);
     }
 
-    function testDelistingDoesNotReleaseSymbolIdentity() public {
-        registry.disablePool(poolId, keccak256("disable"));
-        registry.delistSecurity(SECURITY, keccak256("delist"));
+    function testDelistingPreservesSecurityIdentityAndAllowsDifferentSecurity() public {
+        registry.disablePool(poolId);
+        registry.delistSecurity(SECURITY);
         bytes32 otherSecurity = keccak256("other-security");
         TokenConfig memory config = _newStockConfig(otherSecurity);
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(otherSecurity, keccak256("STDx"), 1, config, keccak256("reused-symbol"));
+        registry.admitSecurity(otherSecurity, 1, config);
         config.securityId = SECURITY;
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(SECURITY, keccak256("new-symbol"), 1, config, keccak256("reused-id"));
-        assertEq(registry.tierPolicy(1).listedCount, 0);
-        registry.relistSecurity(SECURITY, keccak256("relist"));
-        assertEq(registry.getSecurity(SECURITY).symbolHash, keccak256("STDx"));
+        registry.admitSecurity(SECURITY, 1, config);
+        assertEq(registry.tierPolicy(1).listedCount, 1);
+        registry.relistSecurity(SECURITY);
+        assertEq(registry.tierPolicy(1).listedCount, 2);
     }
 
     function _lifecycleState() private view returns (bytes32) {

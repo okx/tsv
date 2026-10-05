@@ -14,10 +14,10 @@ import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 
 /// @notice Read-only post-deployment check. Role, report, asset and issuer evidence remain manifest gates.
 contract VerifyDeploymentV1 is ScriptEnvironment {
-    /// @dev Reverts when a deployment address, code hash, or governance link does not match the manifest.
+    /// @dev Reverts when a deployment address or governance link does not match the manifest.
     error VerificationFailed();
 
-    /// @notice Verifies governance bindings, proxy links, code hashes and implementation addresses.
+    /// @notice Verifies governance bindings, proxy links and implementation addresses.
     /// @dev Reads the expected deployment manifest values from environment variables and reverts on mismatch.
     function run() external view {
         if (block.chainid != _envUint("TSV_CHAIN_ID")) revert VerificationFailed();
@@ -33,7 +33,7 @@ contract VerifyDeploymentV1 is ScriptEnvironment {
         _checkGovernance(anchor, a);
         _checkLinks(a);
         _checkImplementations(a);
-        console2.log("TSV governance, six proxy links, code hashes and implementation addresses verified.");
+        console2.log("TSV governance, six proxy links and implementation addresses verified.");
     }
 
     /// @dev Checks the Anchor's governance links and confirms all six proxies are bound to it.
@@ -54,7 +54,7 @@ contract VerifyDeploymentV1 is ScriptEnvironment {
         }
     }
 
-    /// @dev Checks cross-contract links, external code hashes, SBT configuration and Hook permission bits.
+    /// @dev Checks cross-contract links, external contract code, SBT configuration and Hook permission bits.
     /// @param a Proxy addresses in Registry, Ledger, Inbox, Hook, Router and LP Manager order.
     function _checkLinks(address[6] memory a) private view {
         TSVRegistryV1 registry = TSVRegistryV1(a[0]);
@@ -66,9 +66,7 @@ contract VerifyDeploymentV1 is ScriptEnvironment {
         address poolManager = _envAddress("TSV_POOL_MANAGER");
         address sbt = _envAddress("TSV_SBT");
         if (
-            poolManager.code.length == 0 || sbt.code.length == 0
-                || poolManager.codehash != _envBytes32("TSV_POOL_MANAGER_CODEHASH")
-                || sbt.codehash != _envBytes32("TSV_SBT_CODEHASH") || address(registry.participantSbt()) != sbt
+            poolManager.code.length == 0 || sbt.code.length == 0 || address(registry.participantSbt()) != sbt
                 || registry.sbtTokenId() != _envUint("TSV_SBT_TOKEN_ID") || registry.hook() != a[3]
                 || registry.lpManager() != a[5] || registry.dataInbox() != a[2] || address(ledger.registry()) != a[0]
                 || ledger.hook() != a[3] || ledger.dataInbox() != a[2] || address(inbox.registry()) != a[0]
@@ -81,7 +79,7 @@ contract VerifyDeploymentV1 is ScriptEnvironment {
         ) revert VerificationFailed();
     }
 
-    /// @dev Compares each proxy's implementation and implementation code hash with the deployment manifest.
+    /// @dev Compares each proxy's implementation address with the deployment manifest.
     /// @param a Proxy addresses in Registry, Ledger, Inbox, Hook, Router and LP Manager order.
     function _checkImplementations(address[6] memory a) private view {
         address[6] memory expected = [
@@ -93,22 +91,9 @@ contract VerifyDeploymentV1 is ScriptEnvironment {
             _envAddress("TSV_LP_MANAGER_IMPLEMENTATION")
         ];
         for (uint256 i; i < 6; ++i) {
-            if (
-                expected[i].code.length == 0 || expected[i].codehash != _envBytes32(_hashEnvName(i))
-                    || TSVERC1967Proxy(payable(a[i])).tsvImplementation() != expected[i]
-            ) revert VerificationFailed();
+            if (expected[i].code.length == 0 || TSVERC1967Proxy(payable(a[i])).tsvImplementation() != expected[i]) {
+                revert VerificationFailed();
+            }
         }
-    }
-
-    /// @dev Maps a proxy index to the environment variable containing its implementation code hash.
-    /// @param i Proxy index in Registry, Ledger, Inbox, Hook, Router and LP Manager order.
-    /// @return Environment variable name for the implementation code hash.
-    function _hashEnvName(uint256 i) private pure returns (string memory) {
-        if (i == 0) return "TSV_REGISTRY_IMPLEMENTATION_CODEHASH";
-        if (i == 1) return "TSV_VOLUME_LEDGER_IMPLEMENTATION_CODEHASH";
-        if (i == 2) return "TSV_DATA_INBOX_IMPLEMENTATION_CODEHASH";
-        if (i == 3) return "TSV_HOOK_IMPLEMENTATION_CODEHASH";
-        if (i == 4) return "TSV_SWAP_ROUTER_IMPLEMENTATION_CODEHASH";
-        return "TSV_LP_MANAGER_IMPLEMENTATION_CODEHASH";
     }
 }

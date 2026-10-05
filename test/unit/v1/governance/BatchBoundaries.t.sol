@@ -194,7 +194,7 @@ contract TSVBatchBoundariesTest is SixProxyFixture {
         UpgradePlan memory old = _currentPlan(2);
         UpgradePlan memory plan = _currentPlan(2);
         plan.implementations[0] = address(new RegistryV2());
-        bytes memory freeze = abi.encodeCall(TSVGovernanceAnchor.freezeUpgrades, (keccak256("callback-freeze")));
+        bytes memory freeze = abi.encodeCall(TSVGovernanceAnchor.freezeUpgrades, ());
         plan.calls[0] = abi.encodeCall(
             GovernanceMigrationV2.initializeWithCall,
             (address(guardianContract), abi.encodeCall(GovernorExecutor.execute, (address(anchor), freeze)))

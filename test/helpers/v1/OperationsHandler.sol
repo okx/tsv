@@ -73,7 +73,7 @@ contract OperationsHandler is OperationsFixture {
         bool expected =
             _validMetadata(1, m) && value != 0 && month != 202613 && m.version == modelAdtv[monthIndex].version + 1;
         AdtvReport memory report =
-            AdtvReport(SECURITY, month, value, m.timestamp, m.deadline, m.version, m.sequence, m.id, m.source);
+            AdtvReport(SECURITY, month, value, m.timestamp, m.deadline, m.version, m.sequence, m.id);
         (bool ok,) = address(inbox).call(abi.encodeCall(inbox.submitAdtv, (report)));
         assertEq(ok, expected, "ADTV acceptance differs from model");
         _finishReport(1, m, ok);
@@ -93,9 +93,8 @@ contract OperationsHandler is OperationsFixture {
         bool businessValid =
             action == 2 ? prior.active && value == 0 : action == 1 && value != 0 && hardCap != 0 && value <= hardCap;
         bool expected = _validMetadata(2, m) && businessValid && m.version == prior.version + 1;
-        QuotaReport memory report = QuotaReport(
-            SECURITY, _date(dayIndex), action, value, m.timestamp, m.deadline, m.version, m.sequence, m.id, m.source
-        );
+        QuotaReport memory report =
+            QuotaReport(SECURITY, _date(dayIndex), action, value, m.timestamp, m.deadline, m.version, m.sequence, m.id);
         (bool ok,) = address(inbox).call(abi.encodeCall(inbox.submitQuota, (report)));
         assertEq(ok, expected, "quota acceptance differs from model");
         _finishReport(2, m, ok);
@@ -167,8 +166,7 @@ contract OperationsHandler is OperationsFixture {
             m.deadline,
             m.version,
             m.sequence,
-            m.id,
-            m.source
+            m.id
         );
         (bool ok,) = address(inbox).call(abi.encodeCall(inbox.submitSplitFactor, (report)));
         assertEq(ok, expected, "split factor acceptance differs from model");
@@ -191,19 +189,17 @@ contract OperationsHandler is OperationsFixture {
         vm.warp(modelTime);
     }
 
-    function schedule(uint32 rawOffset, uint8 daysAhead, bool emptyReason) external {
+    function schedule(uint32 rawOffset, uint8 daysAhead) external {
         uint32 offset = uint32(bound(rawOffset, 0, 86399));
         uint256 ordinal = (modelTime - OCTOBER_MIDNIGHT) / 1 days + daysAhead % 4;
         uint32 oldOffset = _offset(ordinal);
         uint256 shift = offset > oldOffset ? offset - oldOffset : oldOffset - offset;
         uint256 count = modelCheckpoints.length;
         bool existingPending = pending && modelTime < _start(modelCheckpoints[count - 1].ordinal);
-        bool expected = !emptyReason && !existingPending && ordinal != 0 && offset != oldOffset && shift <= 4 hours;
+        bool expected = !existingPending && ordinal != 0 && offset != oldOffset && shift <= 4 hours;
         if (ordinal != 0) expected = expected && modelTime < _start(ordinal - 1);
         if (count != 0) expected = expected && ordinal > modelCheckpoints[count - 1].ordinal;
-        bytes32 reason = emptyReason ? bytes32(0) : keccak256(abi.encode("model-schedule", attempt++));
-        (bool ok,) =
-            address(ledger).call(abi.encodeCall(TSVVolumeLedgerV1.scheduleDayStart, (offset, _date(ordinal), reason)));
+        (bool ok,) = address(ledger).call(abi.encodeCall(TSVVolumeLedgerV1.scheduleDayStart, (offset, _date(ordinal))));
         assertEq(ok, expected, "schedule acceptance differs from model");
         if (ok) {
             modelCheckpoints.push(Checkpoint(ordinal, offset));
@@ -211,16 +207,11 @@ contract OperationsHandler is OperationsFixture {
         }
     }
 
-    function cancel(bool emptyReason) external {
+    function cancel() external {
         uint256 count = modelCheckpoints.length;
-        bool expected = !emptyReason && pending && count != 0;
+        bool expected = pending && count != 0;
         if (count != 0) expected = expected && modelTime < _start(modelCheckpoints[count - 1].ordinal - 1);
-        (bool ok,) = address(ledger)
-            .call(
-                abi.encodeCall(
-                    TSVVolumeLedgerV1.cancelPendingDayStart, (emptyReason ? bytes32(0) : keccak256("model-cancel"))
-                )
-            );
+        (bool ok,) = address(ledger).call(abi.encodeCall(TSVVolumeLedgerV1.cancelPendingDayStart, ()));
         assertEq(ok, expected, "cancel acceptance differs from model");
         if (ok) {
             modelCheckpoints.pop();
@@ -302,8 +293,7 @@ contract OperationsHandler is OperationsFixture {
             uint64(modelTime + 100),
             modelSequence[kind] + 1,
             version,
-            keccak256(abi.encode("model-report", ++attempt)),
-            keccak256("source")
+            keccak256(abi.encode("model-report", ++attempt))
         );
         if (fault == 2) m.sequence = modelSequence[kind];
         else if (fault == 3) m.timestamp = uint64(modelTime + 1);

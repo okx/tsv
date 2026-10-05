@@ -163,9 +163,7 @@ contract TradingLPHandler is ProtocolFixture {
         (bool ok,) = address(lpManager)
             .call(
                 forced
-                    ? abi.encodeCall(
-                        TSVLPManagerV1.forceExit, (id, 0, 0, keccak256("model-exit"), keccak256("evidence"))
-                    )
+                    ? abi.encodeCall(TSVLPManagerV1.forceExit, (id, 0, 0, keccak256("model-exit")))
                     : abi.encodeCall(TSVLPManagerV1.closePosition, (id, _pauseTestBounds()))
             );
         assertEq(ok, allowed, "close disagrees with model");
@@ -215,8 +213,7 @@ contract TradingLPHandler is ProtocolFixture {
                 uint64(block.timestamp + 100),
                 version,
                 quotaSequence,
-                keccak256(abi.encode("stateful-quota", quotaSequence)),
-                keccak256("source")
+                keccak256(abi.encode("stateful-quota", quotaSequence))
             )
         );
         modelCap[day] = clear ? 1e24 : cap;

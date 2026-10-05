@@ -29,7 +29,7 @@ contract TSVAdmissionLocalTest is ProtocolFixture {
         uint32 stockCount = registry.activePoolCountByCurrency(address(stock));
         uint32 quoteCount = registry.activePoolCountByCurrency(address(quote));
         vm.expectRevert();
-        lpManager.initializePool(otherPool, 0, keccak256("bad-price"));
+        lpManager.initializePool(otherPool, 0);
         assertEq(uint8(registry.getPool(otherPoolId).status), uint8(PoolStatus.ABSENT));
         assertFalse(registry.isKnownPool(otherPoolId));
         assertEq(registry.activePoolCountByCurrency(address(stock)), stockCount);
@@ -37,7 +37,7 @@ contract TSVAdmissionLocalTest is ProtocolFixture {
         assertEq(registry.getSecurity(SECURITY).activePoolCount, 1);
         (uint160 price,,,) = StateLibrary.getSlot0(manager, PoolId.wrap(otherPoolId));
         assertEq(price, 0);
-        lpManager.initializePool(otherPool, uint160(1 << 96), keccak256("correct-price"));
+        lpManager.initializePool(otherPool, uint160(1 << 96));
         assertEq(uint8(registry.getPool(otherPoolId).status), uint8(PoolStatus.ACTIVE));
         assertEq(registry.getSecurity(SECURITY).activePoolCount, 2);
     }

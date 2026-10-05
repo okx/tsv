@@ -50,7 +50,7 @@ enum LPOperationMode {
     FORCE_EXIT // Removes all liquidity through the authorized forced-exit path.
 }
 
-/// @notice Registry configuration and review metadata for a pool Currency.
+/// @notice Registry configuration for a pool Currency.
 struct TokenConfig {
     /// @notice ERC-20 address used directly as the V4 Currency.
     address poolCurrency;
@@ -64,26 +64,12 @@ struct TokenConfig {
     uint32 legalAdapterVersion;
     /// @notice Current approval or disablement state of the Currency.
     TokenStatus status;
-    /// @notice Runtime code hash required when the token is admitted or re-enabled.
-    bytes32 poolRuntimeCodeHash;
-    /// @notice Runtime code hash recorded for the legal-share adapter.
-    bytes32 legalAdapterCodeHash;
-    /// @notice Off-chain implementation evidence retained for review.
-    bytes32 poolImplementationHash;
-    /// @notice Nonzero digest of the token admission review required for approval.
-    bytes32 reviewHash;
-    /// @notice Off-chain digest of the token's restrictions review.
-    bytes32 restrictionsHash;
-    /// @notice Nonzero digest of the legal-share conversion policy.
-    bytes32 legalSharePolicyHash;
 }
 
 /// @notice Registry state for one listed or delisted security.
 struct SecurityConfig {
     /// @notice Unique internal security identifier.
     bytes32 securityId;
-    /// @notice Unique digest of the display symbol or ticker.
-    bytes32 symbolHash;
     /// @notice Tier whose multiplier sets the security's hard daily volume cap.
     uint8 tierId;
     /// @notice Whether the security is currently listed for pool and report use.

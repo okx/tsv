@@ -19,7 +19,7 @@ contract TSVAdmissionTest is FoundationFixture {
         V1MockIssuerWrapped secondStock = new V1MockIssuerWrapped(secondUnderlying);
         BackedAutoFeeLegalShareAdapter secondAdapter =
             new BackedAutoFeeLegalShareAdapter(address(secondUnderlying), address(secondStock), 1);
-        registry.registerToken(_config(address(secondStock), SECURITY, address(secondAdapter)), keccak256("second"));
+        registry.registerToken(_config(address(secondStock), SECURITY, address(secondAdapter)));
         address a = address(stock) < address(secondStock) ? address(stock) : address(secondStock);
         address b = address(stock) < address(secondStock) ? address(secondStock) : address(stock);
         PoolKey memory bad = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(this)));
@@ -27,18 +27,18 @@ contract TSVAdmissionTest is FoundationFixture {
         registry.registerPendingPool(bad);
     }
 
-    /// @dev Verifies the Registry accepts a direct adapter and stores its policy metadata.
-    function testRegistryAcceptsDirectAdapterAndStoresPolicyMetadata() public {
+    /// @dev Verifies the Registry accepts a direct adapter and stores its configuration.
+    function testRegistryAcceptsDirectAdapterAndStoresConfiguration() public {
         V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
         V1MockIssuerWrapped other = new V1MockIssuerWrapped(otherUnderlying);
         BackedAutoFeeLegalShareAdapter adapter =
             new BackedAutoFeeLegalShareAdapter(address(otherUnderlying), address(other), 1);
         TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
-        registry.registerToken(config, keccak256("wrong-ratio"));
+        registry.registerToken(config);
         TokenConfig memory stored = registry.getToken(address(other));
         assertEq(stored.securityId, SECURITY);
         assertEq(stored.legalShareAdapter, address(adapter));
-        assertEq(stored.legalSharePolicyHash, config.legalSharePolicyHash);
+
         TokenConfig memory quoteConfig = registry.getToken(address(quote));
         assertEq(quoteConfig.securityId, bytes32(0));
         assertEq(quoteConfig.legalShareAdapter, address(0));
@@ -48,21 +48,20 @@ contract TSVAdmissionTest is FoundationFixture {
 
     function testAdmissionAtomicallyListsApprovesAndDefaultsToOpen() public {
         bytes32 securityId = keccak256("new-security");
-        bytes32 symbolHash = keccak256("new-symbol");
-        bytes32 evidenceHash = keccak256("admission-evidence");
+
         TokenConfig memory config = _newStockConfig(securityId);
         vm.expectEmit(true, false, false, true, address(registry));
-        emit TSVRegistryV1.SecurityListed(securityId, symbolHash, 1, evidenceHash);
+        emit TSVRegistryV1.SecurityListed(securityId, 1);
         vm.expectEmit(true, true, false, true, address(registry));
-        emit TSVRegistryV1.TokenRegistered(config.poolCurrency, securityId, evidenceHash);
+        emit TSVRegistryV1.TokenRegistered(config.poolCurrency, securityId);
         vm.expectEmit(true, false, false, true, address(registry));
         emit TSVRegistryV1.TokenStatusChanged(
-            config.poolCurrency, uint8(TokenStatus.ABSENT), uint8(TokenStatus.APPROVED), evidenceHash
+            config.poolCurrency, uint8(TokenStatus.ABSENT), uint8(TokenStatus.APPROVED)
         );
-        registry.admitSecurity(securityId, symbolHash, 1, config, evidenceHash);
+        registry.admitSecurity(securityId, 1, config);
         assertEq(keccak256(abi.encode(registry.getToken(config.poolCurrency))), keccak256(abi.encode(config)));
         assertTrue(registry.getSecurity(securityId).listed);
-        assertEq(registry.getSecurity(securityId).symbolHash, symbolHash);
+
         assertEq(registry.getSecurity(securityId).version, 1);
         assertEq(registry.getSecurity(securityId).activePoolCount, 0);
         assertEq(registry.tierPolicy(1).listedCount, 2);
@@ -72,79 +71,53 @@ contract TSVAdmissionTest is FoundationFixture {
         _assertOperationGates(true, true);
     }
 
-    /// @dev Rejected admissions must release the symbol, Tier slot, and all partial records.
+    /// @dev Rejected admissions must release the Tier slot, and all partial records.
     function testFuzzAdmissionValidationFailureRollsBackAllRecords(uint8 scenario) public {
-        scenario = uint8(bound(scenario, 0, 15));
+        scenario = uint8(bound(scenario, 0, 10));
         bytes32 securityId = keccak256("failed-security");
-        bytes32 symbolHash = keccak256("failed-symbol");
-        bytes32 evidenceHash = keccak256("evidence");
+
         uint8 tierId = 1;
         TokenConfig memory good = _newStockConfig(securityId);
         TokenConfig memory config = abi.decode(abi.encode(good), (TokenConfig));
-        if (scenario == 0) {
-            config.status = TokenStatus.ABSENT;
-        } else if (scenario == 1) {
-            config.status = TokenStatus.DISABLED;
-        } else if (scenario == 2) {
-            config.reviewHash = 0;
-        } else if (scenario == 3) {
-            config.legalSharePolicyHash = 0;
-        } else if (scenario == 4) {
-            config.poolRuntimeCodeHash = keccak256("wrong-code");
-        } else if (scenario == 5) {
-            config.poolDecimals = 6;
-        } else if (scenario == 6) {
-            config.legalAdapterVersion = 2;
-        } else if (scenario == 7) {
-            config.legalShareAdapter = address(stockAdapter);
-            config.legalAdapterCodeHash = address(stockAdapter).codehash;
-        } else if (scenario == 8) {
-            config.legalShareAdapter = address(0);
-        } else if (scenario == 9) {
-            config.legalAdapterCodeHash = keccak256("wrong-adapter-code");
-        } else if (scenario == 10) {
-            config.securityId = SECURITY;
-        } else if (scenario == 11) {
-            config.poolCurrency = address(stock);
-        } else if (scenario == 12) {
-            tierId = 2;
-        } else if (scenario == 13) {
-            evidenceHash = 0;
-        } else if (scenario == 14) {
-            config.poolCurrency = address(0);
-        } else {
-            config.poolDecimals = 19;
-        }
+        if (scenario == 0) config.status = TokenStatus.ABSENT;
+        else if (scenario == 1) config.status = TokenStatus.DISABLED;
+        else if (scenario == 2) config.poolDecimals = 6;
+        else if (scenario == 3) config.legalAdapterVersion = 2;
+        else if (scenario == 4) config.legalShareAdapter = address(stockAdapter);
+        else if (scenario == 5) config.legalShareAdapter = address(0);
+        else if (scenario == 6) config.securityId = SECURITY;
+        else if (scenario == 7) config.poolCurrency = address(stock);
+        else if (scenario == 8) tierId = 2;
+        else if (scenario == 9) config.poolCurrency = address(0);
+        else config.poolDecimals = 19;
         bytes32 tokenBefore = keccak256(abi.encode(registry.getToken(config.poolCurrency)));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(securityId, symbolHash, tierId, config, evidenceHash);
+        registry.admitSecurity(securityId, tierId, config);
         assertEq(registry.getSecurity(securityId).securityId, bytes32(0));
         assertEq(keccak256(abi.encode(registry.getToken(config.poolCurrency))), tokenBefore);
         assertEq(uint8(registry.getToken(good.poolCurrency).status), uint8(TokenStatus.ABSENT));
         assertEq(registry.tierPolicy(1).listedCount, 1);
         assertEq(registry.marketSequence(securityId), 0);
-        // The same symbol and security can be admitted after correcting the rejected input.
-        registry.admitSecurity(securityId, symbolHash, 1, good, keccak256("corrected-evidence"));
+        // The same security can be admitted after correcting the rejected input.
+        registry.admitSecurity(securityId, 1, good);
         assertEq(registry.tierPolicy(1).listedCount, 2);
     }
 
-    function testAdmissionRejectsDuplicateSecurityAndSymbolAndFullTier() public {
+    function testAdmissionRejectsDuplicateSecurityAndFullTier() public {
         bytes32 newSecurity = keccak256("duplicate-test");
         TokenConfig memory config = _newStockConfig(newSecurity);
         config.securityId = SECURITY;
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(SECURITY, keccak256("unused"), 1, config, keccak256("evidence"));
+        registry.admitSecurity(SECURITY, 1, config);
         config.securityId = newSecurity;
+        registry.setTierPolicy(1, 25, 1);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(newSecurity, keccak256("STDx"), 1, config, keccak256("evidence"));
-        registry.setTierPolicy(1, 25, 1, keccak256("capacity"));
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(newSecurity, keccak256("unused"), 1, config, keccak256("evidence"));
+        registry.admitSecurity(newSecurity, 1, config);
         assertEq(registry.tierPolicy(1).listedCount, 1);
         assertEq(registry.getSecurity(newSecurity).securityId, bytes32(0));
         assertEq(uint8(registry.getToken(config.poolCurrency).status), uint8(TokenStatus.ABSENT));
-        registry.setTierPolicy(1, 25, 10, keccak256("capacity-restored"));
-        registry.admitSecurity(newSecurity, keccak256("unused"), 1, config, keccak256("evidence"));
+        registry.setTierPolicy(1, 25, 10);
+        registry.admitSecurity(newSecurity, 1, config);
     }
 
     function testAdmissionAndRegistrationRequireSymbolAdmin() public {
@@ -153,28 +126,25 @@ contract TSVAdmissionTest is FoundationFixture {
         address stranger = makeAddr("admission-stranger");
         vm.expectRevert();
         vm.prank(stranger);
-        registry.admitSecurity(securityId, keccak256("symbol"), 1, config, keccak256("evidence"));
+        registry.admitSecurity(securityId, 1, config);
         V1MockToken otherQuote = new V1MockToken("OTHER_QUOTE", 6);
         config = _config(address(otherQuote), 0, address(0));
         vm.expectRevert();
         vm.prank(stranger);
-        registry.registerToken(config, keccak256("evidence"));
+        registry.registerToken(config);
         assertEq(registry.tierPolicy(1).listedCount, 1);
         assertEq(registry.getSecurity(securityId).securityId, bytes32(0));
     }
 
-    function testQuoteRegistrationApprovesOnceAndRequiresReview() public {
+    function testQuoteRegistrationApprovesOnce() public {
         V1MockToken otherQuote = new V1MockToken("OTHER_QUOTE", 6);
         TokenConfig memory config = _config(address(otherQuote), 0, address(0));
-        config.reviewHash = 0;
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config, keccak256("evidence"));
-        config.reviewHash = keccak256("quote-review");
-        registry.registerToken(config, keccak256("evidence"));
+
+        registry.registerToken(config);
         assertEq(uint8(registry.getToken(address(otherQuote)).status), uint8(TokenStatus.APPROVED));
         assertEq(registry.tierPolicy(1).listedCount, 1);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config, keccak256("duplicate"));
+        registry.registerToken(config);
     }
 
     function testUnknownAssetsStayAbsentAndCannotCreatePools() public {
@@ -186,28 +156,28 @@ contract TSVAdmissionTest is FoundationFixture {
         vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
         registry.registerPendingPool(unknownKey);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setTokenStatus(address(unknown), TokenStatus.APPROVED, keccak256("evidence"));
+        registry.setTokenStatus(address(unknown), TokenStatus.APPROVED);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.marketStatus(keccak256("unknown-security"));
         TokenConfig memory config = _newStockConfig(keccak256("unknown-security"));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config, keccak256("evidence"));
+        registry.registerToken(config);
     }
 
     function testTokenDisableAndReenablePreserveApprovalChecks() public {
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("noop"));
+        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setTokenStatus(address(stock), TokenStatus.ABSENT, keccak256("absent"));
-        registry.setTokenStatus(address(stock), TokenStatus.DISABLED, keccak256("disable"));
+        registry.setTokenStatus(address(stock), TokenStatus.ABSENT);
+        registry.setTokenStatus(address(stock), TokenStatus.DISABLED);
         _assertOperationGates(false, false);
         bytes memory code = address(stock).code;
-        vm.etch(address(stock), hex"00");
+        vm.etch(address(stock), bytes(""));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("changed-code"));
+        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
         assertEq(uint8(registry.getToken(address(stock)).status), uint8(TokenStatus.DISABLED));
         vm.etch(address(stock), code);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED, keccak256("reenable"));
+        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
         _assertOperationGates(true, true);
     }
 
@@ -217,7 +187,7 @@ contract TSVAdmissionTest is FoundationFixture {
         V1SnapshotOnlyAdapterMock adapter = new V1SnapshotOnlyAdapterMock(address(other), 1);
         TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config, keccak256("adapter-rate"));
+        registry.registerToken(config);
     }
 
     /// @dev Verifies the Registry rejects a direct adapter bound to another Currency.
@@ -229,18 +199,18 @@ contract TSVAdmissionTest is FoundationFixture {
         TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
 
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config, keccak256("wrong-currency"));
+        registry.registerToken(config);
     }
 
     /// @dev Verifies a disabled pool is re-enabled only after market and asset checks pass.
     function testDisabledPoolOnlyReenablesAfterMarketAndAssetChecks() public {
-        registry.disablePool(poolId, keccak256("disable"));
+        registry.disablePool(poolId);
         assertEq(registry.activePoolCountByCurrency(address(stock)), 0);
         _submitMarket(MarketAction.HALT, 1, keccak256("halt"));
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.enablePool(poolId, keccak256("enable"));
+        registry.enablePool(poolId);
         _submitMarket(MarketAction.RESUME, 2, keccak256("resume"));
-        registry.enablePool(poolId, keccak256("enable"));
+        registry.enablePool(poolId);
         assertEq(registry.activePoolCountByCurrency(address(stock)), 1);
         assertTrue(registry.isTradable(poolId));
     }
@@ -252,13 +222,7 @@ contract TSVAdmissionTest is FoundationFixture {
         V1MockIssuerWrapped second = new V1MockIssuerWrapped(secondUnderlying);
         BackedAutoFeeLegalShareAdapter secondAdapter =
             new BackedAutoFeeLegalShareAdapter(address(secondUnderlying), address(second), 1);
-        registry.admitSecurity(
-            secondSecurity,
-            keccak256("STDy"),
-            1,
-            _config(address(second), secondSecurity, address(secondAdapter)),
-            keccak256("register-b")
-        );
+        registry.admitSecurity(secondSecurity, 1, _config(address(second), secondSecurity, address(secondAdapter)));
         address a = address(stock) < address(second) ? address(stock) : address(second);
         address b = address(stock) < address(second) ? address(second) : address(stock);
         PoolKey memory twoStocks = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(this)));

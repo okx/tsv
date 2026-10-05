@@ -35,7 +35,7 @@ contract TSVTradingAccountingTest is ProtocolFixture {
         PoolKey memory second = key;
         second.fee = 500;
         second.tickSpacing = 10;
-        lpManager.initializePool(second, uint160(1 << 96), keccak256("second-price"));
+        lpManager.initializePool(second, uint160(1 << 96));
         vm.prank(alice);
         lpManager.openPosition(second, -600, 600, 1e20, _pauseTestBounds());
         inbox.submitQuota(
@@ -48,8 +48,7 @@ contract TSVTradingAccountingTest is ProtocolFixture {
                 uint64(block.timestamp + 100),
                 1,
                 1,
-                keccak256("two-pool-quota"),
-                keccak256("source")
+                keccak256("two-pool-quota")
             )
         );
         bool direction = address(stock) == Currency.unwrap(key.currency0);

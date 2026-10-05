@@ -12,12 +12,12 @@ import {ProtocolFixture} from "../../../helpers/v1/ProtocolFixture.sol";
 contract TSVOperationsPoolCreationLocalTest is ProtocolFixture {
     using PoolIdLibrary for PoolKey;
 
-    function testInvalidPoolKeysPricesAndEvidenceRollBackRegistryAndV4() public {
-        for (uint8 fault; fault < 13; ++fault) {
+    function testInvalidPoolKeysAndPricesRollBackRegistryAndV4() public {
+        for (uint8 fault; fault < 12; ++fault) {
             PoolKey memory candidate = key;
             candidate.fee = 500;
             uint160 price = uint160(1 << 96);
-            bytes32 evidence = keccak256("price-basis");
+
             if (fault == 0) {
                 candidate.hooks = IHooks(address(this));
             } else if (fault == 1) {
@@ -42,19 +42,17 @@ contract TSVOperationsPoolCreationLocalTest is ProtocolFixture {
                 price = TickMath.MIN_SQRT_PRICE - 1;
             } else if (fault == 10) {
                 price = TickMath.MAX_SQRT_PRICE;
-            } else if (fault == 11) {
-                evidence = 0;
             } else {
                 candidate = key; // Duplicate initialization of the original funded pool.
             }
             bytes32 beforeState = _poolState(candidate);
             vm.expectRevert();
-            lpManager.initializePool(candidate, price, evidence);
+            lpManager.initializePool(candidate, price);
             assertEq(_poolState(candidate), beforeState);
         }
         PoolKey memory corrected = key;
         corrected.fee = 500;
-        lpManager.initializePool(corrected, uint160(1 << 96), keccak256("corrected"));
+        lpManager.initializePool(corrected, uint160(1 << 96));
         assertTrue(registry.isKnownPool(PoolId.unwrap(corrected.toId())));
     }
 
@@ -62,13 +60,13 @@ contract TSVOperationsPoolCreationLocalTest is ProtocolFixture {
         PoolKey memory low = key;
         low.fee = 0;
         low.tickSpacing = 1;
-        lpManager.initializePool(low, TickMath.MIN_SQRT_PRICE, keccak256("minimum"));
+        lpManager.initializePool(low, TickMath.MIN_SQRT_PRICE);
         (uint160 price,,,) = StateLibrary.getSlot0(manager, low.toId());
         assertEq(price, TickMath.MIN_SQRT_PRICE);
         PoolKey memory high = key;
         high.fee = 999999;
         high.tickSpacing = 32767;
-        lpManager.initializePool(high, TickMath.MAX_SQRT_PRICE - 1, keccak256("maximum"));
+        lpManager.initializePool(high, TickMath.MAX_SQRT_PRICE - 1);
         (price,,,) = StateLibrary.getSlot0(manager, high.toId());
         assertEq(price, TickMath.MAX_SQRT_PRICE - 1);
         assertEq(registry.getSecurity(SECURITY).activePoolCount, 3);

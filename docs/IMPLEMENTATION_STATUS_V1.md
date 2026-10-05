@@ -1,6 +1,6 @@
 # TSV V1 实现状态
 
-更新：2026-10-04。本文是当前工作区的状态看板：记录源码已实现什么、还缺哪些实现或外部证据。目标流程见[三系统总览](./SYSTEMS_OVERVIEW.md)，行为规范见[编码规格](./CODING_SPEC_V1.md)和[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)，目标验收条件见[测试规格](./TEST_SPEC_V1.md)。日期评审保留其当时结论，不自动代表当前实现。
+更新：2026-10-05。本文是当前工作区的状态看板：记录源码已实现什么、还缺哪些实现或外部证据。目标流程见[三系统总览](./SYSTEMS_OVERVIEW.md)，行为规范见[编码规格](./CODING_SPEC_V1.md)和[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)，目标验收条件见[测试规格](./TEST_SPEC_V1.md)。日期评审保留其当时结论，不自动代表当前实现。
 
 **状态用语：**“已编码”表示源码存在；“部分实现”表示仍缺目标行为或自动防护；“外部阻断”表示须取得发行方、法务或目标链证据。测试规格是目标清单，不代表所有测试已执行。
 
@@ -22,6 +22,7 @@
 | GAP-10 **已编码，本地回归通过** | admitSecurity 原子登记证券及批准首个 Currency；registerToken 登记即批准；取消待审、市场未初始化及首次开市报告，准入后默认 OPEN；市场状态由暂停模式推导 | 报价币已获批时首次运营调用从六次减为三次；ADTV 与建池独立，缺 ADTV 时可提供 LP，但 Swap 全部回滚。准入与真实 V4 回归通过，包含准入回滚的 256 次 fuzz；本版用于全新部署，无旧 ABI/存储迁移 |
 | GAP-11 **已编码** | TimeLock 与专用 Executor 已移除；Governor 单笔 UUPS 升级并初始化，Anchor 支持六代理原子批量升级；恢复提案移至 Anchor；事故控制器已移除，Guardian 可冻结/解冻所有升级，身份恢复不自动解冻 | 新部署初始化 ABI 已简化为 Anchor 与业务依赖；发布仍须验证布局与批量初始化调用者，验收见 G02/G05/G07 |
 | GAP-12 **已编码，完整回归通过** | 独立 `SplitFactorReport` 精确比例按未来计量日开始自动生效，ADTV/Tier 保持；最新未生效项更正/取消；来源月基准、跨月防重复、版本/ID、防溢出、绝对 quota、升级保留 | 报告服务须固定月末单位与公告排期，发行方单位/监控及生产联测仍需证据；实际 Adapter 计股不新增通用归一化，见 TG-10/TG-12 和 D10–D13 |
+| GAP-13 **已编码** | 业务入口、TokenConfig、证券/报告/暂停/恢复/日切结构与事件已移除 hash 参数；部署脚本和 manifest 不再接收代码哈希输入。保留业务 ID、原因码、salt、权限、报告去重/序号和内部回调哈希 | 函数/事件 ABI 与存储布局已改变，须全新部署；链下审查材料按业务 ID、资产地址和交易记录归档；禁止直接升级旧布局实例 |
 | DEPLOY-01 **脚本已编码，本地预测已测** | DeployGovernanceV1 与 DeployCoreV1 分阶段部署；六代理地址及 Hook 依赖 Router/LP Manager 地址的 CREATE/CREATE2 预测有回归 | 尚未在目标链广播；按[部署清单](./DEPLOYMENT_CHECKLIST_V1.md)完成绑定、SBT、角色及发布后快照 |
 
 ## 2. 规格与发布门禁
@@ -30,7 +31,7 @@
 
 | ID | 尚待确认 | 权威来源 |
 | --- | --- | --- |
-| SPEC-01 | 固定 Anchor 代码哈希、身份恢复演练和业务代理升级存储布局检查仍须作为发布证据完成 | [编码规格 `9](./CODING_SPEC_V1.md#9-代理角色和升级)、[部署清单 `9](./DEPLOYMENT_CHECKLIST_V1.md#9-治理身份恢复和升级) |
+| SPEC-01 | 固定 Anchor 构建与部署来源、身份恢复演练和业务代理升级存储布局检查仍须作为发布证据完成 | [编码规格 `9](./CODING_SPEC_V1.md#9-代理角色和升级)、[部署清单 `9](./DEPLOYMENT_CHECKLIST_V1.md#9-治理身份恢复和升级) |
 | SPEC-02 | 每个生产资产的发行方预告期、法律生效时间和可暂停性须确认；链上无法自动识别未预告的法律单位切换 | [准入标准 `4](./TOKEN_ADMISSION_STANDARD_V1.md#4-公司行动与数据单位) |
 
 前端股数展示及换算使用发行方认可的持仓权益定义，并把结果换算为现有 raw Swap/LP 参数。逐笔 Adapter 的 `toLegalShares` 不能替代用户账户持仓权益读取；当前 Adapter ABI 也不提供从股数预算反算 raw 数量的方法；V1 不增加股数输入合约入口。
@@ -46,6 +47,8 @@
 | EXT-05 | 补充仓库内 lib/v4-core 的上游来源/版本证明和固定构建记录；Git 基线及报告 ABI 变更记录已建立 |
 
 ## 3. 本地验证记录
+
+2026-10-05 移除业务 hash 参数后的完整优化回归：`make test` **372 通过、0 失败、0 跳过**（unit 235、local 137，63 个不联网套件），包含 7 项 invariant（默认每项 64 轮 × 32 步）和默认 256 次 fuzz。固定 X Layer 区块 **72,271,000 / chainId 196** 的 `make test-xlayer` **11 通过、0 失败、0 跳过**。`make check` 通过；8 个 TSV 合约的编译 ABI 均无 hash 参数、返回字段或事件字段，最大运行时代码为 Registry 的 **17,443 字节**。文档中 8 处结构体字段顺序与源码一致，当前文档链接校验通过；manifest 使用 `tsv-v1-deployment-5`。本轮改变 ABI 与存储布局，须全新部署。日志在忽略的 `out/hash-parameter-tests.log`、`out/hash-parameter-xlayer.log`，ABI/体积校验记录在 `out/hash-parameter-validation.json`。下方为此前版本的历史执行记录。
 
 2026-10-01 旧 Swap Adapter/状态设计下的历史完整套件记录为 **62 个通过、0 个失败、0 个跳过**，包含已删除的 ERC-8056 反算测试，不作为当前实现的验证。2026-10-02 直接换算 Adapter 和 Hook 流程变更后，`FOUNDRY_PROFILE=unit forge test --summary` 为 **38 通过、0 失败、0 跳过**，`FOUNDRY_PROFILE=local forge test --summary` 为 **23 通过、0 失败、0 跳过**；`FOUNDRY_PROFILE=unit forge build --skip test --sizes` 编译成功。本次覆盖 Backed Adapter 的 source/currency/零值校验及接入真实 V4 的两向 Swap、LP raw 结算。合约未部署，因此当前 Router/Hook 布局按新实现直接定义，不保留旧 Swap 专用槽。
 

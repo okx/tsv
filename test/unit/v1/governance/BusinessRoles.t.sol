@@ -14,7 +14,7 @@ contract TSVBusinessRolesTest is FoundationFixture {
         address next = makeAddr("new-governor");
         assertTrue(registry.hasRole(0, address(this)));
         vm.prank(council);
-        bytes32 id = anchor.proposeRecovery(next, guardian, keccak256("foundation-recovery"), keccak256("recovery"));
+        bytes32 id = anchor.proposeRecovery(next, guardian, keccak256("foundation-recovery"));
         vm.prank(guardian);
         anchor.approveRecovery(id);
         anchor.executeRecovery(id);
@@ -23,7 +23,7 @@ contract TSVBusinessRolesTest is FoundationFixture {
         vm.expectRevert(
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0))
         );
-        registry.setTierPolicy(2, 25, 1, keccak256("tier2"));
+        registry.setTierPolicy(2, 25, 1);
     }
 
     function testDefaultAdminCannotBeGranted() public {
@@ -111,7 +111,7 @@ contract TSVBusinessRolesTest is FoundationFixture {
         bytes32 role = registry.SYMBOL_ADMIN_ROLE();
         registry.grantRole(role, council);
         vm.prank(council);
-        bytes32 id = anchor.proposeRecovery(next, guardian, keccak256("roles"), keccak256("evidence"));
+        bytes32 id = anchor.proposeRecovery(next, guardian, keccak256("roles"));
         vm.prank(guardian);
         anchor.approveRecovery(id);
         anchor.executeRecovery(id);
@@ -122,11 +122,11 @@ contract TSVBusinessRolesTest is FoundationFixture {
         vm.expectRevert(denied);
         registry.revokeRole(role, council);
         vm.expectRevert(denied);
-        registry.setTierPolicy(2, 25, 1, keccak256("tier2"));
+        registry.setTierPolicy(2, 25, 1);
         vm.startPrank(next);
         registry.grantRole(role, guardian);
         registry.revokeRole(role, council);
-        registry.setTierPolicy(2, 25, 1, keccak256("tier2"));
+        registry.setTierPolicy(2, 25, 1);
         vm.stopPrank();
         assertTrue(registry.hasRole(role, guardian));
         assertFalse(registry.hasRole(role, council));

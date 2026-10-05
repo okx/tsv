@@ -175,20 +175,18 @@ contract TSVLiquidityBoundariesTest is ProtocolFixture {
         lpManager.unlockCallback("");
     }
 
-    function testForceExitRequiresAuthorityReasonAndEvidenceAndCannotRepeat() public {
+    function testForceExitRequiresAuthorityAndReasonAndCannotRepeat() public {
         bytes32 beforeState = _swapStateDigest(DAY);
         vm.expectRevert(TSVLPManagerV1.Unauthorized.selector);
-        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"));
         vm.expectRevert(TSVLPManagerV1.InvalidPosition.selector);
-        lpManager.forceExit(positionId, 0, 0, 0, keccak256("evidence"));
-        vm.expectRevert(TSVLPManagerV1.InvalidPosition.selector);
-        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), 0);
+        lpManager.forceExit(positionId, 0, 0, 0);
         assertEq(_swapStateDigest(DAY), beforeState);
         lpManager.grantRole(lpManager.FORCE_EXIT_ADMIN_ROLE(), address(this));
         lpManager.revokeRole(lpManager.REVOKE_EXIT_EXECUTOR_ROLE(), address(this));
-        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"));
         vm.expectRevert(TSVLPManagerV1.InvalidPosition.selector);
-        lpManager.forceExit(positionId, 0, 0, keccak256("reason"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("reason"));
     }
 
     function _rejectAllOwnerOperations(address actor, uint256 id, bytes4 reason) internal {

@@ -15,7 +15,7 @@
 | 运营测试完整度 | [运营测试 review](./OPERATIONS_TEST_REVIEW_V1.md) | 运营入口逐项覆盖、新增证据与生产/链下验收缺口 |
 | 当前实现证据 | [实现状态](./IMPLEMENTATION_STATUS_V1.md) | 已实现范围、缺口、外部阻断及本地验证记录 |
 | 部署与治理操作 | [部署清单](./DEPLOYMENT_CHECKLIST_V1.md) | 部署顺序、配置步骤、发布门禁、身份恢复与升级冻结 |
-| 单只股票市场开通 | [如何开启一只股票市场](./如何开启一只股票市场/README.md) | 从证券与 Token 准入到建池、加流动性、首笔 Swap 和持续运营 |
+| 单只股票市场开通 | [Opening a Stock Market](./OPENING_A_STOCK_MARKET_V1.md) | 当前开通流程、流程图、函数参数与权限、首笔成交验收及持续运营 |
 | 外部 DEX Router / Adapter 接入 | [外部 DEX Router 与 Adapter 接入 TSV](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) | TSV Adapter 专用交易入口、caller 身份传递及外部仓库配合事项 |
 | 部署参数输入 | [Manifest 模板](./DEPLOYMENT_MANIFEST_V1.example.json) | 部署脚本所需字段的示例结构 |
 
@@ -25,7 +25,7 @@
 - **新增或改动合约接口：**编码规格、代币准入标准、测试规格。
 - **判断是否达到发布条件：**实现状态、测试规格、部署清单。
 - **安排后续测试工作：**[测试缺口统一清单](./TEST_GAPS_V1.md)，已执行证据见[覆盖矩阵](./TEST_COVERAGE_V1.md)。
-- **开通一只新股票市场：**[完整流程图与操作步骤](./如何开启一只股票市场/README.md)。
+- **开通一只新股票市场：**[Opening a Stock Market](./OPENING_A_STOCK_MARKET_V1.md)。
 - **追溯当时的评审发现：**下方历史评审材料。
 
 ## 历史评审材料

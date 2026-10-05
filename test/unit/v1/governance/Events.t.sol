@@ -20,30 +20,28 @@ contract TSVGovernanceEventsTest is SixProxyFixture {
         _execute(plan);
     }
 
-    function testFreezeAndUnfreezeEventsContainIncidentAndEvidence() public {
-        bytes32 reason = keccak256("risk");
-        bytes32 evidence = keccak256("resolved");
-        bytes32 expectedId = keccak256(abi.encode(block.chainid, address(anchor), uint64(1), guardian, reason));
+    function testFreezeAndUnfreezeEventsIdentifyIncidentAndGuardian() public {
+        bytes32 expectedId = keccak256(abi.encode(block.chainid, address(anchor), uint64(1), guardian));
         vm.expectEmit(true, true, false, true, address(anchor));
-        emit TSVGovernanceAnchor.UpgradesFrozen(expectedId, guardian, reason);
+        emit TSVGovernanceAnchor.UpgradesFrozen(expectedId, guardian);
         vm.prank(guardian);
-        assertEq(anchor.freezeUpgrades(reason), expectedId);
+        assertEq(anchor.freezeUpgrades(), expectedId);
         vm.expectEmit(true, true, false, true, address(anchor));
-        emit TSVGovernanceAnchor.UpgradesUnfrozen(expectedId, guardian, evidence);
+        emit TSVGovernanceAnchor.UpgradesUnfrozen(expectedId, guardian);
         vm.prank(guardian);
-        anchor.unfreezeUpgrades(expectedId, evidence);
+        anchor.unfreezeUpgrades(expectedId);
     }
 
     function testProposalApprovalRevocationAndCancellationEvents() public {
         address next = makeAddr("next-governor");
         bytes32 salt = keccak256("event-salt");
-        bytes32 evidence = keccak256("event-evidence");
+
         bytes32 expectedId =
-            keccak256(abi.encode(block.chainid, address(anchor), uint64(0), uint64(0), next, guardian, salt, evidence));
+            keccak256(abi.encode(block.chainid, address(anchor), uint64(0), uint64(0), next, guardian, salt));
         vm.expectEmit(true, false, false, true, address(anchor));
-        emit TSVGovernanceAnchor.RecoveryProposed(expectedId, next, guardian, evidence);
+        emit TSVGovernanceAnchor.RecoveryProposed(expectedId, next, guardian);
         vm.prank(council);
-        bytes32 id = anchor.proposeRecovery(next, guardian, salt, evidence);
+        bytes32 id = anchor.proposeRecovery(next, guardian, salt);
         assertEq(id, expectedId);
         vm.expectEmit(true, false, false, true, address(anchor));
         emit TSVGovernanceAnchor.RecoveryApprovalChanged(id, true);
@@ -68,7 +66,7 @@ contract TSVGovernanceEventsTest is SixProxyFixture {
         vm.expectEmit(true, true, false, true, address(anchor));
         emit TSVGovernanceAnchor.GuardianSynced(guardian, nextGuardian, 1);
         vm.expectEmit(true, true, false, true, address(anchor));
-        emit TSVGovernanceAnchor.AuthoritiesRecovered(address(this), nextGovernor, nextGuardian, keccak256("evidence"));
+        emit TSVGovernanceAnchor.AuthoritiesRecovered(address(this), nextGovernor, nextGuardian);
         anchor.executeRecovery(id);
     }
 }

@@ -16,7 +16,7 @@ import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 /// @notice Deploys six initialized business proxies with an actual CREATE2 Hook address.
 /// @dev Governance binding, SBT configuration and asset approvals remain separate governance transactions.
 contract DeployCoreV1 is ScriptEnvironment {
-    /// @dev Reverts when the chain, external contracts, code hashes, or governance links are invalid.
+    /// @dev Reverts when the chain, external contracts, or governance links are invalid.
     error InvalidDeploymentInput();
     /// @dev Reverts when a deployed address or linked component differs from its prediction.
     error AddressPredictionMismatch();
@@ -30,14 +30,10 @@ contract DeployCoreV1 is ScriptEnvironment {
     struct Input {
         /// @dev V4 PoolManager used by the Hook, Router and LP Manager.
         address poolManager;
-        /// @dev Expected deployed bytecode hash for `poolManager`.
-        bytes32 poolManagerCodeHash;
         /// @dev Fixed governance root storing identities and the global upgrade switch.
         TSVGovernanceAnchor anchor;
         /// @dev Participant SBT used by the Registry for credential checks.
         address sbt;
-        /// @dev Expected deployed bytecode hash for `sbt`.
-        bytes32 sbtCodeHash;
         /// @dev SBT token identifier required for participant eligibility.
         uint256 sbtTokenId;
         /// @dev UTC seconds after midnight at which a trade day begins.
@@ -219,28 +215,24 @@ contract DeployCoreV1 is ScriptEnvironment {
         );
     }
 
-    /// @dev Loads addresses, code hashes, SBT identity and trade-day offset from environment variables.
+    /// @dev Loads addresses, SBT identity and trade-day offset from environment variables.
     /// @return input Deployment configuration read from the environment.
     function _loadInput() internal view returns (Input memory input) {
         input.poolManager = _envAddress("TSV_POOL_MANAGER");
-        input.poolManagerCodeHash = _envBytes32("TSV_POOL_MANAGER_CODEHASH");
         input.anchor = TSVGovernanceAnchor(_envAddress("TSV_GOVERNANCE_ANCHOR"));
         input.sbt = _envAddress("TSV_SBT");
-        input.sbtCodeHash = _envBytes32("TSV_SBT_CODEHASH");
         input.sbtTokenId = _envUint("TSV_SBT_TOKEN_ID");
         uint256 offset = _envUint("TSV_DAY_START_OFFSET_SECONDS");
         if (offset >= 86_400) revert InvalidDeploymentInput();
         input.dayStartOffset = uint32(offset);
     }
 
-    /// @dev Verifies chain, code hashes and the pre-bound governance relationships before broadcasting.
+    /// @dev Verifies chain, external contract code and the pre-bound governance relationships before broadcasting.
     /// @param input Deployment configuration to validate.
     function _checkInput(Input memory input) internal view {
         if (
             block.chainid != _envUint("TSV_CHAIN_ID") || input.poolManager.code.length == 0
-                || input.poolManagerCodeHash == 0 || input.poolManager.codehash != input.poolManagerCodeHash
-                || input.sbt.code.length == 0 || input.sbtCodeHash == 0 || input.sbt.codehash != input.sbtCodeHash
-                || address(input.anchor).code.length == 0 || input.anchor.proxiesBound()
+                || input.sbt.code.length == 0 || address(input.anchor).code.length == 0 || input.anchor.proxiesBound()
                 || input.anchor.governor() != _envAddress("TSV_GOVERNOR")
                 || input.anchor.guardian() != _envAddress("TSV_GUARDIAN")
                 || input.anchor.recoveryCouncil() != _envAddress("TSV_RECOVERY_COUNCIL")

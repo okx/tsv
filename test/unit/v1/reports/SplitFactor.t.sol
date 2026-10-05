@@ -101,7 +101,7 @@ contract TSVSplitFactorTest is SplitFactorFixture {
 
     function testFactorsAreIndependentAcrossSecurities() public {
         bytes32 second = keccak256("SEC_FACTOR_B");
-        _admitAdditionalSecurity(second, keccak256("FACTOR_B"));
+        _admitAdditionalSecurity(second);
         _submitAdtv(1000e18);
         inbox.submitAdtv(_adtv(second, 1000e18, 1, 1, keccak256("second-adtv")));
         _setFactor(20261002, 2, 1, 1, 1);
@@ -182,7 +182,7 @@ contract TSVSplitFactorTest is SplitFactorFixture {
         for (uint8 variant; variant < 2; ++variant) {
             uint256 snapshot = vm.snapshotState();
             _setFactor(20261004, 2, 1, 1, 1);
-            ledger.scheduleDayStart(variant == 0 ? 0 : 28800, 20261004, keccak256("day-start"));
+            ledger.scheduleDayStart(variant == 0 ? 0 : 28800, 20261004);
             uint256 start = ledger.dayStartUTC(20261004);
             vm.warp(start - 1);
             (, uint32 day) = ledger.currentTradeDay();
@@ -217,7 +217,7 @@ contract TSVSplitFactorTest is SplitFactorFixture {
     function testTierAndAdtvCorrectionsStillParticipateInTheAdjustedCap() public {
         _submitAdtv(1000e18);
         _setFactor(20261002, 2, 1, 1, 1);
-        registry.setTierPolicy(1, 50, 10, keccak256("tier-correction"));
+        registry.setTierPolicy(1, 50, 10);
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 10e18);
         inbox.submitAdtv(_adtv(SECURITY, 2000e18, 2, 2, keccak256("same-basis-correction")));
@@ -227,7 +227,7 @@ contract TSVSplitFactorTest is SplitFactorFixture {
     }
 
     function testCapUsesOneFinalFloorInsteadOfFlooringBeforeApplyingTheFactor() public {
-        registry.setTierPolicy(1, 5000, 10, keccak256("half"));
+        registry.setTierPolicy(1, 5000, 10);
         _submitAdtv(3);
         _setFactor(20261002, 2, 1, 1, 1);
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);

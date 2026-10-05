@@ -77,9 +77,9 @@ contract TSVStatefulGovernanceTest is SixProxyFixture {
         handler.upgradeBatch(0, 5);
         assertEq(handler.successfulRecoveries(), 1);
         assertEq(handler.successfulUpgrades(), 0);
-        handler.unfreeze(0, false, false);
-        handler.unfreeze(1, true, false);
-        handler.unfreeze(1, false, false);
+        handler.unfreeze(0, false);
+        handler.unfreeze(1, true);
+        handler.unfreeze(1, false);
         handler.upgradeBatch(0, 5);
         assertEq(handler.successfulUpgrades(), 6);
         invariantIdentitiesAndEpochsMatchApprovedRecoveries();

@@ -40,7 +40,7 @@ contract TSVSixProxyMigrationLocalTest is ProtocolFixture {
         sbt.setHolder(alice, false);
         uint256 stockBefore = stock.balanceOf(alice);
         uint256 quoteBefore = quote.balanceOf(alice);
-        lpManager.forceExit(positionId, 0, 0, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("revoke"));
         assertFalse(lpManager.getPosition(positionId).active);
         assertGt(stock.balanceOf(alice), stockBefore);
         assertGt(quote.balanceOf(alice), quoteBefore);
@@ -65,13 +65,12 @@ contract TSVSixProxyMigrationLocalTest is ProtocolFixture {
     function testFrozenRecoveryPreservesFundedPositionsAndBothUpgradeEntrypointsStayClosed() public {
         address oldGuardian = anchor.guardian();
         vm.prank(oldGuardian);
-        bytes32 freeze = anchor.freezeUpgrades(keccak256("governor-risk"));
+        bytes32 freeze = anchor.freezeUpgrades();
         bytes32 beforeRecovery = _businessStateDigest();
         address nextGovernor = makeAddr("recovered-governor");
         address nextGuardian = makeAddr("recovered-guardian");
         vm.prank(anchor.recoveryCouncil());
-        bytes32 id =
-            anchor.proposeRecovery(nextGovernor, nextGuardian, keccak256("frozen-recovery"), keccak256("evidence"));
+        bytes32 id = anchor.proposeRecovery(nextGovernor, nextGuardian, keccak256("frozen-recovery"));
         vm.prank(oldGuardian);
         anchor.approveRecovery(id);
         vm.prank(makeAddr("executor"));
@@ -91,9 +90,9 @@ contract TSVSixProxyMigrationLocalTest is ProtocolFixture {
         registry.upgradeToAndCall(implementations[0], "");
         vm.prank(oldGuardian);
         vm.expectRevert(TSVGovernanceAnchor.Unauthorized.selector);
-        anchor.unfreezeUpgrades(freeze, keccak256("resolved"));
+        anchor.unfreezeUpgrades(freeze);
         vm.prank(nextGuardian);
-        anchor.unfreezeUpgrades(freeze, keccak256("resolved"));
+        anchor.unfreezeUpgrades(freeze);
         vm.prank(nextGovernor);
         registry.upgradeToAndCall(implementations[0], "");
         _assertDirectLpLifecycle();
@@ -101,13 +100,13 @@ contract TSVSixProxyMigrationLocalTest is ProtocolFixture {
 
     function testUpgradeFreezeAllowsReportsConfigurationPauseAndForcedExit() public {
         vm.prank(anchor.guardian());
-        bytes32 freeze = anchor.freezeUpgrades(keccak256("upgrade-risk"));
+        bytes32 freeze = anchor.freezeUpgrades();
         uint256 pauseId = _seedBusinessState();
         assertTrue(inbox.reportIdUsed(keccak256("migration-quota")));
-        registry.setTierPolicy(2, 25, 2, keccak256("new-tier"));
+        registry.setTierPolicy(2, 25, 2);
         registry.clearEmergencyPause(pauseId, keccak256("resume"));
         sbt.setHolder(alice, false);
-        lpManager.forceExit(positionId, 0, 0, keccak256("revoke"), keccak256("evidence"));
+        lpManager.forceExit(positionId, 0, 0, keccak256("revoke"));
         assertFalse(lpManager.getPosition(positionId).active);
         assertTrue(anchor.upgradesFrozen());
         assertEq(anchor.freezeId(), freeze);
@@ -116,28 +115,11 @@ contract TSVSixProxyMigrationLocalTest is ProtocolFixture {
     function _seedBusinessState() private returns (uint256 pauseId) {
         _seedPauseTestFees();
         uint64 now_ = uint64(block.timestamp);
-        inbox.submitQuota(
-            QuotaReport(
-                SECURITY,
-                DAY,
-                1,
-                1e22,
-                now_ - 1,
-                now_ + 100,
-                1,
-                1,
-                keccak256("migration-quota"),
-                keccak256("quota-source")
-            )
-        );
+        inbox.submitQuota(QuotaReport(SECURITY, DAY, 1, 1e22, now_ - 1, now_ + 100, 1, 1, keccak256("migration-quota")));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
         pauseId = registry.addEmergencyPause(
-            PauseScope.POOL,
-            PoolId.unwrap(key.toId()),
-            PauseMode.ALL,
-            keccak256("migration-pause"),
-            keccak256("pause-source")
+            PauseScope.POOL, PoolId.unwrap(key.toId()), PauseMode.ALL, keccak256("migration-pause")
         );
     }
 
