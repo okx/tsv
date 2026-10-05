@@ -13,6 +13,9 @@ via_ir = true
 bytecode_hash = "none"
 
 remappings = [
+  "dex-adapters/=lib/dex-adapters/src/",
+  "lib/dex-adapters/:@interfaces/=lib/dex-adapters/src/interfaces/",
+  "lib/dex-adapters/:@libraries/=lib/dex-adapters/src/libraries/",
   "v4-core/=lib/v4-core/src/",
   "tsv-v1/=src/v1/",
   "forge-std/=lib/v4-core/lib/forge-std/src/",

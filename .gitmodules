@@ -10,3 +10,6 @@
 [submodule "lib/TestToken/securitize-dstoken"]
 	path = lib/TestToken/securitize-dstoken
 	url = https://github.com/securitize-io/dstoken.git
+[submodule "lib/dex-adapters"]
+	path = lib/dex-adapters
+	url = git@gitlab.okg.com:web3-dex/GitHub-Web3-DEX-Adapters-EVM.git

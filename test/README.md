@@ -10,7 +10,7 @@
 | --- | --- |
 | Governor 单笔升级、Guardian 冻结、身份恢复、角色保护、代理绑定、批量升级、治理事件 | `unit/v1/governance/` |
 | 交易 + LP 随机序列、独立仓位/额度/资产模型 | `integration/local/trading/StatefulTradingLP.t.sol` |
-| 固定区块链上 DexRouter/授权合约 → 测试 Adapter → TSV/V4/LP | `integration/xlayer/DexRouterFlow.t.sol` |
+| 固定区块链上 DexRouter/授权合约 → 固定上游 TSVAdapter → TSV/V4/LP | `integration/xlayer/DexRouterFlow.t.sol` |
 | 治理随机操作序列 | `unit/v1/governance/StatefulGovernance.t.sol` |
 | CREATE/CREATE2 预测与 Hook 权限地址 | `unit/v1/deployment/HookFactory.t.sol` |
 | 证券/Token/池准入与业务暂停 | `unit/v1/registry/` |
@@ -41,7 +41,7 @@
 | `helpers/v1/ProtocolFixture.sol` | 真实本地 V4 PoolManager、行为 mock、已注资的 LP 仓位 |
 | `helpers/v1/GovernanceUpgradeMocks.sol` | 追加存储的兼容 V2、失败迁移、外部写入、授权回调和角色测试替身 |
 | `helpers/v1/TradingLPHandler.sol` | 十类操作混合序列；独立计算每笔法定股数、每日额度、两 owner 的仓位/Receipt、资产守恒及 V4 零欠款 |
-| `helpers/v1/DexRouterTestAdapter.sol` | 测试用 DEX callback、认证参与者、精确授权/结算及部分成交退款 |
+| `helpers/v1/TSVAdapterFixture.sol` | 为真实上游 TSVAdapter 构造 EIP-2098 测试签名、单次 nonce 和 caller/refund marker；不重实现兑换逻辑 |
 | `helpers/v1/GovernanceHandler.sol` | 独立维护身份、审批、冻结与实现地址模型；随机合法/非法调用后比较实际状态 |
 
 `GovernorExecutor` 验证合约账户调用治理入口及授权回调，不代表 Safe 或生产多签的签名、门槛、模块和执行方式已经验证。V2 替身证明示例布局的兼容性，每个真实候选版本仍需单独核验布局和迁移。
