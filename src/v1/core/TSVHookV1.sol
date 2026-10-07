@@ -104,18 +104,16 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         return IHooks.beforeInitialize.selector;
     }
 
-    /// @notice Confirms that PoolManager completed initialization for a pending TSV pool.
-    /// @param sender Contract that initiated PoolManager.initialize.
-    /// @param key Full V4 pool key that was initialized.
+    /// @notice Acknowledges initialization already validated by beforeInitialize.
+    /// @dev Between callbacks, the trusted PoolManager only initializes internal pool state and emits its event.
     /// @return V4 callback selector acknowledging this Hook callback.
-    function afterInitialize(address sender, PoolKey calldata key, uint160, int24)
+    function afterInitialize(address, PoolKey calldata, uint160, int24)
         external
         view
         override
         onlyPoolManager
         returns (bytes4)
     {
-        _requirePending(sender, key);
         return IHooks.afterInitialize.selector;
     }
 
