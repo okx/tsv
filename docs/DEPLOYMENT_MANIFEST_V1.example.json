@@ -24,7 +24,7 @@
     "registryStorageLayoutArtifact": "docs/artifacts/TSVRegistryV1.storage-layout.json",
     "registryAbiArtifact": "docs/artifacts/TSVRegistryV1.abi.json",
     "registryRuntimeSizeBytes": 23851,
-    "permissionedValidationLibraryRuntimeSizeBytes": 15446,
+    "permissionedValidationLibraryRuntimeSizeBytes": 15410,
     "routerStorageLayoutArtifact": "docs/artifacts/TSVSwapRouterV1.storage-layout.json",
     "routerAbiArtifact": "docs/artifacts/TSVSwapRouterV1.abi.json",
     "routerConstructorParameters": [
@@ -36,8 +36,8 @@
       "registry",
       "swapRouter"
     ],
-    "routerRuntimeSizeBytes": 23705,
-    "routerInitcodeSizeBytes": 24249,
+    "routerRuntimeSizeBytes": 23816,
+    "routerInitcodeSizeBytes": 24360,
     "permissionedValidationLibraryStorageLayoutArtifact": "docs/artifacts/PermissionedValidationLib.storage-layout.json",
     "sharedRegistryInterfaceAbiArtifact": "docs/artifacts/ITSVPermissionedRegistry.abi.json",
     "bytecodeHash": "none"
@@ -140,11 +140,11 @@
     "issuerPermissionEvidence": [],
     "localTestEvidence": {
       "command": "forge test -vv",
-      "suiteCount": 45,
-      "passed": 274,
+      "suiteCount": 46,
+      "passed": 279,
       "failed": 0,
       "skipped": 0,
-      "wrappedSwapTests": 27,
+      "wrappedSwapTests": 30,
       "deferredFilesExcluded": 29
     }
   },

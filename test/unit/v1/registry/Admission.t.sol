@@ -18,6 +18,7 @@ import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces
 import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 import {V1MockToken} from "../../../helpers/v1/FoundationMocks.sol";
+import {V1MockIssuerWrapped} from "../../../helpers/v1/MockIssuerTokens.sol";
 import {V1ConfigReceiver} from "../../../helpers/v1/PermissionedMocks.sol";
 
 contract TSVAdmissionTest is FoundationFixture {
@@ -34,6 +35,35 @@ contract TSVAdmissionTest is FoundationFixture {
         assertEq(registry.getUnderlying(c.underlying).rawDecimals, 18);
         assertTrue(registry.getSecurity(securityId).listed);
         assertEq(registry.tierPolicy(1).listedCount, 2);
+    }
+
+    function testFirstAdmissionPreservesExistingPoolManagerUnderlying() public {
+        bytes32 securityId = keccak256("prefunded-security");
+        PermissionedAdmission memory a = _newStockConfig(securityId);
+        V1MockIssuerWrapped u = V1MockIssuerWrapped(address(PermissionsAdapter(a.currency).PERMISSIONED_TOKEN()));
+        address donor = makeAddr("admission-donor");
+        u.mintTestShares(donor, 1);
+        vm.prank(donor);
+        u.transfer(address(manager), 1);
+        registry.admitPermissionedSecurity(1, a);
+        assertEq(uint8(registry.getCurrency(a.currency).status), uint8(AssetStatus.APPROVED));
+        assertEq(u.balanceOf(address(manager)), 1);
+        assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
+        assertEq(PermissionsAdapter(a.currency).balanceOf(address(manager)), 0);
+        assertEq(registry.tierPolicy(1).listedCount, 2);
+    }
+
+    function testAdditionalWrapperPreservesExistingPoolManagerUnderlying() public {
+        address donor = makeAddr("additional-wrapper-donor");
+        stockToken.mintTestShares(donor, 1);
+        vm.prank(donor);
+        stockToken.transfer(address(manager), 1);
+        PermissionedAdmission memory a = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        registry.registerPermissionedCurrency(a);
+        assertEq(uint8(registry.getCurrency(a.currency).status), uint8(AssetStatus.APPROVED));
+        assertEq(stockToken.balanceOf(address(manager)), 1);
+        assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
+        assertEq(registry.tierPolicy(1).listedCount, 1);
     }
 
     function testFuzzAdmissionFailureRollsBackSecurityTierAndAsset(uint8 fault) public {

@@ -7,6 +7,7 @@
 | 范围 | 文件 / 验证目标 |
 | --- | --- |
 | Wrapped 四条资金路径 | `integration/local/trading/WrappedSwap.t.sol`：U↔Q exact-in/exact-out、事件和 Ledger 一次计量、验证保证金、共享额度、LP/协议费、转账与库存故障、合约钱包、Adapter 拒绝。 |
+| Wrapped U 余额基线 | `integration/local/trading/WrappedInventory.t.sol`：普通转入后四条路径保持 PM/Router 既有 U 余额不变；少付或交易中余额变化时整体回滚，并可重试。 |
 | Wrapped 策略与身份 | `integration/local/trading/WrappedPolicy.t.sol`：owner/checker/wrapper/Hook/SBT/状态拒绝，支付回调变更导致整笔回滚，原始用户从首次资格读取可见，U 授权 Router，不可变 PM/R 初始化及升级。 |
 | Wrapped 成交与回调边界 | `integration/local/trading/WrappedBoundaries.t.sol`：部分成交、exact-out 不足/超额拒绝、滑点、过期/畸形请求、单次回调与重入/重放、settle 支付一致性、18/6 精度与非 1:1 法律计股。 |
 | Registry 与 Hook/Ledger 消费者 | `unit/v1/registry/`：真实 Factory/W、准入和三表、环境绑定、checker、状态/版本、owner/exitAdmin、U canonical Adapter、报价隔离；消费者注入 delta 仅用于计量验证。 |

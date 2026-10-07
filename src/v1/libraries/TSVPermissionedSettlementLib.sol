@@ -16,6 +16,8 @@ library TSVPermissionedSettlementLib {
         uint256 collateral;
         uint256 supply;
         uint256 pmBalance;
+        uint256 pmUnderlyingBalance;
+        uint256 routerUnderlyingBalance;
     }
 
     function stockInventory(address w, address u, address pm, address participant)
@@ -26,10 +28,19 @@ library TSVPermissionedSettlementLib {
         s.collateral = IERC20(u).balanceOf(w);
         s.supply = IERC20(w).totalSupply();
         s.pmBalance = IERC20(w).balanceOf(pm);
+        s.pmUnderlyingBalance = IERC20(u).balanceOf(pm);
+        s.routerUnderlyingBalance = IERC20(u).balanceOf(address(this));
         if (
-            s.collateral < s.supply || s.pmBalance != s.supply || IERC20(u).balanceOf(pm) != 0
-                || IERC20(u).balanceOf(address(this)) != 0 || IERC20(w).balanceOf(address(this)) != 0
+            s.collateral < s.supply || s.pmBalance != s.supply || IERC20(w).balanceOf(address(this)) != 0
                 || IERC20(w).balanceOf(participant) != 0
+        ) revert SettlementMismatch();
+    }
+
+    /// @dev Unsolicited U and balances owned by other PM pools cannot fund this operation.
+    function assertUnderlyingUnchanged(StockInventory memory before_, StockInventory memory after_) internal pure {
+        if (
+            before_.pmUnderlyingBalance != after_.pmUnderlyingBalance
+                || before_.routerUnderlyingBalance != after_.routerUnderlyingBalance
         ) revert SettlementMismatch();
     }
 
@@ -46,6 +57,7 @@ library TSVPermissionedSettlementLib {
         transferExact(u, payer, w, amount);
         IPermissionsAdapter(w).wrapToPoolManager(amount);
         StockInventory memory after_ = stockInventory(w, u, pm, payer);
+        assertUnderlyingUnchanged(before_, after_);
         assertIncrease(before_.collateral, after_.collateral, amount);
         assertIncrease(before_.supply, after_.supply, amount);
         assertIncrease(before_.pmBalance, after_.pmBalance, amount);
@@ -62,6 +74,7 @@ library TSVPermissionedSettlementLib {
         uint256 amount
     ) internal view {
         StockInventory memory after_ = stockInventory(w, u, pm, recipient);
+        assertUnderlyingUnchanged(before_, after_);
         assertDecrease(before_.collateral, after_.collateral, amount);
         assertDecrease(before_.supply, after_.supply, amount);
         assertDecrease(before_.pmBalance, after_.pmBalance, amount);
