@@ -21,7 +21,7 @@ contract TSVStatefulGovernanceTest is SixProxyFixture {
             anchor,
             businessProxies,
             originals,
-            UpgradeDeployment.deployV2(address(router.poolManager()), address(registry))
+            UpgradeDeployment.deployV2(address(router.poolManager()), address(router.PERMISSIONS_ADAPTER_FACTORY()))
         );
         bytes4[] memory selectors = new bytes4[](9);
         selectors[0] = GovernanceHandler.propose.selector;

@@ -9,46 +9,42 @@ import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegal
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 
 contract TSVOperationsAdapterChangesTest is OperationsFixture {
-    function testSecurityPauseReplacementIncrementsVersionAndPreservesUsed() public {
+    function testSecurityPauseReplacementChangesAdapterAndPreservesUsed() public {
         _submitAdtv(1000e18);
         _charge(1e18);
         _submitMarketMode(MarketAction.HALT, PauseMode.ALL, 1);
-        for (uint32 version = 2; version <= 3; ++version) {
+        for (uint256 i; i < 2; ++i) {
             BackedAutoFeeLegalShareAdapter replacement =
-                new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), version);
+                new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
             address old = registry.getUnderlying(address(stockToken)).legalShareAdapter;
             vm.expectEmit(true, false, false, true, address(registry));
-            emit TSVRegistryV1.UnderlyingLegalShareAdapterChanged(
-                address(stockToken), old, address(replacement), version
-            );
+            emit TSVRegistryV1.UnderlyingLegalShareAdapterChanged(address(stockToken), old, address(replacement));
             registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
-            assertEq(registry.getUnderlying(address(stockToken)).legalAdapterVersion, version);
+            assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(replacement));
             assertEq(ledger.used(SECURITY, DAY), 1e18);
         }
     }
 
-    function testInactiveCurrencyAndSingleWTokenPauseAreInsufficient() public {
-        registry.disablePool(poolId);
+    function testPoolAndSingleWTokenPauseAreInsufficient() public {
         _grantPauseRoles();
+        _pause(PauseScope.POOL, poolId, PauseMode.ALL);
         _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
         BackedAutoFeeLegalShareAdapter replacement =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 2);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
         _pause(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
     }
 
-    function testReplacementRejectsInvalidIdentityInterfaceCurrencyAndVersion() public {
+    function testReplacementRejectsInvalidIdentityInterfaceAndCurrency() public {
         _grantPauseRoles();
         _pause(PauseScope.GLOBAL, 0, PauseMode.ALL);
         BackedAutoFeeLegalShareAdapter good =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 2);
-        BackedAutoFeeLegalShareAdapter wrongVersion =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 3);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         BackedAutoFeeLegalShareAdapter wrongCurrency =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 2);
-        for (uint8 fault; fault < 7; ++fault) {
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        for (uint8 fault; fault < 6; ++fault) {
             address currency = address(stockToken);
             address adapter = address(good);
 
@@ -61,8 +57,6 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
             } else if (fault == 3) {
                 adapter = makeAddr("no-code-adapter");
             } else if (fault == 4) {
-                adapter = address(wrongVersion);
-            } else if (fault == 5) {
                 adapter = address(wrongCurrency);
                 vm.mockCall(
                     adapter,

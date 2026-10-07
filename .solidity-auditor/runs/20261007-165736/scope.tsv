@@ -1,0 +1,5 @@
+name	tsv
+mode	filename
+files	src/v1/core/TSVRegistryV1.sol src/v1/periphery/TSVSwapRouterV1.sol src/v1/libraries/PermissionedValidationLib.sol src/v1/libraries/TSVSwapValidationLib.sol src/v1/libraries/TSVPermissionedSettlementLib.sol src/v1/types/TSVTypes.sol src/v1/types/TSVSettlementTypes.sol src/v1/core/TSVHookV1.sol src/v1/core/TSVVolumeLedgerV1.sol src/v1/governance/TSVGoverned.sol src/v1/vendor/v4-router/hooks/permissionedPools/PermissionedV4Router.sol src/v1/vendor/v4-router/V4Router.sol src/v1/vendor/v4-router/base/BaseActionsRouter.sol src/v1/vendor/v4-router/base/DeltaResolver.sol src/v1/vendor/v4-router/base/ImmutableState.sol src/v1/vendor/v4-router/base/SafeCallback.sol src/v1/vendor/v4-router/libraries/CalldataDecoder.sol src/v1/vendor/v4-router/libraries/Actions.sol src/v1/vendor/v4-router/libraries/ActionConstants.sol src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol src/v1/adapters/ERC8056DirectLegalShareAdapter.sol script/DeployCoreV1.s.sol script/VerifyDeploymentV1.s.sol
+passes_planned	1
+pass_1_agents	12/12

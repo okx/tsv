@@ -8,7 +8,7 @@
         "internalType": "address"
       },
       {
-        "name": "registry_",
+        "name": "factory",
         "type": "address",
         "internalType": "address"
       }
@@ -250,11 +250,6 @@
         "name": "registry_",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "ledger_",
-        "type": "address",
-        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -262,13 +257,19 @@
   },
   {
     "type": "function",
-    "name": "ledger",
-    "inputs": [],
+    "name": "isAdapterAllowed",
+    "inputs": [
+      {
+        "name": "adapter",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
     "outputs": [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract TSVVolumeLedgerV1"
+        "name": "allowed",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -285,19 +286,6 @@
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "permissionedValidationLibrary",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "pure"
   },
   {
     "type": "function",
@@ -373,6 +361,43 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setAdapterAllowed",
+    "inputs": [
+      {
+        "name": "adapter",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "allowed",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settlementCurrency",
+    "inputs": [
+      {
+        "name": "currency",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -476,7 +501,7 @@
     "name": "swapExactInputFromAdapter",
     "inputs": [
       {
-        "name": "",
+        "name": "request",
         "type": "tuple",
         "internalType": "struct SwapRequest",
         "components": [
@@ -535,24 +560,24 @@
         ]
       },
       {
-        "name": "",
+        "name": "participant",
         "type": "address",
         "internalType": "address"
       }
     ],
     "outputs": [
       {
-        "name": "",
+        "name": "actualIn",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "",
+        "name": "actualOut",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -671,6 +696,25 @@
   },
   {
     "type": "event",
+    "name": "AdapterAuthorizationUpdated",
+    "inputs": [
+      {
+        "name": "adapter",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "allowed",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Initialized",
     "inputs": [
       {
@@ -759,49 +803,6 @@
   },
   {
     "type": "event",
-    "name": "SwapExecuted",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "participant",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "zeroForOne",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
-      },
-      {
-        "name": "amount0",
-        "type": "int128",
-        "indexed": false,
-        "internalType": "int128"
-      },
-      {
-        "name": "amount1",
-        "type": "int128",
-        "indexed": false,
-        "internalType": "int128"
-      },
-      {
-        "name": "tradeDayId",
-        "type": "uint32",
-        "indexed": false,
-        "internalType": "uint32"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "Upgraded",
     "inputs": [
       {
@@ -836,6 +837,11 @@
   },
   {
     "type": "error",
+    "name": "AdapterNotAllowed",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "AddressEmptyCode",
     "inputs": [
       {
@@ -844,6 +850,11 @@
         "internalType": "address"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "ContractLocked",
+    "inputs": []
   },
   {
     "type": "error",
@@ -900,11 +911,6 @@
   },
   {
     "type": "error",
-    "name": "InputAmountTooLarge",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "InputLengthMismatch",
     "inputs": []
   },
@@ -915,12 +921,12 @@
   },
   {
     "type": "error",
-    "name": "InvalidBips",
+    "name": "InvalidAdapter",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "InvalidCallbackContext",
+    "name": "InvalidBips",
     "inputs": []
   },
   {
@@ -936,11 +942,6 @@
   {
     "type": "error",
     "name": "InvalidInitialization",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "InvalidPermissionedConfig",
     "inputs": []
   },
   {
@@ -965,27 +966,7 @@
   },
   {
     "type": "error",
-    "name": "PermissionedEnvironmentNotBound",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "PermissionedMetadataMismatch",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "PermissionedPolicyMismatch",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "ProtectedRole",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "Reentrancy",
     "inputs": []
   },
   {
@@ -1053,28 +1034,6 @@
         "name": "action",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "UnsupportedAsset",
-    "inputs": [
-      {
-        "name": "currency",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "UnverifiedPermissionedAdapter",
-    "inputs": [
-      {
-        "name": "currency",
-        "type": "address",
-        "internalType": "address"
       }
     ]
   },
@@ -1204,10 +1163,5 @@
         "internalType": "uint256"
       }
     ]
-  },
-  {
-    "type": "error",
-    "name": "WrappedExternalAdapterUnsupported",
-    "inputs": []
   }
 ]

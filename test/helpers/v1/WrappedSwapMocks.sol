@@ -112,9 +112,8 @@ contract V1WrappedLiquiditySeed {
 
     function initializePool(PoolKey calldata key, uint160 price) external {
         require(msg.sender == admin);
-        bytes32 id = registry.registerPendingPool(key);
+        registry.registerPool(key);
         poolManager.initialize(key, price);
-        registry.markPoolActive(id, price, admin);
     }
 
     function seed(PoolKey calldata key, int24 lower, int24 upper, uint128 liquidity) external {
@@ -158,7 +157,7 @@ contract V1WrappedLiquiditySeed {
         if (u == address(0)) {
             TSVPermissionedSettlementLib.transferExact(Currency.unwrap(c), admin, address(poolManager), amount);
         } else {
-            TSVPermissionedSettlementLib.payStock(Currency.unwrap(c), u, address(poolManager), admin, amount);
+            TSVPermissionedSettlementLib.payStock(Currency.unwrap(c), u, admin, amount);
         }
         require(poolManager.settle() == amount);
     }

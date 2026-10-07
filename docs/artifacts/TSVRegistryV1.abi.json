@@ -79,19 +79,6 @@
   },
   {
     "type": "function",
-    "name": "POOL_MANAGER",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "REVOKE_EXIT_EXECUTOR_ROLE",
     "inputs": [],
     "outputs": [
@@ -167,25 +154,6 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "activePoolCountByCurrency",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint32",
-        "internalType": "uint32"
       }
     ],
     "stateMutability": "view"
@@ -315,52 +283,20 @@
         "name": "dataInbox_",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "bindPermissionedComponents",
-    "inputs": [
+      },
       {
         "name": "factory",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "router_",
+        "name": "sbt_",
         "type": "address",
         "internalType": "address"
       }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "checkAllowlist",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "u",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes2",
-        "internalType": "PermissionFlag"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -382,35 +318,6 @@
   },
   {
     "type": "function",
-    "name": "createPermissionsAdapter",
-    "inputs": [
-      {
-        "name": "u",
-        "type": "address",
-        "internalType": "contract IERC20"
-      },
-      {
-        "name": "initialOwner",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "checker",
-        "type": "address",
-        "internalType": "contract IAllowlistChecker"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "dataInbox",
     "inputs": [],
     "outputs": [
@@ -428,19 +335,6 @@
     "inputs": [
       {
         "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "disablePool",
-    "inputs": [
-      {
-        "name": "poolId",
         "type": "bytes32",
         "internalType": "bytes32"
       }
@@ -499,19 +393,6 @@
   },
   {
     "type": "function",
-    "name": "enablePool",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "exitAdminOf",
     "inputs": [
       {
@@ -525,25 +406,6 @@
         "name": "",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "exitAdminVersion",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint64",
-        "internalType": "uint64"
       }
     ],
     "stateMutability": "view"
@@ -573,16 +435,6 @@
             "name": "expectedOwner",
             "type": "address",
             "internalType": "address"
-          },
-          {
-            "name": "status",
-            "type": "uint8",
-            "internalType": "enum AssetStatus"
-          },
-          {
-            "name": "configVersion",
-            "type": "uint64",
-            "internalType": "uint64"
           }
         ]
       }
@@ -646,16 +498,6 @@
             "name": "securityId1",
             "type": "bytes32",
             "internalType": "bytes32"
-          },
-          {
-            "name": "status",
-            "type": "uint8",
-            "internalType": "enum PoolStatus"
-          },
-          {
-            "name": "version",
-            "type": "uint32",
-            "internalType": "uint32"
           }
         ]
       }
@@ -684,14 +526,9 @@
             "internalType": "uint8"
           },
           {
-            "name": "status",
-            "type": "uint8",
-            "internalType": "enum AssetStatus"
-          },
-          {
-            "name": "configVersion",
-            "type": "uint64",
-            "internalType": "uint64"
+            "name": "registered",
+            "type": "bool",
+            "internalType": "bool"
           }
         ]
       }
@@ -747,16 +584,6 @@
             "name": "listed",
             "type": "bool",
             "internalType": "bool"
-          },
-          {
-            "name": "activePoolCount",
-            "type": "uint32",
-            "internalType": "uint32"
-          },
-          {
-            "name": "version",
-            "type": "uint32",
-            "internalType": "uint32"
           }
         ]
       }
@@ -788,11 +615,6 @@
             "name": "legalShareAdapter",
             "type": "address",
             "internalType": "address"
-          },
-          {
-            "name": "legalAdapterVersion",
-            "type": "uint32",
-            "internalType": "uint32"
           },
           {
             "name": "rawDecimals",
@@ -843,6 +665,30 @@
         "name": "owner",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "held",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasIdentity",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -906,10 +752,15 @@
   },
   {
     "type": "function",
-    "name": "isEligible",
+    "name": "isAllowed",
     "inputs": [
       {
-        "name": "owner",
+        "name": "permission",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      },
+      {
+        "name": "account",
         "type": "address",
         "internalType": "address"
       }
@@ -1014,29 +865,6 @@
   },
   {
     "type": "function",
-    "name": "markPoolActive",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "sqrtPriceX96",
-        "type": "uint160",
-        "internalType": "uint160"
-      },
-      {
-        "name": "creator",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "marketPauseMode",
     "inputs": [
       {
@@ -1120,33 +948,7 @@
   },
   {
     "type": "function",
-    "name": "permissionedAllowlistChecker",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "permissionedPoolManager",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "permissionedRouter",
     "inputs": [],
     "outputs": [
       {
@@ -1185,19 +987,19 @@
   },
   {
     "type": "function",
-    "name": "permissionsAdapterOf",
+    "name": "permissionsOf",
     "inputs": [
       {
-        "name": "w",
+        "name": "owner",
         "type": "address",
         "internalType": "address"
       }
     ],
     "outputs": [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
       }
     ],
     "stateMutability": "view"
@@ -1217,7 +1019,42 @@
   },
   {
     "type": "function",
-    "name": "registerPendingPool",
+    "name": "registerPermissionedCurrency",
+    "inputs": [
+      {
+        "name": "admission",
+        "type": "tuple",
+        "internalType": "struct PermissionedAdmission",
+        "components": [
+          {
+            "name": "currency",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "expectedOwner",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "legalShareAdapter",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "registerPool",
     "inputs": [
       {
         "name": "key",
@@ -1259,41 +1096,6 @@
         "internalType": "bytes32"
       }
     ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "registerPermissionedCurrency",
-    "inputs": [
-      {
-        "name": "admission",
-        "type": "tuple",
-        "internalType": "struct PermissionedAdmission",
-        "components": [
-          {
-            "name": "currency",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "securityId",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "expectedOwner",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "legalShareAdapter",
-            "type": "address",
-            "internalType": "address"
-          }
-        ]
-      }
-    ],
-    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -1378,13 +1180,37 @@
   },
   {
     "type": "function",
-    "name": "sbtTokenId",
-    "inputs": [],
-    "outputs": [
+    "name": "sbtIdentityConfig",
+    "inputs": [
       {
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "registered",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "sbtTokenIds",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       }
     ],
     "stateMutability": "view"
@@ -1394,7 +1220,7 @@
     "name": "setExitAdmin",
     "inputs": [
       {
-        "name": "w",
+        "name": "u",
         "type": "address",
         "internalType": "address"
       },
@@ -1402,24 +1228,6 @@
         "name": "newAdmin",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setPermissionedCurrencyStatus",
-    "inputs": [
-      {
-        "name": "w",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "status",
-        "type": "uint8",
-        "internalType": "enum AssetStatus"
       }
     ],
     "outputs": [],
@@ -1445,35 +1253,17 @@
   },
   {
     "type": "function",
-    "name": "setQuoteTokenStatus",
-    "inputs": [
-      {
-        "name": "quote",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "status",
-        "type": "uint8",
-        "internalType": "enum AssetStatus"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "setSbtConfig",
     "inputs": [
       {
-        "name": "sbt_",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "tokenId_",
+        "name": "tokenId",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
       }
     ],
     "outputs": [],
@@ -1612,38 +1402,6 @@
     "stateMutability": "payable"
   },
   {
-    "type": "function",
-    "name": "verifiedPermissionsAdapterOf",
-    "inputs": [
-      {
-        "name": "w",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "verifyPermissionsAdapter",
-    "inputs": [
-      {
-        "name": "w",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
     "type": "event",
     "name": "ComponentsBound",
     "inputs": [
@@ -1663,6 +1421,24 @@
         "name": "dataInbox",
         "type": "address",
         "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "factory",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "poolManager",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "sbt",
+        "type": "address",
+        "indexed": false,
         "internalType": "address"
       }
     ],
@@ -1729,7 +1505,7 @@
     "name": "ExitAdminUpdated",
     "inputs": [
       {
-        "name": "currency",
+        "name": "underlying",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -1745,12 +1521,6 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
-      },
-      {
-        "name": "version",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
       }
     ],
     "anonymous": false
@@ -1819,31 +1589,6 @@
   },
   {
     "type": "event",
-    "name": "PermissionedComponentsBound",
-    "inputs": [
-      {
-        "name": "factory",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "poolManager",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "router",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "PermissionedCurrencyRegistered",
     "inputs": [
       {
@@ -1869,37 +1614,6 @@
   },
   {
     "type": "event",
-    "name": "PermissionedCurrencyStatusChanged",
-    "inputs": [
-      {
-        "name": "currency",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "oldStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "newStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "configVersion",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "PermissionedExpectedOwnerChanged",
     "inputs": [
       {
@@ -1919,12 +1633,6 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
-      },
-      {
-        "name": "configVersion",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
       }
     ],
     "anonymous": false
@@ -1950,94 +1658,6 @@
   },
   {
     "type": "event",
-    "name": "PermissionsAdapterCreated",
-    "inputs": [
-      {
-        "name": "permissionsAdapter",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "permissionedToken",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PermissionsAdapterVerified",
-    "inputs": [
-      {
-        "name": "permissionsAdapter",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "permissionedToken",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PoolInitialized",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "sqrtPriceX96",
-        "type": "uint160",
-        "indexed": false,
-        "internalType": "uint160"
-      },
-      {
-        "name": "creator",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PoolStatusChanged",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "oldStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "newStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "QuoteTokenRegistered",
     "inputs": [
       {
@@ -2051,37 +1671,6 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "QuoteTokenStatusChanged",
-    "inputs": [
-      {
-        "name": "quote",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "oldStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "newStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "configVersion",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
       }
     ],
     "anonymous": false
@@ -2166,28 +1755,22 @@
     "name": "SbtConfigChanged",
     "inputs": [
       {
-        "name": "oldSbt",
+        "name": "sbt",
         "type": "address",
         "indexed": true,
         "internalType": "address"
       },
       {
-        "name": "newSbt",
-        "type": "address",
+        "name": "tokenId",
+        "type": "uint256",
         "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "oldTokenId",
-        "type": "uint256",
-        "indexed": false,
         "internalType": "uint256"
       },
       {
-        "name": "newTokenId",
-        "type": "uint256",
+        "name": "permissions",
+        "type": "bytes2",
         "indexed": false,
-        "internalType": "uint256"
+        "internalType": "PermissionFlag"
       }
     ],
     "anonymous": false
@@ -2326,12 +1909,6 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
-      },
-      {
-        "name": "legalAdapterVersion",
-        "type": "uint32",
-        "indexed": false,
-        "internalType": "uint32"
       }
     ],
     "anonymous": false
@@ -2399,11 +1976,6 @@
   },
   {
     "type": "error",
-    "name": "FactoryEntryReentrancy",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "FailedCall",
     "inputs": []
   },
@@ -2444,22 +2016,6 @@
   },
   {
     "type": "error",
-    "name": "Paused",
-    "inputs": [
-      {
-        "name": "scope",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
-      {
-        "name": "target",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ]
-  },
-  {
-    "type": "error",
     "name": "PermissionedEnvironmentNotBound",
     "inputs": []
   },
@@ -2472,39 +2028,6 @@
     "type": "error",
     "name": "PermissionedPolicyMismatch",
     "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "PermissionsAdapterAlreadyVerified",
-    "inputs": [
-      {
-        "name": "permissionsAdapter",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "PermissionsAdapterNotFound",
-    "inputs": [
-      {
-        "name": "permissionsAdapter",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "PermissionsAdapterNotVerified",
-    "inputs": [
-      {
-        "name": "permissionsAdapter",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
   },
   {
     "type": "error",

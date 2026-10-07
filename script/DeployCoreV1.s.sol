@@ -6,6 +6,9 @@ import {ScriptEnvironment} from "./ScriptEnvironment.sol";
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVHookProxyFactoryV1} from "tsv-v1/deployment/TSVHookProxyFactoryV1.sol";
+import {
+    IPermissionsAdapterFactory
+} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 import {TSVRegistryV1, ISmartWalletSbtV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
@@ -30,12 +33,17 @@ contract DeployCoreV1 is ScriptEnvironment {
     struct Input {
         /// @dev V4 PoolManager used by the Hook, Router and LP Manager.
         address poolManager;
+        /// @dev Real issuer adapter factory used directly by the Router.
+        address permissionsAdapterFactory;
         /// @dev Fixed governance root storing identities and the global upgrade switch.
         TSVGovernanceAnchor anchor;
         /// @dev Participant SBT used by the Registry for credential checks.
         address sbt;
-        /// @dev SBT token identifier required for participant eligibility.
-        uint256 sbtTokenId;
+        /// @dev Initial retail and marketmaker identities, registered independently by governance.
+        uint256 retailTokenId;
+        uint256 marketmakerTokenId;
+        uint8 retailPermissions;
+        uint8 marketmakerPermissions;
         /// @dev UTC seconds after midnight at which a trade day begins.
         uint32 dayStartOffset;
     }
@@ -129,7 +137,7 @@ contract DeployCoreV1 is ScriptEnvironment {
                 )
             )
         );
-        d.implementations.router = address(new TSVSwapRouterV1(input.poolManager, address(d.registry)));
+        d.implementations.router = address(new TSVSwapRouterV1(input.poolManager, input.permissionsAdapterFactory));
         d.implementations.lpManager = address(new TSVLPManagerV1());
         d.implementations.hook = address(new TSVHookV1());
         d.hookFactory = new TSVHookProxyFactoryV1();
@@ -164,8 +172,7 @@ contract DeployCoreV1 is ScriptEnvironment {
                 new TSVERC1967Proxy(
                     d.implementations.router,
                     abi.encodeCall(
-                        TSVSwapRouterV1.initialize,
-                        (address(input.anchor), input.poolManager, address(d.registry), address(d.ledger))
+                        TSVSwapRouterV1.initialize, (address(input.anchor), input.poolManager, address(d.registry))
                     )
                 )
             )
@@ -212,7 +219,7 @@ contract DeployCoreV1 is ScriptEnvironment {
         console2.log("Hook CREATE2 salt:");
         console2.logBytes32(d.hookSalt);
         console2.log(
-            "Governance must bind Anchor proxies, Registry/Ledger, then bindPermissionedComponents(realFactory, router), configure SBT and grant roles. Production swapping requires reviewed W/U/Q permissions and external Wrapped liquidity readiness."
+            "Governance must bind Anchor proxies and Ledger writers, then Registry.bindComponents(hook, lpManager, inbox, realFactory, sbt), configure identity permissions and grant roles. Production swapping requires reviewed W/U/Q permissions and external Wrapped liquidity readiness."
         );
     }
 
@@ -220,9 +227,16 @@ contract DeployCoreV1 is ScriptEnvironment {
     /// @return input Deployment configuration read from the environment.
     function _loadInput() internal view returns (Input memory input) {
         input.poolManager = _envAddress("TSV_POOL_MANAGER");
+        input.permissionsAdapterFactory = _envAddress("TSV_PERMISSIONS_ADAPTER_FACTORY");
         input.anchor = TSVGovernanceAnchor(_envAddress("TSV_GOVERNANCE_ANCHOR"));
         input.sbt = _envAddress("TSV_SBT");
-        input.sbtTokenId = _envUint("TSV_SBT_TOKEN_ID");
+        input.retailTokenId = _envUint("TSV_RETAIL_SBT_TOKEN_ID");
+        input.marketmakerTokenId = _envUint("TSV_MARKETMAKER_SBT_TOKEN_ID");
+        uint256 retailPermissions = _envUint("TSV_RETAIL_SBT_PERMISSIONS");
+        uint256 marketmakerPermissions = _envUint("TSV_MARKETMAKER_SBT_PERMISSIONS");
+        if (retailPermissions > 3 || marketmakerPermissions > 3) revert InvalidDeploymentInput();
+        input.retailPermissions = uint8(retailPermissions);
+        input.marketmakerPermissions = uint8(marketmakerPermissions);
         uint256 offset = _envUint("TSV_DAY_START_OFFSET_SECONDS");
         if (offset >= 86_400) revert InvalidDeploymentInput();
         input.dayStartOffset = uint32(offset);
@@ -233,16 +247,27 @@ contract DeployCoreV1 is ScriptEnvironment {
     function _checkInput(Input memory input) internal view {
         if (
             block.chainid != _envUint("TSV_CHAIN_ID") || input.poolManager.code.length == 0
-                || input.sbt.code.length == 0 || address(input.anchor).code.length == 0 || input.anchor.proxiesBound()
+                || input.permissionsAdapterFactory.code.length == 0 || input.sbt.code.length == 0
+                || address(input.anchor).code.length == 0 || input.anchor.proxiesBound()
+                || input.retailTokenId == input.marketmakerTokenId
                 || input.anchor.governor() != _envAddress("TSV_GOVERNOR")
                 || input.anchor.guardian() != _envAddress("TSV_GUARDIAN")
                 || input.anchor.recoveryCouncil() != _envAddress("TSV_RECOVERY_COUNCIL")
         ) revert InvalidDeploymentInput();
+        try IPermissionsAdapterFactory(input.permissionsAdapterFactory).POOL_MANAGER() returns (address pm) {
+            if (pm != input.poolManager) revert InvalidDeploymentInput();
+        } catch {
+            revert InvalidDeploymentInput();
+        }
         try ISmartWalletSbtV1(input.sbt).paused() returns (bool) {}
         catch {
             revert InvalidDeploymentInput();
         }
-        try ISmartWalletSbtV1(input.sbt).verify(address(this), input.sbtTokenId) returns (bool) {}
+        try ISmartWalletSbtV1(input.sbt).verify(address(this), input.retailTokenId) returns (bool) {}
+        catch {
+            revert InvalidDeploymentInput();
+        }
+        try ISmartWalletSbtV1(input.sbt).verify(address(this), input.marketmakerTokenId) returns (bool) {}
         catch {
             revert InvalidDeploymentInput();
         }

@@ -91,14 +91,14 @@ contract V1LocalERC20 is ERC20 {
 
 /// @dev Provides configurable SBT pause and credential behavior for local tests.
 contract V1LocalSBT {
-    mapping(address => bool) public holds;
+    mapping(address => mapping(uint256 => bool)) public holds;
     bool private paused_;
     bool public failVerify;
     bool public failPaused;
 
     /// @dev Configures the holder and token identifier accepted by the local SBT fixture.
-    function setHolder(address owner, bool value) external {
-        holds[owner] = value;
+    function setHolder(address owner, uint256 tokenId, bool value) external {
+        holds[owner][tokenId] = value;
     }
 
     /// @dev Configures the pause state reported by the local SBT fixture.
@@ -119,9 +119,9 @@ contract V1LocalSBT {
     }
 
     /// @dev Checks the configured participant credential in the local SBT fixture.
-    function verify(address owner, uint256) external view returns (bool) {
+    function verify(address owner, uint256 tokenId) external view returns (bool) {
         require(!failVerify, "verify read failed");
-        return holds[owner];
+        return holds[owner][tokenId];
     }
 }
 

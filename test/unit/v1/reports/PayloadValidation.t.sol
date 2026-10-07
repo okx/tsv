@@ -26,7 +26,6 @@ contract TSVOperationsPayloadTest is OperationsFixture {
                 if (fault == 3) {
                     r.securityId = keccak256("absent");
                 } else {
-                    registry.disablePool(poolId);
                     registry.delistSecurity(SECURITY);
                 }
             }
@@ -63,7 +62,6 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             } else if (fault < 10) {
                 r.sourceMonth = invalidMonths[fault - 5];
             } else {
-                registry.disablePool(poolId);
                 registry.delistSecurity(SECURITY);
             }
             bytes32 beforeState = _reportState(id);
@@ -110,7 +108,6 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             } else if (fault == 10) {
                 r.action = 2; // CLEAR without an active SET, even with nonzero amount.
             } else {
-                registry.disablePool(poolId);
                 registry.delistSecurity(SECURITY);
             }
             bytes32 beforeState = _reportState(id);

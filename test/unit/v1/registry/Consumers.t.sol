@@ -8,13 +8,7 @@ import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
-import {
-    PermissionedCurrencyConfig,
-    QuoteTokenConfig,
-    AssetStatus,
-    PauseScope,
-    PauseMode
-} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedCurrencyConfig, QuoteTokenConfig, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
@@ -69,23 +63,29 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         assertEq(ledger.used(SECURITY, DAY), 0.9e18);
     }
 
-    function testHookAndLedgerSeeSameCanonicalVersionAfterReplacement() public {
+    function testHookUsesReplacementAdapterAndLedgerAccountsOnce() public {
         _grantPauseRoles();
         uint256 pause = _pause(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
         BackedAutoFeeLegalShareAdapter next =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 2);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next));
         registry.clearEmergencyPause(pause, keccak256("resume"));
+        vm.expectCall(
+            address(next), abi.encodeCall(IDirectLegalShareAdapter.toLegalShares, (address(stockToken), 1e18))
+        );
         vm.recordLogs();
         _callback(-1e18);
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes32 accounted = keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256,uint32)");
+        bytes32 accounted = keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256)");
         uint256 count;
         for (uint256 i; i < entries.length; ++i) {
             if (entries[i].topics[0] == accounted) {
                 assertEq(entries[i].emitter, address(ledger));
-                (,,,, uint32 version) = abi.decode(entries[i].data, (bool, uint32, uint256, uint256, uint32));
-                assertEq(version, 2);
+                (, uint32 day, uint256 raw, uint256 shares) =
+                    abi.decode(entries[i].data, (bool, uint32, uint256, uint256));
+                assertEq(day, DAY);
+                assertEq(raw, 1e18);
+                assertEq(shares, 1e18);
                 ++count;
             }
         }
@@ -105,9 +105,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
     function testUnknownAndWrongTypeCannotBecomeQuoteEvenAtZeroDelta() public {
         address q = address(quote);
         vm.mockCall(
-            address(registry),
-            abi.encodeCall(TSVRegistryV1.getQuoteToken, (q)),
-            abi.encode(QuoteTokenConfig(6, AssetStatus.ABSENT, 0))
+            address(registry), abi.encodeCall(TSVRegistryV1.getQuoteToken, (q)), abi.encode(QuoteTokenConfig(6, false))
         );
         vm.expectRevert(TSVHookV1.InvalidPool.selector);
         _callback(0);
@@ -116,7 +114,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         vm.mockCall(
             address(registry),
             abi.encodeCall(TSVRegistryV1.getCurrency, (q)),
-            abi.encode(PermissionedCurrencyConfig(address(stockToken), address(this), AssetStatus.APPROVED, 1))
+            abi.encode(PermissionedCurrencyConfig(address(stockToken), address(this)))
         );
         vm.expectRevert(TSVHookV1.InvalidPool.selector);
         _callback(0);
@@ -127,7 +125,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         vm.mockCall(
             address(registry),
             abi.encodeCall(TSVRegistryV1.getQuoteToken, (address(quote))),
-            abi.encode(QuoteTokenConfig(6, AssetStatus.ABSENT, 0))
+            abi.encode(QuoteTokenConfig(6, false))
         );
         bool stock0 = Currency.unwrap(key.currency0) == address(stock);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);

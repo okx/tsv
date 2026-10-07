@@ -1,6 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IAllowlistChecker, IERC165} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+
+/// @dev Issuer-owned policy fixture. It neither calls nor depends on TSV Registry or SBT.
+contract V1IssuerAllowlistChecker is IAllowlistChecker {
+    mapping(address => mapping(address => PermissionFlag)) private accountPermissions;
+    mapping(address => mapping(address => bool)) private configured;
+    bool public failReads;
+
+    function setPermissions(address account, address token, PermissionFlag permissions) external {
+        configured[account][token] = true;
+        accountPermissions[account][token] = permissions;
+    }
+
+    function setFailReads(bool value) external {
+        failReads = value;
+    }
+
+    function checkAllowlist(address account, address token) external view returns (PermissionFlag) {
+        require(!failReads, "issuer checker unavailable");
+        return configured[account][token]
+            ? accountPermissions[account][token]
+            : PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED;
+    }
+
+    function supportsInterface(bytes4 id) external pure returns (bool) {
+        return id == type(IAllowlistChecker).interfaceId || id == type(IERC165).interfaceId;
+    }
+}
+
 /// @dev Component identity fixture; no swap or LP execution is provided.
 contract V1PermissionedComponent {
     address public immutable poolManager;
@@ -10,10 +40,10 @@ contract V1PermissionedComponent {
     address public lpManager;
     address public ledger;
 
-    constructor(address pm, address r) {
+    constructor(address pm, address r, address factory) {
         poolManager = pm;
         registry = r;
-        PERMISSIONS_ADAPTER_FACTORY = r;
+        PERMISSIONS_ADAPTER_FACTORY = factory;
     }
 
     function setLinks(address router_, address lp_, address ledger_) external {

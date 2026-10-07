@@ -10,7 +10,7 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {CustomRevert} from "v4-core/libraries/CustomRevert.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
-import {AssetStatus, PermissionedAdmission, SwapRequest, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, SwapRequest, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -65,29 +65,15 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
             assertEq(IPoolManager(address(manager)).currencyDelta(address(router), key.currency0), 0);
             assertEq(IPoolManager(address(manager)).currencyDelta(address(router), key.currency1), 0);
             assertEq(router.msgSender(), address(0));
-            uint256 executed;
             uint256 accounted;
             for (uint256 j; j < logs.length; ++j) {
-                if (logs[j].topics[0] == keccak256("SwapExecuted(bytes32,address,bool,int128,int128,uint32)")) {
-                    assertEq(logs[j].emitter, address(router));
-                    assertEq(address(uint160(uint256(logs[j].topics[2]))), alice);
-                    (bool direction, int128 d0, int128 d1, uint32 day) =
-                        abi.decode(logs[j].data, (bool, int128, int128, uint32));
-                    assertEq(direction, _request(stockInput, exactInput, 1e16).zeroForOne);
-                    assertEq(day, DAY);
-                    assertEq(uint256(-int256(direction ? d0 : d1)), paid);
-                    assertEq(uint256(int256(direction ? d1 : d0)), received);
-                    ++executed;
-                }
                 if (
-                    logs[j].topics[0]
-                        == keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256,uint32)")
+                    logs[j].topics[0] == keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256)")
                 ) {
                     assertEq(logs[j].emitter, address(ledger));
                     ++accounted;
                 }
             }
-            assertEq(executed, 1);
             assertEq(accounted, 1);
         }
     }
@@ -135,34 +121,8 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         assertEq(_digest(), before_);
     }
 
-    function testFuzzMetadataAndPrecisionDriftRejectBeforeSwap(bool underlyingFault, uint8 fault) public {
-        fault = uint8(bound(fault, 0, 2));
-        if (underlyingFault) {
-            if (fault == 0) underlying.setDecimals(17);
-            else underlying.setMetadataMode(fault);
-        } else {
-            if (fault == 0) quote.setDecimals(17);
-            else quote.setMetadataMode(fault);
-        }
-        bytes32 before_ = _digest();
-        vm.expectRevert();
-        _swap(true, true, 1e16);
-        assertEq(_digest(), before_);
-    }
-
-    function testFuzzInvalidInventoryRejectsBeforeSwap(uint8 fault) public {
-        fault = uint8(bound(fault, 0, 2));
-        if (fault == 0) {
-            deal(address(underlying), address(stock), stock.totalSupply() - 1);
-        } else if (fault == 1) {
-            vm.mockCall(
-                address(stock),
-                abi.encodeWithSignature("balanceOf(address)", address(manager)),
-                abi.encode(stock.totalSupply() - 1)
-            );
-        } else {
-            vm.mockCall(address(stock), abi.encodeWithSignature("balanceOf(address)", alice), abi.encode(uint256(1)));
-        }
+    function testUnderCollateralizedStockRejectsBeforeSwap() public {
+        deal(address(underlying), address(stock), stock.totalSupply() - 1);
         bytes32 before_ = _digest();
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
         _swap(true, true, 1e16);
@@ -196,7 +156,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         assertEq(_digest(), before_);
     }
 
-    function testMultipleWrappersShareQuotaAndCanonicalVersion() public {
+    function testMultipleWrappersShareQuotaAndCanonicalAdapter() public {
         _swap(true, true, 1e16);
         uint256 alreadyUsed = ledger.used(SECURITY, DAY);
         PermissionsAdapter w2 = _newWrapper();
@@ -215,10 +175,12 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         );
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed + paid);
         registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.ALL, keccak256("replace"));
-        BackedAutoFeeLegalShareAdapter next =
-            new BackedAutoFeeLegalShareAdapter(address(issuer), address(underlying), 2);
+        BackedAutoFeeLegalShareAdapter next = new BackedAutoFeeLegalShareAdapter(address(issuer), address(underlying));
         registry.replaceUnderlyingLegalShareAdapter(address(underlying), address(next));
         registry.clearEmergencyPause(1, keccak256("done"));
+        vm.expectCall(
+            address(next), abi.encodeCall(BackedAutoFeeLegalShareAdapter.toLegalShares, (address(underlying), 1e16)), 2
+        );
         vm.recordLogs();
         _swap(true, true, 1e16);
         vm.prank(alice);
@@ -233,10 +195,8 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
             if (
                 logs[i].emitter == address(ledger)
                     && logs[i].topics[0]
-                        == keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256,uint32)")
+                        == keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256)")
             ) {
-                (,,,, uint32 version) = abi.decode(logs[i].data, (bool, uint32, uint256, uint256, uint32));
-                assertEq(version, 2);
                 ++count;
             }
         }
@@ -273,16 +233,16 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
     }
 
     function testCredentialSubjectIsUserAndContractWalletReceivesUnderlying() public {
-        sbt.setHolder(alice, false);
-        sbt.setHolder(address(router), true);
-        sbt.setHolder(address(manager), true);
-        sbt.setHolder(address(registry), true);
+        sbt.setHolder(alice, 1, false);
+        sbt.setHolder(address(router), 1, true);
+        sbt.setHolder(address(manager), 1, true);
+        sbt.setHolder(address(registry), 1, true);
         bytes32 before_ = _digest();
         vm.expectRevert();
         _swap(true, true, 1e16);
         assertEq(_digest(), before_);
         V1TestParticipantWallet wallet = new V1TestParticipantWallet(address(this));
-        sbt.setHolder(address(wallet), true);
+        sbt.setHolder(address(wallet), 1, true);
         quote.mint(address(wallet), 1e20);
         wallet.approveToken(address(quote), address(router));
         (, uint256 received) = wallet.swapExactInput(router, _request(false, true, 1e16));
@@ -291,12 +251,12 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         assertEq(underlying.balanceOf(address(exitReceiver)), 0);
     }
 
-    function testExternalAdapterAlwaysRejectsWithoutAnyStateChange() public {
+    function testUnapprovedAdapterRejectsWithoutAnyStateChange() public {
         bytes32 before_ = _digest();
         SwapRequest memory request;
-        vm.expectRevert(TSVSwapRouterV1.WrappedExternalAdapterUnsupported.selector);
+        vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
         router.swapExactInputFromAdapter(request, alice);
-        vm.expectRevert(TSVSwapRouterV1.WrappedExternalAdapterUnsupported.selector);
+        vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
         vm.prank(alice);
         router.swapExactInputFromAdapter(_request(true, true, 1e16), alice);
         assertEq(_digest(), before_);

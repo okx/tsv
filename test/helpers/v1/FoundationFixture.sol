@@ -6,21 +6,14 @@ import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/Pe
 import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
 import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
-import {V1PermissionedComponent, V1ConfigReceiver} from "./PermissionedMocks.sol";
+import {V1PermissionedComponent, V1ConfigReceiver, V1IssuerAllowlistChecker} from "./PermissionedMocks.sol";
 import {Test} from "forge-std/Test.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {
-    PermissionedAdmission,
-    AssetStatus,
-    MarketStatus,
-    MarketAction,
-    PauseScope,
-    PauseMode
-} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, MarketStatus, MarketAction, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -29,6 +22,7 @@ import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
 import {V1MockIssuerShares, V1MockIssuerWrapped} from "./MockIssuerTokens.sol";
 import {V1MockToken} from "./FoundationMocks.sol";
+import {OperationsSbt} from "./OperationsMocks.sol";
 
 /// @dev FoundationFixture scenarios; inherited fixtures contain no test functions.
 abstract contract FoundationFixture is Test {
@@ -49,6 +43,8 @@ abstract contract FoundationFixture is Test {
     PermissionsAdapterFactory internal permissionsFactory;
     V1PermissionedComponent internal permissionedRouterFixture;
     V1ConfigReceiver internal exitReceiver;
+    V1IssuerAllowlistChecker internal issuerChecker;
+    OperationsSbt internal identitySbt;
     V1MockToken internal quote;
     BackedAutoFeeLegalShareAdapter internal stockAdapter;
     PoolKey internal key;
@@ -85,11 +81,15 @@ abstract contract FoundationFixture is Test {
         );
         manager = new PoolManager(address(this));
         permissionsFactory = new PermissionsAdapterFactory(address(manager));
-        permissionedRouterFixture = new V1PermissionedComponent(address(manager), address(registry));
-        registry.bindComponents(address(this), address(this), address(inbox));
-        registry.bindPermissionedComponents(address(permissionsFactory), address(permissionedRouterFixture));
+        identitySbt = new OperationsSbt();
+        permissionedRouterFixture =
+            new V1PermissionedComponent(address(manager), address(registry), address(permissionsFactory));
+        registry.bindComponents(
+            address(this), address(this), address(inbox), address(permissionsFactory), address(identitySbt)
+        );
         registry.setPermissionedOwnerApproval(address(this), true);
         exitReceiver = new V1ConfigReceiver();
+        issuerChecker = new V1IssuerAllowlistChecker();
         ledger.bindWriters(address(this), address(inbox));
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
@@ -99,7 +99,7 @@ abstract contract FoundationFixture is Test {
         stockUnderlying = new V1MockIssuerShares();
         stockToken = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1MockToken("QUOTE6", 6);
-        stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 1);
+        stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         PermissionedAdmission memory admission = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         stock = PermissionsAdapter(admission.currency);
         registry.admitPermissionedSecurity(1, admission);
@@ -108,8 +108,7 @@ abstract contract FoundationFixture is Test {
         address a = address(stock) < address(quote) ? address(stock) : address(quote);
         address b = address(stock) < address(quote) ? address(quote) : address(stock);
         key = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(this)));
-        poolId = registry.registerPendingPool(key);
-        registry.markPoolActive(poolId, uint160(1 << 96), address(this));
+        poolId = registry.registerPool(key);
     }
 
     function _grantPauseRoles() internal {
@@ -184,8 +183,7 @@ abstract contract FoundationFixture is Test {
     function _newStockConfig(bytes32 securityId) internal returns (PermissionedAdmission memory) {
         V1MockIssuerShares underlying = new V1MockIssuerShares();
         V1MockIssuerWrapped token = new V1MockIssuerWrapped(underlying);
-        BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(underlying), address(token), 1);
+        BackedAutoFeeLegalShareAdapter adapter = new BackedAutoFeeLegalShareAdapter(address(underlying), address(token));
         return _prepareCurrency(address(token), securityId, address(adapter));
     }
 
@@ -193,14 +191,14 @@ abstract contract FoundationFixture is Test {
         internal
         returns (PermissionedAdmission memory)
     {
-        address w = registry.createPermissionsAdapter(
-            PermissionedIERC20(u), address(this), IAllowlistChecker(address(registry))
+        address w = permissionsFactory.createPermissionsAdapter(
+            PermissionedIERC20(u), address(this), IAllowlistChecker(address(issuerChecker))
         );
         PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), true);
         PermissionsAdapter(w).updateAllowedHook(IHooks(address(this)), true);
         V1MockIssuerWrapped(u).mintTestShares(w, 1);
-        registry.verifyPermissionsAdapter(w);
-        registry.setExitAdmin(w, address(exitReceiver));
+        permissionsFactory.verifyPermissionsAdapter(w);
+        if (registry.exitAdminOf(u) == address(0)) registry.setExitAdmin(u, address(exitReceiver));
         return _config(w, securityId, adapter);
     }
 
@@ -210,14 +208,6 @@ abstract contract FoundationFixture is Test {
         returns (PermissionedAdmission memory)
     {
         return PermissionedAdmission(w, securityId, address(this), adapter);
-    }
-
-    function _setAssetStatus(address asset, AssetStatus status) internal {
-        if (registry.getCurrency(asset).underlying != address(0)) {
-            registry.setPermissionedCurrencyStatus(asset, status);
-        } else {
-            registry.setQuoteTokenStatus(asset, status);
-        }
     }
 
     /// @dev Builds a market-state report with the supplied action and sequence metadata.

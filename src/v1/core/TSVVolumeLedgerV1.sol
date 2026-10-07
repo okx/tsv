@@ -3,13 +3,7 @@ pragma solidity 0.8.26;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {
-    PermissionedCurrencyConfig,
-    UnderlyingConfig,
-    AssetStatus,
-    PoolConfig,
-    PoolStatus
-} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedCurrencyConfig, UnderlyingConfig, PoolConfig} from "tsv-v1/types/TSVTypes.sol";
 import {AdtvReport, QuotaReport, SplitFactorReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -119,8 +113,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         bool inputSide,
         uint32 tradeDayId,
         uint256 rawAmount,
-        uint256 legalSharesWad,
-        uint32 legalAdapterVersion
+        uint256 legalSharesWad
     );
     /// @notice Emitted when a future trade-day boundary change was scheduled.
     event DayStartScheduled(
@@ -457,13 +450,13 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         if (msg.sender != hook) revert UnauthorizedWriter();
         if (delta0 == 0 || delta1 == 0 || (delta0 < 0) == (delta1 < 0)) revert ZeroSwapAmount();
         PoolConfig memory pool = registry.getPool(poolId);
-        if (pool.status != PoolStatus.ACTIVE || !registry.isTradable(poolId)) revert InvalidPeriod();
+        if (!registry.isTradable(poolId)) revert InvalidPeriod();
         (, uint32 day) = currentTradeDay();
         _recordLeg(poolId, pool.securityId0, Currency.unwrap(pool.key.currency0), delta0, legalShares0, day);
         _recordLeg(poolId, pool.securityId1, Currency.unwrap(pool.key.currency1), delta1, legalShares1, day);
     }
 
-    /// @dev Validates and accounts one pool leg, emitting the adapter version used for the conversion.
+    /// @dev Validates and accounts one pool leg using its canonical legal-share conversion.
     /// @param poolId Pool that produced the actual swap delta.
     /// @param securityId Security assigned to this Currency, or zero for a non-stock token.
     /// @param currency Pool Currency associated with the delta.
@@ -480,17 +473,15 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     ) private {
         PermissionedCurrencyConfig memory config = registry.getCurrency(currency);
         if (config.underlying == address(0)) {
-            if (
-                registry.getQuoteToken(currency).status != AssetStatus.APPROVED || securityId != 0
-                    || legalSharesWad != 0
-            ) revert InvalidLegalShareAmount();
+            if (!registry.getQuoteToken(currency).registered || securityId != 0 || legalSharesWad != 0) {
+                revert InvalidLegalShareAmount();
+            }
             return;
         }
         UnderlyingConfig memory underlying = registry.getUnderlying(config.underlying);
-        if (
-            config.status != AssetStatus.APPROVED || securityId == 0 || underlying.securityId != securityId
-                || underlying.legalShareAdapter == address(0) || underlying.legalAdapterVersion == 0
-        ) revert InvalidLegalShareAmount();
+        if (securityId == 0 || underlying.securityId != securityId || underlying.legalShareAdapter == address(0)) {
+            revert InvalidLegalShareAmount();
+        }
         if (delta == 0) {
             if (legalSharesWad != 0) revert InvalidLegalShareAmount();
             return;
@@ -498,9 +489,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         if (legalSharesWad == 0) revert InvalidLegalShareAmount();
         uint256 raw = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         _consume(securityId, day, legalSharesWad);
-        emit SwapAccounted(
-            poolId, securityId, currency, delta < 0, day, raw, legalSharesWad, underlying.legalAdapterVersion
-        );
+        emit SwapAccounted(poolId, securityId, currency, delta < 0, day, raw, legalSharesWad);
     }
 
     /// @dev Adds a charge only when an ADTV-derived hard cap and effective quota permit it.

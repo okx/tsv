@@ -12,6 +12,8 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {LPBounds, LPContext, LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
+import {PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {TSVDirectSettlementLib} from "tsv-v1/libraries/TSVDirectSettlementLib.sol";
 
 /// @notice The sole V4 position owner for TSV LPs; each position has a unique V4 salt.
@@ -90,7 +92,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     /// @notice Initializes the nontransferable LP Receipt and binds the PoolManager and Registry.
     /// @param anchor Fixed governance Anchor used by the governed base contract.
     /// @param poolManager_ V4 PoolManager that stores all TSV positions.
-    /// @param registry_ Registry used for SBT and pool-status checks.
+    /// @param registry_ Registry used for SBT, pool admission, and pause checks.
     function initialize(address anchor, address poolManager_, address registry_) external initializer {
         __TSVGoverned_init(anchor);
         __ERC721_init("TSV LP Receipt", "TSVLP");
@@ -108,7 +110,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         entered = false;
     }
 
-    /// @notice Registers and initializes a pool, then marks it active in the same transaction.
+    /// @notice Registers and initializes a pool atomically; a failed initialization rolls back registration.
     /// @param key V4 pool key whose currencies and Hook have been approved by the Registry.
     /// @param sqrtPriceX96 Initial Q64.96 square-root price passed to PoolManager.
     function initializePool(PoolKey calldata key, uint160 sqrtPriceX96)
@@ -116,9 +118,8 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         nonReentrant
         onlyRole(POOL_CREATOR_ROLE)
     {
-        bytes32 poolId = registry.registerPendingPool(key);
+        registry.registerPool(key);
         poolManager.initialize(key, sqrtPriceX96);
-        registry.markPoolActive(poolId, sqrtPriceX96, msg.sender);
     }
 
     /// @notice Opens a positive-liquidity position and mints its nontransferable Receipt to the caller.
@@ -136,7 +137,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
         LPBounds calldata bounds
     ) external nonReentrant returns (uint256 positionId) {
         bytes32 poolId = PoolId.unwrap(key.toId());
-        _requireUserPool(poolId, bounds.deadline);
+        _requireUserPool(poolId, key, bounds.deadline);
         if (liquidity == 0 || liquidity > uint128(type(int128).max)) revert InvalidPosition();
         _validateTicks(key, tickLower, tickUpper);
         positionId = nextPositionId++;
@@ -199,7 +200,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     }
 
     /// @notice Closes a position under the forced-exit role and returns assets to its original owner.
-    /// @dev The revoke executor may act only after the owner loses the SBT credential; admin authority is separate.
+    /// @dev The revoke executor may act only after the owner loses all registered SBT identities; pause is not revocation.
     /// @param positionId Active position to close.
     /// @param minPoolOut0 Minimum currency0 amount that must reach the original owner.
     /// @param minPoolOut1 Minimum currency1 amount that must reach the original owner.
@@ -383,10 +384,16 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
     /// @dev Requires an unexpired request, an active SBT credential, and a pool permitting ordinary LP operations.
     /// @param poolId Pool identifier for the operation.
     /// @param deadline Latest timestamp at which the operation may execute.
-    function _requireUserPool(bytes32 poolId, uint64 deadline) private view {
+    function _requireUserPool(bytes32 poolId, PoolKey memory key, uint64 deadline) private view {
         if (block.timestamp > deadline) revert Expired();
-        if (!registry.isEligible(msg.sender)) revert Unauthorized();
         if (!registry.isLPAllowed(poolId)) revert InvalidPool();
+        if (!registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, msg.sender)) revert Unauthorized();
+        // Every admitted pool has one W and one quote currency.
+        address w = Currency.unwrap(key.currency0);
+        if (registry.getCurrency(w).underlying == address(0)) w = Currency.unwrap(key.currency1);
+        if (!IPermissionsAdapter(w).isAllowed(msg.sender, PermissionFlags.LIQUIDITY_ALLOWED)) {
+            revert Unauthorized();
+        }
     }
 
     /// @dev Verifies the caller owns the active Receipt before applying the common user and pool checks.
@@ -404,7 +411,7 @@ contract TSVLPManagerV1 is TSVGoverned, ERC721Upgradeable {
             revert InvalidPosition();
         }
         poolId = PoolId.unwrap(p.key.toId());
-        _requireUserPool(poolId, deadline);
+        _requireUserPool(poolId, p.key, deadline);
     }
 
     /// @dev Enforces an ordered tick range within TickMath limits and aligned to pool spacing.

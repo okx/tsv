@@ -26,11 +26,9 @@ contract V1MockToken is ERC20 {
 /// @dev Provides a deliberately incomplete adapter fixture for validation tests.
 contract V1SnapshotOnlyAdapterMock {
     address public immutable poolCurrency;
-    uint32 public immutable adapterVersion;
 
-    /// @dev Configures the currency and version exposed by the incomplete adapter fixture.
-    constructor(address currency_, uint32 version_) {
+    /// @dev Configures the currency exposed by the incomplete adapter fixture.
+    constructor(address currency_) {
         poolCurrency = currency_;
-        adapterVersion = version_;
     }
 }

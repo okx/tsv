@@ -1,19 +1,6 @@
 [
   {
     "type": "function",
-    "name": "POOL_MANAGER",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "admitPermissionedSecurity",
     "inputs": [
       {
@@ -54,15 +41,30 @@
   },
   {
     "type": "function",
-    "name": "bindPermissionedComponents",
+    "name": "bindComponents",
     "inputs": [
+      {
+        "name": "hook",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "lpManager",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "dataInbox",
+        "type": "address",
+        "internalType": "address"
+      },
       {
         "name": "factory",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "router",
+        "name": "sbt",
         "type": "address",
         "internalType": "address"
       }
@@ -88,7 +90,7 @@
     "name": "exitAdminOf",
     "inputs": [
       {
-        "name": "w",
+        "name": "u",
         "type": "address",
         "internalType": "address"
       }
@@ -98,25 +100,6 @@
         "name": "",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "exitAdminVersion",
-    "inputs": [
-      {
-        "name": "w",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint64",
-        "internalType": "uint64"
       }
     ],
     "stateMutability": "view"
@@ -146,16 +129,6 @@
             "name": "expectedOwner",
             "type": "address",
             "internalType": "address"
-          },
-          {
-            "name": "status",
-            "type": "uint8",
-            "internalType": "enum AssetStatus"
-          },
-          {
-            "name": "configVersion",
-            "type": "uint64",
-            "internalType": "uint64"
           }
         ]
       }
@@ -219,16 +192,6 @@
             "name": "securityId1",
             "type": "bytes32",
             "internalType": "bytes32"
-          },
-          {
-            "name": "status",
-            "type": "uint8",
-            "internalType": "enum PoolStatus"
-          },
-          {
-            "name": "version",
-            "type": "uint32",
-            "internalType": "uint32"
           }
         ]
       }
@@ -257,14 +220,9 @@
             "internalType": "uint8"
           },
           {
-            "name": "status",
-            "type": "uint8",
-            "internalType": "enum AssetStatus"
-          },
-          {
-            "name": "configVersion",
-            "type": "uint64",
-            "internalType": "uint64"
+            "name": "registered",
+            "type": "bool",
+            "internalType": "bool"
           }
         ]
       }
@@ -301,16 +259,6 @@
             "name": "listed",
             "type": "bool",
             "internalType": "bool"
-          },
-          {
-            "name": "activePoolCount",
-            "type": "uint32",
-            "internalType": "uint32"
-          },
-          {
-            "name": "version",
-            "type": "uint32",
-            "internalType": "uint32"
           }
         ]
       }
@@ -344,11 +292,6 @@
             "internalType": "address"
           },
           {
-            "name": "legalAdapterVersion",
-            "type": "uint32",
-            "internalType": "uint32"
-          },
-          {
             "name": "rawDecimals",
             "type": "uint8",
             "internalType": "uint8"
@@ -373,6 +316,49 @@
   },
   {
     "type": "function",
+    "name": "hasCredential",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasIdentity",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "hook",
     "inputs": [],
     "outputs": [
@@ -380,6 +366,30 @@
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isAllowed",
+    "inputs": [
+      {
+        "name": "permission",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -469,33 +479,7 @@
   },
   {
     "type": "function",
-    "name": "permissionedAllowlistChecker",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "permissionedPoolManager",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "permissionedRouter",
     "inputs": [],
     "outputs": [
       {
@@ -515,6 +499,25 @@
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permissionsOf",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
       }
     ],
     "stateMutability": "view"
@@ -587,13 +590,37 @@
   },
   {
     "type": "function",
-    "name": "sbtTokenId",
+    "name": "sbtIdentityConfig",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "registered",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "sbtTokenIds",
     "inputs": [],
     "outputs": [
       {
         "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       }
     ],
     "stateMutability": "view"
@@ -603,7 +630,7 @@
     "name": "setExitAdmin",
     "inputs": [
       {
-        "name": "w",
+        "name": "u",
         "type": "address",
         "internalType": "address"
       },
@@ -611,24 +638,6 @@
         "name": "newAdmin",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setPermissionedCurrencyStatus",
-    "inputs": [
-      {
-        "name": "w",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "status",
-        "type": "uint8",
-        "internalType": "enum AssetStatus"
       }
     ],
     "outputs": [],
@@ -654,17 +663,17 @@
   },
   {
     "type": "function",
-    "name": "setQuoteTokenStatus",
+    "name": "setSbtConfig",
     "inputs": [
       {
-        "name": "q",
-        "type": "address",
-        "internalType": "address"
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        "name": "status",
-        "type": "uint8",
-        "internalType": "enum AssetStatus"
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
       }
     ],
     "outputs": [],

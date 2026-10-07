@@ -34,15 +34,13 @@ contract BackedAutoFeeLegalShareAdapter is IDirectLegalShareAdapter {
 
     address public immutable userToken;
     address public immutable override poolCurrency;
-    uint32 public immutable override adapterVersion;
 
-    /// @notice Binds the wrapped pool currency to its issuer conversion source and adapter version.
+    /// @notice Binds the wrapped pool currency to its issuer conversion source.
     /// @param underlying_ Issuer token that exposes the live share conversion method.
     /// @param wrapped_ Token used as the pool currency and returned by the issuer wrapper.
-    /// @param version_ Reviewed adapter version recorded by the Registry.
-    constructor(address underlying_, address wrapped_, uint32 version_) {
+    constructor(address underlying_, address wrapped_) {
         if (
-            underlying_ == address(0) || wrapped_ == address(0) || underlying_ == wrapped_ || version_ == 0
+            underlying_ == address(0) || wrapped_ == address(0) || underlying_ == wrapped_
                 || underlying_.code.length == 0 || wrapped_.code.length == 0
         ) revert InvalidAdapterConfig();
         if (
@@ -52,7 +50,6 @@ contract BackedAutoFeeLegalShareAdapter is IDirectLegalShareAdapter {
         ) revert InvalidAdapterConfig();
         userToken = underlying_;
         poolCurrency = wrapped_;
-        adapterVersion = version_;
     }
 
     /// @notice Reports support for the direct legal-share adapter and ERC-165 interfaces.

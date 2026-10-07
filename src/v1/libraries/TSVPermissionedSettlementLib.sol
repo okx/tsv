@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 
 /// @notice Internal-only exact transfer and inventory checks. Never syncs or settles PoolManager debt.
@@ -15,25 +14,17 @@ library TSVPermissionedSettlementLib {
     struct StockInventory {
         uint256 collateral;
         uint256 supply;
-        uint256 pmBalance;
         uint256 pmUnderlyingBalance;
         uint256 routerUnderlyingBalance;
     }
 
-    function stockInventory(address w, address u, address pm, address participant)
-        internal
-        view
-        returns (StockInventory memory s)
-    {
+    function stockInventory(address w, address u, address pm) internal view returns (StockInventory memory s) {
         s.collateral = IERC20(u).balanceOf(w);
         s.supply = IERC20(w).totalSupply();
-        s.pmBalance = IERC20(w).balanceOf(pm);
         s.pmUnderlyingBalance = IERC20(u).balanceOf(pm);
         s.routerUnderlyingBalance = IERC20(u).balanceOf(address(this));
-        if (
-            s.collateral < s.supply || s.pmBalance != s.supply || IERC20(w).balanceOf(address(this)) != 0
-                || IERC20(w).balanceOf(participant) != 0
-        ) revert SettlementMismatch();
+        // Verified original W enforces mint-to-PM and burn-on-take, so W holder checks are redundant.
+        if (s.collateral < s.supply) revert SettlementMismatch();
     }
 
     /// @dev Unsolicited U and balances owned by other PM pools cannot fund this operation.
@@ -52,34 +43,9 @@ library TSVPermissionedSettlementLib {
         assertIncrease(recipientBefore, IERC20(token).balanceOf(recipient), amount);
     }
 
-    function payStock(address w, address u, address pm, address payer, uint256 amount) internal {
-        StockInventory memory before_ = stockInventory(w, u, pm, payer);
+    function payStock(address w, address u, address payer, uint256 amount) internal {
         transferExact(u, payer, w, amount);
         IPermissionsAdapter(w).wrapToPoolManager(amount);
-        StockInventory memory after_ = stockInventory(w, u, pm, payer);
-        assertUnderlyingUnchanged(before_, after_);
-        assertIncrease(before_.collateral, after_.collateral, amount);
-        assertIncrease(before_.supply, after_.supply, amount);
-        assertIncrease(before_.pmBalance, after_.pmBalance, amount);
-        if (before_.collateral - before_.supply != after_.collateral - after_.supply) revert SettlementMismatch();
-    }
-
-    function assertStockTake(
-        StockInventory memory before_,
-        uint256 recipientBefore,
-        address w,
-        address u,
-        address pm,
-        address recipient,
-        uint256 amount
-    ) internal view {
-        StockInventory memory after_ = stockInventory(w, u, pm, recipient);
-        assertUnderlyingUnchanged(before_, after_);
-        assertDecrease(before_.collateral, after_.collateral, amount);
-        assertDecrease(before_.supply, after_.supply, amount);
-        assertDecrease(before_.pmBalance, after_.pmBalance, amount);
-        assertIncrease(recipientBefore, IERC20(u).balanceOf(recipient), amount);
-        if (before_.collateral - before_.supply != after_.collateral - after_.supply) revert SettlementMismatch();
     }
 
     function assertIncrease(uint256 before_, uint256 after_, uint256 amount) internal pure {

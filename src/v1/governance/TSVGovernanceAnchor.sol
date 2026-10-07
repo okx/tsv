@@ -66,9 +66,6 @@ interface IRouterLinksV1 {
     /// @notice Returns the Router's configured Registry.
     function registry() external view returns (address);
 
-    /// @notice Returns the Router's configured Volume Ledger.
-    function ledger() external view returns (address);
-
     /// @notice Returns the Router's configured PoolManager.
     function poolManager() external view returns (address);
 }
@@ -223,7 +220,6 @@ contract TSVGovernanceAnchor {
                 || IHookLinksV1(addresses[3]).router() != addresses[4]
                 || IHookLinksV1(addresses[3]).lpManager() != addresses[5]
                 || IRouterLinksV1(addresses[4]).registry() != addresses[0]
-                || IRouterLinksV1(addresses[4]).ledger() != addresses[1]
                 || ILpLinksV1(addresses[5]).registry() != addresses[0]
                 || IHookLinksV1(addresses[3]).poolManager() != IRouterLinksV1(addresses[4]).poolManager()
                 || IHookLinksV1(addresses[3]).poolManager() != ILpLinksV1(addresses[5]).poolManager()

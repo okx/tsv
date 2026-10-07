@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AssetStatus} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {TSVRegistryV1, ISmartWalletSbtV1} from "tsv-v1/core/TSVRegistryV1.sol";
+import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 import {V1MockToken} from "../../../helpers/v1/FoundationMocks.sol";
-import {OperationsSbt, OperationsPausedOnlySbt, OperationsVerifyOnlySbt} from "../../../helpers/v1/OperationsMocks.sol";
+import {OperationsSbt} from "../../../helpers/v1/OperationsMocks.sol";
 
 contract TSVOperationsConfigurationTest is FoundationFixture {
     function testTierPolicyBoundsCapacityAndEvents() public {
@@ -30,70 +31,180 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         assertEq(registry.tierPolicy(2).maxListed, 0);
     }
 
-    function testSbtMustBeConfiguredAndCredentialIsSeparateFromEligibility() public {
+    function testSbtMustBeConfiguredAndCredentialIsSeparateFromPermissionsAndPause() public {
         address owner = makeAddr("credential-owner");
+        TSVRegistryV1 unbound = TSVRegistryV1(
+            address(
+                new TSVERC1967Proxy(
+                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor)))
+                )
+            )
+        );
         vm.expectRevert(TSVRegistryV1.SbtNotConfigured.selector);
-        registry.hasCredential(owner);
+        unbound.hasCredential(owner);
         vm.expectRevert(TSVRegistryV1.SbtNotConfigured.selector);
-        registry.isEligible(owner);
-        OperationsSbt credential = new OperationsSbt();
+        unbound.permissionsOf(owner);
+        vm.expectRevert(TSVRegistryV1.SbtNotConfigured.selector);
+        unbound.hasIdentity(owner, 7);
+        vm.expectRevert(TSVRegistryV1.SbtNotConfigured.selector);
+        unbound.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        assertFalse(registry.hasCredential(owner));
+        assertEq(PermissionFlag.unwrap(registry.permissionsOf(owner)), PermissionFlag.unwrap(PermissionFlags.NONE));
+        OperationsSbt credential = identitySbt;
         credential.setCredential(owner, 7, true);
-        registry.setSbtConfig(address(credential), 7);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
         assertTrue(registry.hasCredential(owner));
-        assertTrue(registry.isEligible(owner));
+        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         assertFalse(registry.hasCredential(makeAddr("nonholder")));
         credential.setPaused(true);
         assertTrue(registry.hasCredential(owner));
-        assertFalse(registry.isEligible(owner));
+        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         credential.setPaused(false);
-        registry.setSbtConfig(address(credential), 8);
-        assertFalse(registry.hasCredential(owner));
-        credential.setCredential(owner, 8, true);
-        assertTrue(registry.isEligible(owner));
+        registry.setSbtConfig(7, PermissionFlags.NONE);
+        assertTrue(registry.hasCredential(owner));
+        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
     }
 
-    function testEveryInvalidSbtConfigurationPreservesPreviousConfiguration() public {
-        OperationsSbt good = new OperationsSbt();
-        registry.setSbtConfig(address(good), 7);
-        address[5] memory bad = [
-            address(0),
-            makeAddr("no-code-sbt"),
-            address(quote),
-            address(new OperationsPausedOnlySbt()),
-            address(new OperationsVerifyOnlySbt())
-        ];
-        for (uint256 i; i < bad.length; ++i) {
-            vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            registry.setSbtConfig(bad[i], 8);
-            assertEq(address(registry.participantSbt()), address(good));
-            assertEq(registry.sbtTokenId(), 7);
-        }
-        OperationsSbt fails = new OperationsSbt();
-        fails.setFailVerify(true);
+    function testInvalidIdentityRegistrationAndUpdateAreAtomic() public {
+        OperationsSbt good = identitySbt;
+        good.setFailVerify(true);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(address(fails), 8);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
         assertEq(address(registry.participantSbt()), address(good));
-        assertEq(registry.sbtTokenId(), 7);
+        assertEq(registry.sbtTokenIds().length, 0);
+        good.setFailVerify(false);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        good.setFailVerify(true);
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setSbtConfig(7, PermissionFlags.NONE);
+        _assertConfig(7, true, true);
+        assertEq(address(registry.participantSbt()), address(good));
+        assertEq(registry.sbtTokenIds().length, 1);
     }
 
-    function testSbtReplacementEventAndMalformedReadsAreAtomic() public {
-        OperationsSbt old = new OperationsSbt();
-        OperationsSbt next = new OperationsSbt();
-        registry.setSbtConfig(address(old), 7);
-        bytes4[2] memory selectors = [ISmartWalletSbtV1.paused.selector, ISmartWalletSbtV1.verify.selector];
-        for (uint256 i; i < selectors.length; ++i) {
-            vm.mockCall(address(next), abi.encodeWithSelector(selectors[i]), hex"01");
+    function testSbtConfigurationAndUpdateEventsWithMalformedReadsAtomic() public {
+        OperationsSbt credential = identitySbt;
+        bytes[3] memory malformed = [bytes(hex""), bytes(hex"01"), abi.encode(uint256(2))];
+        for (uint256 i; i < malformed.length; ++i) {
+            vm.mockCall(address(credential), abi.encodeWithSelector(ISmartWalletSbtV1.verify.selector), malformed[i]);
             vm.expectRevert();
-            registry.setSbtConfig(address(next), 8);
-            assertEq(address(registry.participantSbt()), address(old));
-            assertEq(registry.sbtTokenId(), 7);
+            registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+            assertEq(address(registry.participantSbt()), address(credential));
+            assertEq(registry.sbtTokenIds().length, 0);
             vm.clearMockedCalls();
         }
         vm.expectEmit(true, true, false, true, address(registry));
-        emit TSVRegistryV1.SbtConfigChanged(address(old), address(next), 7, 8);
-        registry.setSbtConfig(address(next), 8);
-        assertEq(address(registry.participantSbt()), address(next));
-        assertEq(registry.sbtTokenId(), 8);
+        emit TSVRegistryV1.SbtConfigChanged(address(credential), 7, PermissionFlags.SWAP_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        credential.setPaused(true);
+        vm.expectEmit(true, true, false, true, address(registry));
+        emit TSVRegistryV1.SbtConfigChanged(address(credential), 7, PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.LIQUIDITY_ALLOWED);
+        _assertConfig(7, false, true);
+        assertEq(registry.sbtTokenIds().length, 1);
+    }
+
+    function testAdditionalIdentityValidationAndReadFailuresDoNotMeanRevocation() public {
+        OperationsSbt credential = identitySbt;
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        bytes memory makerConfigCall = abi.encodeCall(ISmartWalletSbtV1.verify, (address(registry), 8));
+        vm.mockCallRevert(address(credential), makerConfigCall, "marketmaker unavailable");
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        assertEq(registry.sbtTokenIds().length, 1);
+        vm.clearMockedCalls();
+        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        address owner = makeAddr("holder");
+        credential.setCredential(owner, 7, true);
+        for (uint256 id = 7; id <= 8; ++id) {
+            vm.mockCallRevert(address(credential), abi.encodeCall(ISmartWalletSbtV1.verify, (owner, id)), "unavailable");
+            vm.expectRevert();
+            registry.hasCredential(owner);
+            vm.expectRevert();
+            registry.permissionsOf(owner);
+            vm.clearMockedCalls();
+        }
+    }
+
+    function testIdentityQueriesRecognizeOnlyRegisteredIdsAndWorkWhilePaused() public {
+        address owner = makeAddr("holder");
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.hasIdentity(owner, 7);
+        OperationsSbt credential = identitySbt;
+        registry.setSbtConfig(7, PermissionFlags.NONE);
+        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        credential.setCredential(owner, 7, true);
+        credential.setCredential(owner, 99, true);
+        credential.setPaused(true);
+        assertTrue(registry.hasIdentity(owner, 7));
+        assertFalse(registry.hasIdentity(owner, 8));
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.hasIdentity(owner, 99);
+        credential.setCredential(owner, 7, false);
+        assertFalse(registry.hasCredential(owner));
+    }
+
+    function testPermissionUpdatesApplyToHoldersWithoutRevokingIdentityOrDuplicatingIds() public {
+        address owner = makeAddr("holder");
+        OperationsSbt credential = identitySbt;
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        registry.setSbtConfig(8, PermissionFlags.LIQUIDITY_ALLOWED);
+        credential.setCredential(owner, 7, true);
+        credential.setCredential(owner, 8, true);
+        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertTrue(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        registry.setSbtConfig(7, PermissionFlags.NONE);
+        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertTrue(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        registry.setSbtConfig(8, PermissionFlags.NONE);
+        assertTrue(registry.hasCredential(owner));
+        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertTrue(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        uint256[] memory ids = registry.sbtTokenIds();
+        assertEq(ids.length, 2);
+        assertEq(ids[0], 7);
+        assertEq(ids[1], 8);
+    }
+
+    function testUnknownPermissionBitsRejectWithoutRegisteringOrChangingIdentity() public {
+        OperationsSbt credential = identitySbt;
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setSbtConfig(7, PermissionFlags.ALL_ALLOWED);
+        assertEq(registry.sbtTokenIds().length, 0);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setSbtConfig(7, PermissionFlag.wrap(0x0004));
+        _assertConfig(7, true, false);
+    }
+
+    function testFuzzHeldIdentityPermissionsAreUnion(uint8 first, uint8 second, uint8 holders, bool paused) public {
+        first &= 3;
+        second &= 3;
+        holders &= 3;
+        address owner = makeAddr("holder");
+        OperationsSbt credential = identitySbt;
+        registry.setSbtConfig(0, PermissionFlag.wrap(bytes2(uint16(first))));
+        registry.setSbtConfig(8, PermissionFlag.wrap(bytes2(uint16(second))));
+        credential.setCredential(owner, 0, holders & 1 != 0);
+        credential.setCredential(owner, 8, holders & 2 != 0);
+        credential.setPaused(paused);
+        uint8 expected = paused ? 0 : ((holders & 1 != 0 ? first : 0) | (holders & 2 != 0 ? second : 0));
+        assertEq(registry.hasCredential(owner), holders != 0);
+        assertEq(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner), expected & 1 != 0);
+        assertEq(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner), expected & 2 != 0);
+        assertEq(PermissionFlag.unwrap(registry.permissionsOf(owner)), bytes2(uint16(expected)));
+    }
+
+    function _assertConfig(uint256 tokenId, bool swap, bool liquidity) private view {
+        (bool registered, PermissionFlag permissions) = registry.sbtIdentityConfig(tokenId);
+        assertTrue(registered);
+        uint16 mask = (swap ? 1 : 0) | (liquidity ? 2 : 0);
+        assertEq(PermissionFlag.unwrap(permissions), bytes2(mask));
     }
 
     function testQuoteBadDecimalsAndMetadataRemainAbsent() public {
@@ -101,7 +212,7 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         vm.mockCall(address(token), abi.encodeWithSelector(V1MockToken.decimals.selector), abi.encode(uint8(19)));
         vm.expectRevert(TSVRegistryV1.PermissionedMetadataMismatch.selector);
         registry.registerQuoteToken(address(token));
-        assertEq(uint8(registry.getQuoteToken(address(token)).status), uint8(AssetStatus.ABSENT));
+        assertFalse(registry.getQuoteToken(address(token)).registered);
         vm.clearMockedCalls();
         vm.mockCallRevert(address(token), abi.encodeWithSelector(V1MockToken.decimals.selector), "metadata unavailable");
         vm.expectRevert(TSVRegistryV1.PermissionedMetadataMismatch.selector);

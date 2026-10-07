@@ -1,21 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {PermissionFlag} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 
-/// @notice Admission state for a pool Currency registered in the Registry.
-enum AssetStatus {
-    ABSENT, // No approved Currency has been registered.
-    APPROVED, // Reviewed and permitted for new pool operations.
-    DISABLED // Temporarily or permanently blocked from new pool operations.
-}
-/// @notice Lifecycle state for a Registry pool.
-enum PoolStatus {
-    ABSENT, // No pool record exists.
-    PENDING, // Registered while PoolManager initialization is in progress.
-    ACTIVE, // Initialized and available when all other trading gates pass.
-    DISABLED // Registered but blocked from ordinary user operations.
-}
 /// @notice Market state derived from a known security's current pause mask.
 enum MarketStatus {
     OPEN, // Market operations may proceed when all other gates pass.
@@ -54,23 +42,20 @@ enum LPOperationMode {
 struct PermissionedCurrencyConfig {
     address underlying;
     address expectedOwner;
-    AssetStatus status;
-    uint64 configVersion;
 }
 
 /// @notice Canonical security, precision and legal-share conversion for an underlying (U).
 struct UnderlyingConfig {
     bytes32 securityId;
     address legalShareAdapter;
-    uint32 legalAdapterVersion;
     uint8 rawDecimals;
 }
 
 /// @notice An independently registered original quote ERC-20 (Q).
 struct QuoteTokenConfig {
     uint8 rawDecimals;
-    AssetStatus status;
-    uint64 configVersion;
+    /// @dev Explicit presence is required because rawDecimals may be zero.
+    bool registered;
 }
 
 /// @notice Reviewed stock admission input; U and decimals are derived from trusted contracts.
@@ -89,13 +74,9 @@ struct SecurityConfig {
     uint8 tierId;
     /// @notice Whether the security is currently listed for pool and report use.
     bool listed;
-    /// @notice Number of active pools containing this security.
-    uint32 activePoolCount;
-    /// @notice Incremented whenever listing or tier configuration changes.
-    uint32 version;
 }
 
-/// @notice Stored key, security legs, status, and version for a V4 pool.
+/// @notice Registered key and permanent security legs for a V4 pool.
 struct PoolConfig {
     /// @notice Full V4 pool key.
     PoolKey key;
@@ -103,10 +84,6 @@ struct PoolConfig {
     bytes32 securityId0;
     /// @notice Security ID for currency1, or zero for an ordinary Currency.
     bytes32 securityId1;
-    /// @notice Registry lifecycle state of the pool.
-    PoolStatus status;
-    /// @notice Incremented when the pool is activated or its status changes.
-    uint32 version;
 }
 
 /// @notice LP Manager state exposed to the Hook while one liquidity operation is in progress.
@@ -144,7 +121,7 @@ struct LPHookContext {
 }
 
 /// @notice One-pool user request for permissioned-stock/original-quote exact-in/out swaps.
-/// @dev W raw equals U raw; users approve and exchange U for the stock leg. External Adapters are rejected.
+/// @dev W raw equals U raw; users or approved DEX Adapters approve and exchange U for the stock leg.
 /// @dev The Router derives a full-range V4 price limit from `zeroForOne`.
 struct SwapRequest {
     /// @notice Full V4 pool key; the Registry must recognize it as tradable.
@@ -171,4 +148,10 @@ struct LPBounds {
     uint256 minPoolOut1;
     /// @notice Latest timestamp at which the LP operation may execute.
     uint64 deadline;
+}
+
+/// @notice A recognized SBT identity and the operations it currently authorizes.
+struct SbtIdentityConfig {
+    bool registered;
+    PermissionFlag permissions;
 }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "tsv-v1-permissioned-wrapped-swap-7",
+  "schemaVersion": "tsv-v1-permissioned-wrapped-swap-9",
   "status": "WRAPPED_SWAP_TEMPLATE",
   "network": {
     "name": "xlayer",
@@ -23,21 +23,20 @@
     "permissionsOpenzeppelinVersion": "5.0.2",
     "registryStorageLayoutArtifact": "docs/artifacts/TSVRegistryV1.storage-layout.json",
     "registryAbiArtifact": "docs/artifacts/TSVRegistryV1.abi.json",
-    "registryRuntimeSizeBytes": 23851,
-    "permissionedValidationLibraryRuntimeSizeBytes": 15410,
+    "registryRuntimeSizeBytes": 19883,
+    "permissionedValidationLibraryRuntimeSizeBytes": 7561,
     "routerStorageLayoutArtifact": "docs/artifacts/TSVSwapRouterV1.storage-layout.json",
     "routerAbiArtifact": "docs/artifacts/TSVSwapRouterV1.abi.json",
     "routerConstructorParameters": [
       "network.poolManager.address",
-      "businessProxies.registry.proxy"
+      "permissionedEnvironment.realFactory"
     ],
     "routerCompatibilityDiffArtifact": "docs/artifacts/v4-router-compatibility.diff",
     "permissionedValidationLibraryUsedBy": [
-      "registry",
-      "swapRouter"
+      "registry"
     ],
-    "routerRuntimeSizeBytes": 23816,
-    "routerInitcodeSizeBytes": 24360,
+    "routerRuntimeSizeBytes": 20190,
+    "routerInitcodeSizeBytes": 20932,
     "permissionedValidationLibraryStorageLayoutArtifact": "docs/artifacts/PermissionedValidationLib.storage-layout.json",
     "sharedRegistryInterfaceAbiArtifact": "docs/artifacts/ITSVPermissionedRegistry.abi.json",
     "bytecodeHash": "none"
@@ -95,7 +94,6 @@
     "ledgerDataInbox": "",
     "routerPoolManager": "",
     "routerRegistry": "",
-    "routerLedger": "",
     "lpPoolManager": "",
     "lpRegistry": "",
     "hookPoolManager": "",
@@ -106,7 +104,18 @@
   },
   "sbt": {
     "address": "",
-    "tokenId": 0
+    "identities": [
+      {
+        "name": "retail",
+        "tokenId": 1,
+        "permissions": 3
+      },
+      {
+        "name": "marketmaker",
+        "tokenId": 2,
+        "permissions": 3
+      }
+    ]
   },
   "roles": {
     "symbolAdmins": [],
@@ -139,29 +148,31 @@
     "productionLiquidityEvidence": [],
     "issuerPermissionEvidence": [],
     "localTestEvidence": {
-      "command": "forge test -vv",
-      "suiteCount": 46,
-      "passed": 279,
+      "command": "forge test --dynamic-test-linking --summary --out out/tsv-router-lock.vhL8kj/eventless-tests --cache-path out/tsv-router-lock.vhL8kj/eventless-tests-cache.json",
+      "suiteCount": 48,
+      "passed": 318,
       "failed": 0,
       "skipped": 0,
-      "wrappedSwapTests": 30,
-      "deferredFilesExcluded": 29
+      "wrappedSwapTests": 33,
+      "deferredFilesExcluded": 27,
+      "dexAdapterTests": 11,
+      "log": "out/tsv-router-lock.vhL8kj/state-removal-full-tests.log"
     }
   },
   "permissionedEnvironment": {
     "realFactory": "",
-    "factoryInterface": "",
     "poolManager": "",
     "router": "",
-    "allowlistChecker": "",
     "validationLibrary": "",
     "validationLibraryImmutableLink": true,
     "bindingTransaction": "",
-    "routerFactoryInterfaceImmutable": true,
     "routerPoolManagerImmutable": true,
-    "validationLibraryStorageFree": true
+    "validationLibraryStorageFree": true,
+    "routerPermissionsAdapterFactory": "",
+    "routerFactoryImmutable": true
   },
   "permissionedCurrencies": [],
   "underlyings": [],
-  "quoteTokens": []
+  "quoteTokens": [],
+  "underlyingExitAdmins": []
 }

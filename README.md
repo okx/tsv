@@ -133,8 +133,7 @@ src/v1/
 ├── deployment/    ERC-1967 Proxy · CREATE2 Hook Factory
 ├── libraries/     结算 · 日切 · 报告验证
 ├── types/         请求、配置与报告
-├── interfaces/    合约边界
-└── legacy/        隔离的历史结算参考
+└── interfaces/    合约边界
 
 test/
 ├── helpers/v1/            无可执行用例的 fixture · 独立状态模型

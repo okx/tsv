@@ -20,7 +20,7 @@
 | P：fuzz/invariant | 随机交易序列、整数边界、升级/暂停/日切交错 | seed、最小复现输入、`fail_on_revert` 策略与不变量结果 |
 | G：gas/部署 | 最坏 `getUnderlyingAmountByShares` 调用、单股票腿计量、双侧资产结算、强退、Hook 代理地址 | 给出所用编译器/优化参数、区块 gas limit、实际 gas 与余量 |
 
-`F` 层固定区块和 RPC 由测试清单提供，不把实时链状态当成稳定断言。测试必须校验 `chainId == 196`、官方 PoolManager 的地址/codehash、TSLAx/wTSLAx 的代理地址、运行代码哈希与可核验的实现/ABI；任何一项不符即让该组测试**失败**，不得自动改为 mock 或跳过。实际代理与本地 Backed 源码不一致时，记为准入阻断项并保持资产未准入（`ABSENT`）。底层转账场景只使用测试控制的地址或本地发行方实例；不能控制的真实发行方状态只做只读核验并如实标注未覆盖路径。
+`F` 层固定区块和 RPC 由测试清单提供，不把实时链状态当成稳定断言。测试必须校验 `chainId == 196`、官方 PoolManager 的地址/codehash、TSLAx/wTSLAx 的代理地址、运行代码哈希与可核验的实现/ABI；任何一项不符即让该组测试**失败**，不得自动改为 mock 或跳过。实际代理与本地 Backed 源码不一致时，记为准入阻断项并保持资产未准入。底层转账场景只使用测试控制的地址或本地发行方实例；不能控制的真实发行方状态只做只读核验并如实标注未覆盖路径。
 
 V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分别构建。跨版本集成测试通过薄接口调用各自产物；不得仅因一个集成 profile 能用 `0.8.29` 重编译 TSV，就把它当作生产 `0.8.26` 字节码的验证。测试清单保存三份外部源码 commit、OZ 版本、TSV 实现/代理 codehash 和 CREATE2 salt。
 
@@ -49,12 +49,12 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
-| R01 U/I | 按目标配置登记 wTSLAx 行为 mock、普通 `QUOTE`/`QUOTE6` Currency，查询 Token/Currency 配置；尝试将无适配器的 `STDx` 登记为股票 | 股票身份及 `BackedAutoFeeLegalShareAdapter` 绑定同一 wTSLAx Currency；新证券经 admitSecurity 同笔登记与批准，新增 Currency/报价币 registerToken 登记即 APPROVED；默认市场 OPEN、序号为零；无兼容 Adapter 的股票配置失败；旧 TSLAx→wTSLAx 结算 ABI 不属于当前 Registry |
-| R02 U | Currency 为零、无代码、decimals 错、重复 Currency、quote 携带 securityId、动态逐笔公式不可复算、股数 Adapter 报错或资产对不匹配 | 每种注册失败且无 TokenConfig 残留；目标 Registry 不用独立静态比例字段判定公式 |
-| R03 U/I | 非法状态、无代码 Currency 或已下架证券恢复批准；合法 `APPROVED→DISABLED→APPROVED`；活动仓位时更换股数 Adapter | 非法配置拒绝；合法状态转换成功；未暂停或新 Adapter 接口/绑定/版本不符则拒绝；变更不改写旧仓位资产；发行方实际拒转则强退原子回滚 |
-| R04 U/I | Tier 名额上限边界、证券重复登记/下架/重上架、跨 Token 同 securityId | `listedCount` 按 securityId 去重；活动池未处理前不能下架；同证券不同 Currency 合并日额度 |
-| R05 I | POOL_CREATOR 提交有序 PoolKey、静态 fee、tickSpacing、sqrtPriceX96；随后尝试重复初始化 | 代理 Hook 地址位 `0x3FFF`；PENDING→ACTIVE 与 V4 Initialize 同笔完成；初始价格等于提交值；重复拒绝 |
-| R06 U/I | 非 POOL_CREATOR、错 Hook、两侧均为股票（相同或不同 `securityId`）、倒序 Currency、动态费、fee=1_000_000、tickSpacing=0/32768、越界价格 | 全部拒绝；Registry 不残留 PENDING；V4 不创建池 |
+| R01 U/I | 按目标配置登记股票 W/U、普通 `QUOTE`/`QUOTE6`，查询 W/U/Q 配置；尝试错误 Factory、owner 或 Adapter | 新证券通过 admitPermissionedSecurity 原子准入，新增 W 和 Q 使用各自注册入口；W 以非零 underlying、Q 以 registered 表示准入，零位精度 Q 合法；市场默认 OPEN、序号零；无兼容 Adapter 的股票配置失败 |
+| R02 U | Currency 为零、无代码、decimals 错、重复 W/Q、股票身份冒充 Q、股数 Adapter 报错或资产对不匹配 | 注册失败且不留下 W/U/Q 配置；不使用独立静态比例字段判断公式 |
+| R03 U/I | TOKEN 暂停后恢复 W/Q；暂停中篡改绑定、精度、owner/wrapper/Hook 权限或股数 Adapter；持有供给和手续费时恢复 | 恢复复核当前配置，失败保留暂停；修正后可重试；不重做首次库存检查，不改写历史资产或仓位；配置替换须覆盖两类操作暂停 |
+| R04 U/I | Tier 名额上限边界、证券重复登记/下架/重上架、跨 W 同 securityId；重新上市时另有暂停 | listedCount 按证券去重；下架直接阻止全部池普通操作且保留历史池；重上架恢复未暂停池，独立暂停不被清除；同证券共享日额度 |
+| R05 I | POOL_CREATOR 提交有序 PoolKey、静态 fee、tickSpacing、sqrtPriceX96；随后重复初始化 | 代理 Hook 权限位 0x3FFF；Registry.registerPool 与真实 PM.initialize 同笔完成，无池生命周期字段；初始价格与输入一致，重复拒绝 |
+| R06 U/I | 非 POOL_CREATOR、错 Hook、两侧均为股票或报价币、倒序 Currency、动态费、fee=1_000_000、tickSpacing=0/32768、越界价格 | 拒绝且 Registry 不残留注册记录，V4 不创建池；修正价格后可成功重试 |
 | R07 I | 第三方直接调用 PoolManager `swap/modifyLiquidity/initialize/donate`，或伪造 Hook `sender/hookData` | Hook 拒绝；无额度、仓位或费状态变化 |
 | R08 I | SBT holder、无证 holder、SBT 全局 paused、SBT revoke；Registry 未配置 SBT；AA 合约钱包直接调用且有/无 SBT | 普通 Swap/LP 仅在 `verify=true && paused=false` 可执行；未配置时回滚 `SbtNotConfigured()`；直接调用能力不代替持证；paused 不等于已撤证 |
 | R09 U/I | 按全新部署清单部署六个业务代理，尝试空初始化数据、错误 PoolManager/Registry/Ledger 地址、错误 Registry/Hook/Router/LP 交叉绑定 | 空初始化数据被代理拒绝；Hook 低 14 位必须为 `0x3FFF`；Router 初始化不绑定 Hook，Hook 的 Router/LP 交叉绑定及治理 Anchor 其余绑定必须一致；错误绑定时发布流程停止且不启用资产 |
@@ -63,15 +63,17 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
-| A01 U/I | 用 Backed 行为 mock 的 wTSLAx Currency 和唯一生产 Adapter 接入 Hook；另用普通 ERC-20 或错误/错绑 Adapter 配置尝试登记；来源 multiplier 变化后交换两方向 | Hook 对每条股票 delta 调用来源 Token 转换方法并按当次返回值计股；错误配置回滚且新资产保持 `ABSENT`；PoolManager raw 份额不自行变化，用户始终收付 wTSLAx |
+| A01 U/I | 用 Backed 行为 mock 的 wTSLAx Currency 和唯一生产 Adapter 接入 Hook；另用普通 ERC-20 或错误/错绑 Adapter 配置尝试登记；来源 multiplier 变化后交换两方向 | Hook 对每条股票 delta 调用来源 Token 转换方法并按当次返回值计股；错误配置回滚且新资产保持未登记；PoolManager raw 份额不自行变化，用户始终收付 wTSLAx |
 | A02 U/I | 公告指定未来计量日拆股/并股，Token 提前或推迟更新；异常来源单位需人工暂停/跨日恢复 | 额度按 D-37 的独立系数在日开始自动切换；实际成交仍实时 Adapter 换算；不修改旧 quota/ADTV/历史 used。单位异常暂停流程另验证；不声称合约自动识别或阻止发行方日内变更。 |
 | A03 I | 模拟发送方扣 `x + fee`、接收方正好收到 `x` 的 Token，分别走 Swap 和 LP 的 PoolManager 入金/出金及强退 | 每条路径均因发送方 raw 差额不等于 `x` 而全回滚；用户余额、PoolManager、仓位、Receipt、used 恢复为 `S_pre` |
-| A04 U/I | 仅 UI getter 存在但未绑定经审核的直接换算 Adapter；Adapter 返回零、currency 不匹配或 ERC-165/版本不符；`balanceOf(PoolManager)` 会 Rebase | 不兼容股票 Token 不得批准或 Swap；正 raw 换算结果为零、来源方法 revert 时整笔回滚；准入不能仅凭函数名或单次余额读取 |
+| A04 U/I | 仅 UI getter 存在但未绑定经审核的直接换算 Adapter；Adapter 返回零、currency 不匹配或 ERC-165 不符；`balanceOf(PoolManager)` 会 Rebase | 不兼容股票 Token 不得批准或 Swap；正 raw 换算结果为零、来源方法 revert 时整笔回滚；准入不能仅凭函数名或单次余额读取 |
 | A05 U/I | 在 wTSLAx 股票池直接买入/卖出，覆盖 exact-in/out 与价格边界部分成交；使用未登记或不同的 PoolKey 发起 Swap | 只收付已登记的池内 Currency wTSLAx，按每笔实际 V4 wTSLAx delta 记一次 Tesla 额度；池键不匹配或未知时回滚；当前交易路径不执行包装或赎回 |
 | A06 I | LP 直接以 wTSLAx 开仓、加仓、领费、部分减仓、关闭和强退；wTSLAx 拒转或发送方额外扣费 | 每步只按实际 raw Currency delta 收付；退出向原 owner 交付 wTSLAx；失败方案 A 全回滚；LP 操作不增加 `usedWad` |
 | A07 U/I | 发行方 multiplier 改变、来源换算方法失效或 Token 被停用；用户仍持有 wTSLAx | 交易时调用来源方法并按当次返回值计股；方法失效/Token 停用时新 Swap 拒绝，不沿用缓存比例；既有仓位强退按独立门禁处理，不自动改成 TSLAx |
 | A08 I | 目标部署从无旧 TSLAx 结算仓位直接启用 wTSLAx 直结；尝试调用旧 TSLAx 结算入口 | 新部署只允许 wTSLAx 直结；旧包装/赎回入口不存在或回滚；不生成旧仓位兼容状态 |
-| A09 U/I | `setSbtConfig` 指向无 `paused()` 或 `verify()` 的合约、零地址或无代码地址 | 配置原子回滚；已有 SBT 配置保持不变；未配置 Registry 的资格读取回滚 `SbtNotConfigured()` |
+| A09 U/I | `bindComponents` 的 SBT 指向无 `paused()` 或 `verify()` 的合约、零地址或无代码地址；`setSbtConfig` 的实际 ID 读取失败 | 绑定失败时全部组件保持未绑定；身份配置失败时权限与 ID 列表保持不变；组件未绑定的 Registry 资格读取回滚 `SbtNotConfigured()` |
+
+SBT 增补验收：按 tokenId 独立配置 swap-only、LP-only、双权限及零权限；更新立即作用于持有者且不重复登记；多身份取权限并集。分别验证 Registry 的统一 `isAllowed(permission,account)` 与发行方 W 权限独立，Router/LP 的两层门禁均须通过；拒绝 NONE、组合权限和未知操作。验证所有已登记身份均撤销后才允许撤销强退。暂停、读取异常、关闭权限和部分撤证均不能替代身份全部撤销。
 
 ### 3.2 报告、自动日切与额度
 
@@ -84,7 +86,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | D05 U/I | 治理将日切从 04:00 排期为未来 07:00；另试从 04:00 直接改到 09:00、同时存在第二项待生效排期、已开始的过渡日、更改过去或当前日、取消待生效排期 | 只有符合未来边界、每次偏移差不超过 4 小时且过渡日尚未开始的排期/取消成功；过渡日可为 20–28 小时但只有一份完整硬上限；已开始和历史日边界永久不变；自动生效无需激活交易 |
 | D06 U | 9 月 ADTV 适用 10 月计量日，进入 11 月但无 10 月 ADTV；同一月份 ADTV 值不变，同一日没有 quota 覆盖 | 10 月使用 9 月 ADTV；11 月缺适用 ADTV 则受影响证券 Swap fail-closed；无 quota 时仍按 ADTV/Tier 硬上限交易；同一有效期间不重复上报相同值 |
 | D07 U/I | 默认系数1时 ADTV=1000e18、tierBps=25 得硬上限 2.5e18；无覆盖时交易，再为指定日 SET quota=2e18，随后下调到已用量以下并 CLEAR | `used` 对同证券跨池/跨 Token 汇总；每笔成功 Swap 不超过当时有效上限；SET/CLEAR 从成功提交后影响后续 Swap，不清零 used；下调到低于 used 后新 Swap 拒绝，CLEAR 后恢复硬上限但不重置历史用量 |
-| D08 U/I | `SEC_A` 股票与 `SEC_B` 股票申请同一 PoolKey；另以同证券不同股票 Currency 申请同一 PoolKey | 两类均在 `registerPendingPool` 被拒，Registry 不残留 PENDING，V4 不初始化池；各证券额度保持不变 |
+| D08 U/I | 不同证券的 W/W 或同证券不同 W 申请同一 PoolKey | 均在 registerPool 拒绝，不残留 Registry 记录，V4 不初始化池，各证券额度不变 |
 | D09 U | sourceMonth 格式错、SET 的 quota=0/大于提交时硬上限、CLEAR 无旧覆盖或 quota 非零、版本/序号回退、ADTV 更正后旧覆盖高于新 hard cap | 无效报告拒绝且不占 reportId；合法更正不改已用量，旧覆盖与新硬上限取更严值，不能继续超限成交；其他证券不受错误标的牵连 |
 
 
@@ -102,10 +104,10 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
 | S01 U/I | wTSLAx mock 来源方法初始 multiplier=`1e18`，输入 `2e18` raw shares；`QUOTE` 输出 | 该标的 `used` 增 `2e18`；quote 不产生 `SwapAccounted`；将来源 multiplier 改为 `2e18` 后，等量 raw 输入的 `used` 增量为 `4e18` |
-| S02 U/I | `wTSLAx` 输入 `3e18` shares，来源 Token `getUnderlyingAmountByShares` 返回 `2.7e18` | 技术股数 `2.7e18`；Adapter 返回值、版本及事件值与独立计算一致，不生成 rateId/快照 |
+| S02 U/I | `wTSLAx` 输入 `3e18` shares，来源 Token `getUnderlyingAmountByShares` 返回 `2.7e18` | 技术股数 `2.7e18`；Adapter 返回值及事件值与独立计算一致，不生成 rateId/快照 |
 | S03 U/I | 在股票／非股票池分别让股票作输入且存在 LP/协议费、股票作输出 | 输入按实际 V4 caller delta 的**含费总支出**计，输出按净收到计；每笔只记一条股票腿，不能按 `amountSpecified` 或用户预估数记账 |
 | S04 I | exact input 完全成交；价格边界仅部分成交且仍达到 minOut；部分成交低于 minOut | 前两者只按实际 delta 直接收付 Currency 和计股；最后者全回滚 |
-| S05 I | 股票输入和 quote 输入的 exact output 完全成交、超 maxIn、价格边界部分输出、实际输入恰为 `2^127` | 仅完全输出且输入在上限内且可由 `int128` 结算时成功；输入恰为 `2^127` 在 token 结算前以 `InputAmountTooLarge()` 拒绝；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分输出即使仍有非零量也回滚 |
+| S05 I | 股票输入和 quote 输入的 exact output 完全成交、超 maxIn、价格边界部分输出 | 仅完全输出且输入在上限内时成功；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分输出即使仍有非零量也回滚；Router 无成交事件或 int128 事件转换 |
 | S06 U/I | 未持证调用、参数越界、deadline 过期；AA 钱包以自身地址直接调用 | 未持证调用拒绝；EOA 与 AA 钱包均以自身地址作为 participant/payer/recipient 直接调用；同一请求在后续独立调用中按新 Swap 校验，不做应用层 nonce 去重 |
 | S07 I | 非 PoolManager 直接调用 Router.unlockCallback；非 Router 直接通过 PoolManager.swap；Router 收到不可交易池；Hook 收到不匹配的 PoolKey；Swap 回调期间重入 Router；直接调用 Hook 或尝试非 Swap 的 modify/donate | 全部拒绝；一次成功 Router Swap 恰一次记账；Swap 不依赖或清理活跃上下文 |
 | S08 U/I | Backed 来源换算对正 raw 返回零、来源方法 revert、极大 raw 返回溢出/异常值 | Hook 调用失败或返回零时整笔回滚；正成交不以零股计入额度 |
@@ -126,7 +128,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | L04 I | `collectFees` 在正流动性仓位有费/无费；最后一次 `closePosition` 有累计费 | 有费按返回 callerDelta 交付；无费回滚；close 单次负 liquidity 同时拿本金和费，不在零仓位追加领费 |
 | L05 I | LP bounds 的两侧 raw Currency 付款上限、收款下限；报价后池价或 multiplier 变化；输入 delta 恰为 `int128.min`；COLLECT 返回负 delta | 各侧按实际 callerDelta 校验 raw 边界，任一失败全回滚；`int128.min` 在 token 转账前拒绝，COLLECT 的负 delta 拒绝；前端股数展示不被误认为链上独立限价 |
 | L06 I | `REVOKE_EXIT_EXECUTOR` 对确实无 SBT 的原 owner；SBT 只是 paused；`FORCE_EXIT_ADMIN` 有/无 reason/evidence | 仅规定的两类调用者满足各自条件时能强退；paused 但仍持证不能作为撤证理由 |
-| L07 I | 停牌和 EmergencyPause 的三种模式、Token/Pool DISABLED、报告缺失时强退，并提交两侧 raw `minPoolOut` | 业务门禁不阻挡既有仓位全额强退；两侧实际到账均满足调用时下限才成功，资产仍只发到**原 owner** |
+| L07 I | 停牌和 EmergencyPause 三种模式、TOKEN/POOL 暂停、证券下架、报告缺失时强退，并提交两侧 raw minPoolOut | 业务门禁不阻挡既有仓位全额强退；两侧实际到账满足下限才成功，资产按原仓位规则交付 |
 | L08 I | 发行方 wTSLAx 拒绝向原 owner 转账，或另一侧普通 Token 拒转；分别安排失败发生在第一/第二腿 | 方案 A：V4 移除、资产转账、Receipt burn、TSV 仓位和事件均回滚到 `S_pre`；旧仓位可重试，无持久失败事件 |
 | L09 I | 强退 wTSLAx 时底层 multiplier 或 TSLAx 账户显示余额改变，但 wTSLAx raw 应付量确定 | 原 owner 实收 wTSLAx raw 与 V4 应付量精确相等；不要求本交易执行发行方赎回，也不错误以 TSLAx 的 `balanceOfUI` 差额判断交付 |
 | L10 I | 正常 LP 修改时零 liquidity、部分减仓清空、tick 未对齐、deadline 过期、余额不足、外部重入 | 全部拒绝且仓位/Receipt 保持一致 |
@@ -134,7 +136,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | L12 I | `closePosition` 或 `decreaseLiquidity` 在 tick 区间边界使一侧 delta 为零，同时该侧 `minPoolOut` 大于零 | `SlippageExceeded`，整笔回滚，仓位与 Receipt 保留；零输出也必须满足调用者设置的最低输出 |
 | L13 U/I | 四种紧急 scope × 三种 mode；同模式多记录、ALL 与单项叠加、清除顺序与未命中目标 | TRADE 只阻断 Swap、LP 只阻断全部普通 LP、ALL 同时阻断；精确模式计数逐条更新；恢复不误解除其他记录或市场暂停 |
 | L14 I | 市场/紧急 TRADE 暂停下完整 LP 生命周期；LP 暂停下 direct exact-in/out 与 Adapter 双向 Swap；Hook 与 Ledger 独立门禁 | 另一类操作成功，实际 V4 流动性、资产结算和计量符合预期；收费前先产生手续费，避免 NoFees 掩盖暂停行为 |
-| L15 U/I | 单项暂停下 enablePool、LegalShareAdapter 替换；GLOBAL/TOKEN 模式组合覆盖两类操作；暂停期间建池 | enablePool 要求两类门禁均通过；活跃 Currency 替换须 GLOBAL/TOKEN 共同覆盖两类；单项暂停拒绝替换；建池仍只看准入 |
+| L15 U/I | 单项暂停下轮换 W owner 或替换 U 股数 Adapter；组合暂停覆盖两类操作；暂停期间建池 | owner 轮换须该 W 的两类操作暂停，TOKEN/SECURITY/GLOBAL/市场暂停可组合；规范 Adapter 替换须整个证券两类暂停，单 W 或 POOL 不足；建池仍只看准入 |
 
 ### 3.5 治理与升级
 
@@ -156,7 +158,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | G14 U | 绑定、批量、冻结/解冻、提案/批准/撤回/取消、身份恢复事件 | 校验事件发出地址、indexed 身份/ID、数量和 Guardian epoch |
 | G15 U | 部署输入校验与部署清单 verifier；错链/无代码依赖/SBT ABI/治理身份/绑定状态/实现地址 | 有效环境和清单通过；每项不符拒绝；身份恢复后旧清单失效，更新后通过；实际广播与生产多签另行验收 |
 
-准入回归还须覆盖：准入失败后证券、Tier 名额和 Token 配置全部回滚；重复证券/Currency、Tier 超额、无代码、decimals/Adapter 不匹配均拒绝；未登记资产保持 ABSENT，不能建池；重新上市保留市场暂停和报告序号。真实 V4 用例验证缺 ADTV 时可提供 LP，但 Swap 的余额、价格、费用与用量全部回滚，提交有效 ADTV 后可成交；初始化失败不留下 PENDING 记录或活动池计数。
+准入回归还须覆盖：准入失败后证券、Tier 名额和 Token 配置全部回滚；重复证券/Currency、Tier 超额、无代码、decimals/Adapter 不匹配均拒绝；未登记资产不能建池；重新上市保留市场暂停和报告序号。真实 V4 用例验证缺 ADTV 时可提供 LP，但 Swap 的余额、价格、费用与用量全部回滚，提交有效 ADTV 后可成交；初始化失败不留下注册记录；历史池不因下架或暂停被删除。
 
 ## 4. 三个外部协议的专项集成
 
@@ -201,6 +203,6 @@ FOUNDRY_PROFILE=unit forge build --skip test --sizes
 
 执行顺序：先 U，再 I，再 P，最后固定区块 F 与 G。每次候选实现升级后重跑全部相关 U/I/P/F；涉及 Token/Adapter/Hook 的改动至少重跑 X-V4、X-BACKED 与 G08。CI 记录编译器、优化参数、依赖 commit、fork block、部署清单哈希、随机 seed、gas 报告和测试结果。不要使用实时最新区块生成会随市场状态漂移的必过断言。
 
-V1 **代码验收**要求：上述所有适用 ID 已落地且通过；没有跳过/预期失败的关键路径；关键完整交易用真实 V4 PoolManager 测过；失败原子性快照与六项性质测试通过；Router 直接调用者约束、报告直接角色 ABI、事件和错误可复算；代理布局和 Hook 权限位通过升级回归。**生产启用**另外要求固定区块 fork/真实代理核验、wTSLAx 股数口径的发行方/法务书面批准、实际制裁/暂停/精确转账与强退可达性、最坏 gas 余量及独立安全审计。缺任一项时不宣称 wTSLAx 生产测试完成，也不得调用准入入口将资产登记为 `APPROVED`。
+V1 **代码验收**要求：上述所有适用 ID 已落地且通过；没有跳过/预期失败的关键路径；关键完整交易用真实 V4 PoolManager 测过；失败原子性快照与六项性质测试通过；Router 直接调用者约束、报告直接角色 ABI、事件和错误可复算；代理布局和 Hook 权限位通过升级回归。**生产启用**另外要求固定区块 fork/真实代理核验、wTSLAx 股数口径的发行方/法务书面批准、实际制裁/暂停/精确转账与强退可达性、最坏 gas 余量及独立安全审计。缺任一项时不宣称 wTSLAx 生产测试完成，也不得调用准入入口登记资产。
 
 当前场景与实现文件、固定区块 DEX 边界及最新执行记录见[覆盖矩阵](./TEST_COVERAGE_V1.md)。

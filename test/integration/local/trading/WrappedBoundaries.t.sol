@@ -4,22 +4,63 @@ pragma solidity 0.8.26;
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {IUnlockCallback} from "v4-core/interfaces/callback/IUnlockCallback.sol";
+import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
 import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
+import {ImmutableState} from "tsv-v1/vendor/v4-router/base/ImmutableState.sol";
+import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {WrappedSwapFixture} from "../../../helpers/v1/WrappedSwapFixture.sol";
 
-/// @dev Used only to alter the first callback payload; never used for successful swap funding.
-contract V1CorruptCallbackPoolManager {
-    function unlock(bytes calldata data) external returns (bytes memory) {
-        return IUnlockCallback(msg.sender).unlockCallback(bytes.concat(data, hex"ff"));
-    }
-}
-
 contract TSVWrappedBoundariesTest is WrappedSwapFixture {
+    using PoolIdLibrary for PoolKey;
+    address private nextRouterImplementation;
+
+    function testPoolInitializationFailureRollsBackRegistrationAndCanBeRetried() public {
+        PoolKey memory newKey = key;
+        newKey.fee = 500;
+        bytes32 id = PoolId.unwrap(newKey.toId());
+        vm.expectRevert();
+        seed.initializePool(newKey, 0);
+        assertFalse(registry.isKnownPool(id));
+        assertFalse(registry.isTradable(id));
+        (uint160 price,,,) = StateLibrary.getSlot0(manager, newKey.toId());
+        assertEq(price, 0);
+        seed.initializePool(newKey, uint160(1 << 96));
+        assertTrue(registry.isKnownPool(id));
+        assertTrue(registry.isTradable(id));
+        (price,,,) = StateLibrary.getSlot0(manager, newKey.toId());
+        assertEq(price, uint160(1 << 96));
+        vm.expectRevert();
+        seed.initializePool(newKey, uint160(1 << 96));
+        (price,,,) = StateLibrary.getSlot0(manager, newKey.toId());
+        assertEq(price, uint160(1 << 96));
+    }
+
+    function testUnregisteredPoolCannotBeInitializedThroughPoolManager() public {
+        PoolKey memory newKey = key;
+        newKey.fee = 500;
+        vm.expectRevert();
+        vm.prank(address(seed));
+        manager.initialize(newKey, uint160(1 << 96));
+        assertFalse(registry.isKnownPool(PoolId.unwrap(newKey.toId())));
+    }
+
+    function testDelistingStopsSwapsAndRelistingUsesHistoricalPool() public {
+        _swap(true, true, 1e16);
+        registry.delistSecurity(SECURITY);
+        bytes32 before_ = _digest();
+        vm.expectRevert();
+        _swap(false, true, 1e16);
+        assertEq(_digest(), before_);
+        assertTrue(registry.isKnownPool(PoolId.unwrap(key.toId())));
+        registry.relistSecurity(SECURITY);
+        _swap(false, true, 1e16);
+    }
+
     function testExactInputCanFillPartiallyAndOnlyChargesRealizedInput() public {
         uint256 before_ = underlying.balanceOf(alice);
         (uint256 paid, uint256 received) = _swap(true, true, 1e22);
@@ -72,95 +113,69 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
         assertEq(_digest(), before_);
     }
 
-    function testCallbackRequiresPoolManagerAndActiveOperation() public {
-        vm.expectRevert();
-        router.unlockCallback(bytes(""));
-        vm.expectRevert(TSVSwapRouterV1.InvalidCallbackContext.selector);
-        vm.prank(address(manager));
+    function testCallbackRequiresPoolManager() public {
+        vm.expectRevert(ImmutableState.NotPoolManager.selector);
         router.unlockCallback(bytes(""));
         _swap(true, true, 1e16);
-        vm.expectRevert(TSVSwapRouterV1.InvalidCallbackContext.selector);
-        vm.prank(address(manager));
+        vm.expectRevert(ImmutableState.NotPoolManager.selector);
         router.unlockCallback(bytes(""));
     }
 
-    function testCorruptedPayloadAndMissingCallbackRejectBeforeFunding() public {
-        bytes32 before_ = _digest();
-        bytes memory original = address(manager).code;
-        vm.etch(address(manager), address(new V1CorruptCallbackPoolManager()).code);
-        vm.expectRevert(TSVSwapRouterV1.InvalidCallbackContext.selector);
-        _swap(true, true, 1e16);
-        vm.etch(address(manager), original);
-        assertEq(_digest(), before_);
-        vm.mockCall(address(manager), abi.encodeWithSelector(IPoolManager.unlock.selector), abi.encode(bytes("")));
-        vm.expectRevert(TSVSwapRouterV1.InvalidCallbackContext.selector);
-        _swap(true, true, 1e16);
-        vm.clearMockedCalls();
-        assertEq(_digest(), before_);
-        _swap(true, true, 1e16);
-    }
-
-    function testDuplicateCallbackAndUserReentryDuringPaymentReject() public {
+    function testUserReentryDuringPaymentRejects() public {
         underlying.setCallback(address(this), abi.encodeCall(this.assertCallbackIsolation, ()));
-        _swap(true, true, 1e16);
+        quote.setCallback(address(this), abi.encodeCall(this.assertCallbackIsolation, ()));
+        for (uint256 i; i < 4; ++i) {
+            _swap(i < 2, i % 2 == 0, 1e16);
+            assertEq(router.msgSender(), address(0));
+        }
+    }
+
+    function testRevertedEntryReleasesLockForNextSwap() public {
+        SwapRequest memory request = _request(true, true, 0);
+        vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
+        vm.prank(alice);
+        router.swapExactInput(request);
         assertEq(router.msgSender(), address(0));
         _swap(true, true, 1e16);
+        assertEq(router.msgSender(), address(0));
     }
 
-    /// @dev Sender impersonation isolates the consumed-callback guard; successful swaps still use real PM.
-    function assertCallbackIsolation() external {
+    function testUpgradeDuringPaymentRejectsAndSucceedsAfterSwap() public {
+        nextRouterImplementation = address(new TSVSwapRouterV1(address(manager), address(factory)));
+        TSVERC1967Proxy proxy = TSVERC1967Proxy(payable(address(router)));
+        address oldImplementation = proxy.tsvImplementation();
+        underlying.setCallback(address(this), abi.encodeCall(this.assertUpgradeIsolation, ()));
+        _swap(true, true, 1e16);
+        assertEq(proxy.tsvImplementation(), oldImplementation);
+        assertEq(router.msgSender(), address(0));
+        underlying.setCallback(address(0), bytes(""));
+        router.upgradeToAndCall(nextRouterImplementation, bytes(""));
+        assertEq(proxy.tsvImplementation(), nextRouterImplementation);
+        _swap(true, true, 1e16);
+    }
+
+    function assertUpgradeIsolation() external {
         require(msg.sender == address(underlying));
         assertEq(router.msgSender(), alice);
-        vm.expectRevert(TSVSwapRouterV1.Reentrancy.selector);
+        vm.expectRevert(ReentrancyLock.ContractLocked.selector);
+        router.upgradeToAndCall(nextRouterImplementation, bytes(""));
+    }
+
+    function assertCallbackIsolation() external {
+        require(msg.sender == address(underlying) || msg.sender == address(quote));
+        assertEq(router.msgSender(), alice);
+        vm.expectRevert(ReentrancyLock.ContractLocked.selector);
         router.swapExactInput(_request(true, true, 1e16));
-        vm.expectRevert(TSVSwapRouterV1.InvalidCallbackContext.selector);
-        vm.prank(address(manager));
+        vm.expectRevert(ReentrancyLock.ContractLocked.selector);
+        router.swapExactOutput(_request(false, false, 1e16));
+        vm.expectRevert(ImmutableState.NotPoolManager.selector);
         router.unlockCallback(bytes(""));
     }
 
-    function testMismatchedSettlePaidRevertsAndSyncAndSettleOccurOnce() public {
-        bytes32 before_ = _digest();
-        vm.mockCall(address(manager), abi.encodeWithSelector(IPoolManager.settle.selector), abi.encode(uint256(0)));
-        vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
-        _swap(true, true, 1e16);
-        vm.clearMockedCalls();
-        assertEq(_digest(), before_);
+    function testSyncAndSettleOccurOnceForStockPayment() public {
         vm.expectCall(address(manager), abi.encodeCall(IPoolManager.sync, (Currency.wrap(address(stock)))), 1);
         vm.expectCall(address(manager), abi.encodeCall(IPoolManager.settle, ()), 1);
         _swap(true, true, 1e16);
-    }
-
-    function testExactOutputOverDeliveryCannotRelaxStrictEquality() public {
-        SwapRequest memory request = _request(false, false, 1e16);
-        uint256 input = 2e16;
-        uint256 output = 1e16 + 1;
-        Currency inputCurrency = request.zeroForOne ? key.currency0 : key.currency1;
-        Currency outputCurrency = request.zeroForOne ? key.currency1 : key.currency0;
-        BalanceDelta delta = toBalanceDelta(
-            request.zeroForOne ? -int128(int256(input)) : int128(int256(output)),
-            request.zeroForOne ? int128(int256(output)) : -int128(int256(input))
-        );
-        bytes32 before_ = _digest();
-        vm.mockCall(address(manager), abi.encodeWithSelector(IPoolManager.swap.selector), abi.encode(delta));
-        vm.mockCall(
-            address(manager),
-            abi.encodeWithSignature(
-                "exttload(bytes32)", keccak256(abi.encode(address(router), Currency.unwrap(inputCurrency)))
-            ),
-            abi.encode(bytes32(uint256(-int256(input))))
-        );
-        vm.mockCall(
-            address(manager),
-            abi.encodeWithSignature(
-                "exttload(bytes32)", keccak256(abi.encode(address(router), Currency.unwrap(outputCurrency)))
-            ),
-            abi.encode(bytes32(output))
-        );
-        vm.expectRevert(TSVSwapRouterV1.SlippageExceeded.selector);
-        vm.prank(alice);
-        router.swapExactOutput(request);
-        vm.clearMockedCalls();
-        assertEq(_digest(), before_);
     }
 }
 

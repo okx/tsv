@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
 import {Test} from "forge-std/Test.sol";
 
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
@@ -12,6 +13,7 @@ import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
+import {V1LocalSBT} from "../../../helpers/v1/LocalMocks.sol";
 
 /// @dev Exercises CREATE/CREATE2 address prediction and Hook proxy deployment only.
 contract TSVHookFactoryTest is Test {
@@ -121,7 +123,14 @@ contract TSVHookFactoryTest is Test {
         assertEq(address(hook), predictedHook);
         assertEq(hook.router(), address(router));
         assertEq(hook.lpManager(), address(lp));
-        d.registry.bindComponents(address(hook), address(lp), address(d.inbox));
+        d.registry
+            .bindComponents(
+                address(hook),
+                address(lp),
+                address(d.inbox),
+                address(router.PERMISSIONS_ADAPTER_FACTORY()),
+                address(new V1LocalSBT())
+            );
         d.ledger.bindWriters(address(hook), address(d.inbox));
         assertEq(d.registry.hook(), address(hook));
         assertEq(d.ledger.hook(), address(hook));
@@ -169,7 +178,8 @@ contract TSVHookFactoryTest is Test {
                 )
             )
         );
-        d.routerImpl = address(new TSVSwapRouterV1(address(this), address(d.registry)));
+        d.routerImpl =
+            address(new TSVSwapRouterV1(address(this), address(new PermissionsAdapterFactory(address(this)))));
         d.lpImpl = address(new TSVLPManagerV1());
         d.hookImpl = address(new TSVHookV1());
         d.factory = new TSVHookProxyFactoryV1();
@@ -181,10 +191,7 @@ contract TSVHookFactoryTest is Test {
             address(
                 new TSVERC1967Proxy(
                     d.routerImpl,
-                    abi.encodeCall(
-                        TSVSwapRouterV1.initialize,
-                        (address(d.anchor), address(this), address(d.registry), address(d.ledger))
-                    )
+                    abi.encodeCall(TSVSwapRouterV1.initialize, (address(d.anchor), address(this), address(d.registry)))
                 )
             )
         );

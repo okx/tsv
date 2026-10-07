@@ -10,10 +10,8 @@ import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol"
 import {BeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
 import {
     PoolConfig,
-    PoolStatus,
     PermissionedCurrencyConfig,
     UnderlyingConfig,
-    AssetStatus,
     LPHookContext,
     LPOperationMode
 } from "tsv-v1/types/TSVTypes.sol";
@@ -89,7 +87,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         _;
     }
 
-    /// @notice Allows initialization only for a pending pool created by the LP Manager.
+    /// @notice Allows initialization only for an exact registered key submitted by the LP Manager.
     /// @param sender Contract that initiated PoolManager.initialize.
     /// @param key Full V4 pool key being initialized.
     /// @return V4 callback selector acknowledging this Hook callback.
@@ -100,7 +98,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         onlyPoolManager
         returns (bytes4)
     {
-        _requirePending(sender, key);
+        _requireRegistered(sender, key);
         return IHooks.beforeInitialize.selector;
     }
 
@@ -259,14 +257,11 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         revert UnsupportedCallback();
     }
 
-    /// @dev Requires initialization to originate from the LP Manager for an exactly registered pending key.
+    /// @dev Requires initialization to originate from the LP Manager for an exactly registered key.
     /// @param sender Contract that invoked the PoolManager operation.
     /// @param key Pool key being initialized.
-    function _requirePending(address sender, PoolKey calldata key) private view {
-        if (
-            sender != lpManager || address(key.hooks) != address(this)
-                || registry.getPool(PoolId.unwrap(key.toId())).status != PoolStatus.PENDING
-        ) revert InvalidPool();
+    function _requireRegistered(address sender, PoolKey calldata key) private view {
+        if (sender != lpManager || address(key.hooks) != address(this)) revert InvalidPool();
         _requireExactKey(key, PoolId.unwrap(key.toId()));
     }
 
@@ -308,18 +303,17 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     function _sharesForLeg(bytes32 securityId, address currency, int128 delta) private view returns (uint256) {
         PermissionedCurrencyConfig memory config = registry.getCurrency(currency);
         if (config.underlying == address(0)) {
-            if (registry.getQuoteToken(currency).status != AssetStatus.APPROVED || securityId != 0) {
+            if (!registry.getQuoteToken(currency).registered || securityId != 0) {
                 revert InvalidPool();
             }
             return 0;
         }
         UnderlyingConfig memory underlying = registry.getUnderlying(config.underlying);
-        if (
-            config.status != AssetStatus.APPROVED || securityId == 0 || underlying.securityId != securityId
-                || underlying.legalShareAdapter == address(0) || underlying.legalAdapterVersion == 0
-        ) revert InvalidPool();
+        if (securityId == 0 || underlying.securityId != securityId || underlying.legalShareAdapter == address(0)) {
+            revert InvalidPool();
+        }
         IDirectLegalShareAdapter adapter = IDirectLegalShareAdapter(underlying.legalShareAdapter);
-        if (adapter.poolCurrency() != config.underlying || adapter.adapterVersion() != underlying.legalAdapterVersion) {
+        if (adapter.poolCurrency() != config.underlying) {
             revert InvalidPool();
         }
         if (delta == 0) return 0;

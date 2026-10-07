@@ -4,14 +4,14 @@ pragma solidity 0.8.26;
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {PermissionedAdmission, AssetStatus, PoolStatus} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 
 contract TSVOperationsLifecycleTest is OperationsFixture {
     using PoolIdLibrary for PoolKey;
 
-    function testMultipleCurrenciesAndPoolsCountOneListedSecurity() public {
+    function testDelistingStopsAllPoolsAndRelistingKeepsIndependentPauses() public {
         PermissionedAdmission memory secondCurrency = _newStockConfig(SECURITY);
         registry.registerPermissionedCurrency(secondCurrency);
         PoolKey memory secondKey = key;
@@ -19,32 +19,30 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         address b = secondCurrency.currency < address(quote) ? address(quote) : secondCurrency.currency;
         secondKey.currency0 = Currency.wrap(a);
         secondKey.currency1 = Currency.wrap(b);
-        bytes32 secondPool = registry.registerPendingPool(secondKey);
-        registry.markPoolActive(secondPool, uint160(1 << 96), address(this));
+        bytes32 secondPool = registry.registerPool(secondKey);
         assertEq(registry.tierPolicy(1).listedCount, 1);
-        assertEq(registry.getSecurity(SECURITY).activePoolCount, 2);
-        assertEq(registry.activePoolCountByCurrency(address(quote)), 2);
-        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.delistSecurity(SECURITY);
-        registry.disablePool(poolId);
-        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.delistSecurity(SECURITY);
-        registry.disablePool(secondPool);
+        assertTrue(registry.isTradable(secondPool));
         registry.delistSecurity(SECURITY);
         assertEq(registry.tierPolicy(1).listedCount, 0);
-        assertEq(registry.activePoolCountByCurrency(address(quote)), 0);
+        _assertOperationGates(false, false);
+        assertFalse(registry.isTradable(secondPool));
+        assertFalse(registry.isLPAllowed(secondPool));
+        assertTrue(registry.isKnownPool(poolId));
+        assertTrue(registry.isKnownPool(secondPool));
+        _grantPauseRoles();
+        uint256 pause = _pause(PauseScope.POOL, secondPool, PauseMode.ALL);
         registry.relistSecurity(SECURITY);
-        registry.enablePool(poolId);
-        registry.enablePool(secondPool);
         assertEq(registry.tierPolicy(1).listedCount, 1);
-        assertEq(registry.getSecurity(SECURITY).activePoolCount, 2);
-        assertEq(registry.activePoolCountByCurrency(address(quote)), 2);
+        _assertOperationGates(true, true);
+        assertFalse(registry.isTradable(secondPool));
         assertEq(keccak256(abi.encode(registry.getPool(secondPool).key)), keccak256(abi.encode(secondKey)));
+        registry.clearEmergencyPause(pause, keccak256("resume"));
+        assertTrue(registry.isTradable(secondPool));
+        assertTrue(registry.isLPAllowed(secondPool));
     }
 
     function testRelistingFullTierRollsBackThenSucceedsAfterCapacityRestored() public {
         registry.setTierPolicy(1, 25, 1);
-        registry.disablePool(poolId);
         registry.delistSecurity(SECURITY);
         _admitAdditionalSecurity(keccak256("other-security"));
         bytes32 beforeState = _lifecycleState();
@@ -54,7 +52,6 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         registry.setTierPolicy(1, 25, 2);
         registry.relistSecurity(SECURITY);
         assertEq(registry.tierPolicy(1).listedCount, 2);
-        assertEq(registry.getSecurity(SECURITY).version, 3);
     }
 
     function testTierMoveReleasesOldSlotAndFailedMoveLeavesCountsAndCap() public {
@@ -71,7 +68,6 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         registry.setSecurityTier(SECURITY, 2);
         assertEq(registry.tierPolicy(1).listedCount, 0);
         assertEq(registry.tierPolicy(2).listedCount, 1);
-        assertEq(registry.getSecurity(SECURITY).version, 2);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
@@ -85,14 +81,11 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
 
     function testLifecycleRejectsUnknownAndNoopWithoutWrites() public {
         bytes32 absent = keccak256("absent-security");
-        bytes[] memory calls = new bytes[](7);
+        bytes[] memory calls = new bytes[](4);
         calls[0] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
         calls[1] = abi.encodeCall(TSVRegistryV1.relistSecurity, (absent));
         calls[2] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 1));
         calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (absent));
-        calls[4] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY));
-        calls[5] = abi.encodeCall(TSVRegistryV1.disablePool, (bytes32(0)));
-        calls[6] = abi.encodeCall(TSVRegistryV1.enablePool, (poolId));
         for (uint256 i; i < calls.length; ++i) {
             bytes32 beforeState = _lifecycleState();
             vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
@@ -101,9 +94,6 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         }
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.setSecurityTier(SECURITY, 2);
-        registry.disablePool(poolId);
-        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.disablePool(poolId);
         registry.delistSecurity(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.delistSecurity(SECURITY);
@@ -114,25 +104,21 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         registry.relistSecurity(SECURITY);
     }
 
-    function testPoolEnableRechecksEachCurrencyAndDoesNotChangeCountsOnFailure() public {
-        registry.disablePool(poolId);
-        address[2] memory currencies = [address(stock), address(quote)];
-        for (uint256 i; i < currencies.length; ++i) {
-            _setAssetStatus(currencies[i], AssetStatus.DISABLED);
-            bytes32 beforeState = _lifecycleState();
-            vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-            registry.enablePool(poolId);
-            assertEq(_lifecycleState(), beforeState);
-            _setAssetStatus(currencies[i], AssetStatus.APPROVED);
-        }
-        registry.enablePool(poolId);
-        assertEq(registry.getPool(poolId).version, 4);
-        assertEq(registry.getSecurity(SECURITY).activePoolCount, 1);
-        assertEq(registry.activePoolCountByCurrency(address(stock)), 1);
+    function testPoolRecoveryKeepsIndependentTokenPauses() public {
+        _grantPauseRoles();
+        uint256 poolPause = _pause(PauseScope.POOL, poolId, PauseMode.ALL);
+        uint256 stockPause = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
+        uint256 quotePause = _pause(PauseScope.TOKEN, bytes32(uint256(uint160(address(quote)))), PauseMode.ALL);
+        registry.clearEmergencyPause(poolPause, keccak256("resume-pool"));
+        _assertOperationGates(false, false);
+        registry.clearEmergencyPause(stockPause, keccak256("resume-stock"));
+        _assertOperationGates(false, false);
+        registry.clearEmergencyPause(quotePause, keccak256("resume-quote"));
+        _assertOperationGates(true, true);
+        assertTrue(registry.isKnownPool(poolId));
     }
 
     function testDelistingPreservesSecurityIdentityAndAllowsDifferentSecurity() public {
-        registry.disablePool(poolId);
         registry.delistSecurity(SECURITY);
         bytes32 otherSecurity = keccak256("other-security");
         PermissionedAdmission memory config = _newStockConfig(otherSecurity);
@@ -154,8 +140,6 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
                 registry.getPool(poolId),
                 registry.getCurrency(address(stock)),
                 registry.getQuoteToken(address(quote)),
-                registry.activePoolCountByCurrency(address(stock)),
-                registry.activePoolCountByCurrency(address(quote)),
                 ledger.used(SECURITY, DAY)
             )
         );

@@ -70,8 +70,8 @@ contract TSVProxyBindingTest is SixProxyFixture {
     }
 
     function testEveryBrokenCrossLinkRollsBackAndCanBeRetried() public {
-        uint8[17] memory owners = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 5, 4, 5];
-        string[17] memory getters = [
+        uint8[16] memory owners = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 3, 3, 4, 5, 4, 5];
+        string[16] memory getters = [
             "hook()",
             "lpManager()",
             "dataInbox()",
@@ -85,7 +85,6 @@ contract TSVProxyBindingTest is SixProxyFixture {
             "router()",
             "lpManager()",
             "registry()",
-            "ledger()",
             "registry()",
             "poolManager()",
             "poolManager()"

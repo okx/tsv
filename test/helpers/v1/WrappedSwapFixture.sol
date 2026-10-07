@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+
 import {Test} from "forge-std/Test.sol";
 import {PoolManager} from "v4-core/PoolManager.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
@@ -25,7 +27,7 @@ import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools
 import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
 import {V1MockIssuerShares} from "./MockIssuerTokens.sol";
 import {V1LocalSBT} from "./LocalMocks.sol";
-import {V1ConfigReceiver} from "./PermissionedMocks.sol";
+import {V1ConfigReceiver, V1IssuerAllowlistChecker} from "./PermissionedMocks.sol";
 import {V1SwapToken, V1WrappedLiquiditySeed} from "./WrappedSwapMocks.sol";
 
 /// @dev No inherited test functions. Uses real PM, original Factory/W, TSV proxies and a test-only seed.
@@ -48,6 +50,7 @@ abstract contract WrappedSwapFixture is Test {
     PermissionsAdapter internal stock;
     BackedAutoFeeLegalShareAdapter internal legalAdapter;
     V1ConfigReceiver internal exitReceiver;
+    V1IssuerAllowlistChecker internal issuerChecker;
     V1LocalSBT internal sbt;
     PoolKey internal key;
     address internal alice;
@@ -72,12 +75,11 @@ abstract contract WrappedSwapFixture is Test {
                 abi.encodeCall(TSVDataInboxV1.initialize, (address(anchor), address(registry), address(ledger)))
             )
         );
+        factory = new PermissionsAdapterFactory(address(manager));
         router = TSVSwapRouterV1(
             _proxy(
-                address(new TSVSwapRouterV1(address(manager), address(registry))),
-                abi.encodeCall(
-                    TSVSwapRouterV1.initialize, (address(anchor), address(manager), address(registry), address(ledger))
-                )
+                address(new TSVSwapRouterV1(address(manager), address(factory))),
+                abi.encodeCall(TSVSwapRouterV1.initialize, (address(anchor), address(manager), address(registry)))
             )
         );
         seed = new V1WrappedLiquiditySeed(manager, registry);
@@ -91,13 +93,12 @@ abstract contract WrappedSwapFixture is Test {
         hook.initialize(
             address(anchor), address(manager), address(registry), address(ledger), address(router), address(seed)
         );
-        registry.bindComponents(address(hook), address(seed), address(inbox));
-        ledger.bindWriters(address(hook), address(inbox));
-        factory = new PermissionsAdapterFactory(address(manager));
-        registry.bindPermissionedComponents(address(factory), address(router));
         sbt = new V1LocalSBT();
-        sbt.setHolder(alice, true);
-        registry.setSbtConfig(address(sbt), 1);
+        registry.bindComponents(address(hook), address(seed), address(inbox), address(factory), address(sbt));
+        ledger.bindWriters(address(hook), address(inbox));
+        sbt.setHolder(alice, 1, true);
+        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(2, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
         registry.setPermissionedOwnerApproval(address(this), true);
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
@@ -108,8 +109,9 @@ abstract contract WrappedSwapFixture is Test {
         issuer = new V1MockIssuerShares();
         underlying = new V1SwapToken("STOCK_U", 18, address(issuer));
         quote = new V1SwapToken("QUOTE_Q", _quoteDecimals(), address(0));
-        legalAdapter = new BackedAutoFeeLegalShareAdapter(address(issuer), address(underlying), 1);
+        legalAdapter = new BackedAutoFeeLegalShareAdapter(address(issuer), address(underlying));
         exitReceiver = new V1ConfigReceiver();
+        issuerChecker = new V1IssuerAllowlistChecker();
         stock = _newWrapper();
         registry.admitPermissionedSecurity(
             1, PermissionedAdmission(address(stock), SECURITY, address(this), address(legalAdapter))
@@ -155,16 +157,18 @@ abstract contract WrappedSwapFixture is Test {
 
     function _newWrapper() internal returns (PermissionsAdapter w) {
         w = PermissionsAdapter(
-            registry.createPermissionsAdapter(
-                PermissionedIERC20(address(underlying)), address(this), IAllowlistChecker(address(registry))
+            factory.createPermissionsAdapter(
+                PermissionedIERC20(address(underlying)), address(this), IAllowlistChecker(address(issuerChecker))
             )
         );
         w.updateAllowedWrapper(address(router), true);
         w.updateAllowedWrapper(address(seed), true); // Explicitly test-only.
         w.updateAllowedHook(IHooks(address(hook)), true);
         underlying.mint(address(w), 17); // Verification dust must survive all swaps.
-        registry.verifyPermissionsAdapter(address(w));
-        registry.setExitAdmin(address(w), address(exitReceiver));
+        factory.verifyPermissionsAdapter(address(w));
+        if (registry.exitAdminOf(address(underlying)) == address(0)) {
+            registry.setExitAdmin(address(underlying), address(exitReceiver));
+        }
     }
 
     function _seedPool(PermissionsAdapter w, uint24 fee) internal returns (PoolKey memory result) {
@@ -197,17 +201,9 @@ abstract contract WrappedSwapFixture is Test {
     }
 
     function _digest() internal view returns (bytes32) {
-        (uint160 price, int24 tick, uint24 protocolFee, uint24 lpFee) = StateLibrary.getSlot0(manager, key.toId());
-        (uint256 growth0, uint256 growth1) = StateLibrary.getFeeGrowthGlobals(manager, key.toId());
         return keccak256(
             abi.encode(
-                price,
-                tick,
-                protocolFee,
-                lpFee,
-                growth0,
-                growth1,
-                StateLibrary.getLiquidity(manager, key.toId()),
+                _poolDigest(),
                 stock.totalSupply(),
                 stock.balanceOf(address(manager)),
                 underlying.balanceOf(address(stock)),
@@ -218,6 +214,16 @@ abstract contract WrappedSwapFixture is Test {
                 underlying.balanceOf(address(router)),
                 quote.balanceOf(address(router)),
                 ledger.used(SECURITY, DAY)
+            )
+        );
+    }
+
+    function _poolDigest() private view returns (bytes32) {
+        (uint160 price, int24 tick, uint24 protocolFee, uint24 lpFee) = StateLibrary.getSlot0(manager, key.toId());
+        (uint256 growth0, uint256 growth1) = StateLibrary.getFeeGrowthGlobals(manager, key.toId());
+        return keccak256(
+            abi.encode(
+                price, tick, protocolFee, lpFee, growth0, growth1, StateLibrary.getLiquidity(manager, key.toId())
             )
         );
     }

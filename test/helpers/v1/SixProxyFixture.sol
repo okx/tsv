@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
 import {GovernanceFixture} from "./GovernanceFixture.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -9,10 +10,13 @@ import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
+import {V1LocalSBT} from "./LocalMocks.sol";
 
 /// @dev Six real UUPS proxies. CREATE2 mining is tested separately by the factory suite.
 abstract contract SixProxyFixture is GovernanceFixture {
     TSVRegistryV1 internal registry;
+    PermissionsAdapterFactory internal corePermissionsFactory;
+    V1LocalSBT internal coreSbt;
     TSVVolumeLedgerV1 internal ledger;
     TSVDataInboxV1 internal inbox;
     TSVHookV1 internal hook;
@@ -41,12 +45,11 @@ abstract contract SixProxyFixture is GovernanceFixture {
                 abi.encodeCall(TSVDataInboxV1.initialize, (address(anchor), address(registry), address(ledger)))
             )
         );
+        corePermissionsFactory = new PermissionsAdapterFactory(address(this));
         router = TSVSwapRouterV1(
             _proxy(
-                address(new TSVSwapRouterV1(address(this), address(registry))),
-                abi.encodeCall(
-                    TSVSwapRouterV1.initialize, (address(anchor), address(this), address(registry), address(ledger))
-                )
+                address(new TSVSwapRouterV1(address(this), address(corePermissionsFactory))),
+                abi.encodeCall(TSVSwapRouterV1.initialize, (address(anchor), address(this), address(registry)))
             )
         );
         lp = TSVLPManagerV1(
@@ -65,7 +68,10 @@ abstract contract SixProxyFixture is GovernanceFixture {
         hook.initialize(
             address(anchor), address(this), address(registry), address(ledger), address(router), address(lp)
         );
-        registry.bindComponents(address(hook), address(lp), address(inbox));
+        coreSbt = new V1LocalSBT();
+        registry.bindComponents(
+            address(hook), address(lp), address(inbox), address(corePermissionsFactory), address(coreSbt)
+        );
         ledger.bindWriters(address(hook), address(inbox));
         businessProxies =
             [address(registry), address(ledger), address(inbox), address(hook), address(router), address(lp)];

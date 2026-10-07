@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+
 import {SixProxyFixture} from "../../../helpers/v1/SixProxyFixture.sol";
 import {V1LocalSBT} from "../../../helpers/v1/LocalMocks.sol";
 import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
@@ -67,10 +69,10 @@ contract TSVDeploymentChecksTest is SixProxyFixture {
     function setUp() public override {
         super.setUp();
         manager = address(this);
-        sbt = new V1LocalSBT();
-        registry.setSbtConfig(address(sbt), 1);
-        permissionsFactory = new PermissionsAdapterFactory(manager);
-        registry.bindPermissionedComponents(address(permissionsFactory), address(router));
+        sbt = coreSbt;
+        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(2, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        permissionsFactory = corePermissionsFactory;
         coreValidator = new DeployCoreValidationHarness();
         verifier = new VerifyDeploymentHarness();
         _setEnvironment();
@@ -130,6 +132,50 @@ contract TSVDeploymentChecksTest is SixProxyFixture {
         _expectInvalidCoreInput();
         sbt.setFailReads(true, false);
         _expectInvalidCoreInput();
+    }
+
+    function testCoreDeploymentRejectsDuplicateIdentityIdsAndEitherVerifyFailure() public {
+        _setInput("TSV_MARKETMAKER_SBT_TOKEN_ID", "1");
+        _expectInvalidCoreInput();
+        _setEnvironment();
+        for (uint256 id = 1; id <= 2; ++id) {
+            vm.mockCallRevert(
+                address(sbt), abi.encodeWithSelector(sbt.verify.selector, address(coreValidator), id), "unavailable"
+            );
+            _expectInvalidCoreInput();
+            vm.clearMockedCalls();
+        }
+    }
+
+    function testVerifierRejectsEitherIncorrectIdentityId() public {
+        anchor.bindProxies(_proxies());
+        _setInput("TSV_RETAIL_SBT_TOKEN_ID", "3");
+        vm.expectRevert(VerifyDeploymentV1.VerificationFailed.selector);
+        verifier.run();
+        _setEnvironment();
+        _setInput("TSV_MARKETMAKER_SBT_TOKEN_ID", "3");
+        vm.expectRevert(VerifyDeploymentV1.VerificationFailed.selector);
+        verifier.run();
+    }
+
+    function testDeploymentRejectsUnknownPermissionBitsAndVerifierDetectsUpdates() public {
+        _setInput("TSV_RETAIL_SBT_PERMISSIONS", "4");
+        _expectInvalidCoreInput();
+        _setEnvironment();
+        _setInput("TSV_MARKETMAKER_SBT_PERMISSIONS", "256");
+        _expectInvalidCoreInput();
+        _setEnvironment();
+        anchor.bindProxies(_proxies());
+        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED);
+        vm.expectRevert(VerifyDeploymentV1.VerificationFailed.selector);
+        verifier.run();
+        _setInput("TSV_RETAIL_SBT_PERMISSIONS", "1");
+        verifier.run();
+        registry.setSbtConfig(2, PermissionFlags.LIQUIDITY_ALLOWED);
+        vm.expectRevert(VerifyDeploymentV1.VerificationFailed.selector);
+        verifier.run();
+        _setInput("TSV_MARKETMAKER_SBT_PERMISSIONS", "2");
+        verifier.run();
     }
 
     function testFuzzCoreDeploymentRejectsOffsetOutsideOneDay(uint64 offset) public {
@@ -215,7 +261,10 @@ contract TSVDeploymentChecksTest is SixProxyFixture {
 
         _setInput("TSV_SBT", vm.toString(address(sbt)));
 
-        _setInput("TSV_SBT_TOKEN_ID", "1");
+        _setInput("TSV_RETAIL_SBT_TOKEN_ID", "1");
+        _setInput("TSV_MARKETMAKER_SBT_TOKEN_ID", "2");
+        _setInput("TSV_RETAIL_SBT_PERMISSIONS", "3");
+        _setInput("TSV_MARKETMAKER_SBT_PERMISSIONS", "3");
         _setInput("TSV_DAY_START_OFFSET_SECONDS", "14400");
         address[6] memory proxies = _proxies();
         for (uint256 i; i < 6; ++i) {

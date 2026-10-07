@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {PermissionFlag} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {console2} from "forge-std/Script.sol";
 import {ScriptEnvironment} from "./ScriptEnvironment.sol";
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
@@ -70,21 +71,29 @@ contract VerifyDeploymentV1 is ScriptEnvironment {
         if (
             poolManager.code.length == 0 || sbt.code.length == 0 || factory.code.length == 0
                 || validationLibrary.code.length == 0 || registry.permissionedValidationLibrary() != validationLibrary
-                || router.permissionedValidationLibrary() != validationLibrary
-                || registry.permissionsAdapterFactory() != factory || registry.POOL_MANAGER() != poolManager
-                || registry.permissionedPoolManager() != poolManager || registry.permissionedRouter() != a[4]
-                || registry.permissionedAllowlistChecker() != a[0]
-                || address(router.PERMISSIONS_ADAPTER_FACTORY()) != a[0] || address(registry.participantSbt()) != sbt
-                || registry.sbtTokenId() != _envUint("TSV_SBT_TOKEN_ID") || registry.hook() != a[3]
-                || registry.lpManager() != a[5] || registry.dataInbox() != a[2] || address(ledger.registry()) != a[0]
-                || ledger.hook() != a[3] || ledger.dataInbox() != a[2] || address(inbox.registry()) != a[0]
-                || address(inbox.ledger()) != a[1] || address(hook.poolManager()) != poolManager
-                || address(hook.registry()) != a[0] || address(hook.ledger()) != a[1] || hook.router() != a[4]
-                || hook.lpManager() != a[5] || address(router.poolManager()) != poolManager
-                || address(router.registry()) != a[0] || address(router.ledger()) != a[1]
+                || registry.permissionsAdapterFactory() != factory || registry.permissionedPoolManager() != poolManager
+                || address(router.PERMISSIONS_ADAPTER_FACTORY()) != factory || address(registry.participantSbt()) != sbt
+                || _envUint("TSV_RETAIL_SBT_TOKEN_ID") == _envUint("TSV_MARKETMAKER_SBT_TOKEN_ID")
+                || !_checkIdentity(
+                    registry, _envUint("TSV_RETAIL_SBT_TOKEN_ID"), _envUint("TSV_RETAIL_SBT_PERMISSIONS")
+                )
+                || !_checkIdentity(
+                        registry, _envUint("TSV_MARKETMAKER_SBT_TOKEN_ID"), _envUint("TSV_MARKETMAKER_SBT_PERMISSIONS")
+                    ) || registry.hook() != a[3] || registry.lpManager() != a[5] || registry.dataInbox() != a[2]
+                || address(ledger.registry()) != a[0] || ledger.hook() != a[3] || ledger.dataInbox() != a[2]
+                || address(inbox.registry()) != a[0] || address(inbox.ledger()) != a[1]
+                || address(hook.poolManager()) != poolManager || address(hook.registry()) != a[0]
+                || address(hook.ledger()) != a[1] || hook.router() != a[4] || hook.lpManager() != a[5]
+                || address(router.poolManager()) != poolManager || address(router.registry()) != a[0]
                 || address(lp.poolManager()) != poolManager || address(lp.registry()) != a[0]
                 || (uint160(a[3]) & 0x3FFF) != 0x3FFF
         ) revert VerificationFailed();
+    }
+
+    function _checkIdentity(TSVRegistryV1 registry, uint256 tokenId, uint256 expectedMask) private view returns (bool) {
+        (bool registered, PermissionFlag permissions) = registry.sbtIdentityConfig(tokenId);
+        uint256 mask = uint16(PermissionFlag.unwrap(permissions));
+        return registered && expectedMask <= 3 && mask == expectedMask;
     }
 
     /// @dev Compares each proxy's implementation address with the deployment manifest.
