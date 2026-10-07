@@ -9,7 +9,7 @@
 - `quoteTokens[Q]` 独立保存原币报价的精度、状态和版本；`getQuoteToken(Q)` 返回该记录。0 decimals 合法，存在性按 status 判断。
 - 新证券使用 `admitPermissionedSecurity(tierId, admission)`；已有证券添加 W 使用 `registerPermissionedCurrency(admission)`。U、精度和版本从真实合约派生，admission 仅含 W/securityId/expectedOwner/legalShareAdapter。
 - 报价币使用 `registerQuoteToken(Q)`。股票、underlying、报价和系统地址不得混用；Pool 只登记 W/Q。
-- W/Q 各用独立状态入口，只有 APPROVED ↔ DISABLED，每次递增版本。恢复 W 复查配置，保留已有 supply 和协议费用；首次准入要求新 W supply、PM W 余额及累计 W 费用为零。
+- W/Q 各用独立状态入口，只有 APPROVED ↔ DISABLED，每次递增版本。恢复 W 复查配置，保留已有 supply 和协议费用；首次准入要求新 W supply、PM W 余额及累计 W 费用为零，并保留 W 的 U 验证保证金。PM 的既有 U 余额不影响首次证券准入或新增 W 注册。
 - owner 批准由 Governor 控制；expectedOwner 轮换由 SYMBOL_ADMIN 执行，要求 W 已禁用、新 owner 已实际接受 ownership、获批准且与 exitAdmin 分离。
 - exitAdmin 可在 verified 候选 W 准入前独立配置，每个 W 的版本独立。它不接收本期 Swap 输出，也不授予 owner 或执行角色。
 - `replaceUnderlyingLegalShareAdapter(U, newAdapter)` 要求证券范围同时覆盖交易和 LP 暂停；单 W 的 TOKEN 暂停不足。更新立即影响该 U 的所有 W，不清 Ledger。
@@ -51,12 +51,14 @@ forge script script/DeployCoreV1.s.sol:DeployCoreV1 --libraries "src/v1/librarie
 - `msgSender()` 从入口首次资格读取开始返回真实用户，空闲时为零。仅 PM 能进入回调，payload/request/policy 哈希绑定当次调用，回调只能消费一次；重入与重放拒绝。
 - 股票输入：精确检查用户 U 减少与 W 合约 U 增加，再由原版 W mint 相同数量到 PM。仅一次 PM sync/pay/settle，settle 返回值须与实际欠款一致。
 - 股票输出：PM take 原版 W，自动 burn/unwrap 并发送 U 给用户；逐项检查 W 的 collateral、supply、PM W 与用户 U 的变化。Q 直接双侧精确转账。
-- 库存恒等式：PM W = W totalSupply，用户/Router W 为零，PM/Router U 为零，collateral ≥ supply；验证保证金余量 E = collateral − supply 在交易中保持不变，不能掩盖少付或税费。
+- 库存恒等式：PM W = W totalSupply，用户/Router W 为零，collateral ≥ supply。PM/Router 可以已有 U，但股票入金、出金及整笔交易必须保持对应 U 余额不变；既有余额不能用于结算。验证保证金余量 E = collateral − supply 在交易中保持不变，不能掩盖少付或税费。
 - exact-in 按真实成交量支付，可部分成交，须满足最小输出；exact-out 输出必须严格等于指定量且输入不超过上限。两腿最终 PM delta 为零。
 - 入口、回调前和结算后复查完整 W/U/Q 计划、池/证券版本及市场序号；权限、SBT、owner、exitAdmin、精度或 canonical legalShareAdapter 变化使整笔交易回滚。
 - Hook 按真实股票腿 gross input / net output 计量一次，使用 U 的 canonical 法律股数换算。同 U 的多个 W/池共享 securityId 额度。Router 不另收结算费用；原版静态 LP fee、协议费仍由 PM 处理。
 
 `swapExactInputFromAdapter` 保留 ABI 但立即以 `WrappedExternalAdapterUnsupported()` 拒绝。原 Adapter 白名单 setter/getter/事件已删除；历史 DEX 成功路径不属于本次验收。
+
+2026-10-07 review 经确认修正文档中的绝对零 U 余额条件：普通持有人向 PM/Router 转入少量 U，或同一 PM 托管其他池的 U，不应阻断本协议交易与 W 准入。Router 在进入 unlock 前将 U 余额基线保存在本次调用的内存中，并在 unlock 返回后核对；股票支付与取款另作局部核对。未新增代理存储槽或清扫 PM 资产的权限。
 
 ## 本地验收与交付边界
 
@@ -80,16 +82,16 @@ git diff --check
 
 ## 本地制品记录
 
-`forge test -vv`：45 个 suite、274 项测试通过，0 失败、0 跳过。包含 Registry 首批 247 项和新增 Wrapped Swap 27 项；普通 fuzz 每项 256 次，治理/运营 invariant 每项 64 轮 × 32 步。29 个延期文件与 Swap 阶段起始快照逐字节一致，不计入通过数。生产 LP、Registry、Hook、Ledger 源码与本阶段起始快照一致。
+`forge test -vv`：46 个 suite、279 项测试通过，0 失败、0 跳过。包含基础/Registry 249 项和 Wrapped Swap 30 项（本次 review 新增准入 2 项、交易库存 3 项）；普通 fuzz 每项 256 次，治理/运营 invariant 每项 64 轮 × 32 步。29 个延期文件与 Swap 阶段起始快照逐字节一致，不计入通过数。生产 LP、Registry、Hook、Ledger 源码与本阶段起始快照一致。
 
 | 生产制品 | Runtime | Initcode | EIP-170 余量 |
 | --- | ---: | ---: | ---: |
 | TSVRegistryV1 | 23,851 B | 24,088 B | 725 B |
-| TSVSwapRouterV1 | 23,705 B | 24,249 B | 871 B |
-| PermissionedValidationLib | 15,446 B | 15,476 B | 9,130 B |
+| TSVSwapRouterV1 | 23,816 B | 24,360 B | 760 B |
+| PermissionedValidationLib | 15,410 B | 15,440 B | 9,166 B |
 
 `forge build src --sizes`、`forge build src script`、`forge fmt --check`、目录规则和 `git diff --check` 通过。验证库的实际运行时代码无 SSTORE/TSTORE，存储布局为空；Router ABI 没有旧 Adapter 白名单或公开 action dispatcher。尺寸使用相同 Solidity 0.8.26 / Cancun / viaIR / optimizer 200 / bytecode_hash none，没有更改编译基准。
 
-四条路径的本地顺序调用 gas 观测：U→Q exact-in 1,427,287，exact-out 1,074,718；Q→U exact-in 1,117,365，exact-out 1,093,203。此日志来自同一测试中的先后调用，受存储/账户预热影响，不能视为真实 issuer 或目标链生产预算。
+四条路径的本地顺序调用 gas 观测：U→Q exact-in 1,436,019，exact-out 1,083,398；Q→U exact-in 1,126,092，exact-out 1,101,887。此日志来自同一测试中的先后调用，受存储/账户预热影响，不能视为真实 issuer 或目标链生产预算。
 
 ABI 与普通存储布局保存于 `docs/artifacts/TSVRegistryV1.*.json` 和 `docs/artifacts/TSVSwapRouterV1.*.json`。治理父类的 OZ ERC-7201 命名空间还须随固定依赖共同保留；Library 自身无存储布局。本批为全新布局，不提供旧 TokenConfig 或旧 Router 状态迁移。兼容父类来源及完整差异见 `src/v1/vendor/v4-router/README.md` 与 `docs/artifacts/v4-router-compatibility.diff`；原版 Factory/W 没有修改。

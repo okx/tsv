@@ -151,14 +151,10 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
     }
 
     function testFuzzInvalidInventoryRejectsBeforeSwap(uint8 fault) public {
-        fault = uint8(bound(fault, 0, 4));
+        fault = uint8(bound(fault, 0, 2));
         if (fault == 0) {
-            underlying.mint(address(manager), 1);
-        } else if (fault == 1) {
-            underlying.mint(address(router), 1);
-        } else if (fault == 2) {
             deal(address(underlying), address(stock), stock.totalSupply() - 1);
-        } else if (fault == 3) {
+        } else if (fault == 1) {
             vm.mockCall(
                 address(stock),
                 abi.encodeWithSignature("balanceOf(address)", address(manager)),

@@ -69,13 +69,13 @@ library PermissionedValidationLib {
         return TSVSwapValidationLib.plans(ITSVPermissionedRegistry(registry), pm, key, participant);
     }
 
-    /// @notice First-admission inventory only; reapproval deliberately does not invoke this check.
+    /// @notice First-admission W inventory only; unrelated PM U balances do not affect admission.
+    /// @dev Reapproval deliberately does not invoke this check.
     function validateInitialInventory(address pm, address w, address u) external view {
         if (
             _staticWord(w, IERC20.totalSupply.selector, 0, 4) != 0
                 || _staticWord(w, IERC20.balanceOf.selector, uint160(pm), 36) != 0
                 || _staticWord(u, IERC20.balanceOf.selector, uint160(w), 36) == 0
-                || _staticWord(u, IERC20.balanceOf.selector, uint160(pm), 36) != 0
                 || IPoolManager(pm).protocolFeesAccrued(Currency.wrap(w)) != 0
         ) revert InvalidPermissionedConfig();
     }

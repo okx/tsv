@@ -63,7 +63,7 @@ VOLUME_ORACLE 向 DataInbox 提交适用上月的 `AdtvReport`，量纲为法律
 | 身份与状态 | F 对 W created/verified 均为 U；W 的 PM/U/checker、owner 与 R 记录一致；W/Q APPROVED，证券上市，PoolKey 完整匹配且 ACTIVE。 |
 | W 权限 | owner 已获 Governor 批准；Router wrapper 和 Hook 均允许；exitAdmin 独立且版本非零。 |
 | 发行方权限 | 用户 U→W 及 W→用户 U、Router operator、W custody、协议费接收方均可达；Q 支出与接收无税费或额外扣费。 |
-| 库存 | PM W = W supply，PM/Router U = 0，Router/用户 W = 0；W U collateral ≥ supply。记录 surplus E，验证保证金不可挪用于付款。 |
+| 库存 | PM W = W supply，Router/用户 W = 0；W U collateral ≥ supply。记录 PM/Router 既有 U 余额并验证每笔交易保持不变；记录 surplus E，既有余额和验证保证金不可挪用于付款。 |
 | 资格与额度 | SBT 未暂停，真实用户持证；ADTV/报告适用，当前日额度足够，交易门禁正常。SDK 从 W 调用 `isAllowed`，不能以直接向 R 查询 checker 替代。 |
 | 流动性与费用 | 有真实覆盖区间流动性、可用报价和滑点参数；静态 LP fee 与协议费配置合理，W 协议费提取按原版 W 自动释放 U 到获准接收方。 |
 

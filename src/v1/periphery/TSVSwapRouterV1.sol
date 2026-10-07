@@ -151,9 +151,12 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router {
         activePayloadHash = keccak256(payload);
         activePolicyHash = policy;
         activeRequestHash = _requestHash(request, p0, p1);
-        activeStockSurplus = _stockSurplus(p0, p1);
+        TSVPermissionedSettlementLib.StockInventory memory before_ = _stockInventory(p0, p1);
+        activeStockSurplus = before_.collateral - before_.supply;
         bytes memory result = poolManager.unlock(payload);
         if (!callbackConsumed) revert InvalidCallbackContext();
+        // Memory survives unlock and covers U changes on either the stock or quote transfer path.
+        TSVPermissionedSettlementLib.assertUnderlyingUnchanged(before_, _stockInventory(p0, p1));
         BalanceDelta delta;
         (actualIn, actualOut, delta) = abi.decode(result, (uint256, uint256, BalanceDelta));
         if (
@@ -198,7 +201,8 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router {
         if (policy != activePolicyHash || _requestHash(request, p0, p1) != activeRequestHash) {
             revert InvalidCallbackContext();
         }
-        if (_stockSurplus(p0, p1) != activeStockSurplus) revert SettlementMismatch();
+        TSVPermissionedSettlementLib.StockInventory memory inventory = _stockInventory(p0, p1);
+        if (inventory.collateral - inventory.supply != activeStockSurplus) revert SettlementMismatch();
         return abi.encode(activeAmountIn, activeAmountOut, _delta(request.zeroForOne));
     }
 
@@ -287,12 +291,15 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router {
         return PermissionedValidationLib.swapPlans(address(registry), address(poolManager), key, participant);
     }
 
-    function _stockSurplus(SettlementLegPlan memory p0, SettlementLegPlan memory p1) private view returns (uint256) {
+    function _stockInventory(SettlementLegPlan memory p0, SettlementLegPlan memory p1)
+        private
+        view
+        returns (TSVPermissionedSettlementLib.StockInventory memory)
+    {
         SettlementLegPlan memory stock = p0.kind == SettlementAssetKind.PERMISSIONED_STOCK ? p0 : p1;
-        TSVPermissionedSettlementLib.StockInventory memory inventory = TSVPermissionedSettlementLib.stockInventory(
+        return TSVPermissionedSettlementLib.stockInventory(
             stock.currency, stock.underlying, address(poolManager), activeSettlementParticipant
         );
-        return inventory.collateral - inventory.supply;
     }
 
     function _checkRequest(SwapRequest memory request) private view {

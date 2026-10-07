@@ -10,6 +10,8 @@
 
 ## 当前 Wrapped 测试
 
+`WrappedInventory` 使用普通持有人的 U 转账验证 PM/Router 既有余额不会阻断四条交易路径，且不会参与结算；覆盖后续再次转入、少付回滚、U/Q 转账回调改变 U 余额时的整笔回滚和修正后重试。Registry 准入回归同时覆盖既有 PM U 余额下的首次证券准入和同 U 新增 W。
+
 当前执行套件见 [test/README](../test/README.md)，最终数量与尺寸见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)。`WrappedSwap` 验证真实结算、费用、额度与转账故障；`WrappedPolicy` 验证入口资格、支付回调策略变化、真实用户和升级身份；`WrappedBoundaries` / `WrappedPrecision` 验证部分成交、滑点、严格输出、回调与 18/6 raw 精度。成功流程均用真实 PM 和原版 W，回调/返回值故障注入只用于拒绝路径。下方 DIRECT/LP/fork 矩阵与数量均为历史记录，不计为 Wrapped 通过证据。
 
 ## 原有缺口与补齐方式
