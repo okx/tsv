@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "tsv-v1-deployment-5",
-  "status": "TEMPLATE",
+  "schemaVersion": "tsv-v1-permissioned-wrapped-swap-7",
+  "status": "WRAPPED_SWAP_TEMPLATE",
   "network": {
     "name": "xlayer",
     "chainId": 196,
@@ -18,7 +18,29 @@
     "openzeppelinVersion": "5.5.0",
     "v4CoreCommit": "",
     "smartWalletSbtCommit": "",
-    "backedTokenCommit": ""
+    "backedTokenCommit": "",
+    "permissionsUpstreamCommit": "9969eec44cfdf07e24b41de47f40276a58401976",
+    "permissionsOpenzeppelinVersion": "5.0.2",
+    "registryStorageLayoutArtifact": "docs/artifacts/TSVRegistryV1.storage-layout.json",
+    "registryAbiArtifact": "docs/artifacts/TSVRegistryV1.abi.json",
+    "registryRuntimeSizeBytes": 23851,
+    "permissionedValidationLibraryRuntimeSizeBytes": 15446,
+    "routerStorageLayoutArtifact": "docs/artifacts/TSVSwapRouterV1.storage-layout.json",
+    "routerAbiArtifact": "docs/artifacts/TSVSwapRouterV1.abi.json",
+    "routerConstructorParameters": [
+      "network.poolManager.address",
+      "businessProxies.registry.proxy"
+    ],
+    "routerCompatibilityDiffArtifact": "docs/artifacts/v4-router-compatibility.diff",
+    "permissionedValidationLibraryUsedBy": [
+      "registry",
+      "swapRouter"
+    ],
+    "routerRuntimeSizeBytes": 23705,
+    "routerInitcodeSizeBytes": 24249,
+    "permissionedValidationLibraryStorageLayoutArtifact": "docs/artifacts/PermissionedValidationLib.storage-layout.json",
+    "sharedRegistryInterfaceAbiArtifact": "docs/artifacts/ITSVPermissionedRegistry.abi.json",
+    "bytecodeHash": "none"
   },
   "governance": {
     "governanceAnchor": "",
@@ -109,6 +131,37 @@
     "configurationTransactions": [],
     "postDeploymentChecks": [],
     "indexerStartBlock": null,
-    "operatorApprovals": []
-  }
+    "operatorApprovals": [],
+    "wrappedRouterReady": false,
+    "wrappedLiquidityReady": false,
+    "wrappedSwapImplemented": true,
+    "wrappedSwapLocalVerified": true,
+    "productionLiquidityEvidence": [],
+    "issuerPermissionEvidence": [],
+    "localTestEvidence": {
+      "command": "forge test -vv",
+      "suiteCount": 45,
+      "passed": 274,
+      "failed": 0,
+      "skipped": 0,
+      "wrappedSwapTests": 27,
+      "deferredFilesExcluded": 29
+    }
+  },
+  "permissionedEnvironment": {
+    "realFactory": "",
+    "factoryInterface": "",
+    "poolManager": "",
+    "router": "",
+    "allowlistChecker": "",
+    "validationLibrary": "",
+    "validationLibraryImmutableLink": true,
+    "bindingTransaction": "",
+    "routerFactoryInterfaceImmutable": true,
+    "routerPoolManagerImmutable": true,
+    "validationLibraryStorageFree": true
+  },
+  "permissionedCurrencies": [],
+  "underlyings": [],
+  "quoteTokens": []
 }

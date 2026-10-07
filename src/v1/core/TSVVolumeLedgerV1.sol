@@ -3,7 +3,13 @@ pragma solidity 0.8.26;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {TokenConfig, PoolConfig, PoolStatus} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PermissionedCurrencyConfig,
+    UnderlyingConfig,
+    AssetStatus,
+    PoolConfig,
+    PoolStatus
+} from "tsv-v1/types/TSVTypes.sol";
 import {AdtvReport, QuotaReport, SplitFactorReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -472,21 +478,28 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint256 legalSharesWad,
         uint32 day
     ) private {
-        if (securityId == 0) {
+        PermissionedCurrencyConfig memory config = registry.getCurrency(currency);
+        if (config.underlying == address(0)) {
+            if (
+                registry.getQuoteToken(currency).status != AssetStatus.APPROVED || securityId != 0
+                    || legalSharesWad != 0
+            ) revert InvalidLegalShareAmount();
+            return;
+        }
+        UnderlyingConfig memory underlying = registry.getUnderlying(config.underlying);
+        if (
+            config.status != AssetStatus.APPROVED || securityId == 0 || underlying.securityId != securityId
+                || underlying.legalShareAdapter == address(0) || underlying.legalAdapterVersion == 0
+        ) revert InvalidLegalShareAmount();
+        if (delta == 0) {
             if (legalSharesWad != 0) revert InvalidLegalShareAmount();
             return;
         }
         if (legalSharesWad == 0) revert InvalidLegalShareAmount();
-        TokenConfig memory config = registry.getToken(currency);
-        if (
-            config.securityId != securityId || config.legalShareAdapter == address(0) || config.legalAdapterVersion == 0
-        ) {
-            revert InvalidLegalShareAmount();
-        }
         uint256 raw = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         _consume(securityId, day, legalSharesWad);
         emit SwapAccounted(
-            poolId, securityId, currency, delta < 0, day, raw, legalSharesWad, config.legalAdapterVersion
+            poolId, securityId, currency, delta < 0, day, raw, legalSharesWad, underlying.legalAdapterVersion
         );
     }
 

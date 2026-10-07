@@ -43,7 +43,7 @@ abstract contract SixProxyFixture is GovernanceFixture {
         );
         router = TSVSwapRouterV1(
             _proxy(
-                address(new TSVSwapRouterV1()),
+                address(new TSVSwapRouterV1(address(this), address(registry))),
                 abi.encodeCall(
                     TSVSwapRouterV1.initialize, (address(anchor), address(this), address(registry), address(ledger))
                 )

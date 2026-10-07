@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {TokenConfig, TokenStatus, MarketStatus, MarketAction, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PermissionedAdmission,
+    UnderlyingConfig,
+    AssetStatus,
+    MarketStatus,
+    MarketAction,
+    PauseScope,
+    PauseMode
+} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
@@ -14,14 +22,14 @@ contract TSVPausesTest is FoundationFixture {
         registry.disablePool(poolId);
         registry.delistSecurity(SECURITY);
         _assertOperationGates(false, false);
-        registry.setTokenStatus(address(stock), TokenStatus.DISABLED);
+        registry.setPermissionedCurrencyStatus(address(stock), AssetStatus.DISABLED);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
-        TokenConfig memory another = _newStockConfig(SECURITY);
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(another);
+        registry.setPermissionedCurrencyStatus(address(stock), AssetStatus.APPROVED);
+        PermissionedAdmission memory another = _newStockConfig(SECURITY);
+        vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
+        registry.registerPermissionedCurrency(another);
         registry.relistSecurity(SECURITY);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
+        registry.setPermissionedCurrencyStatus(address(stock), AssetStatus.APPROVED);
         assertEq(uint8(registry.marketStatus(SECURITY)), uint8(MarketStatus.HALTED));
         assertEq(uint8(registry.marketPauseMode(SECURITY)), uint8(PauseMode.ALL));
         assertEq(registry.marketSequence(SECURITY), 1);
@@ -39,19 +47,17 @@ contract TSVPausesTest is FoundationFixture {
     function testLegalAdapterReplacementRequiresPauseAndNextVersion() public {
         assertEq(registry.activePoolCountByCurrency(address(stock)), 1);
         BackedAutoFeeLegalShareAdapter replacement =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 2);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
-        uint256 pauseId = registry.addEmergencyPause(
-            PauseScope.TOKEN, bytes32(uint256(uint160(address(stock)))), PauseMode.ALL, keccak256("replace")
-        );
+        uint256 pauseId = registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.ALL, keccak256("replace"));
         BackedAutoFeeLegalShareAdapter wrongVersion =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 3);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 3);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(wrongVersion));
-        registry.replaceLegalShareAdapter(address(stock), address(replacement));
-        TokenConfig memory config = registry.getToken(address(stock));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(wrongVersion));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
+        UnderlyingConfig memory config = registry.getUnderlying(address(stockToken));
         assertEq(config.legalShareAdapter, address(replacement));
         assertEq(config.legalAdapterVersion, 2);
 
@@ -243,15 +249,16 @@ contract TSVPausesTest is FoundationFixture {
         _grantPauseRoles();
         uint256 trade = _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
         BackedAutoFeeLegalShareAdapter replacement =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 2);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 2);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
         registry.clearEmergencyPause(trade, keccak256("resume"));
         _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.LP);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
         _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
-        registry.replaceLegalShareAdapter(address(stock), address(replacement));
-        assertEq(registry.getToken(address(stock)).legalAdapterVersion, 2);
+        _pause(PauseScope.SECURITY, SECURITY, PauseMode.LP);
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
+        assertEq(registry.getUnderlying(address(stockToken)).legalAdapterVersion, 2);
     }
 }

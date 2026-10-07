@@ -5,13 +5,13 @@ import {RegistryV2, LedgerV2, InboxV2, HookV2, RouterV2, LPManagerV2} from "./Go
 
 /// @dev Matching V2 implementations in the canonical six-component binding order.
 library UpgradeDeployment {
-    function deployV2() internal returns (address[6] memory implementations) {
+    function deployV2(address pm, address registry) internal returns (address[6] memory implementations) {
         return [
             address(new RegistryV2()),
             address(new LedgerV2()),
             address(new InboxV2()),
             address(new HookV2()),
-            address(new RouterV2()),
+            address(new RouterV2(pm, registry)),
             address(new LPManagerV2())
         ];
     }

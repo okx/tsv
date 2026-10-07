@@ -169,7 +169,7 @@ contract TSVHookFactoryTest is Test {
                 )
             )
         );
-        d.routerImpl = address(new TSVSwapRouterV1());
+        d.routerImpl = address(new TSVSwapRouterV1(address(this), address(d.registry)));
         d.lpImpl = address(new TSVLPManagerV1());
         d.hookImpl = address(new TSVHookV1());
         d.factory = new TSVHookProxyFactoryV1();

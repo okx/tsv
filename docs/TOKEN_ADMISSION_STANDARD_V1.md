@@ -1,5 +1,7 @@
 # TSV V1 代币准入标准
 
+> **2026-10-07 Wrapped Swap 更新：** Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
+
 状态：**Backed AutoFee 直算路径已接入本地 Hook 集成测试；真实发行方 wTSLAx 生产证据仍待完成**，2026-10-02。系统流程与交易/运营/治理边界见[三系统总览](./SYSTEMS_OVERVIEW.md)。V1 每个池内 Currency **只允许直接 ERC-20 结算**：Swap 和 LP 用户支付、接收的 Token 与 `PoolKey` 中该侧 Currency 是同一个地址。TSLAx 是 xStock 系列中的一个实例；其发行方 Wrapped `wTSLAx` 可按本标准审查为池内股票 Currency，TSLAx 原币不进入 TSV 的 Swap/LP 入口。代码目前只提供 `BackedAutoFeeLegalShareAdapter`；它和本地 Backed 行为 mock 不等同于已获准的真实发行方资产。当前没有通用固定比例或 ERC-8056 股数 Adapter。具体生产差异见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
 
 ## 1. 两项独立准入判断

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ProtocolFixture} from "../../../helpers/v1/ProtocolFixture.sol";
+import {SixProxyFixture} from "../../../helpers/v1/SixProxyFixture.sol";
+import {V1LocalSBT} from "../../../helpers/v1/LocalMocks.sol";
+import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
 import {DeployGovernanceV1} from "../../../../script/DeployGovernanceV1.s.sol";
 import {DeployCoreV1} from "../../../../script/DeployCoreV1.s.sol";
 import {VerifyDeploymentV1} from "../../../../script/VerifyDeploymentV1.s.sol";
@@ -55,15 +57,38 @@ contract GovernanceDeploymentHarness is DeployGovernanceV1, ScriptInputStore {
 }
 
 /// @dev Actual deployment validators and manifest verification against the local protocol fixture.
-contract TSVDeploymentChecksTest is ProtocolFixture {
+contract TSVDeploymentChecksTest is SixProxyFixture {
+    address internal manager;
+    V1LocalSBT internal sbt;
+    PermissionsAdapterFactory internal permissionsFactory;
     DeployCoreValidationHarness internal coreValidator;
     VerifyDeploymentHarness internal verifier;
 
     function setUp() public override {
         super.setUp();
+        manager = address(this);
+        sbt = new V1LocalSBT();
+        registry.setSbtConfig(address(sbt), 1);
+        permissionsFactory = new PermissionsAdapterFactory(manager);
+        registry.bindPermissionedComponents(address(permissionsFactory), address(router));
         coreValidator = new DeployCoreValidationHarness();
         verifier = new VerifyDeploymentHarness();
         _setEnvironment();
+    }
+
+    function _bindInSetUp() internal pure override returns (bool) {
+        return false;
+    }
+
+    function testVerifierRejectsWrongFactoryOrLinkedLibrary() public {
+        anchor.bindProxies(_proxies());
+        _setInput("TSV_PERMISSIONS_ADAPTER_FACTORY", vm.toString(address(registry)));
+        vm.expectRevert(VerifyDeploymentV1.VerificationFailed.selector);
+        verifier.run();
+        _setEnvironment();
+        _setInput("TSV_PERMISSIONED_VALIDATION_LIBRARY", vm.toString(address(permissionsFactory)));
+        vm.expectRevert(VerifyDeploymentV1.VerificationFailed.selector);
+        verifier.run();
     }
 
     function testCoreDeploymentAcceptsValidUnboundEnvironment() public view {
@@ -185,6 +210,8 @@ contract TSVDeploymentChecksTest is ProtocolFixture {
         _setInput("TSV_GUARDIAN", vm.toString(anchor.guardian()));
         _setInput("TSV_RECOVERY_COUNCIL", vm.toString(anchor.recoveryCouncil()));
         _setInput("TSV_POOL_MANAGER", vm.toString(address(manager)));
+        _setInput("TSV_PERMISSIONS_ADAPTER_FACTORY", vm.toString(address(permissionsFactory)));
+        _setInput("TSV_PERMISSIONED_VALIDATION_LIBRARY", vm.toString(registry.permissionedValidationLibrary()));
 
         _setInput("TSV_SBT", vm.toString(address(sbt)));
 
@@ -200,7 +227,7 @@ contract TSVDeploymentChecksTest is ProtocolFixture {
     }
 
     function _proxies() private view returns (address[6] memory) {
-        return [address(registry), address(ledger), address(inbox), address(hook), address(router), address(lpManager)];
+        return [address(registry), address(ledger), address(inbox), address(hook), address(router), address(lp)];
     }
 
     function _proxyEnvName(uint256 index) private pure returns (string memory) {

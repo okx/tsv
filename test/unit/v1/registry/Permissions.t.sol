@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {TokenConfig, TokenStatus, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, AssetStatus, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
@@ -12,24 +12,31 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
     function testEverySymbolAdminEntryRejectsUnassignedAndRevokedRoleIncludingGovernor() public {
         bytes32 role = registry.SYMBOL_ADMIN_ROLE();
         address operator = makeAddr("symbol-operator");
-        TokenConfig memory config = _newStockConfig(keccak256("new-security"));
-        bytes[] memory calls = new bytes[](9);
-        calls[0] = abi.encodeCall(TSVRegistryV1.admitSecurity, (config.securityId, 1, config));
-        calls[1] = abi.encodeCall(TSVRegistryV1.registerToken, (config));
+        PermissionedAdmission memory config = _newStockConfig(keccak256("new-security"));
+        bytes[] memory calls = new bytes[](12);
+        calls[0] = abi.encodeCall(TSVRegistryV1.admitPermissionedSecurity, (1, config));
+        calls[1] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config));
         calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
         calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY));
         calls[4] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2));
-        calls[5] = abi.encodeCall(TSVRegistryV1.setTokenStatus, (address(stock), TokenStatus.DISABLED));
-        calls[6] = abi.encodeCall(TSVRegistryV1.replaceLegalShareAdapter, (address(stock), address(stockAdapter)));
+        calls[5] = abi.encodeCall(TSVRegistryV1.setPermissionedCurrencyStatus, (address(stock), AssetStatus.DISABLED));
+        calls[6] = abi.encodeCall(
+            TSVRegistryV1.replaceUnderlyingLegalShareAdapter, (address(stockToken), address(stockAdapter))
+        );
         calls[7] = abi.encodeCall(TSVRegistryV1.disablePool, (poolId));
         calls[8] = abi.encodeCall(TSVRegistryV1.enablePool, (poolId));
+        calls[9] = abi.encodeCall(TSVRegistryV1.registerQuoteToken, (address(quote)));
+        calls[10] = abi.encodeCall(TSVRegistryV1.setQuoteTokenStatus, (address(quote), AssetStatus.DISABLED));
+        calls[11] = abi.encodeCall(TSVRegistryV1.updatePermissionedExpectedOwner, (address(stock), operator));
         bytes32 beforeState = _state();
         _denyCalls(calls, operator, role);
+        assertEq(_state(), beforeState);
         registry.grantRole(role, operator);
         vm.prank(operator);
-        registry.setTokenStatus(address(stock), TokenStatus.DISABLED);
+        registry.setPermissionedCurrencyStatus(address(stock), AssetStatus.DISABLED);
         vm.prank(operator);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
+        registry.setPermissionedCurrencyStatus(address(stock), AssetStatus.APPROVED);
+        beforeState = _state();
         registry.revokeRole(role, operator);
         _denyCalls(calls, operator, role);
         registry.revokeRole(role, address(this));
@@ -123,7 +130,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         return keccak256(
             abi.encode(
                 registry.getSecurity(SECURITY),
-                registry.getToken(address(stock)),
+                registry.getCurrency(address(stock)),
                 registry.getPool(poolId),
                 registry.tierPolicy(1),
                 ledger.used(SECURITY, DAY),

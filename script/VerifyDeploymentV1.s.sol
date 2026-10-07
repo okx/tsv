@@ -65,8 +65,16 @@ contract VerifyDeploymentV1 is ScriptEnvironment {
         TSVLPManagerV1 lp = TSVLPManagerV1(a[5]);
         address poolManager = _envAddress("TSV_POOL_MANAGER");
         address sbt = _envAddress("TSV_SBT");
+        address factory = _envAddress("TSV_PERMISSIONS_ADAPTER_FACTORY");
+        address validationLibrary = _envAddress("TSV_PERMISSIONED_VALIDATION_LIBRARY");
         if (
-            poolManager.code.length == 0 || sbt.code.length == 0 || address(registry.participantSbt()) != sbt
+            poolManager.code.length == 0 || sbt.code.length == 0 || factory.code.length == 0
+                || validationLibrary.code.length == 0 || registry.permissionedValidationLibrary() != validationLibrary
+                || router.permissionedValidationLibrary() != validationLibrary
+                || registry.permissionsAdapterFactory() != factory || registry.POOL_MANAGER() != poolManager
+                || registry.permissionedPoolManager() != poolManager || registry.permissionedRouter() != a[4]
+                || registry.permissionedAllowlistChecker() != a[0]
+                || address(router.PERMISSIONS_ADAPTER_FACTORY()) != a[0] || address(registry.participantSbt()) != sbt
                 || registry.sbtTokenId() != _envUint("TSV_SBT_TOKEN_ID") || registry.hook() != a[3]
                 || registry.lpManager() != a[5] || registry.dataInbox() != a[2] || address(ledger.registry()) != a[0]
                 || ledger.hook() != a[3] || ledger.dataInbox() != a[2] || address(inbox.registry()) != a[0]

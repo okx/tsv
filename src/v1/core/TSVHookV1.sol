@@ -8,7 +8,15 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
-import {PoolConfig, PoolStatus, TokenConfig, LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PoolConfig,
+    PoolStatus,
+    PermissionedCurrencyConfig,
+    UnderlyingConfig,
+    AssetStatus,
+    LPHookContext,
+    LPOperationMode
+} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -300,10 +308,26 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     /// @param delta Actual signed PoolManager delta for this leg.
     /// @return Legal-share amount in WAD for the Ledger.
     function _sharesForLeg(bytes32 securityId, address currency, int128 delta) private view returns (uint256) {
-        if (securityId == 0 || delta == 0) return 0;
-        TokenConfig memory config = registry.getToken(currency);
-        if (config.securityId != securityId || config.legalShareAdapter == address(0)) revert InvalidPool();
+        PermissionedCurrencyConfig memory config = registry.getCurrency(currency);
+        if (config.underlying == address(0)) {
+            if (registry.getQuoteToken(currency).status != AssetStatus.APPROVED || securityId != 0) {
+                revert InvalidPool();
+            }
+            return 0;
+        }
+        UnderlyingConfig memory underlying = registry.getUnderlying(config.underlying);
+        if (
+            config.status != AssetStatus.APPROVED || securityId == 0 || underlying.securityId != securityId
+                || underlying.legalShareAdapter == address(0) || underlying.legalAdapterVersion == 0
+        ) revert InvalidPool();
+        IDirectLegalShareAdapter adapter = IDirectLegalShareAdapter(underlying.legalShareAdapter);
+        if (adapter.poolCurrency() != config.underlying || adapter.adapterVersion() != underlying.legalAdapterVersion) {
+            revert InvalidPool();
+        }
+        if (delta == 0) return 0;
         uint256 rawAmount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
-        return IDirectLegalShareAdapter(config.legalShareAdapter).toLegalShares(currency, rawAmount);
+        uint256 shares = adapter.toLegalShares(config.underlying, rawAmount);
+        if (shares == 0) revert InvalidPool();
+        return shares;
     }
 }

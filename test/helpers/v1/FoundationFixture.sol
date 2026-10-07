@@ -1,13 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {PoolManager} from "v4-core/PoolManager.sol";
+import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
+import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
+import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {V1PermissionedComponent, V1ConfigReceiver} from "./PermissionedMocks.sol";
 import {Test} from "forge-std/Test.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {TokenConfig, TokenStatus, MarketStatus, MarketAction, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PermissionedAdmission,
+    AssetStatus,
+    MarketStatus,
+    MarketAction,
+    PauseScope,
+    PauseMode
+} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -30,7 +43,12 @@ abstract contract FoundationFixture is Test {
     TSVVolumeLedgerV1 internal ledger;
     TSVDataInboxV1 internal inbox;
     V1MockIssuerShares internal stockUnderlying;
-    V1MockIssuerWrapped internal stock;
+    V1MockIssuerWrapped internal stockToken;
+    PermissionsAdapter internal stock;
+    PoolManager internal manager;
+    PermissionsAdapterFactory internal permissionsFactory;
+    V1PermissionedComponent internal permissionedRouterFixture;
+    V1ConfigReceiver internal exitReceiver;
     V1MockToken internal quote;
     BackedAutoFeeLegalShareAdapter internal stockAdapter;
     PoolKey internal key;
@@ -65,7 +83,13 @@ abstract contract FoundationFixture is Test {
                 )
             )
         );
+        manager = new PoolManager(address(this));
+        permissionsFactory = new PermissionsAdapterFactory(address(manager));
+        permissionedRouterFixture = new V1PermissionedComponent(address(manager), address(registry));
         registry.bindComponents(address(this), address(this), address(inbox));
+        registry.bindPermissionedComponents(address(permissionsFactory), address(permissionedRouterFixture));
+        registry.setPermissionedOwnerApproval(address(this), true);
+        exitReceiver = new V1ConfigReceiver();
         ledger.bindWriters(address(this), address(inbox));
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
@@ -73,11 +97,13 @@ abstract contract FoundationFixture is Test {
         registry.setTierPolicy(1, 25, 10);
 
         stockUnderlying = new V1MockIssuerShares();
-        stock = new V1MockIssuerWrapped(stockUnderlying);
+        stockToken = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1MockToken("QUOTE6", 6);
-        stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
-        registry.admitSecurity(SECURITY, 1, _config(address(stock), SECURITY, address(stockAdapter)));
-        registry.registerToken(_config(address(quote), 0, address(0)));
+        stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 1);
+        PermissionedAdmission memory admission = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        stock = PermissionsAdapter(admission.currency);
+        registry.admitPermissionedSecurity(1, admission);
+        registry.registerQuoteToken(address(quote));
 
         address a = address(stock) < address(quote) ? address(stock) : address(quote);
         address b = address(stock) < address(quote) ? address(quote) : address(stock);
@@ -135,31 +161,63 @@ abstract contract FoundationFixture is Test {
         assertFalse(inbox.reportIdUsed(report.reportId));
     }
 
+    // Bound Hook and LP identity views for this unit fixture, whose writer is the test contract.
+    fallback() external {
+        bytes4 selector = msg.sig;
+        address result;
+        if (selector == bytes4(keccak256("poolManager()"))) result = address(manager);
+        else if (selector == bytes4(keccak256("registry()"))) result = address(registry);
+        else if (selector == bytes4(keccak256("router()"))) result = address(permissionedRouterFixture);
+        else if (selector == bytes4(keccak256("lpManager()"))) result = address(this);
+        else if (selector == bytes4(keccak256("ledger()"))) result = address(ledger);
+        else revert("unknown component view");
+        assembly ("memory-safe") {
+            mstore(0, result)
+            return(0, 32)
+        }
+    }
+
     function _admitAdditionalSecurity(bytes32 securityId) internal {
-        registry.admitSecurity(securityId, 1, _newStockConfig(securityId));
+        registry.admitPermissionedSecurity(1, _newStockConfig(securityId));
     }
 
-    function _newStockConfig(bytes32 securityId) internal returns (TokenConfig memory) {
+    function _newStockConfig(bytes32 securityId) internal returns (PermissionedAdmission memory) {
         V1MockIssuerShares underlying = new V1MockIssuerShares();
-        V1MockIssuerWrapped wrapped = new V1MockIssuerWrapped(underlying);
+        V1MockIssuerWrapped token = new V1MockIssuerWrapped(underlying);
         BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(underlying), address(wrapped), 1);
-        return _config(address(wrapped), securityId, address(adapter));
+            new BackedAutoFeeLegalShareAdapter(address(underlying), address(token), 1);
+        return _prepareCurrency(address(token), securityId, address(adapter));
     }
 
-    /// @dev Builds a token registration configuration for the supplied currency and security.
-    function _config(address token, bytes32 securityId, address legalAdapter)
+    function _prepareCurrency(address u, bytes32 securityId, address adapter)
+        internal
+        returns (PermissionedAdmission memory)
+    {
+        address w = registry.createPermissionsAdapter(
+            PermissionedIERC20(u), address(this), IAllowlistChecker(address(registry))
+        );
+        PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), true);
+        PermissionsAdapter(w).updateAllowedHook(IHooks(address(this)), true);
+        V1MockIssuerWrapped(u).mintTestShares(w, 1);
+        registry.verifyPermissionsAdapter(w);
+        registry.setExitAdmin(w, address(exitReceiver));
+        return _config(w, securityId, adapter);
+    }
+
+    function _config(address w, bytes32 securityId, address adapter)
         internal
         view
-        returns (TokenConfig memory c)
+        returns (PermissionedAdmission memory)
     {
-        c.poolCurrency = token;
-        c.poolDecimals = IERC20Metadata(token).decimals();
-        c.securityId = securityId;
-        c.legalShareAdapter = legalAdapter;
-        c.legalAdapterVersion = securityId == 0 ? 0 : 1;
+        return PermissionedAdmission(w, securityId, address(this), adapter);
+    }
 
-        c.status = TokenStatus.APPROVED;
+    function _setAssetStatus(address asset, AssetStatus status) internal {
+        if (registry.getCurrency(asset).underlying != address(0)) {
+            registry.setPermissionedCurrencyStatus(asset, status);
+        } else {
+            registry.setQuoteTokenStatus(asset, status);
+        }
     }
 
     /// @dev Builds a market-state report with the supplied action and sequence metadata.

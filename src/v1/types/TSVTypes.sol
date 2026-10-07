@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 
 /// @notice Admission state for a pool Currency registered in the Registry.
-enum TokenStatus {
+enum AssetStatus {
     ABSENT, // No approved Currency has been registered.
     APPROVED, // Reviewed and permitted for new pool operations.
     DISABLED // Temporarily or permanently blocked from new pool operations.
@@ -50,20 +50,35 @@ enum LPOperationMode {
     FORCE_EXIT // Removes all liquidity through the authorized forced-exit path.
 }
 
-/// @notice Registry configuration for a pool Currency.
-struct TokenConfig {
-    /// @notice ERC-20 address used directly as the V4 Currency.
-    address poolCurrency;
-    /// @notice Token decimals checked against the token at registration.
-    uint8 poolDecimals;
-    /// @notice Listed security ID, or zero for a non-security Currency.
+/// @notice A registered stock PermissionsAdapter (W); underlying identity is permanent.
+struct PermissionedCurrencyConfig {
+    address underlying;
+    address expectedOwner;
+    AssetStatus status;
+    uint64 configVersion;
+}
+
+/// @notice Canonical security, precision and legal-share conversion for an underlying (U).
+struct UnderlyingConfig {
     bytes32 securityId;
-    /// @notice Adapter converting this Currency's raw amount to legal shares; zero for non-security tokens.
     address legalShareAdapter;
-    /// @notice Reviewed version of `legalShareAdapter`; zero for non-security tokens.
     uint32 legalAdapterVersion;
-    /// @notice Current approval or disablement state of the Currency.
-    TokenStatus status;
+    uint8 rawDecimals;
+}
+
+/// @notice An independently registered original quote ERC-20 (Q).
+struct QuoteTokenConfig {
+    uint8 rawDecimals;
+    AssetStatus status;
+    uint64 configVersion;
+}
+
+/// @notice Reviewed stock admission input; U and decimals are derived from trusted contracts.
+struct PermissionedAdmission {
+    address currency;
+    bytes32 securityId;
+    address expectedOwner;
+    address legalShareAdapter;
 }
 
 /// @notice Registry state for one listed or delisted security.
@@ -128,7 +143,8 @@ struct LPHookContext {
     int256 liquidityDelta;
 }
 
-/// @notice Shared one-pool request for direct exact-in/out and approved Adapter exact-in swaps.
+/// @notice One-pool user request for permissioned-stock/original-quote exact-in/out swaps.
+/// @dev W raw equals U raw; users approve and exchange U for the stock leg. External Adapters are rejected.
 /// @dev The Router derives a full-range V4 price limit from `zeroForOne`.
 struct SwapRequest {
     /// @notice Full V4 pool key; the Registry must recognize it as tradable.

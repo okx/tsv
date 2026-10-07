@@ -1,5 +1,18 @@
 # TSV V1 全新部署与发布验收清单
 
+> **2026-10-07 Wrapped Swap 更新：** Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。## 当前 Wrapped 部署补充
+
+当前可发布制品范围及生产门禁以 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)和 [W/U/Q 市场开通流程](./OPENING_A_STOCK_MARKET_V1.md)为准。下方为历史六代理部署框架，不能据其旧 DIRECT/LP/DEX 步骤启用 Wrapped 市场。
+
+1. 先部署并核验唯一 `PermissionedValidationLib`，Registry 与 Router 使用同一地址编译链接；将地址写入 manifest 及 `TSV_PERMISSIONED_VALIDATION_LIBRARY`。
+2. 使用原版 `PermissionsAdapterFactory(PM)`，记录真实 F 为 `TSV_PERMISSIONS_ADAPTER_FACTORY`。R 是 Router 的 Factory interface 与 checker；不能将 R 当作真实 F。
+3. Router **实现**构造为 `new TSVSwapRouterV1(PM,R)`；随后代理 `initialize(anchor,PM,R,ledger)`。初始化与候选升级都须保留相同 PM/R，不复用旧 Router 布局。
+4. 完成既有组件/写入者/Anchor 绑定后，Governor 调用 `R.bindPermissionedComponents(F,Router)`；验证 Hook Router/LP 引用、Ledger Registry、Anchor、两实现库链接与不可变 PM/R。
+5. 先以无广播方式模拟脚本。`VerifyDeploymentV1` 为只读核验，不证明发行方权限或流动性；按 manifest 分别保存 W/U/Q、SBT/owner/exitAdmin、额度、issuer 与生产 LP 证据。
+6. 生产 Wrapped LP 尚待迁移和验收；测试 seed 不可部署替代。模板的 `wrappedRouterReady` / `wrappedLiquidityReady` 保持 false，证据齐备后再由 owner 开启 W swapping。
+
+当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
+
 当前 ABI 已移除业务 hash 参数和配置字段，部署脚本及 manifest 也不接收 CODEHASH 输入。业务 ID、reasonCode、salt 与内部哈希计算保留。此变更改变函数/事件 ABI 和存储布局，须全新部署；不得直接升级使用旧字段布局的实例。链下审查材料按证券、资产、报告 ID 和交易记录归档。
 
 版本：1.1，2026-10-03

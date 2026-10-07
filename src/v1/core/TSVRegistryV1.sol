@@ -5,18 +5,28 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {
-    TokenConfig,
+    PermissionedCurrencyConfig,
+    UnderlyingConfig,
+    QuoteTokenConfig,
+    PermissionedAdmission,
     SecurityConfig,
     PoolConfig,
-    TokenStatus,
+    AssetStatus,
     PoolStatus,
     MarketStatus,
     MarketAction,
     PauseScope,
     PauseMode
 } from "tsv-v1/types/TSVTypes.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {IPermissionsAdapter, IERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {
+    IPermissionsAdapterFactory
+} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {IAllowlistChecker, IERC165} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
-import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
+import {PermissionedValidationLib} from "tsv-v1/libraries/PermissionedValidationLib.sol";
 
 /// @dev Exposes ERC-20 decimal metadata used during token registration.
 interface IERC20DecimalsV1 {
@@ -34,7 +44,7 @@ interface ISmartWalletSbtV1 {
 }
 
 /// @notice Single TSV venue asset, security, pool and pause registry.
-contract TSVRegistryV1 is TSVGoverned {
+contract TSVRegistryV1 is TSVGoverned, IAllowlistChecker, IPermissionsAdapterFactory {
     using PoolIdLibrary for PoolKey;
 
     /// @dev Reverts when the supplied Registry configuration is invalid.
@@ -76,6 +86,25 @@ contract TSVRegistryV1 is TSVGoverned {
         bool active;
     }
 
+    error PermissionedEnvironmentNotBound();
+    error InvalidPermissionedConfig();
+    error UnverifiedPermissionedAdapter(address currency);
+    error PermissionedMetadataMismatch();
+    error PermissionedPolicyMismatch();
+    error FactoryEntryReentrancy();
+    error UnsupportedAsset(address currency);
+
+    address public permissionsAdapterFactory;
+    address public permissionedPoolManager;
+    address public permissionedRouter;
+    mapping(address => PermissionedCurrencyConfig) private currencies;
+    mapping(address => UnderlyingConfig) private underlyings;
+    mapping(address => QuoteTokenConfig) private quoteTokens;
+    mapping(address => bool) public isPermissionedOwnerApproved;
+    mapping(address => address) public exitAdminOf;
+    mapping(address => uint64) public exitAdminVersion;
+    bool private factoryEntryEntered;
+
     address public hook;
     address public lpManager;
     address public dataInbox;
@@ -83,7 +112,6 @@ contract TSVRegistryV1 is TSVGoverned {
 
     mapping(bytes32 => SecurityConfig) private securities;
     mapping(uint8 => TierPolicy) private tiers;
-    mapping(address => TokenConfig) private tokens;
     mapping(address => uint32) public activePoolCountByCurrency;
     mapping(bytes32 => PoolConfig) private pools;
     mapping(bytes32 => uint64) public marketSequence;
@@ -105,14 +133,26 @@ contract TSVRegistryV1 is TSVGoverned {
     event SecurityTierChanged(bytes32 indexed securityId, uint8 oldTierId, uint8 newTierId);
     /// @notice Emitted when a security tier policy was created or updated.
     event TierPolicyChanged(uint8 indexed tierId, uint16 tierBps, uint32 maxListed);
-    /// @notice Emitted when a Currency and its security metadata were registered.
-    event TokenRegistered(address indexed poolCurrency, bytes32 indexed securityId);
-    /// @notice Emitted when a registered Currency status was changed.
-    event TokenStatusChanged(address indexed poolCurrency, uint8 oldStatus, uint8 newStatus);
-    /// @notice Emitted when a Currency legal-share adapter was replaced.
-    event LegalShareAdapterChanged(
-        address indexed poolCurrency, address oldAdapter, address newAdapter, uint32 legalAdapterVersion
+    event PermissionedComponentsBound(address indexed factory, address indexed poolManager, address indexed router);
+    event UnderlyingBound(
+        address indexed underlying, bytes32 indexed securityId, address legalShareAdapter, uint8 rawDecimals
     );
+    event PermissionedCurrencyRegistered(
+        address indexed currency, address indexed underlying, bytes32 indexed securityId
+    );
+    event PermissionedCurrencyStatusChanged(
+        address indexed currency, uint8 oldStatus, uint8 newStatus, uint64 configVersion
+    );
+    event QuoteTokenRegistered(address indexed quote, uint8 rawDecimals);
+    event QuoteTokenStatusChanged(address indexed quote, uint8 oldStatus, uint8 newStatus, uint64 configVersion);
+    event UnderlyingLegalShareAdapterChanged(
+        address indexed underlying, address oldAdapter, address newAdapter, uint32 legalAdapterVersion
+    );
+    event PermissionedOwnerApprovalChanged(address indexed owner, bool approved);
+    event PermissionedExpectedOwnerChanged(
+        address indexed currency, address oldOwner, address newOwner, uint64 configVersion
+    );
+    event ExitAdminUpdated(address indexed currency, address oldAdmin, address newAdmin, uint64 version);
     /// @notice Emitted when a pending pool completed initialization and became active.
     event PoolInitialized(bytes32 indexed poolId, uint160 sqrtPriceX96, address indexed creator);
     /// @notice Emitted when a registered pool status was changed.
@@ -156,6 +196,97 @@ contract TSVRegistryV1 is TSVGoverned {
         lpManager = lpManager_;
         dataInbox = dataInbox_;
         emit ComponentsBound(hook_, lpManager_, dataInbox_);
+    }
+
+    /// @notice Binds the real Factory and Router once after the common components are bound.
+    function bindPermissionedComponents(address factory, address router_) external onlyGovernor {
+        if (permissionsAdapterFactory != address(0)) revert InvalidStatus();
+        address pm = PermissionedValidationLib.validateEnvironment(_environment(), factory, router_);
+        permissionsAdapterFactory = factory;
+        permissionedPoolManager = pm;
+        permissionedRouter = router_;
+        emit PermissionedComponentsBound(factory, pm, router_);
+    }
+
+    /// @notice Returns the stateless validator address linked into this implementation.
+    function permissionedValidationLibrary() external pure returns (address) {
+        return address(PermissionedValidationLib);
+    }
+
+    function permissionedAllowlistChecker() external view returns (address) {
+        return address(this);
+    }
+
+    /// @inheritdoc IPermissionsAdapterFactory
+    function POOL_MANAGER() external view returns (address) {
+        return permissionsAdapterFactory == address(0)
+            ? address(0)
+            : IPermissionsAdapterFactory(permissionsAdapterFactory).POOL_MANAGER();
+    }
+
+    /// @inheritdoc IPermissionsAdapterFactory
+    function permissionsAdapterOf(address w) external view returns (address) {
+        return permissionsAdapterFactory == address(0)
+            ? address(0)
+            : IPermissionsAdapterFactory(permissionsAdapterFactory).permissionsAdapterOf(w);
+    }
+
+    /// @inheritdoc IPermissionsAdapterFactory
+    function verifiedPermissionsAdapterOf(address w) external view returns (address) {
+        return permissionsAdapterFactory == address(0)
+            ? address(0)
+            : IPermissionsAdapterFactory(permissionsAdapterFactory).verifiedPermissionsAdapterOf(w);
+    }
+
+    modifier factoryEntry() {
+        _requireEnvironment();
+        if (factoryEntryEntered) revert FactoryEntryReentrancy();
+        factoryEntryEntered = true;
+        _;
+        factoryEntryEntered = false;
+    }
+
+    /// @inheritdoc IPermissionsAdapterFactory
+    function createPermissionsAdapter(IERC20 u, address initialOwner, IAllowlistChecker checker)
+        external
+        factoryEntry
+        returns (address)
+    {
+        if (address(checker) != address(this)) revert InvalidPermissionedConfig();
+        return IPermissionsAdapterFactory(permissionsAdapterFactory).createPermissionsAdapter(u, initialOwner, checker);
+    }
+
+    /// @inheritdoc IPermissionsAdapterFactory
+    function verifyPermissionsAdapter(address w) external factoryEntry {
+        IPermissionsAdapterFactory(permissionsAdapterFactory).verifyPermissionsAdapter(w);
+    }
+
+    /// @inheritdoc IAllowlistChecker
+    function checkAllowlist(address account, address u) external view returns (PermissionFlag) {
+        PermissionedCurrencyConfig storage config = currencies[msg.sender];
+        if (
+            account == address(0) || u == address(0) || config.underlying != u || config.status != AssetStatus.APPROVED
+                || underlyings[u].securityId == 0 || !securities[underlyings[u].securityId].listed
+                || address(participantSbt) == address(0)
+        ) return PermissionFlags.NONE;
+        return
+            _isEligible(account)
+                ? PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED
+                : PermissionFlags.NONE;
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable, IERC165)
+        returns (bool)
+    {
+        return interfaceId == type(IAllowlistChecker).interfaceId
+            || interfaceId == type(IPermissionsAdapterFactory).interfaceId || super.supportsInterface(interfaceId);
+    }
+
+    function _isEligible(address account) private view returns (bool) {
+        return !participantSbt.paused() && participantSbt.verify(account, sbtTokenId);
     }
 
     /// @notice Sets a tier's quota multiplier and maximum number of listed securities.
@@ -214,24 +345,21 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return Whether the SBT is unpaused and verifies the owner.
     function isEligible(address owner) external view returns (bool) {
         if (address(participantSbt) == address(0)) revert SbtNotConfigured();
-        return !participantSbt.paused() && hasCredential(owner);
+        return _isEligible(owner);
     }
 
-    /// @notice Atomically lists a security and admits its first approved Currency.
-    /// @param securityId Unique internal identifier for the security.
-    /// @param tierId Configured tier with available listing capacity.
-    /// @param config Reviewed Token configuration bound to the new security.
-    function admitSecurity(bytes32 securityId, uint8 tierId, TokenConfig calldata config)
+    /// @notice Atomically lists a security and admits its first stock W.
+    function admitPermissionedSecurity(uint8 tierId, PermissionedAdmission calldata admission)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
     {
-        if (securityId == 0 || securities[securityId].securityId != 0 || config.securityId != securityId) {
+        if (admission.securityId == 0 || securities[admission.securityId].securityId != 0) {
             revert InvalidConfig();
         }
         _takeTierSlot(tierId);
-        securities[securityId] = SecurityConfig(securityId, tierId, true, 0, 1);
-        emit SecurityListed(securityId, tierId);
-        _registerToken(config);
+        securities[admission.securityId] = SecurityConfig(admission.securityId, tierId, true, 0, 1);
+        emit SecurityListed(admission.securityId, tierId);
+        _registerPermissionedCurrency(admission);
     }
 
     /// @notice Relists a delisted security under its existing tier.
@@ -277,74 +405,153 @@ contract TSVRegistryV1 is TSVGoverned {
         return securities[securityId];
     }
 
-    /// @notice Admits a quote token or another Currency for an already listed security.
-    /// @param config Reviewed Token configuration; status must be APPROVED.
-    function registerToken(TokenConfig calldata config) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        _registerToken(config);
+    /// @notice Adds a stock W to an already listed security, sharing its U configuration.
+    function registerPermissionedCurrency(PermissionedAdmission calldata admission)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+    {
+        _registerPermissionedCurrency(admission);
     }
 
-    /// @dev Validates and stores an approved Currency without leaving a pending review state.
-    function _registerToken(TokenConfig calldata config) private {
+    function _registerPermissionedCurrency(PermissionedAdmission calldata admission) private {
+        _requireEnvironment();
+        address w = admission.currency;
         if (
-            config.poolCurrency == address(0) || config.status != TokenStatus.APPROVED
-                || tokens[config.poolCurrency].poolCurrency != address(0) || config.poolDecimals > 18
-                || config.poolCurrency.code.length == 0
-        ) revert InvalidConfig();
-        if (IERC20DecimalsV1(config.poolCurrency).decimals() != config.poolDecimals) revert InvalidConfig();
-        if (config.securityId == 0) {
-            if (config.legalShareAdapter != address(0) || config.legalAdapterVersion != 0) revert InvalidConfig();
-        } else {
-            if (
-                !securities[config.securityId].listed || config.legalShareAdapter.code.length == 0
-                    || config.legalAdapterVersion != 1
-            ) {
-                revert InvalidConfig();
-            }
-            _validateLegalShareAdapter(config.legalShareAdapter, config.poolCurrency, config.legalAdapterVersion);
+            currencies[w].underlying != address(0) || quoteTokens[w].status != AssetStatus.ABSENT
+                || underlyings[w].securityId != 0 || !securities[admission.securityId].listed
+        ) revert InvalidPermissionedConfig();
+        address u = _candidateUnderlying(w);
+        _validateAssetIdentities(w, u);
+        uint8 decimals = _stockDecimals(w, u);
+        UnderlyingConfig storage canonical = underlyings[u];
+        uint32 version = canonical.securityId == 0 ? 1 : canonical.legalAdapterVersion;
+        if (
+            canonical.securityId != 0
+                && (canonical.securityId != admission.securityId
+                    || canonical.rawDecimals != decimals
+                    || canonical.legalShareAdapter != admission.legalShareAdapter)
+        ) {
+            revert InvalidPermissionedConfig();
         }
-        tokens[config.poolCurrency] = config;
-        emit TokenRegistered(config.poolCurrency, config.securityId);
-        emit TokenStatusChanged(config.poolCurrency, uint8(TokenStatus.ABSENT), uint8(TokenStatus.APPROVED));
+        _validateLegalShareAdapter(admission.legalShareAdapter, u, version);
+        _validatePolicy(w, u, admission.expectedOwner);
+        if (u == admission.legalShareAdapter || w == admission.legalShareAdapter) revert InvalidPermissionedConfig();
+        PermissionedValidationLib.validateInitialInventory(permissionedPoolManager, w, u);
+        if (canonical.securityId == 0) {
+            underlyings[u] = UnderlyingConfig(admission.securityId, admission.legalShareAdapter, 1, decimals);
+            emit UnderlyingBound(u, admission.securityId, admission.legalShareAdapter, decimals);
+        }
+        currencies[w] = PermissionedCurrencyConfig(u, admission.expectedOwner, AssetStatus.APPROVED, 1);
+        emit PermissionedCurrencyRegistered(w, u, admission.securityId);
+        emit PermissionedCurrencyStatusChanged(w, uint8(AssetStatus.ABSENT), uint8(AssetStatus.APPROVED), 1);
     }
 
-    /// @notice Disables or re-enables an admitted token, enforcing approval prerequisites.
-    /// @param currency Registered pool Currency to update.
-    /// @param status APPROVED or DISABLED; ABSENT is not a valid transition.
-    function setTokenStatus(address currency, TokenStatus status) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        TokenConfig storage config = tokens[currency];
-        if (config.poolCurrency == address(0) || config.status == status) revert InvalidStatus();
-        if (status == TokenStatus.ABSENT) revert InvalidStatus();
-        if (status == TokenStatus.APPROVED) {
-            if (config.poolCurrency.code.length == 0) revert InvalidConfig();
-            if (config.securityId != 0 && !securities[config.securityId].listed) revert InvalidStatus();
+    /// @notice Registers an original quote ERC-20; stock identities cannot become quotes.
+    function registerQuoteToken(address quote) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        _requireEnvironment();
+        if (quoteTokens[quote].status != AssetStatus.ABSENT) revert InvalidStatus();
+        _validateQuoteIdentity(quote);
+        uint8 decimals = _readDecimals(quote);
+        quoteTokens[quote] = QuoteTokenConfig(decimals, AssetStatus.APPROVED, 1);
+        emit QuoteTokenRegistered(quote, decimals);
+        emit QuoteTokenStatusChanged(quote, uint8(AssetStatus.ABSENT), uint8(AssetStatus.APPROVED), 1);
+    }
+
+    function setPermissionedCurrencyStatus(address w, AssetStatus status) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        PermissionedCurrencyConfig storage config = currencies[w];
+        if (config.underlying == address(0) || status == AssetStatus.ABSENT || config.status == status) {
+            revert InvalidStatus();
         }
-        TokenStatus old = config.status;
+        if (status == AssetStatus.APPROVED) {
+            UnderlyingConfig storage u = underlyings[config.underlying];
+            if (!securities[u.securityId].listed) revert InvalidStatus();
+            if (_candidateUnderlying(w) != config.underlying) revert InvalidPermissionedConfig();
+            _validateAssetIdentities(w, config.underlying);
+            if (_stockDecimals(w, config.underlying) != u.rawDecimals) revert PermissionedMetadataMismatch();
+            _validateLegalShareAdapter(u.legalShareAdapter, config.underlying, u.legalAdapterVersion);
+            _validatePolicy(w, config.underlying, config.expectedOwner);
+        }
+        AssetStatus old = config.status;
         config.status = status;
-        emit TokenStatusChanged(currency, uint8(old), uint8(status));
+        config.configVersion++;
+        emit PermissionedCurrencyStatusChanged(w, uint8(old), uint8(status), config.configVersion);
     }
 
-    /// @notice Replaces a security token's share adapter while its asset is paused for replacement.
-    /// @param currency Registered stock Currency whose adapter is replaced.
-    /// @param newAdapter Replacement direct legal-share adapter with the next version.
-    function replaceLegalShareAdapter(address currency, address newAdapter) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        TokenConfig storage config = tokens[currency];
+    function setQuoteTokenStatus(address quote, AssetStatus status) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        QuoteTokenConfig storage config = quoteTokens[quote];
+        if (config.status == AssetStatus.ABSENT || status == AssetStatus.ABSENT || config.status == status) {
+            revert InvalidStatus();
+        }
+        if (status == AssetStatus.APPROVED) {
+            _validateQuoteIdentity(quote);
+            if (_readDecimals(quote) != config.rawDecimals) revert PermissionedMetadataMismatch();
+        }
+        AssetStatus old = config.status;
+        config.status = status;
+        config.configVersion++;
+        emit QuoteTokenStatusChanged(quote, uint8(old), uint8(status), config.configVersion);
+    }
+
+    function setPermissionedOwnerApproval(address owner, bool approved) external onlyGovernor {
+        if (owner == address(0) || (approved && owner.code.length == 0)) revert PermissionedPolicyMismatch();
+        isPermissionedOwnerApproved[owner] = approved;
+        emit PermissionedOwnerApprovalChanged(owner, approved);
+    }
+
+    function updatePermissionedExpectedOwner(address w, address newOwner) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        PermissionedCurrencyConfig storage config = currencies[w];
         if (
-            config.poolCurrency == address(0) || config.securityId == 0 || newAdapter == config.legalShareAdapter
-                || newAdapter.code.length == 0 || !_assetPausedForReplacement(currency)
-        ) revert InvalidConfig();
-        uint32 nextVersion = config.legalAdapterVersion + 1;
-        _validateLegalShareAdapter(newAdapter, currency, nextVersion);
-        address oldAdapter = config.legalShareAdapter;
-        config.legalShareAdapter = newAdapter;
-        config.legalAdapterVersion = nextVersion;
-        emit LegalShareAdapterChanged(currency, oldAdapter, newAdapter, nextVersion);
+            config.underlying == address(0) || config.status != AssetStatus.DISABLED || newOwner == config.expectedOwner
+        ) revert InvalidStatus();
+        _validateOwner(w, config.underlying, newOwner);
+        address old = config.expectedOwner;
+        config.expectedOwner = newOwner;
+        config.configVersion++;
+        emit PermissionedExpectedOwnerChanged(w, old, newOwner, config.configVersion);
     }
 
-    /// @notice Returns the registered token configuration for `currency`.
-    /// @param currency Pool Currency used as the Registry key.
-    /// @return Stored token configuration; unknown addresses return a default record.
-    function getToken(address currency) external view returns (TokenConfig memory) {
-        return tokens[currency];
+    /// @notice Replaces the canonical U converter while the entire security is paused for trade and LP.
+    function replaceUnderlyingLegalShareAdapter(address u, address newAdapter) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        UnderlyingConfig storage config = underlyings[u];
+        if (
+            config.securityId == 0 || newAdapter == config.legalShareAdapter
+                || !_securityPausedForReplacement(config.securityId, PauseMode.TRADE)
+                || !_securityPausedForReplacement(config.securityId, PauseMode.LP)
+        ) revert InvalidConfig();
+        uint32 version = config.legalAdapterVersion + 1;
+        _validateLegalShareAdapter(newAdapter, u, version);
+        address old = config.legalShareAdapter;
+        config.legalShareAdapter = newAdapter;
+        config.legalAdapterVersion = version;
+        emit UnderlyingLegalShareAdapterChanged(u, old, newAdapter, version);
+    }
+
+    /// @notice Configures a separate receiver for a verified candidate or admitted stock W.
+    function setExitAdmin(address w, address newAdmin) external onlyGovernor {
+        _requireEnvironment();
+        address u = _candidateUnderlying(w);
+        _validateAssetIdentities(w, u);
+        if (currencies[w].underlying != address(0) && currencies[w].underlying != u) {
+            revert InvalidPermissionedConfig();
+        }
+        if (newAdmin == exitAdminOf[w]) revert InvalidStatus();
+        _validateExitAdmin(w, u, newAdmin, currencies[w].expectedOwner);
+        address old = exitAdminOf[w];
+        exitAdminOf[w] = newAdmin;
+        uint64 version = ++exitAdminVersion[w];
+        emit ExitAdminUpdated(w, old, newAdmin, version);
+    }
+
+    function getCurrency(address w) external view returns (PermissionedCurrencyConfig memory) {
+        return currencies[w];
+    }
+
+    function getUnderlying(address u) external view returns (UnderlyingConfig memory) {
+        return underlyings[u];
+    }
+
+    function getQuoteToken(address quote) external view returns (QuoteTokenConfig memory) {
+        return quoteTokens[quote];
     }
 
     /// @notice Registers a pending pool for the LP Manager after validating its key and currencies.
@@ -352,16 +559,16 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return poolId Identifier derived from the full pool key.
     function registerPendingPool(PoolKey calldata key) external returns (bytes32 poolId) {
         if (msg.sender != lpManager) revert InvalidPool();
+        _requireEnvironment();
         address c0 = Currency.unwrap(key.currency0);
         address c1 = Currency.unwrap(key.currency1);
         if (
             address(key.hooks) != hook || c0 == address(0) || c0 >= c1 || key.fee >= 1_000_000 || key.tickSpacing < 1
-                || key.tickSpacing > 32767 || tokens[c0].status != TokenStatus.APPROVED
-                || tokens[c1].status != TokenStatus.APPROVED
+                || key.tickSpacing > 32767 || !_assetApproved(c0) || !_assetApproved(c1)
         ) revert InvalidPool();
-        bytes32 s0 = tokens[c0].securityId;
-        bytes32 s1 = tokens[c1].securityId;
-        if (s0 != 0 && s1 != 0) revert InvalidPool();
+        bytes32 s0 = underlyings[currencies[c0].underlying].securityId;
+        bytes32 s1 = underlyings[currencies[c1].underlying].securityId;
+        if ((s0 == 0) == (s1 == 0)) revert InvalidPool();
         poolId = PoolId.unwrap(key.toId());
         if (pools[poolId].status != PoolStatus.ABSENT) revert InvalidPool();
         pools[poolId] = PoolConfig(key, s0, s1, PoolStatus.PENDING, 1);
@@ -377,10 +584,7 @@ contract TSVRegistryV1 is TSVGoverned {
         PoolConfig storage pool = pools[poolId];
         pool.status = PoolStatus.ACTIVE;
         pool.version++;
-        activePoolCountByCurrency[Currency.unwrap(pool.key.currency0)]++;
-        activePoolCountByCurrency[Currency.unwrap(pool.key.currency1)]++;
-        if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount++;
-        if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount++;
+        _updatePoolCounts(pool, true);
         emit PoolInitialized(poolId, sqrtPriceX96, creator);
         emit PoolStatusChanged(poolId, uint8(PoolStatus.PENDING), uint8(PoolStatus.ACTIVE));
     }
@@ -392,10 +596,7 @@ contract TSVRegistryV1 is TSVGoverned {
         if (pool.status != PoolStatus.ACTIVE) revert InvalidStatus();
         pool.status = PoolStatus.DISABLED;
         pool.version++;
-        activePoolCountByCurrency[Currency.unwrap(pool.key.currency0)]--;
-        activePoolCountByCurrency[Currency.unwrap(pool.key.currency1)]--;
-        if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount--;
-        if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount--;
+        _updatePoolCounts(pool, false);
         emit PoolStatusChanged(poolId, uint8(PoolStatus.ACTIVE), uint8(PoolStatus.DISABLED));
     }
 
@@ -407,7 +608,7 @@ contract TSVRegistryV1 is TSVGoverned {
         address c0 = Currency.unwrap(pool.key.currency0);
         address c1 = Currency.unwrap(pool.key.currency1);
         if (
-            tokens[c0].status != TokenStatus.APPROVED || tokens[c1].status != TokenStatus.APPROVED
+            !_assetApproved(c0) || !_assetApproved(c1)
                 || (pool.securityId0 != 0 && !securities[pool.securityId0].listed)
                 || (pool.securityId1 != 0 && !securities[pool.securityId1].listed)
         ) revert InvalidStatus();
@@ -416,11 +617,24 @@ contract TSVRegistryV1 is TSVGoverned {
         if (!_isOperationAllowed(poolId, PauseMode.TRADE) || !_isOperationAllowed(poolId, PauseMode.LP)) {
             revert InvalidStatus();
         }
-        activePoolCountByCurrency[c0]++;
-        activePoolCountByCurrency[c1]++;
-        if (pool.securityId0 != 0) securities[pool.securityId0].activePoolCount++;
-        if (pool.securityId1 != 0) securities[pool.securityId1].activePoolCount++;
+        _updatePoolCounts(pool, true);
         emit PoolStatusChanged(poolId, uint8(PoolStatus.DISABLED), uint8(PoolStatus.ACTIVE));
+    }
+
+    function _updatePoolCounts(PoolConfig storage pool, bool increment) private {
+        address c0 = Currency.unwrap(pool.key.currency0);
+        address c1 = Currency.unwrap(pool.key.currency1);
+        // Every registered pool has exactly one permanent stock security.
+        bytes32 securityId = pool.securityId0 == 0 ? pool.securityId1 : pool.securityId0;
+        if (increment) {
+            activePoolCountByCurrency[c0]++;
+            activePoolCountByCurrency[c1]++;
+            securities[securityId].activePoolCount++;
+        } else {
+            activePoolCountByCurrency[c0]--;
+            activePoolCountByCurrency[c1]--;
+            securities[securityId].activePoolCount--;
+        }
     }
 
     /// @notice Returns the registered key, securities, status, and version for a pool.
@@ -530,7 +744,7 @@ contract TSVRegistryV1 is TSVGoverned {
         if (pool.status != PoolStatus.ACTIVE) return false;
         address c0 = Currency.unwrap(pool.key.currency0);
         address c1 = Currency.unwrap(pool.key.currency1);
-        if (tokens[c0].status != TokenStatus.APPROVED || tokens[c1].status != TokenStatus.APPROVED) return false;
+        if (!_assetApproved(c0) || !_assetApproved(c1)) return false;
         if (
             _isPaused(PauseScope.GLOBAL, 0, operation) || _isPaused(PauseScope.POOL, poolId, operation)
                 || _isPaused(PauseScope.TOKEN, _addressKey(c0), operation)
@@ -555,31 +769,70 @@ contract TSVRegistryV1 is TSVGoverned {
         tier.listedCount++;
     }
 
-    /// @dev Verifies the adapter interface and that it reports the expected currency and version.
-    /// @param adapter Adapter address being validated.
-    /// @param currency Expected pool Currency.
-    /// @param version Expected adapter version.
-    function _validateLegalShareAdapter(address adapter, address currency, uint32 version) private view {
-        IDirectLegalShareAdapter directAdapter = IDirectLegalShareAdapter(adapter);
-        try directAdapter.supportsInterface(type(IDirectLegalShareAdapter).interfaceId) returns (bool supported) {
-            if (!supported) revert InvalidConfig();
-        } catch {
-            revert InvalidConfig();
-        }
-        if (directAdapter.poolCurrency() != currency || directAdapter.adapterVersion() != version) {
-            revert InvalidConfig();
-        }
+    /// @dev Immutable environment identities passed to the stateless linked validator.
+    function _environment() private view returns (PermissionedValidationLib.Environment memory) {
+        return PermissionedValidationLib.Environment(
+            permissionsAdapterFactory,
+            permissionedPoolManager,
+            permissionedRouter,
+            hook,
+            lpManager,
+            dataInbox,
+            address(governanceAnchor),
+            address(participantSbt)
+        );
     }
 
-    /// @dev Allows adapter replacement when no pool uses the currency or both operation types are emergency-paused.
-    /// @param currency Pool Currency whose replacement conditions are checked.
-    /// @return Whether no active pool uses the currency or global/token records cover both operation types.
-    function _assetPausedForReplacement(address currency) private view returns (bool) {
-        if (activePoolCountByCurrency[currency] == 0) return true;
-        bytes32 target = _addressKey(currency);
-        return (_isPaused(PauseScope.GLOBAL, 0, PauseMode.TRADE)
-                || _isPaused(PauseScope.TOKEN, target, PauseMode.TRADE))
-            && (_isPaused(PauseScope.GLOBAL, 0, PauseMode.LP) || _isPaused(PauseScope.TOKEN, target, PauseMode.LP));
+    function _requireEnvironment() private view {
+        if (permissionsAdapterFactory == address(0)) revert PermissionedEnvironmentNotBound();
+    }
+
+    function _securityPausedForReplacement(bytes32 securityId, PauseMode operation) private view returns (bool) {
+        return _isPaused(PauseScope.GLOBAL, 0, operation) || _isPaused(PauseScope.SECURITY, securityId, operation)
+            || (uint8(marketPauseMode[securityId]) & uint8(operation)) != 0;
+    }
+
+    function _assetApproved(address asset) private view returns (bool) {
+        address u = currencies[asset].underlying;
+        return u != address(0)
+            ? currencies[asset].status == AssetStatus.APPROVED && securities[underlyings[u].securityId].listed
+            : quoteTokens[asset].status == AssetStatus.APPROVED;
+    }
+
+    function _validateLegalShareAdapter(address adapter, address currency, uint32 version) private view {
+        PermissionedValidationLib.validateLegalShareAdapter(adapter, currency, version);
+    }
+
+    function _candidateUnderlying(address w) private view returns (address) {
+        return PermissionedValidationLib.candidateUnderlying(_environment(), w);
+    }
+
+    function _validateAssetIdentities(address w, address u) private view {
+        PermissionedValidationLib.validateAssetIdentities(_environment(), w, u);
+    }
+
+    function _readDecimals(address token) private view returns (uint8) {
+        return PermissionedValidationLib.readDecimals(token);
+    }
+
+    function _stockDecimals(address w, address u) private view returns (uint8) {
+        return PermissionedValidationLib.stockDecimals(w, u);
+    }
+
+    function _validateOwner(address w, address u, address owner) private view {
+        PermissionedValidationLib.validateOwner(w, u, owner);
+    }
+
+    function _validateExitAdmin(address w, address u, address admin, address expectedOwner) private view {
+        PermissionedValidationLib.validateExitAdmin(_environment(), w, u, admin, expectedOwner);
+    }
+
+    function _validatePolicy(address w, address u, address owner) private view {
+        PermissionedValidationLib.validatePolicy(_environment(), w, u, owner);
+    }
+
+    function _validateQuoteIdentity(address quote) private view {
+        PermissionedValidationLib.validateQuoteIdentity(_environment(), quote);
     }
 
     /// @dev Checks whether the operation's exact mode or ALL has an active pause record.

@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {TokenConfig, TokenStatus, PoolStatus} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, AssetStatus, PoolStatus} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 
@@ -12,11 +12,11 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
     using PoolIdLibrary for PoolKey;
 
     function testMultipleCurrenciesAndPoolsCountOneListedSecurity() public {
-        TokenConfig memory secondCurrency = _newStockConfig(SECURITY);
-        registry.registerToken(secondCurrency);
+        PermissionedAdmission memory secondCurrency = _newStockConfig(SECURITY);
+        registry.registerPermissionedCurrency(secondCurrency);
         PoolKey memory secondKey = key;
-        address a = secondCurrency.poolCurrency < address(quote) ? secondCurrency.poolCurrency : address(quote);
-        address b = secondCurrency.poolCurrency < address(quote) ? address(quote) : secondCurrency.poolCurrency;
+        address a = secondCurrency.currency < address(quote) ? secondCurrency.currency : address(quote);
+        address b = secondCurrency.currency < address(quote) ? address(quote) : secondCurrency.currency;
         secondKey.currency0 = Currency.wrap(a);
         secondKey.currency1 = Currency.wrap(b);
         bytes32 secondPool = registry.registerPendingPool(secondKey);
@@ -118,12 +118,12 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         registry.disablePool(poolId);
         address[2] memory currencies = [address(stock), address(quote)];
         for (uint256 i; i < currencies.length; ++i) {
-            registry.setTokenStatus(currencies[i], TokenStatus.DISABLED);
+            _setAssetStatus(currencies[i], AssetStatus.DISABLED);
             bytes32 beforeState = _lifecycleState();
             vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
             registry.enablePool(poolId);
             assertEq(_lifecycleState(), beforeState);
-            registry.setTokenStatus(currencies[i], TokenStatus.APPROVED);
+            _setAssetStatus(currencies[i], AssetStatus.APPROVED);
         }
         registry.enablePool(poolId);
         assertEq(registry.getPool(poolId).version, 4);
@@ -135,11 +135,11 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         registry.disablePool(poolId);
         registry.delistSecurity(SECURITY);
         bytes32 otherSecurity = keccak256("other-security");
-        TokenConfig memory config = _newStockConfig(otherSecurity);
-        registry.admitSecurity(otherSecurity, 1, config);
+        PermissionedAdmission memory config = _newStockConfig(otherSecurity);
+        registry.admitPermissionedSecurity(1, config);
         config.securityId = SECURITY;
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(SECURITY, 1, config);
+        registry.admitPermissionedSecurity(1, config);
         assertEq(registry.tierPolicy(1).listedCount, 1);
         registry.relistSecurity(SECURITY);
         assertEq(registry.tierPolicy(1).listedCount, 2);
@@ -152,8 +152,8 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
                 registry.tierPolicy(1),
                 registry.tierPolicy(2),
                 registry.getPool(poolId),
-                registry.getToken(address(stock)),
-                registry.getToken(address(quote)),
+                registry.getCurrency(address(stock)),
+                registry.getQuoteToken(address(quote)),
                 registry.activePoolCountByCurrency(address(stock)),
                 registry.activePoolCountByCurrency(address(quote)),
                 ledger.used(SECURITY, DAY)

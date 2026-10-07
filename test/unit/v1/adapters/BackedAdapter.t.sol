@@ -25,8 +25,8 @@ contract TSVBackedAdapterTest is FoundationFixture {
     /// @dev Verifies the backed adapter validates Currency and accepts a zero amount.
     function testBackedAdapterValidatesCurrencyAndAllowsZeroAmount() public {
         BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
-        assertEq(adapter.toLegalShares(address(stock), 0), 0);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 1);
+        assertEq(adapter.toLegalShares(address(stockToken), 0), 0);
 
         vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidCurrency.selector);
         adapter.toLegalShares(address(quote), 1e18);
@@ -43,11 +43,11 @@ contract TSVBackedAdapterTest is FoundationFixture {
     /// @dev Verifies the backed adapter rejects zero conversion and reports its direct interface.
     function testBackedAdapterRejectsZeroConversionAndDeclaresDirectInterface() public {
         BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken), 1);
         stockUnderlying.setMultiplier(0, 1);
 
         vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidConversion.selector);
-        adapter.toLegalShares(address(stock), 1);
+        adapter.toLegalShares(address(stockToken), 1);
         assertTrue(adapter.supportsInterface(type(IDirectLegalShareAdapter).interfaceId));
     }
 }

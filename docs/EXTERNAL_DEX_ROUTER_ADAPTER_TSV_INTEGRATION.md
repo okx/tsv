@@ -1,5 +1,7 @@
 # 外部 DEX Router / Adapter 接入 TSV
 
+> **2026-10-07 Wrapped Swap 更新：** Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
+
 > 当前接入实现已固定为上游 `TSVAdapter` 提交 `e38c6b109875893ad037677eb8d8221fa4b5687b`，详见 [实现与测试依赖](./TSV_ADAPTER_IMPLEMENTATION_V1.md)。下文为早期方案记录；其中追加 amountIn、moreInfo 自带滑点和固定 DexRouter 地址的要求不适用于该实现。当前使用现有两个 marker、输入币余额和后端签名授权，DexRouter 合约不需为 TSV 追加金额字段。
 
 本文说明本仓库 `TSVSwapRouterV1` 的 Adapter 专用入口，以及外部 `GitHub-Web3-DEX-Adapters-EVM` 和 `GitHub-Web3-DEX-EVM` 需要配合的工作。外部仓库不在本次 Solidity 改动范围内。

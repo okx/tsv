@@ -1,5 +1,15 @@
 # TSV V1 实现状态
 
+> **2026-10-07 Wrapped Swap ## 当前 Wrapped 交付状态
+
+Registry 与单池 Wrapped Swap 已编码；Router 支持 U↔Q 四条 exact-in/exact-out 路径，原版 W/PM 结算、一次回调与策略快照、精确双侧转账、surplus 不变、严格 exact-out 和不可变 PM/R 升级检查均已落地。external Adapter 入口立即拒绝，旧白名单移除。共享 `PermissionedValidationLib` 继续无存储，供 Registry 准入与 Router 策略校验使用；资金与上下文留在 Router。
+
+当前验收记录、代码尺寸、库链接、ABI/layout 见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)。生产 Wrapped LP 源码尚未迁移；测试 seed 不属于生产制品。manifest readiness 保持 false，真实发行方/生产 SBT/目标链及流动性证据另行验收。
+
+## 历史实现记录
+
+更新：** Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
+
 更新：2026-10-05。本文是当前工作区的状态看板：记录源码已实现什么、还缺哪些实现或外部证据。目标流程见[三系统总览](./SYSTEMS_OVERVIEW.md)，行为规范见[编码规格](./CODING_SPEC_V1.md)和[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)，目标验收条件见[测试规格](./TEST_SPEC_V1.md)。日期评审保留其当时结论，不自动代表当前实现。
 
 **状态用语：**“已编码”表示源码存在；“部分实现”表示仍缺目标行为或自动防护；“外部阻断”表示须取得发行方、法务或目标链证据。测试规格是目标清单，不代表所有测试已执行。

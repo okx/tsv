@@ -1,5 +1,7 @@
 <div align="center">
 
+Registry 与单池 Wrapped Swap 已采用 W／U／原币报价 Q 模型；[当前实现与验收](docs/PERMISSIONED_REGISTRY_V1.md)说明 ABI 和只读验证库链接。用户收付 U/Q，生产 Wrapped LP 待独立交付。
+
 <img src="docs/assets/tsv-banner.svg" alt="TSV V1 — 交易与流动性、证券额度、运营报告和固定 Anchor 治理" width="100%">
 
 # TSV V1 · 证券交易合约
@@ -17,16 +19,16 @@
 
 ---
 
-TSV 是基于 **Uniswap V4** 的证券交易合约系统。它把持证资格、证券级成交额度、运营报告和升级治理接入真实 Swap 与 LP 流程：用户收付池内 Currency，实际成交按法律股数记账，同一证券的所有池共享日额度。
+TSV 是基于 **Uniswap V4** 的证券交易合约系统。它把持证资格、证券级成交额度、运营报告和升级治理接入 Swap：池内使用原版 PermissionsAdapter W 与报价 Q，用户收付 U/Q，真实成交按 U 的法律股数记账，同一证券的所有 W/池共享日额度。
 
-当前代码位于 [`src/v1/`](src/v1/)，目标链为 **X Layer / 196**。本仓库已有本地与固定区块 fork 验证，尚未广播生产部署；发布条件见[实现状态](docs/IMPLEMENTATION_STATUS_V1.md)与[部署清单](docs/DEPLOYMENT_CHECKLIST_V1.md)。
+当前代码位于 [`src/v1/`](src/v1/)，目标链为 **X Layer / 196**。当前 Wrapped Swap 使用真实本地 PM 和原版 Factory/W 验证，尚未广播生产部署；生产发行方、SBT 与 Wrapped LP 条件见[当前交付边界](docs/PERMISSIONED_REGISTRY_V1.md)和[市场开通流程](docs/OPENING_A_STOCK_MARKET_V1.md)。
 
 ## ✨ 能做什么
 
 | 系统 | 核心能力 | 关键规则 |
 | :--- | :--- | :--- |
-| 🔄 **交易** | 股票/报价币池、双向 exact-input / exact-output、白名单 Adapter 接入 | 共用 SBT 资格门禁；按实际 V4 delta 直接结算与计股；失败整笔回滚 |
-| 💧 **流动性** | 开仓、加仓、减仓、领费、关仓、授权强退 | Receipt 不可转让；仓位 owner 固定；退出资产交付原 owner；LP 不占成交额度 |
+| 🔄 **交易** | 单 W/Q 池、U↔Q 双向 exact-input / exact-output | 真实用户 SBT；精确 wrap/unwrap；回调与策略快照绑定；失败回滚；external Adapter 拒绝 |
+| 💧 **流动性** | 生产 Wrapped LP 待交付；旧 LP 源码保留 | Swap 测试仅用 test 目录的真实 W/PM seed helper 准备流动性 |
 | 📊 **额度** | 证券级共享日额度、自动日切、可选 quota、拆并股系数 | 上月日均 ADTV × Tier rate × 系数；拆并股只在未来计量日开始生效 |
 | 🛠️ **运营** | 原子证券准入、报告提交、资产/池状态、范围与模式暂停 | 专职角色直接提交；报告去重与顺序校验；TRADE / LP / ALL 分别控制 |
 | 🛡️ **治理** | 固定 Anchor、单笔或原子批量升级、全局升级冻结、身份恢复 | Governor 升级；Guardian 关闭全部升级入口；Council 提案 + 当前 Guardian 批准恢复 |
@@ -107,35 +109,18 @@ make test
 
 ## 🧪 测试与验证
 
-2026-10-04，固定 seed `0x20261004` 的验证结果：
-
-| 验证范围 | 通过数 | 失败 / 跳过 |
-| :--- | ---: | :--- |
-| 单元测试 | **237** | 0 / 0 |
-| 真实本地 V4 集成 | **132** | 0 / 0 |
-| X Layer 固定区块 fork | **11** | 0 / 0 |
-
-本地共 **369 项 / 63 个套件**，另有 **11 项 fork**；独立插桩运行也通过全部 369 项。七项 invariant 覆盖治理、交易/LP 和运营模型，默认每项 64 轮 × 32 步；普通 fuzz 256 次。
-
-| 想验证什么 | 命令 |
-| :--- | :--- |
-| 全部本地用例 | `make test` |
-| 治理与恢复 | `make test-governance` |
-| Swap / LP | `make test-trading` / `make test-liquidity` |
-| 注册、报告和运营 | `make test-operations` |
-| 独立状态模型 | `make test-invariants` |
-| X Layer 固定区块 DEX 流程 | `make test-xlayer` |
-| 插桩覆盖率 | `make coverage` |
-
-复现拆并股专项与运营模型：
+当前回归覆盖 Registry、治理、报告与真实本地 Wrapped Swap。新交易套件覆盖四条路径、18/6 精度、共享额度、部分成交、协议费、双侧转账故障、交易中配置变化以及回调重放/重入。成功资金结算使用真实 PM、原版 Factory/W；issuer U/Q/SBT 为行为替身。
 
 ```sh
-forge test --match-contract 'TSV(SplitFactor.*|StatefulOperations)Test' --fuzz-seed 0x20261004
+forge test -vv
+forge test --match-path 'test/integration/local/trading/Wrapped*.t.sol' -vv
+forge build src --sizes
+forge fmt --check
+python3 script/check-test-layout.py
+git diff --check
 ```
 
-X Layer fork 固定 **chainId 196 / block 72,271,000**，调用 DexRouter `0x7c5bee2a8091c3ef39072f64f18fac913060aeaf`，验证双向、拆单、多跳、退款、身份传递、失败回滚及 LP 生命周期。默认使用公开 archive RPC，可通过 `XLAYER_RPC_URL` 环境变量覆盖，运行方法见[fork 说明](test/integration/xlayer/README.md)。
-
-Fork 中 DEX 与授权组件为真实链上实例，TSV/V4 新部署，股票/Wrapped/SBT 为行为 mock，DEX Adapter 为测试实现。真实资产、生产 SBT、多签、正式 Adapter、链下报告/索引服务和生产 gas 仍需各自验收。业务覆盖与剩余工作见[覆盖矩阵](docs/TEST_COVERAGE_V1.md)、[统一缺口清单](docs/TEST_GAPS_V1.md)。
+最终通过数量、尺寸及 ABI/layout 记录见 [当前实现证据](docs/PERMISSIONED_REGISTRY_V1.md)。29 个旧 DIRECT/LP/DEX 文件为 `.sol.deferred`，不参与编译、未计入通过数；旧 369 本地 + 11 fork 结果仅是历史版本证据。生产 LP、真实发行方资产、生产 SBT、目标链 gas 与部署须独立验收。
 
 ## 🗂️ 项目地图
 

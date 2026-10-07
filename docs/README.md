@@ -1,14 +1,17 @@
 # TSV 文档导航
 
+当前 Registry 和单池 Wrapped Swap 接口、实现证据优先查阅 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)及 [W/U/Q 运营流程](./OPENING_A_STOCK_MARKET_V1.md)。以下旧规格中的 DIRECT、DEX 与 LP 部分保留为历史设计；生产 Wrapped LP 待独立交付。
+
 阅读主线：从[三系统总览](./SYSTEMS_OVERVIEW.md)了解交易、运营和治理流程，再按下表进入对应的权威文档。当前源码位于 `src/v1/`；若源码与说明冲突，以源码为准，并更新负责该主题的文档。
 
 ## 权威来源
 
 | 主题 | 权威文档 | 维护内容 |
 | --- | --- | --- |
-| 系统流程与直接入口 | [三系统总览](./SYSTEMS_OVERVIEW.md) | 三系统边界、交互顺序、角色和业务入口索引 |
+| 当前 W/U/Q 接口与实现 | [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md) | Factory/checker、只读库、Swap 结算、测试与 ABI/layout 制品 |
+| 历史系统流程与直接入口 | [三系统总览](./SYSTEMS_OVERVIEW.md) | 三系统边界、交互顺序、角色和业务入口索引 |
 | 设计背景与取舍 | [架构决策](./CONTRACT_ARCHITECTURE.md) | 决策记录及选择这些边界的原因 |
-| 合约类型、ABI 和算法 | [编码规格](./CODING_SPEC_V1.md) | 当前接口、字段、权限、状态和算法 |
+| 历史合约类型、ABI 和算法 | [编码规格](./CODING_SPEC_V1.md) | 当前接口、字段、权限、状态和算法 |
 | 资产与法律股数准入 | [代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md) | Currency 条件、计股依据、公司行动与实例审查 |
 | 测试与验收 | [测试规格](./TEST_SPEC_V1.md) | 目标用例、覆盖层级与通过证据 |
 | 剩余测试工作 | [测试缺口统一清单](./TEST_GAPS_V1.md) | 治理、交易/LP、运营及发布验收缺口去重、完成条件与推进顺序 |
@@ -16,7 +19,7 @@
 | 当前实现证据 | [实现状态](./IMPLEMENTATION_STATUS_V1.md) | 已实现范围、缺口、外部阻断及本地验证记录 |
 | 部署与治理操作 | [部署清单](./DEPLOYMENT_CHECKLIST_V1.md) | 部署顺序、配置步骤、发布门禁、身份恢复与升级冻结 |
 | 单只股票市场开通 | [Opening a Stock Market](./OPENING_A_STOCK_MARKET_V1.md) | 当前开通流程、流程图、函数参数与权限、首笔成交验收及持续运营 |
-| 外部 DEX Router / Adapter 接入 | [外部 DEX Router 与 Adapter 接入 TSV](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) | TSV Adapter 专用交易入口、caller 身份传递及外部仓库配合事项 |
+| 历史外部 DEX Router / Adapter 接入 | [外部 DEX Router 与 Adapter 接入 TSV](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) | 当前 Wrapped 入口拒绝 external Adapter；旧成功设计仅为历史参考 |
 | 部署参数输入 | [Manifest 模板](./DEPLOYMENT_MANIFEST_V1.example.json) | 部署脚本所需字段的示例结构 |
 
 ## 按任务阅读

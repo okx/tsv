@@ -210,7 +210,7 @@ contract TSVBatchBoundariesTest is SixProxyFixture {
 
     function _v2Plan() private returns (UpgradePlan memory plan) {
         plan = _currentPlan(6);
-        address[6] memory implementations = UpgradeDeployment.deployV2();
+        address[6] memory implementations = UpgradeDeployment.deployV2(address(router.poolManager()), address(registry));
         for (uint256 i; i < 6; ++i) {
             plan.implementations[i] = implementations[i];
             plan.calls[i] = abi.encodeCall(GovernanceMigrationV2.initializeV2, (42, false));

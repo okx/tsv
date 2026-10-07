@@ -129,7 +129,7 @@ contract DeployCoreV1 is ScriptEnvironment {
                 )
             )
         );
-        d.implementations.router = address(new TSVSwapRouterV1());
+        d.implementations.router = address(new TSVSwapRouterV1(input.poolManager, address(d.registry)));
         d.implementations.lpManager = address(new TSVLPManagerV1());
         d.implementations.hook = address(new TSVHookV1());
         d.hookFactory = new TSVHookProxyFactoryV1();
@@ -196,6 +196,7 @@ contract DeployCoreV1 is ScriptEnvironment {
     /// @param d Deployment record to log.
     function _logDeployment(Deployment memory d) private pure {
         console2.log("Registry", address(d.registry));
+        console2.log("PermissionedValidationLibrary", d.registry.permissionedValidationLibrary());
         console2.log("VolumeLedger", address(d.ledger));
         console2.log("DataInbox", address(d.inbox));
         console2.log("SwapRouter", address(d.router));
@@ -211,7 +212,7 @@ contract DeployCoreV1 is ScriptEnvironment {
         console2.log("Hook CREATE2 salt:");
         console2.logBytes32(d.hookSalt);
         console2.log(
-            "Governance must bind Anchor proxies, Registry/Ledger, configure SBT and grant roles before opening assets."
+            "Governance must bind Anchor proxies, Registry/Ledger, then bindPermissionedComponents(realFactory, router), configure SBT and grant roles. Production swapping requires reviewed W/U/Q permissions and external Wrapped liquidity readiness."
         );
     }
 

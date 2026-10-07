@@ -1,55 +1,70 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
-import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
+import {TransientStateLibrary} from "v4-core/libraries/TransientStateLibrary.sol";
+import {SwapRequest, AssetStatus} from "tsv-v1/types/TSVTypes.sol";
+import {SettlementAssetKind, SettlementLegPlan} from "tsv-v1/types/TSVSettlementTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
-import {TSVDirectSettlementLib} from "tsv-v1/libraries/TSVDirectSettlementLib.sol";
+import {TSVPermissionedSettlementLib} from "tsv-v1/libraries/TSVPermissionedSettlementLib.sol";
+import {ISwapHookViews} from "tsv-v1/libraries/TSVSwapValidationLib.sol";
+import {PermissionedValidationLib} from "tsv-v1/libraries/PermissionedValidationLib.sol";
+import {PermissionedV4Router} from "tsv-v1/vendor/v4-router/hooks/permissionedPools/PermissionedV4Router.sol";
+import {IV4Router} from "tsv-v1/vendor/v4-router/interfaces/IV4Router.sol";
+import {Actions} from "tsv-v1/vendor/v4-router/libraries/Actions.sol";
+import {CalldataDecoder} from "tsv-v1/vendor/v4-router/libraries/CalldataDecoder.sol";
+import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {
+    IPermissionsAdapterFactory
+} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
-/// @notice One-pool credential-gated swap entry for direct users and approved external Adapters.
-contract TSVSwapRouterV1 is TSVGoverned {
+/// @notice One-pool W/Q swaps. Users pay and receive U for stocks and original Q for quotes.
+contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router {
     using PoolIdLibrary for PoolKey;
-    using BalanceDeltaLibrary for BalanceDelta;
+    using TransientStateLibrary for IPoolManager;
+    using CalldataDecoder for bytes;
 
-    /// @dev Reverts when the caller does not have permission to perform the requested operation.
-    error Unauthorized();
-    /// @dev Reverts when the swap request contains invalid amounts, bounds, or parameters.
     error InvalidRequest();
-    /// @dev Reverts when the pool is unknown, mismatched, or unavailable for the requested operation.
     error InvalidPool();
-    /// @dev Reverts when the operation deadline has passed.
     error Expired();
-    /// @dev Reverts when the actual amount falls outside the caller supplied bounds.
     error SlippageExceeded();
-    /// @dev Reverts when the input amount cannot be represented by the PoolManager delta type.
     error InputAmountTooLarge();
-    /// @dev Reverts when the observed token balance change differs from the expected settlement amount.
     error SettlementMismatch();
-    /// @dev Reverts when a second operation was attempted while another operation is active.
     error Reentrancy();
-    /// @dev Reverts when an address is not a valid external Adapter.
-    error InvalidAdapter();
-    /// @dev Reverts when the caller is not an approved external Adapter.
-    error AdapterNotAllowed();
+    error WrappedExternalAdapterUnsupported();
+    error InvalidCallbackContext();
+    error PermissionedEnvironmentNotBound();
+    error InvalidPermissionedConfig();
+    error UnverifiedPermissionedAdapter(address currency);
+    error PermissionedMetadataMismatch();
+    error PermissionedPolicyMismatch();
+    error UnsupportedAsset(address currency);
 
-    uint160 private constant MIN_SQRT_PRICE = 4_295_128_739;
-    uint160 private constant MAX_SQRT_PRICE = 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342;
-
-    IPoolManager public poolManager;
     TSVRegistryV1 public registry;
     TSVVolumeLedgerV1 public ledger;
     bool private entered;
+    bytes32 private activeRequestHash;
+    bytes32 private activePayloadHash;
+    bytes32 private activePolicyHash;
+    bytes32 private activePoolId;
+    address private activeParticipant;
+    address private activeSettlementParticipant;
+    uint64 private activeDeadline;
+    bool private activeExactInput;
+    bool private callbackConsumed;
+    uint256 private activeAmountIn;
+    uint256 private activeAmountOut;
+    address private activeInputCurrency;
+    address private activeOutputCurrency;
+    uint256 private activeStockSurplus;
 
-    /// @dev Appended after the existing Router storage for UUPS layout compatibility.
-    mapping(address adapter => bool allowed) public isAdapterAllowed;
-
-    /// @notice Emitted when a validated one-pool swap completed and its actual deltas were recorded.
     event SwapExecuted(
         bytes32 indexed poolId,
         address indexed participant,
@@ -59,36 +74,30 @@ contract TSVSwapRouterV1 is TSVGoverned {
         uint32 tradeDayId
     );
 
-    /// @notice Emitted when an approved Adapter settles a swap for an eligible user.
-    event AdapterSwapExecuted(
-        bytes32 indexed poolId,
-        address indexed adapter,
-        address indexed participant,
-        bool zeroForOne,
-        int128 amount0,
-        int128 amount1,
-        uint32 tradeDayId
-    );
+    /// @dev PM and the Registry Factory interface are fixed in implementation bytecode.
+    constructor(address pm, address registry_)
+        PermissionedV4Router(IPoolManager(pm), IPermissionsAdapterFactory(registry_))
+    {}
 
-    /// @notice Emitted when governance changes an external Adapter's authorization.
-    event AdapterAuthorizationUpdated(address indexed adapter, bool allowed);
-
-    /// @notice Initializes governance and binds the PoolManager, Registry, and Volume Ledger.
-    /// @param anchor Fixed governance Anchor used by the governed base contract.
-    /// @param poolManager_ V4 PoolManager used to execute swaps and settle deltas.
-    /// @param registry_ Registry used for SBT eligibility and pool tradability checks.
-    /// @param ledger_ Volume Ledger used to read the trade day for swap events.
-    function initialize(address anchor, address poolManager_, address registry_, address ledger_) external initializer {
-        __TSVGoverned_init(anchor);
-        if (poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0) {
-            revert InvalidRequest();
-        }
-        poolManager = IPoolManager(poolManager_);
-        registry = TSVRegistryV1(registry_);
-        ledger = TSVVolumeLedgerV1(ledger_);
+    /// @notice Linked stateless validator used for runtime policy snapshots.
+    function permissionedValidationLibrary() external pure returns (address) {
+        return address(PermissionedValidationLib);
     }
 
-    /// @dev Prevents nested user swaps while the PoolManager invokes the unlock callback.
+    function initialize(address anchor, address pm, address registry_, address ledger_) external initializer {
+        __TSVGoverned_init(anchor);
+        if (
+            pm.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0 || pm != address(poolManager)
+                || registry_ != address(PERMISSIONS_ADAPTER_FACTORY)
+        ) revert InvalidRequest();
+        registry = TSVRegistryV1(registry_);
+        ledger = TSVVolumeLedgerV1(ledger_);
+        if (
+            address(registry.governanceAnchor()) != anchor || address(ledger.governanceAnchor()) != anchor
+                || address(ledger.registry()) != registry_
+        ) revert InvalidRequest();
+    }
+
     modifier nonReentrant() {
         if (entered) revert Reentrancy();
         entered = true;
@@ -96,153 +105,325 @@ contract TSVSwapRouterV1 is TSVGoverned {
         entered = false;
     }
 
-    /// @notice Executes a direct, single-pool swap with an exact input amount.
-    /// @param request Pool, direction, input amount, minimum output, and deadline.
-    /// @return actualIn Input Currency amount actually paid by the caller.
-    /// @return actualOut Output Currency amount actually received by the caller.
+    /// @notice Exact input may fill partially; only realized input is paid.
     function swapExactInput(SwapRequest calldata request)
         external
         nonReentrant
         returns (uint256 actualIn, uint256 actualOut)
     {
-        return _swap(request, true);
+        return _swapUser(request, true);
     }
 
-    /// @notice Executes a direct, single-pool swap for an exact output amount.
-    /// @param request Pool, direction, output amount, maximum input, and deadline.
-    /// @return actualIn Input Currency amount actually paid by the caller.
-    /// @return actualOut Output Currency amount actually received by the caller.
+    /// @notice Exact output must fill exactly the requested amount.
     function swapExactOutput(SwapRequest calldata request)
         external
         nonReentrant
         returns (uint256 actualIn, uint256 actualOut)
     {
-        return _swap(request, false);
+        return _swapUser(request, false);
     }
 
-    /// @notice Executes an exact-input swap for an eligible user through an approved external Adapter.
-    /// @dev The Adapter is the settlement participant and receives both output and any positive delta.
-    ///      The Adapter must derive `participant` from the authenticated DEX Router caller marker.
-    /// @param request Pool, direction, exact input, minimum output, and deadline.
-    /// @param participant Original caller whose SBT eligibility is checked.
-    /// @return actualIn Input Currency amount actually paid by the Adapter.
-    /// @return actualOut Output Currency amount received by the Adapter.
-    function swapExactInputFromAdapter(SwapRequest calldata request, address participant)
-        external
-        nonReentrant
-        returns (uint256 actualIn, uint256 actualOut)
-    {
-        if (!isAdapterAllowed[msg.sender]) revert AdapterNotAllowed();
-
-        return _swapWithSettlement(request, true, participant, msg.sender, msg.sender);
+    /// @notice Reserved rejection entry for external DEX consumers.
+    function swapExactInputFromAdapter(SwapRequest calldata, address) external pure returns (uint256, uint256) {
+        revert WrappedExternalAdapterUnsupported();
     }
 
-    /// @notice Adds or removes an external Adapter from the swap allowlist.
-    /// @dev A contract address is required when enabling an Adapter; revocation remains possible after code removal.
-    /// @param adapter External Adapter address.
-    /// @param allowed True to authorize; false to revoke.
-    function setAdapterAllowed(address adapter, bool allowed) external onlyGovernor {
-        if (adapter == address(0) || (allowed && adapter.code.length == 0)) revert InvalidAdapter();
-        isAdapterAllowed[adapter] = allowed;
-        emit AdapterAuthorizationUpdated(adapter, allowed);
+    /// @notice Returns the real user during an active operation, or zero while idle.
+    function msgSender() public view override returns (address) {
+        return entered ? activeParticipant : address(0);
     }
 
-    /// @notice Executes the validated swap and settles both currency deltas during PoolManager unlock.
-    /// @dev Accepts callbacks only from the configured PoolManager while a router call is active.
-    /// @param data Encoded swap request, settlement participant, and exact-input mode supplied by `_swap`.
-    /// @return Encoded actual input, actual output, and the PoolManager balance delta.
-    function unlockCallback(bytes calldata data) external returns (bytes memory) {
-        if (msg.sender != address(poolManager) || !entered) revert Unauthorized();
-        (SwapRequest memory request, address settlementParticipant, bool exactInput) =
-            abi.decode(data, (SwapRequest, address, bool));
-        uint160 sqrtPriceLimitX96 = request.zeroForOne ? MIN_SQRT_PRICE + 1 : MAX_SQRT_PRICE - 1;
-        IPoolManager.SwapParams memory params = IPoolManager.SwapParams(
-            request.zeroForOne,
-            exactInput ? -int256(uint256(request.amountSpecified)) : int256(uint256(request.amountSpecified)),
-            sqrtPriceLimitX96
-        );
-        BalanceDelta delta = poolManager.swap(request.key, params, bytes(""));
-        int128 inDelta = request.zeroForOne ? delta.amount0() : delta.amount1();
-        int128 outDelta = request.zeroForOne ? delta.amount1() : delta.amount0();
-        if (inDelta >= 0 || outDelta <= 0) revert SlippageExceeded();
-        if (inDelta == type(int128).min) revert InputAmountTooLarge();
-        uint256 actualIn = uint256(-int256(inDelta));
-        uint256 actualOut = uint256(int256(outDelta));
-        if (exactInput) {
-            if (actualIn > request.amountSpecified || actualOut < request.limitAmount) revert SlippageExceeded();
-        } else if (actualOut != request.amountSpecified || actualIn > request.limitAmount) {
-            revert SlippageExceeded();
-        }
-
-        _settle(request.key.currency0, delta.amount0(), settlementParticipant);
-        _settle(request.key.currency1, delta.amount1(), settlementParticipant);
-        return abi.encode(actualIn, actualOut, delta);
-    }
-
-    /// @dev Validates the caller and request, runs the PoolManager unlock, and emits the executed delta.
-    /// @param request User-supplied one-pool swap parameters.
-    /// @param exactInput True for exact input; false for exact output.
-    /// @return actualIn Input Currency amount actually paid.
-    /// @return actualOut Output Currency amount actually received.
-    function _swap(SwapRequest calldata request, bool exactInput)
+    function _swapUser(SwapRequest memory request, bool exactInput)
         private
         returns (uint256 actualIn, uint256 actualOut)
     {
-        return _swapWithSettlement(request, exactInput, msg.sender, msg.sender, address(0));
-    }
-
-    /// @dev Validates the credential subject and runs the swap while settling through `settlementParticipant`.
-    /// @param request Validated one-pool swap parameters.
-    /// @param exactInput True for exact-input swaps; false for exact-output swaps.
-    /// @param participant Address whose SBT eligibility is checked and identified as the trader.
-    /// @param settlementParticipant Address that pays and receives PoolManager deltas.
-    /// @param adapter Approved Adapter address, or zero for a direct user swap.
-    function _swapWithSettlement(
-        SwapRequest memory request,
-        bool exactInput,
-        address participant,
-        address settlementParticipant,
-        address adapter
-    ) private returns (uint256 actualIn, uint256 actualOut) {
-        bytes32 poolId = _validate(request, participant);
-        bytes memory result = poolManager.unlock(abi.encode(request, settlementParticipant, exactInput));
+        _checkRequest(request);
+        if (msg.sender == address(this)) revert Unauthorized();
+        activeParticipant = msg.sender;
+        activeSettlementParticipant = msg.sender;
+        (SettlementLegPlan memory p0, SettlementLegPlan memory p1, bytes32 policy) = _plans(request.key, msg.sender);
+        bytes memory payload = _payload(request, exactInput);
+        activePoolId = PoolId.unwrap(request.key.toId());
+        activeDeadline = request.deadline;
+        activeExactInput = exactInput;
+        activeInputCurrency = Currency.unwrap(request.zeroForOne ? request.key.currency0 : request.key.currency1);
+        activeOutputCurrency = Currency.unwrap(request.zeroForOne ? request.key.currency1 : request.key.currency0);
+        activePayloadHash = keccak256(payload);
+        activePolicyHash = policy;
+        activeRequestHash = _requestHash(request, p0, p1);
+        activeStockSurplus = _stockSurplus(p0, p1);
+        bytes memory result = poolManager.unlock(payload);
+        if (!callbackConsumed) revert InvalidCallbackContext();
         BalanceDelta delta;
         (actualIn, actualOut, delta) = abi.decode(result, (uint256, uint256, BalanceDelta));
+        if (
+            actualIn != activeAmountIn || actualOut != activeAmountOut
+                || BalanceDelta.unwrap(delta) != BalanceDelta.unwrap(_delta(request.zeroForOne))
+        ) revert InvalidCallbackContext();
         (, uint32 day) = ledger.currentTradeDay();
-        emit SwapExecuted(poolId, participant, request.zeroForOne, delta.amount0(), delta.amount1(), day);
-        if (adapter != address(0)) {
-            emit AdapterSwapExecuted(
-                poolId, adapter, participant, request.zeroForOne, delta.amount0(), delta.amount1(), day
+        int128 amountIn = -int128(uint128(actualIn));
+        int128 amountOut = int128(uint128(actualOut));
+        emit SwapExecuted(
+            activePoolId,
+            activeParticipant,
+            request.zeroForOne,
+            request.zeroForOne ? amountIn : amountOut,
+            request.zeroForOne ? amountOut : amountIn,
+            day
+        );
+        _clearContext();
+    }
+
+    /// @dev SafeCallback retains the external onlyPoolManager gate. This adds one-operation binding.
+    function _unlockCallback(bytes calldata data) internal override returns (bytes memory) {
+        if (
+            !entered || callbackConsumed || activeParticipant == address(0) || activeRequestHash == bytes32(0)
+                || keccak256(data) != activePayloadHash
+        ) revert InvalidCallbackContext();
+        callbackConsumed = true;
+        SwapRequest memory request = _decodePayload(data);
+        _checkRequest(request);
+        (SettlementLegPlan memory p0, SettlementLegPlan memory p1, bytes32 policy) =
+            _plans(request.key, activeParticipant);
+        if (policy != activePolicyHash || _requestHash(request, p0, p1) != activeRequestHash) {
+            revert InvalidCallbackContext();
+        }
+        super._unlockCallback(data);
+        _checkAmounts(request, activeAmountIn, activeAmountOut);
+        if (
+            poolManager.currencyDelta(address(this), request.key.currency0) != 0
+                || poolManager.currencyDelta(address(this), request.key.currency1) != 0
+        ) revert SettlementMismatch();
+        (p0, p1, policy) = _plans(request.key, activeParticipant);
+        if (policy != activePolicyHash || _requestHash(request, p0, p1) != activeRequestHash) {
+            revert InvalidCallbackContext();
+        }
+        if (_stockSurplus(p0, p1) != activeStockSurplus) revert SettlementMismatch();
+        return abi.encode(activeAmountIn, activeAmountOut, _delta(request.zeroForOne));
+    }
+
+    function _validatePoolKey(PoolKey memory key) internal view override {
+        if (
+            !entered || !callbackConsumed || PoolId.unwrap(key.toId()) != activePoolId
+                || !registry.isTradable(activePoolId)
+                || keccak256(abi.encode(registry.getPool(activePoolId).key)) != keccak256(abi.encode(key))
+        ) revert InvalidPool();
+        super._validatePoolKey(key);
+    }
+
+    /// @dev Captures both realized deltas before paying. Exactly one sync/pay/settle sequence.
+    function _settle(Currency currency, address payer, uint256 amount) internal override {
+        if (
+            !entered || !callbackConsumed || payer != activeParticipant
+                || Currency.unwrap(currency) != activeInputCurrency || activeAmountIn != 0 || amount == 0
+                || amount != _getFullDebt(currency)
+        ) revert InvalidCallbackContext();
+        uint256 output = _getFullCredit(Currency.wrap(activeOutputCurrency));
+        _checkRepresentable(amount, output);
+        activeAmountIn = amount;
+        activeAmountOut = output;
+        poolManager.sync(currency);
+        // Parent _pay enforces swappingEnabled and isAllowed, then calls a transfer-only implementation.
+        _pay(currency, activeSettlementParticipant, amount);
+        if (poolManager.settle() != amount) revert SettlementMismatch();
+    }
+
+    function _payStandard(Currency currency, address payer, uint256 amount) internal override {
+        address q = Currency.unwrap(currency);
+        if (
+            q != activeInputCurrency || payer != activeSettlementParticipant || payer == address(this)
+                || registry.getCurrency(q).underlying != address(0)
+                || registry.getQuoteToken(q).status != AssetStatus.APPROVED
+        ) revert UnsupportedAsset(q);
+        TSVPermissionedSettlementLib.transferExact(q, payer, address(poolManager), amount);
+    }
+
+    function _payPermissionedFromPayer(address payer, IPermissionsAdapter permissionsAdapter, address u, uint256 amount)
+        internal
+        override
+    {
+        address w = address(permissionsAdapter);
+        if (
+            w != activeInputCurrency || payer != activeSettlementParticipant || payer == address(this)
+                || registry.getCurrency(w).underlying != u
+        ) revert InvalidPermissionedConfig();
+        TSVPermissionedSettlementLib.payStock(w, u, address(poolManager), payer, amount);
+    }
+
+    function _take(Currency currency, address recipient, uint256 amount) internal override {
+        address c = Currency.unwrap(currency);
+        if (
+            !entered || !callbackConsumed || recipient != activeParticipant || c != activeOutputCurrency
+                || activeAmountIn == 0 || amount == 0 || amount != activeAmountOut || amount != _getFullCredit(currency)
+        ) revert InvalidCallbackContext();
+        recipient = activeSettlementParticipant;
+        address u = registry.getCurrency(c).underlying;
+        if (u == address(0)) {
+            if (registry.getQuoteToken(c).status != AssetStatus.APPROVED) revert UnsupportedAsset(c);
+            uint256 pmBefore = IERC20(c).balanceOf(address(poolManager));
+            uint256 recipientBefore = IERC20(c).balanceOf(recipient);
+            super._take(currency, recipient, amount);
+            TSVPermissionedSettlementLib.assertDecrease(pmBefore, IERC20(c).balanceOf(address(poolManager)), amount);
+            TSVPermissionedSettlementLib.assertIncrease(recipientBefore, IERC20(c).balanceOf(recipient), amount);
+        } else {
+            TSVPermissionedSettlementLib.StockInventory memory before_ =
+                TSVPermissionedSettlementLib.stockInventory(c, u, address(poolManager), recipient);
+            uint256 recipientBefore = IERC20(u).balanceOf(recipient);
+            super._take(currency, recipient, amount);
+            TSVPermissionedSettlementLib.assertStockTake(
+                before_, recipientBefore, c, u, address(poolManager), recipient, amount
             );
         }
     }
 
-    /// @dev Enforces deadline, amount bounds, participant eligibility, and current pool tradability.
-    /// @param request Swap parameters to validate.
-    /// @param participant Address whose credential is checked and who is identified as the trader.
-    /// @return poolId Identifier derived from the request's PoolKey.
-    function _validate(SwapRequest memory request, address participant) private view returns (bytes32 poolId) {
+    function _plans(PoolKey memory key, address participant)
+        private
+        view
+        returns (SettlementLegPlan memory p0, SettlementLegPlan memory p1, bytes32 policy)
+    {
+        if (registry.hook() != address(0) && ISwapHookViews(registry.hook()).ledger() != address(ledger)) {
+            revert InvalidPermissionedConfig();
+        }
+        return PermissionedValidationLib.swapPlans(address(registry), address(poolManager), key, participant);
+    }
+
+    function _stockSurplus(SettlementLegPlan memory p0, SettlementLegPlan memory p1) private view returns (uint256) {
+        SettlementLegPlan memory stock = p0.kind == SettlementAssetKind.PERMISSIONED_STOCK ? p0 : p1;
+        TSVPermissionedSettlementLib.StockInventory memory inventory = TSVPermissionedSettlementLib.stockInventory(
+            stock.currency, stock.underlying, address(poolManager), activeSettlementParticipant
+        );
+        return inventory.collateral - inventory.supply;
+    }
+
+    function _checkRequest(SwapRequest memory request) private view {
         if (block.timestamp > request.deadline) revert Expired();
         if (
             request.amountSpecified == 0 || request.amountSpecified > uint128(type(int128).max)
                 || request.limitAmount == 0
         ) revert InvalidRequest();
-        if (participant == address(0) || !registry.isEligible(participant)) revert Unauthorized();
-        poolId = PoolId.unwrap(request.key.toId());
-        if (!registry.isTradable(poolId)) revert InvalidPool();
     }
 
-    /// @dev Pays a negative delta from the participant or takes a positive delta to the participant.
-    /// @param currency Currency whose delta is being settled.
-    /// @param delta Signed PoolManager delta for that Currency.
-    /// @param participant User or Adapter that pays or receives the Currency.
-    function _settle(Currency currency, int128 delta, address participant) private {
-        address token = Currency.unwrap(currency);
-        uint256 amount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
-        if (delta < 0) {
-            TSVDirectSettlementLib.settleFrom(poolManager, currency, token, participant, amount);
-        } else {
-            TSVDirectSettlementLib.takeTo(poolManager, currency, token, participant, amount);
+    function _checkRepresentable(uint256 amountIn, uint256 amountOut) private pure {
+        if (amountIn > uint256(uint128(type(int128).max))) revert InputAmountTooLarge();
+        if (amountIn == 0 || amountOut == 0 || amountOut > uint256(uint128(type(int128).max))) {
+            revert SlippageExceeded();
         }
+    }
+
+    function _checkAmounts(SwapRequest memory request, uint256 amountIn, uint256 amountOut) private view {
+        _checkRepresentable(amountIn, amountOut);
+        if (activeExactInput) {
+            if (amountIn > request.amountSpecified || amountOut < request.limitAmount) revert SlippageExceeded();
+        } else if (amountOut != request.amountSpecified || amountIn > request.limitAmount) {
+            revert SlippageExceeded();
+        }
+    }
+
+    function _requestHash(SwapRequest memory request, SettlementLegPlan memory p0, SettlementLegPlan memory p1)
+        private
+        view
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encode(
+                address(this),
+                block.chainid,
+                request,
+                activeExactInput,
+                activeParticipant,
+                activeSettlementParticipant,
+                p0,
+                p1,
+                activePayloadHash
+            )
+        );
+    }
+
+    function _payload(SwapRequest memory request, bool exactInput) private pure returns (bytes memory) {
+        bytes[] memory params = new bytes[](3);
+        Currency input = request.zeroForOne ? request.key.currency0 : request.key.currency1;
+        Currency output = request.zeroForOne ? request.key.currency1 : request.key.currency0;
+        if (exactInput) {
+            params[0] = abi.encode(
+                IV4Router.ExactInputSingleParams(
+                    request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, bytes("")
+                )
+            );
+        } else {
+            params[0] = abi.encode(
+                IV4Router.ExactOutputSingleParams(
+                    request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, bytes("")
+                )
+            );
+        }
+        params[1] = abi.encode(input, exactInput ? request.amountSpecified : request.limitAmount);
+        params[2] = abi.encode(output, exactInput ? request.limitAmount : request.amountSpecified);
+        return abi.encode(
+            abi.encodePacked(
+                uint8(exactInput ? Actions.SWAP_EXACT_IN_SINGLE : Actions.SWAP_EXACT_OUT_SINGLE),
+                uint8(Actions.SETTLE_ALL),
+                uint8(Actions.TAKE_ALL)
+            ),
+            params
+        );
+    }
+
+    function _decodePayload(bytes calldata data) private view returns (SwapRequest memory request) {
+        (bytes calldata actions, bytes[] calldata params) = data.decodeActionsRouterParams();
+        if (
+            actions.length != 3 || params.length != 3
+                || uint8(actions[0])
+                    != (activeExactInput ? Actions.SWAP_EXACT_IN_SINGLE : Actions.SWAP_EXACT_OUT_SINGLE)
+                || uint8(actions[1]) != Actions.SETTLE_ALL || uint8(actions[2]) != Actions.TAKE_ALL
+        ) revert InvalidCallbackContext();
+        if (activeExactInput) {
+            IV4Router.ExactInputSingleParams calldata p = params[0].decodeSwapExactInSingleParams();
+            if (p.hookData.length != 0 || p.minHopPriceX36 != 0) revert InvalidCallbackContext();
+            request = SwapRequest(p.poolKey, p.zeroForOne, p.amountIn, p.amountOutMinimum, activeDeadline);
+        } else {
+            IV4Router.ExactOutputSingleParams calldata p = params[0].decodeSwapExactOutSingleParams();
+            if (p.hookData.length != 0 || p.minHopPriceX36 != 0) revert InvalidCallbackContext();
+            request = SwapRequest(p.poolKey, p.zeroForOne, p.amountOut, p.amountInMaximum, activeDeadline);
+        }
+        (Currency input, uint256 maxIn) = params[1].decodeCurrencyAndUint256();
+        (Currency output, uint256 minOut) = params[2].decodeCurrencyAndUint256();
+        if (
+            Currency.unwrap(input) != activeInputCurrency || Currency.unwrap(output) != activeOutputCurrency
+                || maxIn != (activeExactInput ? request.amountSpecified : request.limitAmount)
+                || minOut != (activeExactInput ? request.limitAmount : request.amountSpecified)
+        ) revert InvalidCallbackContext();
+    }
+
+    function _delta(bool zeroForOne) private view returns (BalanceDelta) {
+        int128 input = -int128(uint128(activeAmountIn));
+        int128 output = int128(uint128(activeAmountOut));
+        return toBalanceDelta(zeroForOne ? input : output, zeroForOne ? output : input);
+    }
+
+    function _clearContext() private {
+        delete activeRequestHash;
+        delete activePayloadHash;
+        delete activePolicyHash;
+        delete activePoolId;
+        delete activeParticipant;
+        delete activeSettlementParticipant;
+        delete activeDeadline;
+        delete activeExactInput;
+        delete callbackConsumed;
+        delete activeAmountIn;
+        delete activeAmountOut;
+        delete activeInputCurrency;
+        delete activeOutputCurrency;
+        delete activeStockSurplus;
+    }
+
+    /// @dev Future upgrades must preserve immutable PM/Registry identities and the new storage layout.
+    function _authorizeUpgrade(address implementation) internal view override {
+        super._authorizeUpgrade(implementation);
+        if (entered) revert Reentrancy();
+        if (
+            address(TSVSwapRouterV1(implementation).poolManager()) != address(poolManager)
+                || address(TSVSwapRouterV1(implementation).PERMISSIONS_ADAPTER_FACTORY()) != address(registry)
+        ) revert InvalidRequest();
     }
 }

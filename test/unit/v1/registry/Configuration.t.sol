@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {TokenConfig} from "tsv-v1/types/TSVTypes.sol";
+import {AssetStatus} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1, ISmartWalletSbtV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 import {V1MockToken} from "../../../helpers/v1/FoundationMocks.sol";
@@ -96,25 +96,18 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         assertEq(registry.sbtTokenId(), 8);
     }
 
-    function testQuoteCannotCarryStockMetadataAndBadDecimalsRemainAbsent() public {
+    function testQuoteBadDecimalsAndMetadataRemainAbsent() public {
         V1MockToken token = new V1MockToken("new-quote", 6);
-        TokenConfig memory good = _config(address(token), 0, address(0));
-        for (uint8 fault; fault < 5; ++fault) {
-            TokenConfig memory bad = abi.decode(abi.encode(good), (TokenConfig));
-            if (fault == 0) bad.legalShareAdapter = address(stockAdapter);
-            else if (fault == 1) bad.legalAdapterVersion = 1;
-            else if (fault == 2) bad.poolDecimals = 18;
-            else if (fault == 3) bad.poolDecimals = 19;
-            else bad.poolCurrency = makeAddr("no-code-currency");
-            vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            registry.registerToken(bad);
-            assertEq(registry.getToken(address(token)).poolCurrency, address(0));
-        }
-        vm.mockCallRevert(address(token), abi.encodeWithSelector(V1MockToken.decimals.selector), "metadata unavailable");
-        vm.expectRevert();
-        registry.registerToken(good);
-        assertEq(registry.getToken(address(token)).poolCurrency, address(0));
+        vm.mockCall(address(token), abi.encodeWithSelector(V1MockToken.decimals.selector), abi.encode(uint8(19)));
+        vm.expectRevert(TSVRegistryV1.PermissionedMetadataMismatch.selector);
+        registry.registerQuoteToken(address(token));
+        assertEq(uint8(registry.getQuoteToken(address(token)).status), uint8(AssetStatus.ABSENT));
         vm.clearMockedCalls();
-        registry.registerToken(good);
+        vm.mockCallRevert(address(token), abi.encodeWithSelector(V1MockToken.decimals.selector), "metadata unavailable");
+        vm.expectRevert(TSVRegistryV1.PermissionedMetadataMismatch.selector);
+        registry.registerQuoteToken(address(token));
+        vm.clearMockedCalls();
+        registry.registerQuoteToken(address(token));
+        assertEq(registry.getQuoteToken(address(token)).rawDecimals, 6);
     }
 }

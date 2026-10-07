@@ -61,7 +61,9 @@ contract InboxV2 is TSVDataInboxV1, GovernanceMigrationV2 {}
 
 contract HookV2 is TSVHookV1, GovernanceMigrationV2 {}
 
-contract RouterV2 is TSVSwapRouterV1, GovernanceMigrationV2 {}
+contract RouterV2 is TSVSwapRouterV1, GovernanceMigrationV2 {
+    constructor(address pm, address registry_) TSVSwapRouterV1(pm, registry_) {}
+}
 
 contract LPManagerV2 is TSVLPManagerV1, GovernanceMigrationV2 {}
 

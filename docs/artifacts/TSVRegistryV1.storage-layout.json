@@ -1,0 +1,752 @@
+{
+  "storage": [
+    {
+      "astId": 16147,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "governanceAnchor",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_contract(TSVGovernanceAnchor)16079"
+    },
+    {
+      "astId": 9252,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "permissionsAdapterFactory",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_address"
+    },
+    {
+      "astId": 9254,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "permissionedPoolManager",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_address"
+    },
+    {
+      "astId": 9256,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "permissionedRouter",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_address"
+    },
+    {
+      "astId": 9261,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "currencies",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_mapping(t_address,t_struct(PermissionedCurrencyConfig)22240_storage)"
+    },
+    {
+      "astId": 9266,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "underlyings",
+      "offset": 0,
+      "slot": "5",
+      "type": "t_mapping(t_address,t_struct(UnderlyingConfig)22250_storage)"
+    },
+    {
+      "astId": 9271,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "quoteTokens",
+      "offset": 0,
+      "slot": "6",
+      "type": "t_mapping(t_address,t_struct(QuoteTokenConfig)22259_storage)"
+    },
+    {
+      "astId": 9275,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "isPermissionedOwnerApproved",
+      "offset": 0,
+      "slot": "7",
+      "type": "t_mapping(t_address,t_bool)"
+    },
+    {
+      "astId": 9279,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "exitAdminOf",
+      "offset": 0,
+      "slot": "8",
+      "type": "t_mapping(t_address,t_address)"
+    },
+    {
+      "astId": 9283,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "exitAdminVersion",
+      "offset": 0,
+      "slot": "9",
+      "type": "t_mapping(t_address,t_uint64)"
+    },
+    {
+      "astId": 9285,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "factoryEntryEntered",
+      "offset": 0,
+      "slot": "10",
+      "type": "t_bool"
+    },
+    {
+      "astId": 9287,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "hook",
+      "offset": 1,
+      "slot": "10",
+      "type": "t_address"
+    },
+    {
+      "astId": 9289,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "lpManager",
+      "offset": 0,
+      "slot": "11",
+      "type": "t_address"
+    },
+    {
+      "astId": 9291,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "dataInbox",
+      "offset": 0,
+      "slot": "12",
+      "type": "t_address"
+    },
+    {
+      "astId": 9293,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "nextPauseId",
+      "offset": 0,
+      "slot": "13",
+      "type": "t_uint256"
+    },
+    {
+      "astId": 9298,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "securities",
+      "offset": 0,
+      "slot": "14",
+      "type": "t_mapping(t_bytes32,t_struct(SecurityConfig)22286_storage)"
+    },
+    {
+      "astId": 9303,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "tiers",
+      "offset": 0,
+      "slot": "15",
+      "type": "t_mapping(t_uint8,t_struct(TierPolicy)9207_storage)"
+    },
+    {
+      "astId": 9307,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "activePoolCountByCurrency",
+      "offset": 0,
+      "slot": "16",
+      "type": "t_mapping(t_address,t_uint32)"
+    },
+    {
+      "astId": 9312,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "pools",
+      "offset": 0,
+      "slot": "17",
+      "type": "t_mapping(t_bytes32,t_struct(PoolConfig)22305_storage)"
+    },
+    {
+      "astId": 9316,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "marketSequence",
+      "offset": 0,
+      "slot": "18",
+      "type": "t_mapping(t_bytes32,t_uint64)"
+    },
+    {
+      "astId": 9321,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "emergencyPauses",
+      "offset": 0,
+      "slot": "19",
+      "type": "t_mapping(t_uint256,t_struct(EmergencyPause)9232_storage)"
+    },
+    {
+      "astId": 9330,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "activePauseCount",
+      "offset": 0,
+      "slot": "20",
+      "type": "t_mapping(t_uint8,t_mapping(t_bytes32,t_mapping(t_uint8,t_uint256)))"
+    },
+    {
+      "astId": 9333,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "participantSbt",
+      "offset": 0,
+      "slot": "21",
+      "type": "t_contract(ISmartWalletSbtV1)9166"
+    },
+    {
+      "astId": 9335,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "sbtTokenId",
+      "offset": 0,
+      "slot": "22",
+      "type": "t_uint256"
+    },
+    {
+      "astId": 9341,
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "marketPauseMode",
+      "offset": 0,
+      "slot": "23",
+      "type": "t_mapping(t_bytes32,t_enum(PauseMode)22221)"
+    }
+  ],
+  "types": {
+    "t_address": {
+      "encoding": "inplace",
+      "label": "address",
+      "numberOfBytes": "20"
+    },
+    "t_bool": {
+      "encoding": "inplace",
+      "label": "bool",
+      "numberOfBytes": "1"
+    },
+    "t_bytes32": {
+      "encoding": "inplace",
+      "label": "bytes32",
+      "numberOfBytes": "32"
+    },
+    "t_contract(IHooks)6374": {
+      "encoding": "inplace",
+      "label": "contract IHooks",
+      "numberOfBytes": "20"
+    },
+    "t_contract(ISmartWalletSbtV1)9166": {
+      "encoding": "inplace",
+      "label": "contract ISmartWalletSbtV1",
+      "numberOfBytes": "20"
+    },
+    "t_contract(TSVGovernanceAnchor)16079": {
+      "encoding": "inplace",
+      "label": "contract TSVGovernanceAnchor",
+      "numberOfBytes": "20"
+    },
+    "t_enum(AssetStatus)22195": {
+      "encoding": "inplace",
+      "label": "enum AssetStatus",
+      "numberOfBytes": "1"
+    },
+    "t_enum(PauseMode)22221": {
+      "encoding": "inplace",
+      "label": "enum PauseMode",
+      "numberOfBytes": "1"
+    },
+    "t_enum(PauseScope)22215": {
+      "encoding": "inplace",
+      "label": "enum PauseScope",
+      "numberOfBytes": "1"
+    },
+    "t_enum(PoolStatus)22201": {
+      "encoding": "inplace",
+      "label": "enum PoolStatus",
+      "numberOfBytes": "1"
+    },
+    "t_int24": {
+      "encoding": "inplace",
+      "label": "int24",
+      "numberOfBytes": "3"
+    },
+    "t_mapping(t_address,t_address)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => address)",
+      "numberOfBytes": "32",
+      "value": "t_address"
+    },
+    "t_mapping(t_address,t_bool)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => bool)",
+      "numberOfBytes": "32",
+      "value": "t_bool"
+    },
+    "t_mapping(t_address,t_struct(PermissionedCurrencyConfig)22240_storage)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => struct PermissionedCurrencyConfig)",
+      "numberOfBytes": "32",
+      "value": "t_struct(PermissionedCurrencyConfig)22240_storage"
+    },
+    "t_mapping(t_address,t_struct(QuoteTokenConfig)22259_storage)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => struct QuoteTokenConfig)",
+      "numberOfBytes": "32",
+      "value": "t_struct(QuoteTokenConfig)22259_storage"
+    },
+    "t_mapping(t_address,t_struct(UnderlyingConfig)22250_storage)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => struct UnderlyingConfig)",
+      "numberOfBytes": "32",
+      "value": "t_struct(UnderlyingConfig)22250_storage"
+    },
+    "t_mapping(t_address,t_uint32)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => uint32)",
+      "numberOfBytes": "32",
+      "value": "t_uint32"
+    },
+    "t_mapping(t_address,t_uint64)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => uint64)",
+      "numberOfBytes": "32",
+      "value": "t_uint64"
+    },
+    "t_mapping(t_bytes32,t_enum(PauseMode)22221)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => enum PauseMode)",
+      "numberOfBytes": "32",
+      "value": "t_enum(PauseMode)22221"
+    },
+    "t_mapping(t_bytes32,t_mapping(t_uint8,t_uint256))": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => mapping(uint8 => uint256))",
+      "numberOfBytes": "32",
+      "value": "t_mapping(t_uint8,t_uint256)"
+    },
+    "t_mapping(t_bytes32,t_struct(PoolConfig)22305_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct PoolConfig)",
+      "numberOfBytes": "32",
+      "value": "t_struct(PoolConfig)22305_storage"
+    },
+    "t_mapping(t_bytes32,t_struct(SecurityConfig)22286_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct SecurityConfig)",
+      "numberOfBytes": "32",
+      "value": "t_struct(SecurityConfig)22286_storage"
+    },
+    "t_mapping(t_bytes32,t_uint64)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => uint64)",
+      "numberOfBytes": "32",
+      "value": "t_uint64"
+    },
+    "t_mapping(t_uint256,t_struct(EmergencyPause)9232_storage)": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => struct TSVRegistryV1.EmergencyPause)",
+      "numberOfBytes": "32",
+      "value": "t_struct(EmergencyPause)9232_storage"
+    },
+    "t_mapping(t_uint8,t_mapping(t_bytes32,t_mapping(t_uint8,t_uint256)))": {
+      "encoding": "mapping",
+      "key": "t_uint8",
+      "label": "mapping(uint8 => mapping(bytes32 => mapping(uint8 => uint256)))",
+      "numberOfBytes": "32",
+      "value": "t_mapping(t_bytes32,t_mapping(t_uint8,t_uint256))"
+    },
+    "t_mapping(t_uint8,t_struct(TierPolicy)9207_storage)": {
+      "encoding": "mapping",
+      "key": "t_uint8",
+      "label": "mapping(uint8 => struct TSVRegistryV1.TierPolicy)",
+      "numberOfBytes": "32",
+      "value": "t_struct(TierPolicy)9207_storage"
+    },
+    "t_mapping(t_uint8,t_uint256)": {
+      "encoding": "mapping",
+      "key": "t_uint8",
+      "label": "mapping(uint8 => uint256)",
+      "numberOfBytes": "32",
+      "value": "t_uint256"
+    },
+    "t_struct(EmergencyPause)9232_storage": {
+      "encoding": "inplace",
+      "label": "struct TSVRegistryV1.EmergencyPause",
+      "numberOfBytes": "160",
+      "members": [
+        {
+          "astId": 9212,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "scope",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_enum(PauseScope)22215"
+        },
+        {
+          "astId": 9215,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "target",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 9219,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "mode",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_enum(PauseMode)22221"
+        },
+        {
+          "astId": 9222,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "reasonCode",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 9225,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "openedBy",
+          "offset": 0,
+          "slot": "4",
+          "type": "t_address"
+        },
+        {
+          "astId": 9228,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "openedAt",
+          "offset": 20,
+          "slot": "4",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 9231,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "active",
+          "offset": 28,
+          "slot": "4",
+          "type": "t_bool"
+        }
+      ]
+    },
+    "t_struct(PermissionedCurrencyConfig)22240_storage": {
+      "encoding": "inplace",
+      "label": "struct PermissionedCurrencyConfig",
+      "numberOfBytes": "64",
+      "members": [
+        {
+          "astId": 22232,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "underlying",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_address"
+        },
+        {
+          "astId": 22234,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "expectedOwner",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_address"
+        },
+        {
+          "astId": 22237,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "status",
+          "offset": 20,
+          "slot": "1",
+          "type": "t_enum(AssetStatus)22195"
+        },
+        {
+          "astId": 22239,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "configVersion",
+          "offset": 21,
+          "slot": "1",
+          "type": "t_uint64"
+        }
+      ]
+    },
+    "t_struct(PoolConfig)22305_storage": {
+      "encoding": "inplace",
+      "label": "struct PoolConfig",
+      "numberOfBytes": "192",
+      "members": [
+        {
+          "astId": 22291,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "key",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_struct(PoolKey)8619_storage"
+        },
+        {
+          "astId": 22294,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "securityId0",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 22297,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "securityId1",
+          "offset": 0,
+          "slot": "4",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 22301,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "status",
+          "offset": 0,
+          "slot": "5",
+          "type": "t_enum(PoolStatus)22201"
+        },
+        {
+          "astId": 22304,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "version",
+          "offset": 1,
+          "slot": "5",
+          "type": "t_uint32"
+        }
+      ]
+    },
+    "t_struct(PoolKey)8619_storage": {
+      "encoding": "inplace",
+      "label": "struct PoolKey",
+      "numberOfBytes": "96",
+      "members": [
+        {
+          "astId": 8604,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "currency0",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_userDefinedValueType(Currency)8273"
+        },
+        {
+          "astId": 8608,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "currency1",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_userDefinedValueType(Currency)8273"
+        },
+        {
+          "astId": 8611,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "fee",
+          "offset": 20,
+          "slot": "1",
+          "type": "t_uint24"
+        },
+        {
+          "astId": 8614,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "tickSpacing",
+          "offset": 23,
+          "slot": "1",
+          "type": "t_int24"
+        },
+        {
+          "astId": 8618,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "hooks",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_contract(IHooks)6374"
+        }
+      ]
+    },
+    "t_struct(QuoteTokenConfig)22259_storage": {
+      "encoding": "inplace",
+      "label": "struct QuoteTokenConfig",
+      "numberOfBytes": "32",
+      "members": [
+        {
+          "astId": 22253,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "rawDecimals",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint8"
+        },
+        {
+          "astId": 22256,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "status",
+          "offset": 1,
+          "slot": "0",
+          "type": "t_enum(AssetStatus)22195"
+        },
+        {
+          "astId": 22258,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "configVersion",
+          "offset": 2,
+          "slot": "0",
+          "type": "t_uint64"
+        }
+      ]
+    },
+    "t_struct(SecurityConfig)22286_storage": {
+      "encoding": "inplace",
+      "label": "struct SecurityConfig",
+      "numberOfBytes": "64",
+      "members": [
+        {
+          "astId": 22273,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "securityId",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 22276,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "tierId",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint8"
+        },
+        {
+          "astId": 22279,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "listed",
+          "offset": 1,
+          "slot": "1",
+          "type": "t_bool"
+        },
+        {
+          "astId": 22282,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "activePoolCount",
+          "offset": 2,
+          "slot": "1",
+          "type": "t_uint32"
+        },
+        {
+          "astId": 22285,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "version",
+          "offset": 6,
+          "slot": "1",
+          "type": "t_uint32"
+        }
+      ]
+    },
+    "t_struct(TierPolicy)9207_storage": {
+      "encoding": "inplace",
+      "label": "struct TSVRegistryV1.TierPolicy",
+      "numberOfBytes": "32",
+      "members": [
+        {
+          "astId": 9200,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "tierBps",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint16"
+        },
+        {
+          "astId": 9203,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "maxListed",
+          "offset": 2,
+          "slot": "0",
+          "type": "t_uint32"
+        },
+        {
+          "astId": 9206,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "listedCount",
+          "offset": 6,
+          "slot": "0",
+          "type": "t_uint32"
+        }
+      ]
+    },
+    "t_struct(UnderlyingConfig)22250_storage": {
+      "encoding": "inplace",
+      "label": "struct UnderlyingConfig",
+      "numberOfBytes": "64",
+      "members": [
+        {
+          "astId": 22243,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "securityId",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 22245,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "legalShareAdapter",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_address"
+        },
+        {
+          "astId": 22247,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "legalAdapterVersion",
+          "offset": 20,
+          "slot": "1",
+          "type": "t_uint32"
+        },
+        {
+          "astId": 22249,
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "rawDecimals",
+          "offset": 24,
+          "slot": "1",
+          "type": "t_uint8"
+        }
+      ]
+    },
+    "t_uint16": {
+      "encoding": "inplace",
+      "label": "uint16",
+      "numberOfBytes": "2"
+    },
+    "t_uint24": {
+      "encoding": "inplace",
+      "label": "uint24",
+      "numberOfBytes": "3"
+    },
+    "t_uint256": {
+      "encoding": "inplace",
+      "label": "uint256",
+      "numberOfBytes": "32"
+    },
+    "t_uint32": {
+      "encoding": "inplace",
+      "label": "uint32",
+      "numberOfBytes": "4"
+    },
+    "t_uint64": {
+      "encoding": "inplace",
+      "label": "uint64",
+      "numberOfBytes": "8"
+    },
+    "t_uint8": {
+      "encoding": "inplace",
+      "label": "uint8",
+      "numberOfBytes": "1"
+    },
+    "t_userDefinedValueType(Currency)8273": {
+      "encoding": "inplace",
+      "label": "Currency",
+      "numberOfBytes": "20"
+    }
+  }
+}
