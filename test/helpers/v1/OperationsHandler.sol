@@ -12,16 +12,8 @@ contract OperationsHandler is OperationsFixture {
     uint256 private constant OCTOBER_MIDNIGHT = 1790812800;
     uint256 private constant DAYS = 96;
 
-    struct Value {
-        uint256 amount;
-        uint64 version;
-        bytes32 id;
-    }
-
     struct Quota {
         uint256 amount;
-        uint64 version;
-        bytes32 id;
         bool active;
     }
 
@@ -36,12 +28,11 @@ contract OperationsHandler is OperationsFixture {
         uint128 denominator;
         bytes32 id;
     }
-    Value[4] private modelAdtv;
+    uint256[4] private modelAdtv;
     Quota[96] private modelQuota;
     uint256[96] private modelUsed;
     Checkpoint[] private modelCheckpoints;
     Factor[][4] private modelFactors;
-    uint64[4] private modelFactorVersions;
     mapping(bytes32 => bool) private modelIds;
     bytes32[] private attemptedIds;
     uint64[4] private modelSequence;
@@ -66,18 +57,15 @@ contract OperationsHandler is OperationsFixture {
         monthIndex %= 4;
         fault %= 8;
         uint256 value = bound(rawValue, 0, 2000e18);
-        ReportMetadata memory m = _candidate(1, modelAdtv[monthIndex].version + 1, fault);
-        if (fault == 1) m.version++;
+        ReportMetadata memory m = _candidate(1, fault);
         uint32 month = _month(monthIndex);
         if (fault == 7) month = 202613;
-        bool expected =
-            _validMetadata(1, m) && value != 0 && month != 202613 && m.version == modelAdtv[monthIndex].version + 1;
-        AdtvReport memory report =
-            AdtvReport(SECURITY, month, value, m.timestamp, m.deadline, m.version, m.sequence, m.id);
+        bool expected = _validMetadata(1, m) && value != 0 && month != 202613;
+        AdtvReport memory report = AdtvReport(SECURITY, month, value, m.timestamp, m.deadline, m.sequence, m.id);
         (bool ok,) = address(inbox).call(abi.encodeCall(inbox.submitAdtv, (report)));
         assertEq(ok, expected, "ADTV acceptance differs from model");
         _finishReport(1, m, ok);
-        if (ok) modelAdtv[monthIndex] = Value(value, m.version, m.id);
+        if (ok) modelAdtv[monthIndex] = value;
     }
 
     function submitQuota(uint8 dayIndex, uint256 rawValue, bool clear, uint8 fault) external {
@@ -85,20 +73,19 @@ contract OperationsHandler is OperationsFixture {
         fault %= 8;
         uint256 value = clear ? 0 : bound(rawValue, 0, 4e18);
         Quota memory prior = modelQuota[dayIndex];
-        ReportMetadata memory m = _candidate(2, prior.version + 1, fault);
-        if (fault == 1) m.version++;
+        ReportMetadata memory m = _candidate(2, fault);
         uint8 action = clear ? 2 : 1;
         if (fault == 7) action = 3;
         uint256 hardCap = _cap(dayIndex);
         bool businessValid =
             action == 2 ? prior.active && value == 0 : action == 1 && value != 0 && hardCap != 0 && value <= hardCap;
-        bool expected = _validMetadata(2, m) && businessValid && m.version == prior.version + 1;
+        bool expected = _validMetadata(2, m) && businessValid;
         QuotaReport memory report =
-            QuotaReport(SECURITY, _date(dayIndex), action, value, m.timestamp, m.deadline, m.version, m.sequence, m.id);
+            QuotaReport(SECURITY, _date(dayIndex), action, value, m.timestamp, m.deadline, m.sequence, m.id);
         (bool ok,) = address(inbox).call(abi.encodeCall(inbox.submitQuota, (report)));
         assertEq(ok, expected, "quota acceptance differs from model");
         _finishReport(2, m, ok);
-        if (ok) modelQuota[dayIndex] = Quota(value, m.version, m.id, !clear);
+        if (ok) modelQuota[dayIndex] = Quota(value, !clear);
     }
 
     function charge(uint256 rawShares) external {
@@ -138,8 +125,7 @@ contract OperationsHandler is OperationsFixture {
         uint8 monthIndex = _sourceMonthIndex(dayIndex);
         uint128 numerator = cancelFactor ? 0 : uint128(rawNumerator % 7 + 1);
         uint128 denominator = cancelFactor ? 0 : uint128(rawDenominator % 5 + 1);
-        ReportMetadata memory m = _candidate(3, modelFactorVersions[monthIndex] + 1, fault);
-        if (fault == 1) m.version++;
+        ReportMetadata memory m = _candidate(3, fault);
         if (fault == 7) {
             if (cancelFactor) numerator = 1;
             else denominator = 0;
@@ -154,7 +140,7 @@ contract OperationsHandler is OperationsFixture {
             businessValid = businessValid && numerator != 0 && denominator != 0;
             if (count != 0) businessValid = businessValid && factors[count - 1].ordinal <= dayIndex;
         }
-        bool expected = _validMetadata(3, m) && businessValid && m.version == modelFactorVersions[monthIndex] + 1;
+        bool expected = _validMetadata(3, m) && businessValid;
         SplitFactorReport memory report = SplitFactorReport(
             SECURITY,
             _month(monthIndex),
@@ -164,7 +150,6 @@ contract OperationsHandler is OperationsFixture {
             denominator,
             m.timestamp,
             m.deadline,
-            m.version,
             m.sequence,
             m.id
         );
@@ -172,7 +157,6 @@ contract OperationsHandler is OperationsFixture {
         assertEq(ok, expected, "split factor acceptance differs from model");
         _finishReport(3, m, ok);
         if (!ok) return;
-        modelFactorVersions[monthIndex] = m.version;
         if (cancelFactor) {
             factors.pop();
         } else {
@@ -228,7 +212,7 @@ contract OperationsHandler is OperationsFixture {
 
     function assertCalendarModel() external view {
         assertEq(block.timestamp, modelTime);
-        (, uint32 actualDay) = ledger.currentTradeDay();
+        uint32 actualDay = ledger.currentTradeDay();
         assertEq(actualDay, _date(_currentOrdinal()));
         assertEq(ledger.dayStartCheckpointCount(), modelCheckpoints.length);
         for (uint256 i; i < DAYS; ++i) {
@@ -248,33 +232,25 @@ contract OperationsHandler is OperationsFixture {
             assertEq(inbox.lastSourceTimestamp(kind, SECURITY), modelSourceTime[kind]);
         }
         for (uint8 i; i < 4; ++i) {
-            TSVVolumeLedgerV1.AdtvValue memory actual = ledger.adtvOf(SECURITY, _month(i));
-            assertEq(actual.value, modelAdtv[i].amount);
-            assertEq(actual.version, modelAdtv[i].version);
-            assertEq(actual.reportId, modelAdtv[i].id);
-            assertEq(ledger.splitFactorVersion(SECURITY, _month(i)), modelFactorVersions[i]);
+            assertEq(ledger.adtvOf(SECURITY, _month(i)), modelAdtv[i]);
             assertEq(ledger.splitFactorCheckpointCount(SECURITY, _month(i)), modelFactors[i].length);
             for (uint256 j; j < modelFactors[i].length; ++j) {
                 TSVVolumeLedgerV1.SplitFactorCheckpoint memory factor =
                     ledger.splitFactorCheckpoint(SECURITY, _month(i), j);
                 Factor memory expected = modelFactors[i][j];
                 assertEq(factor.effectiveTradeDayId, _date(expected.ordinal));
-                assertEq(
-                    uint256(factor.numerator) * expected.denominator, uint256(expected.numerator) * factor.denominator
-                );
+                assertEq(factor.numerator, expected.numerator);
+                assertEq(factor.denominator, expected.denominator);
                 assertEq(factor.reportId, expected.id);
             }
         }
         for (uint256 i; i < DAYS; ++i) {
-            TSVVolumeLedgerV1.QuotaOverride memory actual = ledger.quotaOf(SECURITY, _date(i));
-            assertEq(actual.quotaWad, modelQuota[i].amount);
-            assertEq(actual.version, modelQuota[i].version);
-            assertEq(actual.reportId, modelQuota[i].id);
-            assertEq(actual.active, modelQuota[i].active);
+            assertEq(ledger.quotaOf(SECURITY, _date(i)), modelQuota[i].amount);
             assertEq(ledger.used(SECURITY, _date(i)), modelUsed[i], "report or schedule reset used");
             (uint128 numerator, uint128 denominator) = _modelFactor(i);
             (uint128 actualNumerator, uint128 actualDenominator) = ledger.splitFactorOf(SECURITY, _date(i));
-            assertEq(uint256(actualNumerator) * denominator, uint256(numerator) * actualDenominator);
+            assertEq(actualNumerator, numerator);
+            assertEq(actualDenominator, denominator);
             uint256 cap = _cap(i);
             if (modelQuota[i].active && modelQuota[i].amount < cap) cap = modelQuota[i].amount;
             uint256 left = modelUsed[i] >= cap ? 0 : cap - modelUsed[i];
@@ -287,15 +263,15 @@ contract OperationsHandler is OperationsFixture {
         }
     }
 
-    function _candidate(uint8 kind, uint64 version, uint8 fault) private returns (ReportMetadata memory m) {
+    function _candidate(uint8 kind, uint8 fault) private returns (ReportMetadata memory m) {
         m = ReportMetadata(
             uint64(modelTime),
             uint64(modelTime + 100),
             modelSequence[kind] + 1,
-            version,
             keccak256(abi.encode("model-report", ++attempt))
         );
-        if (fault == 2) m.sequence = modelSequence[kind];
+        if (fault == 1) m.id = 0;
+        else if (fault == 2) m.sequence = modelSequence[kind];
         else if (fault == 3) m.timestamp = uint64(modelTime + 1);
         else if (fault == 4) m.deadline = uint64(modelTime - 1);
         else if (fault == 5) m.timestamp = modelSourceTime[kind] == 0 ? uint64(0) : modelSourceTime[kind] - 1;
@@ -322,7 +298,7 @@ contract OperationsHandler is OperationsFixture {
 
     function _cap(uint256 dayIndex) private view returns (uint256) {
         (uint128 numerator, uint128 denominator) = _modelFactor(dayIndex);
-        return modelAdtv[_sourceMonthIndex(dayIndex)].amount * 25 * numerator / (10000 * uint256(denominator));
+        return modelAdtv[_sourceMonthIndex(dayIndex)] * 25 * numerator / (10000 * uint256(denominator));
     }
 
     function _modelFactor(uint256 dayIndex) private view returns (uint128 numerator, uint128 denominator) {

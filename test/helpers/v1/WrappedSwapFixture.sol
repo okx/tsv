@@ -136,7 +136,6 @@ abstract contract WrappedSwapFixture is Test {
                 uint64(block.timestamp - 1),
                 uint64(block.timestamp + 100),
                 1,
-                1,
                 keccak256("wrapped-adtv")
             )
         );

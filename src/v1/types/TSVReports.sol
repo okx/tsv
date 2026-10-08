@@ -23,7 +23,7 @@ struct MarketReport {
     bytes32 reportId;
 }
 
-/// @notice Versioned monthly average-daily-volume input for one listed security.
+/// @notice Monthly average-daily-volume input for one listed security.
 struct AdtvReport {
     /// @notice Listed security whose hard volume cap uses this report.
     bytes32 securityId;
@@ -35,15 +35,13 @@ struct AdtvReport {
     uint64 sourceTimestamp;
     /// @notice Latest timestamp at which DataInbox may accept the report.
     uint64 submitDeadline;
-    /// @notice Incrementing version for this security and source month.
-    uint64 version;
     /// @notice Increasing sequence for this security's ADTV reports.
     uint64 sequence;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
 }
 
-/// @notice Versioned optional quota override for one security and TSV trade day.
+/// @notice Optional quota override for one security and TSV trade day.
 struct QuotaReport {
     /// @notice Listed security whose daily cap is overridden.
     bytes32 securityId;
@@ -57,8 +55,6 @@ struct QuotaReport {
     uint64 sourceTimestamp;
     /// @notice Latest timestamp at which DataInbox may accept the report.
     uint64 submitDeadline;
-    /// @notice Incrementing version for this security and trade day.
-    uint64 version;
     /// @notice Increasing sequence for this security's quota reports.
     uint64 sequence;
     /// @notice Globally unique report identifier.
@@ -83,8 +79,6 @@ struct SplitFactorReport {
     uint64 sourceTimestamp;
     /// @notice Latest timestamp at which DataInbox may accept the report.
     uint64 submitDeadline;
-    /// @notice Next version for this security and source month, including cancellations.
-    uint64 version;
     /// @notice Increasing sequence for this security's split-factor report stream.
     uint64 sequence;
     /// @notice Globally unique nonzero report identifier.

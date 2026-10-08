@@ -39,7 +39,7 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
         registry.setTierPolicy(1, 10000, 10);
         _trade(1e17);
         assertEq(ledger.used(SECURITY, DAY), 11e17);
-        assertEq(ledger.quotaOf(SECURITY, DAY).quotaWad, 2e18);
+        assertEq(ledger.quotaOf(SECURITY, DAY), 2e18);
     }
 
     function testMovingSecurityTierChangesRealTradeCapAndPreservesExistingPosition() public {
@@ -195,7 +195,7 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
     function _trade(uint128 amount) private {
         bool stockInput = address(stock) == Currency.unwrap(key.currency0);
         SwapRequest memory request = _swapRequest(stockInput, amount);
-        (, uint32 day) = ledger.currentTradeDay();
+        uint32 day = ledger.currentTradeDay();
         uint256 beforeUsed = ledger.used(SECURITY, day);
         uint256 beforeStock = stock.balanceOf(alice);
         vm.prank(alice);
@@ -217,7 +217,6 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
 
     function _adtv(uint32 month, uint256 value) private {
         uint64 now_ = uint64(block.timestamp);
-        uint64 version = ledger.adtvOf(SECURITY, month).version + 1;
         uint64 sequence = inbox.lastSequence(1, SECURITY) + 1;
         inbox.submitAdtv(
             AdtvReport(
@@ -226,7 +225,6 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
                 value,
                 now_,
                 now_ + 100,
-                version,
                 sequence,
                 keccak256(abi.encode("ops-adtv", month, sequence))
             )
@@ -243,7 +241,6 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
 
     function _quota(uint32 day, uint8 action, uint256 value) private {
         uint64 now_ = uint64(block.timestamp);
-        uint64 version = ledger.quotaOf(SECURITY, day).version + 1;
         uint64 sequence = inbox.lastSequence(2, SECURITY) + 1;
         inbox.submitQuota(
             QuotaReport(
@@ -253,7 +250,6 @@ contract TSVOperationsFlowsLocalTest is ProtocolFixture {
                 value,
                 now_,
                 now_ + 100,
-                version,
                 sequence,
                 keccak256(abi.encode("ops-quota", day, sequence))
             )

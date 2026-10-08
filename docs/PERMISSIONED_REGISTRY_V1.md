@@ -14,7 +14,9 @@
 - exitAdmin 按 U 共享，Governor 直接调用 `setExitAdmin(U, admin)`，可在首次 W 准入前配置。是否配置直接按接收地址判断。更新检查该 U 下所有已登记 W 的 expectedOwner 和当前 owner，接收方须与这些 owner 分离。它不接收本期 Swap 输出，也不授予 owner 或执行角色。
 - `replaceUnderlyingLegalShareAdapter(U, newAdapter)` 要求证券范围同时覆盖交易和 LP 暂停；单 W 的 TOKEN 暂停不足。更新立即影响该 U 的所有 W，不清 Ledger。
 
-资产、报价币、证券、池、exitAdmin 和股数 Adapter 均无配置版本计数。Adapter 准入只核验接口及 U 绑定；`SwapAccounted` 不携带 Adapter 版本。ADTV、Quota 和 SplitFactor 报告保留 `version`，用于拒绝过期或乱序更正。
+资产、报价币、证券、池、exitAdmin 和股数 Adapter 均无配置版本计数。Adapter 准入只核验接口及 U 绑定；`SwapAccounted` 不携带 Adapter 版本。ADTV、Quota 和 SplitFactor 报告已移除 `version`；Inbox 的 `(kind,securityId)` sequence、来源时间与全局 reportId 去重管理提交顺序。Ledger 的 ADTV/quota 状态只保存金额，接受事件保留来源 ID。拆并股原样保存分子/分母，保留非零和溢出校验。`SwapAccounted` 同时记录池内 W（poolCurrency）和对应 U（underlying）。
+
+2026-10-08 Ledger 与报告精简后的完整本地回归：**323 项通过，0 失败、0 跳过，48 个套件**。覆盖 Inbox 序号与去重、额度更正及原子回滚、原始拆并股比例与溢出、历史日切边界，以及真实 PM 四条交易路径和多个 W 共用 U 的事件字段。`make check` 及当前制品源码哈希/ABI 核验通过；Ledger/Inbox/Hook 运行时分别为 13,210 / 8,018 / 8,348 字节。命令为 `forge test --dynamic-test-linking --summary`；[完整日志](../out/tsv-ledger-simplification/full-tests.log)。
 
 ## 统一运营门禁
 

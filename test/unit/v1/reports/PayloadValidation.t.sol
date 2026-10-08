@@ -45,9 +45,9 @@ contract TSVOperationsPayloadTest is OperationsFixture {
 
     function testAdtvFieldsRejectAndSameIdCanBeCorrected() public {
         uint32[5] memory invalidMonths = [uint32(0), 196912, 202600, 202613, 1000001];
-        for (uint8 fault; fault < 11; ++fault) {
+        for (uint8 fault; fault < 9; ++fault) {
             uint256 snapshot = vm.snapshotState();
-            AdtvReport memory r = _adtv(SECURITY, 1000e18, 1, 1, keccak256(abi.encode("adtv-field", fault)));
+            AdtvReport memory r = _adtv(SECURITY, 1000e18, 1, keccak256(abi.encode("adtv-field", fault)));
             bytes32 id = r.reportId;
             if (fault == 0) {
                 r.securityId = 0;
@@ -55,12 +55,8 @@ contract TSVOperationsPayloadTest is OperationsFixture {
                 r.securityId = keccak256("absent");
             } else if (fault == 2) {
                 r.adtvWad = 0;
-            } else if (fault == 3) {
-                r.version = 0;
-            } else if (fault == 4) {
-                r.version = 2;
-            } else if (fault < 10) {
-                r.sourceMonth = invalidMonths[fault - 5];
+            } else if (fault < 8) {
+                r.sourceMonth = invalidMonths[fault - 3];
             } else {
                 registry.delistSecurity(SECURITY);
             }
@@ -70,17 +66,17 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             inbox.submitAdtv(r);
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, r.sourceMonth, DAY, id), targetBefore);
-            if (fault == 10) registry.relistSecurity(SECURITY);
-            inbox.submitAdtv(_adtv(SECURITY, 1000e18, 1, 1, id));
+            if (fault == 8) registry.relistSecurity(SECURITY);
+            inbox.submitAdtv(_adtv(SECURITY, 1000e18, 1, id));
             assertTrue(vm.revertToState(snapshot));
         }
     }
 
     function testQuotaFieldsRejectAndSameIdCanBeCorrected() public {
         _submitAdtv(1000e18);
-        for (uint8 fault; fault < 12; ++fault) {
+        for (uint8 fault; fault < 10; ++fault) {
             uint256 snapshot = vm.snapshotState();
-            QuotaReport memory r = _quota(2e18, 1, 1, 1, keccak256(abi.encode("quota-field", fault)));
+            QuotaReport memory r = _quota(2e18, 1, 1, keccak256(abi.encode("quota-field", fault)));
             bytes32 id = r.reportId;
             bytes4 expected = TSVVolumeLedgerV1.InvalidReport.selector;
             if (fault == 0) {
@@ -96,16 +92,12 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             } else if (fault == 5) {
                 r.quotaWad = 2.5e18 + 1;
             } else if (fault == 6) {
-                r.version = 0;
-            } else if (fault == 7) {
-                r.version = 2;
-            } else if (fault == 8) {
                 r.tradeDayId = 20261101;
                 expected = TSVVolumeLedgerV1.InvalidReport.selector;
-            } else if (fault == 9) {
+            } else if (fault == 7) {
                 r.tradeDayId = 20260229;
                 expected = TSVVolumeLedgerV1.InvalidPeriod.selector;
-            } else if (fault == 10) {
+            } else if (fault == 8) {
                 r.action = 2; // CLEAR without an active SET, even with nonzero amount.
             } else {
                 registry.delistSecurity(SECURITY);
@@ -116,58 +108,55 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             inbox.submitQuota(r);
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, uint32(MONTH), r.tradeDayId, id), targetBefore);
-            if (fault == 11) registry.relistSecurity(SECURITY);
-            inbox.submitQuota(_quota(2e18, 1, 1, 1, id));
+            if (fault == 9) registry.relistSecurity(SECURITY);
+            inbox.submitQuota(_quota(2e18, 1, 1, id));
             assertTrue(vm.revertToState(snapshot));
         }
     }
 
-    function testCorrectionsRequireNextVersionButStreamsContinueAcrossPeriods() public {
+    function testCorrectionsRequireIncreasingSequencesAcrossPeriods() public {
         _submitAdtv(1000e18);
-        AdtvReport memory correction = _adtv(SECURITY, 500e18, 1, 2, keccak256("correction"));
-        for (uint64 version; version < 4; ++version) {
-            if (version == 2) continue;
-            correction.version = version;
+        AdtvReport memory correction = _adtv(SECURITY, 500e18, 2, keccak256("correction"));
+        for (uint64 sequence; sequence < 2; ++sequence) {
+            correction.sequence = sequence;
             bytes32 beforeState = _reportState(correction.reportId);
-            vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
+            vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
             inbox.submitAdtv(correction);
             assertEq(_reportState(correction.reportId), beforeState);
         }
-        correction.version = 2;
+        correction.sequence = 2;
         vm.expectEmit(true, true, true, true, address(ledger));
-        emit TSVVolumeLedgerV1.AdtvAccepted(SECURITY, uint32(MONTH), 500e18, 2, correction.reportId);
+        emit TSVVolumeLedgerV1.AdtvAccepted(SECURITY, uint32(MONTH), 500e18, correction.reportId);
         inbox.submitAdtv(correction);
-        AdtvReport memory nextMonth = _adtv(SECURITY, 500e18, 1, 3, keccak256("next-month"));
+        AdtvReport memory nextMonth = _adtv(SECURITY, 500e18, 3, keccak256("next-month"));
         nextMonth.sourceMonth = 202610;
         inbox.submitAdtv(nextMonth);
-        assertEq(ledger.adtvOf(SECURITY, 202609).version, 2);
-        assertEq(ledger.adtvOf(SECURITY, 202610).version, 1);
+        assertEq(ledger.adtvOf(SECURITY, 202609), 500e18);
+        assertEq(ledger.adtvOf(SECURITY, 202610), 500e18);
         assertEq(inbox.lastSequence(1, SECURITY), 3);
-        // A fresh ID/version may report the same positive value; value equality is not replay protection.
-        nextMonth.version = 2;
+        // A fresh ID/sequence may report the same positive value; value equality is not replay protection.
         nextMonth.sequence = 4;
-        nextMonth.reportId = keccak256("same-value-new-version");
+        nextMonth.reportId = keccak256("same-value-new-sequence");
         inbox.submitAdtv(nextMonth);
-        assertEq(ledger.adtvOf(SECURITY, 202610).value, 500e18);
+        assertEq(ledger.adtvOf(SECURITY, 202610), 500e18);
     }
 
-    function testQuotaClearMustBeZeroAndKeepsVersionAndUsage() public {
+    function testQuotaClearMustBeZeroAndKeepsSequenceAndUsage() public {
         _submitAdtv(1000e18);
         _submitQuota(2e18);
         _charge(1e18);
-        QuotaReport memory r = _quota(1, 2, 2, 2, keccak256("clear"));
+        QuotaReport memory r = _quota(1, 2, 2, keccak256("clear"));
         bytes32 beforeState = _reportState(r.reportId);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
         inbox.submitQuota(r);
         assertEq(_reportState(r.reportId), beforeState);
         r.quotaWad = 0;
         vm.expectEmit(true, true, true, true, address(ledger));
-        emit TSVVolumeLedgerV1.QuotaAccepted(SECURITY, DAY, 2, 0, 2, r.reportId);
+        emit TSVVolumeLedgerV1.QuotaAccepted(SECURITY, DAY, 2, 0, r.reportId);
         inbox.submitQuota(r);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
-        assertEq(ledger.quotaOf(SECURITY, DAY).version, 2);
-        assertFalse(ledger.quotaOf(SECURITY, DAY).active);
-        r.version = 3;
+        assertEq(inbox.lastSequence(2, SECURITY), 2);
+        assertEq(ledger.quotaOf(SECURITY, DAY), 0);
         r.sequence = 3;
         r.reportId = keccak256("second-clear");
         beforeState = _reportState(r.reportId);
@@ -177,7 +166,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
         r.action = 1;
         r.quotaWad = 1.5e18;
         inbox.submitQuota(r);
-        assertEq(ledger.quotaOf(SECURITY, DAY).version, 3);
+        assertEq(inbox.lastSequence(2, SECURITY), 3);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 0.5e18);

@@ -199,9 +199,8 @@ contract TradingLPHandler is ProtocolFixture {
         uint32 day = DAY + dayIndex;
         uint256 used_ = expectedUsed[day];
         uint256 cap = restrictive ? (used_ < 2 ? 1 : used_ / 2) : 1e24;
-        bool hasOverride = ledger.quotaOf(SECURITY, day).active;
+        bool hasOverride = ledger.quotaOf(SECURITY, day) != 0;
         if (clear && !hasOverride) return;
-        uint64 version = ledger.quotaOf(SECURITY, day).version + 1;
         quotaSequence++;
         inbox.submitQuota(
             QuotaReport(
@@ -211,7 +210,6 @@ contract TradingLPHandler is ProtocolFixture {
                 clear ? 0 : cap,
                 uint64(block.timestamp - 1),
                 uint64(block.timestamp + 100),
-                version,
                 quotaSequence,
                 keccak256(abi.encode("stateful-quota", quotaSequence))
             )

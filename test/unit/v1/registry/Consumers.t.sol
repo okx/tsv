@@ -8,7 +8,13 @@ import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
-import {PermissionedCurrencyConfig, QuoteTokenConfig, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PermissionedCurrencyConfig,
+    UnderlyingConfig,
+    QuoteTokenConfig,
+    PauseScope,
+    PauseMode
+} from "tsv-v1/types/TSVTypes.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
@@ -76,13 +82,15 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         vm.recordLogs();
         _callback(-1e18);
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes32 accounted = keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256)");
+        bytes32 accounted = keccak256("SwapAccounted(bytes32,bytes32,address,address,bool,uint32,uint256,uint256)");
         uint256 count;
         for (uint256 i; i < entries.length; ++i) {
             if (entries[i].topics[0] == accounted) {
                 assertEq(entries[i].emitter, address(ledger));
-                (, uint32 day, uint256 raw, uint256 shares) =
-                    abi.decode(entries[i].data, (bool, uint32, uint256, uint256));
+                assertEq(address(uint160(uint256(entries[i].topics[3]))), address(stock));
+                (address recordedUnderlying,, uint32 day, uint256 raw, uint256 shares) =
+                    abi.decode(entries[i].data, (address, bool, uint32, uint256, uint256));
+                assertEq(recordedUnderlying, address(stockToken));
                 assertEq(day, DAY);
                 assertEq(raw, 1e18);
                 assertEq(shares, 1e18);
@@ -102,13 +110,13 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         assertEq(ledger.used(SECURITY, DAY), 0);
     }
 
-    function testUnknownAndWrongTypeCannotBecomeQuoteEvenAtZeroDelta() public {
+    function testLedgerRejectsUnknownAndWrongTypeQuoteFromHookAndRollsBackCharge() public {
         address q = address(quote);
         vm.mockCall(
             address(registry), abi.encodeCall(TSVRegistryV1.getQuoteToken, (q)), abi.encode(QuoteTokenConfig(6, false))
         );
-        vm.expectRevert(TSVHookV1.InvalidPool.selector);
-        _callback(0);
+        vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
+        _callback(-1e18);
         assertEq(ledger.used(SECURITY, DAY), 0);
         vm.clearMockedCalls();
         vm.mockCall(
@@ -116,8 +124,43 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
             abi.encodeCall(TSVRegistryV1.getCurrency, (q)),
             abi.encode(PermissionedCurrencyConfig(address(stockToken), address(this)))
         );
-        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
+        _callback(-1e18);
+        assertEq(ledger.used(SECURITY, DAY), 0);
+    }
+
+    function testAfterSwapStillRequiresPoolManager() public {
+        vm.expectRevert(TSVHookV1.UnauthorizedCallback.selector);
+        consumerHook.afterSwap(
+            address(permissionedRouterFixture), key, IPoolManager.SwapParams(true, -1, 0), toBalanceDelta(-1, 1), ""
+        );
+    }
+
+    function testLedgerRejectsZeroStockDeltaFromHook() public {
+        vm.expectRevert(TSVVolumeLedgerV1.ZeroSwapAmount.selector);
         _callback(0);
+        assertEq(ledger.used(SECURITY, DAY), 0);
+    }
+
+    function testLedgerRejectsWrongStockSecurityFromHook() public {
+        UnderlyingConfig memory config = registry.getUnderlying(address(stockToken));
+        config.securityId = keccak256("another-security");
+        vm.mockCall(
+            address(registry), abi.encodeCall(TSVRegistryV1.getUnderlying, (address(stockToken))), abi.encode(config)
+        );
+        vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
+        _callback(-1e18);
+        assertEq(ledger.used(SECURITY, DAY), 0);
+    }
+
+    function testLedgerRejectsZeroSharesReturnedByAdapter() public {
+        vm.mockCall(
+            address(stockAdapter),
+            abi.encodeCall(IDirectLegalShareAdapter.toLegalShares, (address(stockToken), 1e18)),
+            abi.encode(uint256(0))
+        );
+        vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
+        _callback(-1e18);
         assertEq(ledger.used(SECURITY, DAY), 0);
     }
 

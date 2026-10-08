@@ -79,7 +79,7 @@ VOLUME_ORACLE 向 DataInbox 提交适用上月的 `AdtvReport`，量纲为法律
 | Q→U exact-in | 指定 Q raw 最大输入 / U raw 最小输出 | 支付实际成交 Q、接收 U。 |
 | Q→U exact-out | 指定 U raw 精确输出 / Q raw 最大输入 | 支付不超上限的 Q、接收严格指定 U。 |
 
-四条路径使用 `swapExactInput` / `swapExactOutput` 与有效 deadline。检查返回的实际输入与输出、PM `Swap`、Ledger `SwapAccounted`、真实余额双侧变化、U canonical 法律股数与 Ledger.used 增量、PM 两腿零欠款，以及库存和 E 保持不变。Router 不另发成交事件或引用 Ledger。失败须余额、价格、流动性、额度与策略写入全部回滚，随后修正条件能够重试。
+四条路径使用 `swapExactInput` / `swapExactOutput` 与有效 deadline。检查返回的实际输入与输出、PM `Swap`、Ledger `SwapAccounted` 的 W/U 两个地址、真实余额双侧变化、U canonical 法律股数与 Ledger.used 增量、PM 两腿零欠款，以及库存和 E 保持不变。Router 不另发成交事件或引用 Ledger。失败须余额、价格、流动性、额度与策略写入全部回滚，随后修正条件能够重试。
 
 DEX Adapter 需获 Governor 白名单授权；Router 检查 Adapter 验证的真实用户身份和发行方权限，Adapter 负责 U/Q 收付。单池入口不支持 native 或 U 直接池。
 

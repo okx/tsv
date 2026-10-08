@@ -1,0 +1,17 @@
+name	tsv
+mode	filename
+files	src/v1/interfaces/IDirectLegalShareAdapter.sol src/v1/interfaces/ITSVPermissionedRegistry.sol src/v1/vendor/v4-router/interfaces/IMsgSender.sol src/v1/vendor/v4-router/interfaces/IV4Router.sol src/v1/vendor/v4-router/interfaces/IImmutableState.sol src/v1/vendor/v4-router/base/BaseActionsRouter.sol src/v1/vendor/v4-router/base/SafeCallback.sol src/v1/vendor/v4-router/base/ImmutableState.sol src/v1/vendor/v4-router/base/DeltaResolver.sol src/v1/vendor/v4-router/V4Router.sol src/v1/vendor/v4-router/hooks/permissionedPools/PermissionedV4Router.sol src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol src/v1/adapters/ERC8056DirectLegalShareAdapter.sol src/v1/governance/TSVGovernanceAnchor.sol src/v1/governance/TSVGoverned.sol src/v1/periphery/TSVLPManagerV1.sol src/v1/periphery/TSVSwapRouterV1.sol src/v1/types/TSVReports.sol src/v1/types/TSVTypes.sol src/v1/vendor/v4-router/libraries/PathKey.sol src/v1/vendor/v4-router/libraries/Actions.sol src/v1/vendor/v4-router/libraries/ActionConstants.sol src/v1/vendor/v4-router/libraries/BipsLibrary.sol src/v1/vendor/v4-router/libraries/CalldataDecoder.sol src/v1/libraries/TSVDirectSettlementLib.sol src/v1/libraries/PermissionedValidationLib.sol src/v1/libraries/TradeDayLib.sol src/v1/libraries/ReportValidationLib.sol src/v1/libraries/TSVPermissionedSettlementLib.sol src/v1/core/TSVRegistryV1.sol src/v1/core/TSVHookV1.sol src/v1/core/TSVDataInboxV1.sol src/v1/core/TSVVolumeLedgerV1.sol src/v1/deployment/TSVERC1967Proxy.sol src/v1/deployment/TSVHookProxyFactoryV1.sol
+passes_planned	3
+mem_before	13
+mem_after	15
+mem_sha	444f87e
+pass_1_agents	6/12
+threshold	75
+mem_after	15
+mem_sha	444f87e
+pass_2_agents	3/12
+pass_2_agents	3/12 (12 specialty tasks through reused threads)
+mem_after	15
+mem_sha	444f87e
+pass_3_agents	3/12
+pass_3_agents	3/12 (12 specialty tasks through reused threads)

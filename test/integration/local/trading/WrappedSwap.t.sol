@@ -68,9 +68,20 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
             uint256 accounted;
             for (uint256 j; j < logs.length; ++j) {
                 if (
-                    logs[j].topics[0] == keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256)")
+                    logs[j].topics[0]
+                        == keccak256("SwapAccounted(bytes32,bytes32,address,address,bool,uint32,uint256,uint256)")
                 ) {
                     assertEq(logs[j].emitter, address(ledger));
+                    assertEq(logs[j].topics[1], PoolId.unwrap(key.toId()));
+                    assertEq(logs[j].topics[2], SECURITY);
+                    assertEq(address(uint160(uint256(logs[j].topics[3]))), address(stock));
+                    (address recordedUnderlying, bool inputSide, uint32 day, uint256 raw, uint256 shares) =
+                        abi.decode(logs[j].data, (address, bool, uint32, uint256, uint256));
+                    assertEq(recordedUnderlying, address(underlying));
+                    assertEq(inputSide, stockInput);
+                    assertEq(day, DAY);
+                    assertEq(raw, stockInput ? paid : received);
+                    assertEq(shares, ledger.used(SECURITY, DAY) - usedBefore);
                     ++accounted;
                 }
             }
@@ -195,8 +206,12 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
             if (
                 logs[i].emitter == address(ledger)
                     && logs[i].topics[0]
-                        == keccak256("SwapAccounted(bytes32,bytes32,address,bool,uint32,uint256,uint256)")
+                        == keccak256("SwapAccounted(bytes32,bytes32,address,address,bool,uint32,uint256,uint256)")
             ) {
+                address recordedCurrency = address(uint160(uint256(logs[i].topics[3])));
+                assertEq(recordedCurrency, count == 0 ? address(stock) : address(w2));
+                (address recordedUnderlying,,,,) = abi.decode(logs[i].data, (address, bool, uint32, uint256, uint256));
+                assertEq(recordedUnderlying, address(underlying));
                 ++count;
             }
         }
@@ -212,7 +227,6 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
                 1,
                 uint64(block.timestamp - 1),
                 uint64(block.timestamp + 100),
-                1,
                 1,
                 keccak256("quota-report")
             )

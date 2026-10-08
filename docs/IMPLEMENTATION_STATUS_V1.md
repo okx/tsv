@@ -12,7 +12,7 @@ review 已修正 PM/Router 绝对零 U 余额带来的交易和准入阻断：Sw
 
 更新：Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
 
-2026-10-08 当前本地回归：48 个套件、313 项通过、0 失败、0 跳过，包含 Wrapped Swap 及 DEX Adapter。配置版本计数、Router 成交事件及其 Ledger 引用已删除，报告 `version` 保留用于更新顺序检查；制品与日志见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)。
+2026-10-08 当前本地回归：48 个套件、323 项通过、0 失败、0 跳过，包含 Wrapped Swap、DEX Adapter、报告及治理/运营 invariant。Ledger 删除不可达零 delta 分支、重复交易门禁和派生 pending/active 状态；ADTV/quota 只存金额，三类计量报告已移除 version，顺序与去重由 Inbox sequence/reportIdUsed 管理。拆并股保留原始分子/分母及非零、溢出校验。`currentTradeDay` 只返回日 ID，`SwapAccounted` 同时记录 W/U。`make check`、编译制品源码哈希与 ABI 核验通过；日志见 [Ledger 精简回归](../out/tsv-ledger-simplification/full-tests.log)。
 
 更新：2026-10-05。本文是当前工作区的状态看板：记录源码已实现什么、还缺哪些实现或外部证据。目标流程见[三系统总览](./SYSTEMS_OVERVIEW.md)，行为规范见[编码规格](./CODING_SPEC_V1.md)和[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)，目标验收条件见[测试规格](./TEST_SPEC_V1.md)。日期评审保留其当时结论，不自动代表当前实现。
 
@@ -94,6 +94,6 @@ X Layer 固定区块 **72,271,000** 使用真实 DexRouter `0x7c5bee2a8091c3ef39
 
 复现：`FOUNDRY_PROFILE=default FOUNDRY_OUT=out/split-factor-regression FOUNDRY_CACHE_PATH=cache/split-factor-regression forge test --fuzz-seed 0x20261004 --summary`；fork 为 `FOUNDRY_PROFILE=xlayer forge test --fuzz-seed 0x20261004 --summary`。原始记录在忽略的 `out/`：`tsv-split-factor-all-tests.log`、`tsv-split-factor-xlayer.log`、`tsv-split-factor-coverage.log`、`tsv-split-factor-coverage.lcov`、`tsv-split-factor-check.log` 和 `tsv-split-factor-layout.json`。
 
-系数新增两个 mapping 位于 Ledger slot 9/10，既有 ADTV、quota、used 和日切字段顺序保持；实际成交计股仍由现有实时 Adapter 决定。新增单元/真实 V4/模型覆盖及更新后的覆盖率见[覆盖矩阵](./TEST_COVERAGE_V1.md)。
+2026-10-04 当时的系数新增两个 mapping 位于 Ledger slot 9/10；2026-10-08 已按未部署项目精简布局，不保留旧槽位或来源月版本 mapping。实际成交计股仍由现有实时 Adapter 决定。新增单元/真实 V4/模型覆盖及更新后的覆盖率见[覆盖矩阵](./TEST_COVERAGE_V1.md)。
 
 2026-10-08 Registry 精简：`bindComponents(hook,lpManager,dataInbox,factory,sbt)` 一次绑定并只发一个 ComponentsBound；SBT 身份配置为 `setSbtConfig(tokenId,permissions)`。Router 从 Hook 读取，删除 Registry 重复 Router 配置与绑定交叉检查，部署核验保留在 VerifyDeploymentV1。U 共享 exitAdmin 保持；Registry 70 项回归通过。运行时代码 22,923 字节，格式与布局检查通过。

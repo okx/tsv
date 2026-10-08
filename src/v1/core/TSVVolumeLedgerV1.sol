@@ -13,7 +13,7 @@ import {TradeDayLib} from "tsv-v1/libraries/TradeDayLib.sol";
 contract TSVVolumeLedgerV1 is TSVGoverned {
     /// @dev Reverts when the caller is not an authorized Ledger writer.
     error UnauthorizedWriter();
-    /// @dev Reverts when the report fields or replay-protection metadata are invalid.
+    /// @dev Reverts when report fields or Ledger configuration are invalid.
     error InvalidReport();
     /// @dev Reverts when the required report has not been accepted.
     error MissingReport();
@@ -33,29 +33,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     uint32 private constant SECONDS_PER_DAY = 86_400;
     uint32 private constant MAX_DAY_START_SHIFT = 14_400;
 
-    /// @dev Stores the active ADTV value and its effective report metadata.
-    struct AdtvValue {
-        /// @dev Accepted average daily volume in legal-share WAD units.
-        uint256 value;
-        /// @dev Latest accepted report version for the security and source month.
-        uint64 version;
-        /// @dev Identifier of the latest accepted ADTV report.
-        bytes32 reportId;
-    }
-
-    /// @dev Stores a per-security daily quota override and its effective report metadata.
-    struct QuotaOverride {
-        /// @dev Override cap in legal-share WAD units.
-        uint256 quotaWad;
-        /// @dev Whether the override is active for this security and trade day.
-        bool active;
-        /// @dev Latest accepted report version for this security and trade day.
-        uint64 version;
-        /// @dev Identifier of the report that set or cleared the override.
-        bytes32 reportId;
-    }
-
-    /// @dev Stores the pending trade-day boundary transition checkpoint.
+    /// @dev Stores a future or historical trade-day boundary transition checkpoint.
     struct DayStartCheckpoint {
         /// @dev First YYYYMMDD trade day that uses the new offset.
         uint32 effectiveDayId;
@@ -63,7 +41,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint32 offsetSeconds;
     }
 
-    /// @dev Immutable once its first trade day starts; the fraction is reduced before storage.
+    /// @dev Immutable once its first trade day starts; the reported fraction is stored exactly.
     struct SplitFactorCheckpoint {
         uint32 effectiveTradeDayId;
         uint128 numerator;
@@ -76,40 +54,30 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     address public dataInbox;
     uint32 public initialDayStartOffsetSeconds;
 
-    mapping(bytes32 => mapping(uint32 => AdtvValue)) private adtv;
-    mapping(bytes32 => mapping(uint32 => QuotaOverride)) private quotas;
+    mapping(bytes32 => mapping(uint32 => uint256)) private adtv;
+    mapping(bytes32 => mapping(uint32 => uint256)) private quotas;
     mapping(bytes32 => mapping(uint32 => uint256)) private usedWad;
     DayStartCheckpoint[] private dayStartCheckpoints;
-    bool private hasPendingDayStart;
-
-    // Appended storage: existing ADTV, quota, usage and day-start slots retain their layouts.
     mapping(bytes32 => mapping(uint32 => SplitFactorCheckpoint[])) private splitFactorCheckpoints;
-    mapping(bytes32 => mapping(uint32 => uint64)) private splitFactorVersions;
 
     /// @notice Emitted when the authorized report writer contracts were bound to the Ledger.
     event WritersBound(address indexed hook, address indexed dataInbox);
     /// @notice Emitted when a monthly ADTV report was accepted.
     event AdtvAccepted(
-        bytes32 indexed securityId,
-        uint32 indexed sourceMonth,
-        uint256 adtvWad,
-        uint64 version,
-        bytes32 indexed reportId
+        bytes32 indexed securityId, uint32 indexed sourceMonth, uint256 adtvWad, bytes32 indexed reportId
     );
     /// @notice Emitted when a daily quota override report was accepted or cleared.
     event QuotaAccepted(
-        bytes32 indexed securityId,
-        uint32 indexed tradeDayId,
-        uint8 action,
-        uint256 quotaWad,
-        uint64 version,
-        bytes32 indexed reportId
+        bytes32 indexed securityId, uint32 indexed tradeDayId, uint8 action, uint256 quotaWad, bytes32 indexed reportId
     );
     /// @notice Emitted when a completed swap delta and its legal-share volume were recorded.
+    /// @param poolCurrency PoolKey currency W; rawAmount is denominated in this token.
+    /// @param underlying Underlying token U used for canonical legal-share conversion.
     event SwapAccounted(
         bytes32 indexed poolId,
         bytes32 indexed securityId,
         address indexed poolCurrency,
+        address underlying,
         bool inputSide,
         uint32 tradeDayId,
         uint256 rawAmount,
@@ -133,16 +101,14 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint32 indexed effectiveTradeDayId,
         uint128 numerator,
         uint128 denominator,
-        uint64 version,
         bytes32 reportId
     );
-    /// @notice Records removal of the latest pending checkpoint without reusing its version.
+    /// @notice Records removal of the latest pending checkpoint and its source report.
     event SplitFactorCancelled(
         bytes32 indexed securityId,
         uint32 indexed sourceMonth,
         uint32 indexed effectiveTradeDayId,
         bytes32 scheduledReportId,
-        uint64 version,
         bytes32 reportId
     );
 
@@ -175,51 +141,37 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         _;
     }
 
-    /// @notice Stores the next version of a listed security's monthly ADTV report.
+    /// @notice Stores a listed security's monthly ADTV report after Inbox ordering checks.
     /// @param report Validated ADTV report forwarded by DataInbox.
     function acceptAdtv(AdtvReport calldata report) external onlyDataInbox {
         if (
             report.securityId == 0 || report.adtvWad == 0 || !TradeDayLib.validMonth(report.sourceMonth)
                 || !registry.getSecurity(report.securityId).listed
         ) revert InvalidReport();
-        AdtvValue storage current = adtv[report.securityId][report.sourceMonth];
-        if (report.version != current.version + 1) revert InvalidReport();
         // A later ADTV correction or Tier increase must not make a stored factor unrepresentable.
         SplitFactorCheckpoint[] storage factors = splitFactorCheckpoints[report.securityId][report.sourceMonth];
         for (uint256 i; i < factors.length; ++i) {
             Math.mulDiv(report.adtvWad, factors[i].numerator, factors[i].denominator);
         }
-        current.value = report.adtvWad;
-        current.version = report.version;
-        current.reportId = report.reportId;
-        emit AdtvAccepted(report.securityId, report.sourceMonth, report.adtvWad, report.version, report.reportId);
+        adtv[report.securityId][report.sourceMonth] = report.adtvWad;
+        emit AdtvAccepted(report.securityId, report.sourceMonth, report.adtvWad, report.reportId);
     }
 
     /// @notice Sets or clears a per-security, per-trade-day quota override.
     /// @param report Validated quota report forwarded by DataInbox.
     function acceptQuota(QuotaReport calldata report) external onlyDataInbox {
         if (report.securityId == 0 || !registry.getSecurity(report.securityId).listed) revert InvalidReport();
-        QuotaOverride storage current = quotas[report.securityId][report.tradeDayId];
-        if (report.version != current.version + 1) revert InvalidReport();
-
         if (report.action == QUOTA_SET) {
             uint256 hardCap = _hardCap(report.securityId, report.tradeDayId);
             if (hardCap == 0 || report.quotaWad == 0 || report.quotaWad > hardCap) revert InvalidReport();
-            current.quotaWad = report.quotaWad;
-            current.active = true;
         } else if (report.action == QUOTA_CLEAR) {
-            if (!current.active || report.quotaWad != 0) revert InvalidReport();
-            current.quotaWad = 0;
-            current.active = false;
+            if (quotas[report.securityId][report.tradeDayId] == 0 || report.quotaWad != 0) revert InvalidReport();
         } else {
             revert InvalidReport();
         }
 
-        current.version = report.version;
-        current.reportId = report.reportId;
-        emit QuotaAccepted(
-            report.securityId, report.tradeDayId, report.action, report.quotaWad, report.version, report.reportId
-        );
+        quotas[report.securityId][report.tradeDayId] = report.quotaWad;
+        emit QuotaAccepted(report.securityId, report.tradeDayId, report.action, report.quotaWad, report.reportId);
     }
 
     /// @notice Accepts a source-month-relative split factor for a future trade-day start.
@@ -230,19 +182,19 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
             report.securityId == 0 || !registry.getSecurity(report.securityId).listed
                 || !TradeDayLib.validMonth(report.sourceMonth)
                 || TradeDayLib.previousMonth(report.effectiveTradeDayId) != report.sourceMonth
-                || report.version != splitFactorVersions[report.securityId][report.sourceMonth] + 1
         ) revert InvalidReport();
-        (, uint32 currentDay) = currentTradeDay();
+        uint32 currentDay = currentTradeDay();
         if (report.effectiveTradeDayId <= currentDay) revert InvalidReport();
 
         SplitFactorCheckpoint[] storage factors = splitFactorCheckpoints[report.securityId][report.sourceMonth];
         uint256 count = factors.length;
         if (report.action == SPLIT_FACTOR_SET) {
-            (uint128 numerator, uint128 denominator) = _reducedFactor(report.numerator, report.denominator);
-            uint256 value = adtv[report.securityId][report.sourceMonth].value;
-            if (value != 0) Math.mulDiv(value, numerator, denominator);
-            SplitFactorCheckpoint memory next =
-                SplitFactorCheckpoint(report.effectiveTradeDayId, numerator, denominator, report.reportId);
+            if (report.numerator == 0 || report.denominator == 0) revert InvalidReport();
+            uint256 value = adtv[report.securityId][report.sourceMonth];
+            if (value != 0) Math.mulDiv(value, report.numerator, report.denominator);
+            SplitFactorCheckpoint memory next = SplitFactorCheckpoint(
+                report.effectiveTradeDayId, report.numerator, report.denominator, report.reportId
+            );
             if (count != 0 && factors[count - 1].effectiveTradeDayId >= report.effectiveTradeDayId) {
                 // Only the latest pending checkpoint can be corrected; historical and intermediate entries are fixed.
                 if (factors[count - 1].effectiveTradeDayId != report.effectiveTradeDayId) revert InvalidReport();
@@ -254,9 +206,8 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
                 report.securityId,
                 report.sourceMonth,
                 report.effectiveTradeDayId,
-                numerator,
-                denominator,
-                report.version,
+                report.numerator,
+                report.denominator,
                 report.reportId
             );
         } else if (report.action == SPLIT_FACTOR_CANCEL) {
@@ -267,17 +218,11 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
             bytes32 scheduledReportId = factors[count - 1].reportId;
             factors.pop();
             emit SplitFactorCancelled(
-                report.securityId,
-                report.sourceMonth,
-                report.effectiveTradeDayId,
-                scheduledReportId,
-                report.version,
-                report.reportId
+                report.securityId, report.sourceMonth, report.effectiveTradeDayId, scheduledReportId, report.reportId
             );
         } else {
             revert InvalidReport();
         }
-        splitFactorVersions[report.securityId][report.sourceMonth] = report.version;
     }
 
     /// @notice Returns the factor applicable to a security and trade day, defaulting to 1/1.
@@ -301,11 +246,6 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         return (factor.numerator, factor.denominator);
     }
 
-    /// @notice Returns accepted schedule/cancellation version for a security and ADTV source month.
-    function splitFactorVersion(bytes32 securityId, uint32 sourceMonth) external view returns (uint64) {
-        return splitFactorVersions[securityId][sourceMonth];
-    }
-
     /// @notice Returns the number of retained factor checkpoints for an ADTV source month.
     function splitFactorCheckpointCount(bytes32 securityId, uint32 sourceMonth) external view returns (uint256) {
         return splitFactorCheckpoints[securityId][sourceMonth].length;
@@ -325,10 +265,9 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     /// @param effectiveDayId First trade-day ID that uses the new offset.
     function scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId) external onlyGovernor {
         if (newOffsetSeconds >= SECONDS_PER_DAY) revert InvalidPeriod();
-        if (hasPendingDayStart) {
-            uint32 priorEffectiveDayId = dayStartCheckpoints[dayStartCheckpoints.length - 1].effectiveDayId;
-            if (block.timestamp < _dayStartUTC(priorEffectiveDayId)) revert InvalidPeriod();
-            hasPendingDayStart = false;
+        uint256 count = dayStartCheckpoints.length;
+        if (count != 0 && block.timestamp < _dayStartUTC(dayStartCheckpoints[count - 1].effectiveDayId)) {
+            revert InvalidPeriod();
         }
         uint256 ordinal = TradeDayLib.dateToOrdinal(effectiveDayId);
         if (ordinal == 0) revert InvalidPeriod();
@@ -338,19 +277,14 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         if (newOffsetSeconds == oldOffset) revert InvalidPeriod();
         uint32 shift = newOffsetSeconds > oldOffset ? newOffsetSeconds - oldOffset : oldOffset - newOffsetSeconds;
         if (shift > MAX_DAY_START_SHIFT) revert InvalidPeriod();
-        if (
-            dayStartCheckpoints.length != 0
-                && effectiveDayId <= dayStartCheckpoints[dayStartCheckpoints.length - 1].effectiveDayId
-        ) {
+        if (count != 0 && effectiveDayId <= dayStartCheckpoints[count - 1].effectiveDayId) {
             revert InvalidPeriod();
         }
 
         // The transition day has not started under the existing schedule, so no historical cycle changes.
         if (block.timestamp >= _dayStartUTC(transitionDayId)) revert InvalidPeriod();
-        uint64 newEffectiveStart =
-            TradeDayLib.timestamp64(TradeDayLib.dateToOrdinal(effectiveDayId) * SECONDS_PER_DAY + newOffsetSeconds);
+        uint64 newEffectiveStart = TradeDayLib.timestamp64(ordinal * SECONDS_PER_DAY + newOffsetSeconds);
         dayStartCheckpoints.push(DayStartCheckpoint(effectiveDayId, newOffsetSeconds));
-        hasPendingDayStart = true;
         emit DayStartScheduled(
             effectiveDayId, transitionDayId, oldOffset, newOffsetSeconds, newEffectiveStart, msg.sender
         );
@@ -359,13 +293,11 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     /// @notice Cancels a scheduled day-start change before its transition day begins.
     function cancelPendingDayStart() external onlyGovernor {
         uint256 count = dayStartCheckpoints.length;
-        if (!hasPendingDayStart || count == 0) revert InvalidPeriod();
-        uint32 transitionDayId =
-            TradeDayLib.ordinalToDate(TradeDayLib.dateToOrdinal(dayStartCheckpoints[count - 1].effectiveDayId) - 1);
-        if (block.timestamp >= _dayStartUTC(transitionDayId)) revert InvalidPeriod();
+        if (count == 0) revert InvalidPeriod();
         uint32 effectiveDayId = dayStartCheckpoints[count - 1].effectiveDayId;
+        uint32 transitionDayId = TradeDayLib.ordinalToDate(TradeDayLib.dateToOrdinal(effectiveDayId) - 1);
+        if (block.timestamp >= _dayStartUTC(transitionDayId)) revert InvalidPeriod();
         dayStartCheckpoints.pop();
-        hasPendingDayStart = false;
         emit DayStartCancelled(effectiveDayId, msg.sender);
     }
 
@@ -390,14 +322,13 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     }
 
     /// @notice Computes the current trade day using UTC and the effective day-start offset.
-    /// @return exists Always true when calculation succeeds; retained for ABI compatibility.
     /// @return tradeDayId Current day identifier in YYYYMMDD form.
-    function currentTradeDay() public view returns (bool exists, uint32 tradeDayId) {
+    function currentTradeDay() public view returns (uint32 tradeDayId) {
         uint256 ordinal = block.timestamp / SECONDS_PER_DAY;
         uint32 today = TradeDayLib.ordinalToDate(ordinal);
-        if (block.timestamp >= _dayStartUTC(today)) return (true, today);
+        if (block.timestamp >= ordinal * SECONDS_PER_DAY + _offsetFor(today)) return today;
         if (ordinal == 0) revert InvalidPeriod();
-        return (true, TradeDayLib.ordinalToDate(ordinal - 1));
+        return TradeDayLib.ordinalToDate(ordinal - 1);
     }
 
     /// @notice Returns the legal-share volume already consumed for a security and trade day.
@@ -408,19 +339,19 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         return usedWad[securityId][tradeDayId];
     }
 
-    /// @notice Returns the accepted ADTV value and metadata for one security and source month.
+    /// @notice Returns the accepted ADTV value for one security and source month.
     /// @param securityId Listed security whose report is queried.
     /// @param sourceMonth Source month in YYYYMM form.
-    /// @return value Stored ADTV, version, and report ID.
-    function adtvOf(bytes32 securityId, uint32 sourceMonth) external view returns (AdtvValue memory) {
+    /// @return value Stored ADTV in legal-share WAD units.
+    function adtvOf(bytes32 securityId, uint32 sourceMonth) external view returns (uint256 value) {
         return adtv[securityId][sourceMonth];
     }
 
-    /// @notice Returns the optional daily quota override and its version metadata.
+    /// @notice Returns the optional daily quota override.
     /// @param securityId Listed security whose override is queried.
     /// @param tradeDayId Trade-day identifier in YYYYMMDD form.
-    /// @return quota Stored amount, active flag, version, and report ID.
-    function quotaOf(bytes32 securityId, uint32 tradeDayId) external view returns (QuotaOverride memory) {
+    /// @return quotaWad Stored amount in legal-share WAD units; zero means no override.
+    function quotaOf(bytes32 securityId, uint32 tradeDayId) external view returns (uint256 quotaWad) {
         return quotas[securityId][tradeDayId];
     }
 
@@ -439,6 +370,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
 
     /// @notice Records actual swap deltas and consumes the applicable cap for each security leg.
     /// @dev Only the Hook may call this; any invalid leg or cap breach reverts the enclosing swap.
+    /// @dev Pool admission and trading pauses are checked by Hook.beforeSwap.
     /// @param poolId Active pool in which the swap occurred.
     /// @param delta0 Actual signed PoolManager delta for currency0.
     /// @param delta1 Actual signed PoolManager delta for currency1.
@@ -450,8 +382,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         if (msg.sender != hook) revert UnauthorizedWriter();
         if (delta0 == 0 || delta1 == 0 || (delta0 < 0) == (delta1 < 0)) revert ZeroSwapAmount();
         PoolConfig memory pool = registry.getPool(poolId);
-        if (!registry.isTradable(poolId)) revert InvalidPeriod();
-        (, uint32 day) = currentTradeDay();
+        uint32 day = currentTradeDay();
         _recordLeg(poolId, pool.securityId0, Currency.unwrap(pool.key.currency0), delta0, legalShares0, day);
         _recordLeg(poolId, pool.securityId1, Currency.unwrap(pool.key.currency1), delta1, legalShares1, day);
     }
@@ -482,14 +413,10 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         if (securityId == 0 || underlying.securityId != securityId || underlying.legalShareAdapter == address(0)) {
             revert InvalidLegalShareAmount();
         }
-        if (delta == 0) {
-            if (legalSharesWad != 0) revert InvalidLegalShareAmount();
-            return;
-        }
         if (legalSharesWad == 0) revert InvalidLegalShareAmount();
         uint256 raw = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         _consume(securityId, day, legalSharesWad);
-        emit SwapAccounted(poolId, securityId, currency, delta < 0, day, raw, legalSharesWad);
+        emit SwapAccounted(poolId, securityId, currency, config.underlying, delta < 0, day, raw, legalSharesWad);
     }
 
     /// @dev Adds a charge only when an ADTV-derived hard cap and effective quota permit it.
@@ -510,8 +437,8 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     /// @param hardCap ADTV and Tier-derived maximum for the day.
     /// @return Effective cap after applying the optional override.
     function _effectiveCap(bytes32 securityId, uint32 day, uint256 hardCap) private view returns (uint256) {
-        QuotaOverride storage quota = quotas[securityId][day];
-        return quota.active ? Math.min(hardCap, quota.quotaWad) : hardCap;
+        uint256 quotaWad = quotas[securityId][day];
+        return quotaWad == 0 ? hardCap : Math.min(hardCap, quotaWad);
     }
 
     /// @dev Computes ADTV × Tier × the source-month-relative factor with one final floor rounding.
@@ -520,25 +447,12 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     /// @return Cap in legal-share WAD, or zero when the required ADTV is missing.
     function _hardCap(bytes32 securityId, uint32 day) private view returns (uint256) {
         uint32 sourceMonth = TradeDayLib.previousMonth(day);
-        uint256 monthlyAdtv = adtv[securityId][sourceMonth].value;
+        uint256 monthlyAdtv = adtv[securityId][sourceMonth];
         if (monthlyAdtv == 0) return 0;
         uint8 tierId = registry.getSecurity(securityId).tierId;
         uint16 bps = registry.tierPolicy(tierId).tierBps;
         (uint128 numerator, uint128 denominator) = splitFactorOf(securityId, day);
         return Math.mulDiv(monthlyAdtv, uint256(bps) * numerator, 10_000 * uint256(denominator));
-    }
-
-    /// @dev Rejects zero components and reduces an exact factor without a fixed-point approximation.
-    function _reducedFactor(uint128 numerator, uint128 denominator) private pure returns (uint128, uint128) {
-        if (numerator == 0 || denominator == 0) revert InvalidReport();
-        uint128 a = numerator;
-        uint128 b = denominator;
-        while (b != 0) {
-            uint128 remainder = a % b;
-            a = b;
-            b = remainder;
-        }
-        return (numerator / a, denominator / a);
     }
 
     /// @dev Converts a trade-day identifier and its applicable offset into a UTC timestamp.

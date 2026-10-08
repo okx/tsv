@@ -13,10 +13,10 @@ contract TSVOperationsIngressTest is OperationsFixture {
         for (uint8 kind; kind < 3; ++kind) {
             uint256 fixture = vm.snapshotState();
             if (kind == 2) _submitAdtv(1000e18);
-            ReportMetadata memory accepted = _metadata(1, 1, keccak256(abi.encode("accepted", kind)));
+            ReportMetadata memory accepted = _metadata(1, keccak256(abi.encode("accepted", kind)));
             _callInbox(_reportPayload(kind, accepted));
             for (uint8 fault; fault < 8; ++fault) {
-                ReportMetadata memory good = _metadata(3, 2, keccak256(abi.encode("candidate", kind, fault)));
+                ReportMetadata memory good = _metadata(3, keccak256(abi.encode("candidate", kind, fault)));
                 ReportMetadata memory bad = abi.decode(abi.encode(good), (ReportMetadata));
                 bytes4 expected = TSVDataInboxV1.InvalidReport.selector;
                 if (fault == 0) {
@@ -45,7 +45,7 @@ contract TSVOperationsIngressTest is OperationsFixture {
                 assertEq(_reportState(bad.id), beforeState);
             }
             // Equal source time, skipped sequence numbers and deadline equality are valid.
-            ReportMetadata memory next = _metadata(3, 2, keccak256(abi.encode("retry", kind)));
+            ReportMetadata memory next = _metadata(3, keccak256(abi.encode("retry", kind)));
             next.deadline = uint64(block.timestamp);
             _callInbox(_reportPayload(kind, next));
             assertEq(inbox.lastSequence(kind, SECURITY), 3);
@@ -67,12 +67,10 @@ contract TSVOperationsIngressTest is OperationsFixture {
             bytes memory payload;
             if (kind == 3) {
                 AdtvReport[] memory reports = new AdtvReport[](1);
-                reports[0] = _adtv(SECURITY, 1000e18, 2, 2, keccak256("batch-role"));
+                reports[0] = _adtv(SECURITY, 1000e18, 2, keccak256("batch-role"));
                 payload = abi.encodeCall(TSVDataInboxV1.submitAdtvBatch, (reports));
             } else {
-                payload = _reportPayload(
-                    kind, _metadata(kind == 1 ? 2 : 1, kind == 1 ? 2 : 1, keccak256(abi.encode("role", kind)))
-                );
+                payload = _reportPayload(kind, _metadata(kind == 1 ? 2 : 1, keccak256(abi.encode("role", kind))));
             }
             address authorized = kind == 0 ? haltReporter : volumeReporter;
             address wrongRole = kind == 0 ? volumeReporter : haltReporter;
@@ -104,16 +102,16 @@ contract TSVOperationsIngressTest is OperationsFixture {
         bytes32 id = keccak256("global-report-id");
         MarketReport memory market = _market(MarketAction.HALT, 10, id);
         inbox.submitMarketStatus(market);
-        AdtvReport memory adtv = _adtv(second, 1000e18, 1, 1, id);
+        AdtvReport memory adtv = _adtv(second, 1000e18, 1, id);
         bytes32 beforeState = _reportState(second, uint32(MONTH), DAY, id);
         vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
         inbox.submitAdtv(adtv);
         assertEq(_reportState(second, uint32(MONTH), DAY, id), beforeState);
         adtv.reportId = keccak256("second-adtv");
         inbox.submitAdtv(adtv);
-        adtv = _adtv(SECURITY, 1000e18, 1, 1, keccak256("first-adtv"));
+        adtv = _adtv(SECURITY, 1000e18, 1, keccak256("first-adtv"));
         inbox.submitAdtv(adtv);
-        QuotaReport memory quota = _quota(2e18, 1, 1, 1, adtv.reportId);
+        QuotaReport memory quota = _quota(2e18, 1, 1, adtv.reportId);
         beforeState = _reportState(quota.reportId);
         vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
         inbox.submitQuota(quota);
@@ -127,8 +125,8 @@ contract TSVOperationsIngressTest is OperationsFixture {
     }
 
     function testDirectWritersCannotBypassInboxAuthorization() public {
-        AdtvReport memory adtv = _adtv(SECURITY, 1000e18, 1, 1, keccak256("direct"));
-        QuotaReport memory quota = _quota(2e18, 1, 1, 1, keccak256("direct-quota"));
+        AdtvReport memory adtv = _adtv(SECURITY, 1000e18, 1, keccak256("direct"));
+        QuotaReport memory quota = _quota(2e18, 1, 1, keccak256("direct-quota"));
         vm.expectRevert(TSVVolumeLedgerV1.UnauthorizedWriter.selector);
         ledger.acceptAdtv(adtv);
         vm.expectRevert(TSVVolumeLedgerV1.UnauthorizedWriter.selector);
@@ -136,6 +134,6 @@ contract TSVOperationsIngressTest is OperationsFixture {
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.applyMarketStatus(SECURITY, MarketAction.HALT, PauseMode.ALL, 1, keccak256("direct-market"));
         assertFalse(inbox.reportIdUsed(adtv.reportId));
-        assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)).version, 0);
+        assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)), 0);
     }
 }

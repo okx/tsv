@@ -86,6 +86,22 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
     }
 
+    function testOnlyTradingPauseBlocksSwapsAndPreservesAccounting() public {
+        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.LP, keccak256("pause-lp"));
+        for (uint256 i; i < 4; ++i) {
+            _swap(i < 2, i % 2 == 0, 1e16);
+        }
+        assertGt(ledger.used(SECURITY, DAY), 0);
+
+        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.TRADE, keccak256("pause-trade"));
+        bytes32 before_ = _digest();
+        for (uint256 i; i < 4; ++i) {
+            vm.expectRevert();
+            _swap(i < 2, i % 2 == 0, 1e16);
+        }
+        assertEq(_digest(), before_);
+    }
+
     function testFuzzPolicyRevocationRejectsBeforeTransfer(uint8 fault) public {
         fault = uint8(bound(fault, 0, 10));
         if (fault == 0) {

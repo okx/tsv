@@ -336,7 +336,6 @@ struct AdtvReport {
     uint256 adtvWad;
     uint64 sourceTimestamp;
     uint64 submitDeadline;
-    uint64 version;
     uint64 sequence;
     bytes32 reportId;
 }
@@ -347,10 +346,9 @@ struct AdtvReport {
 | `securityId` | `bytes32` | 已登记且 listed 的证券 ID。 |
 | `sourceMonth` | `uint32` | ADTV 来源自然月，格式 `YYYYMM`，如 `202610`；年份范围为 1970–9999，月份为 01–12。 |
 | `adtvWad` | `uint256` | 月均日成交量，按 18 位 WAD 表示；必须大于零。具体统计口径由已批准的数据源/业务定义给出。 |
-| `version` | `uint64` | 针对 `(securityId, sourceMonth)` 的版本，必须严格等于已存版本加一。 |
 | 其余字段 | — | 按通用审计字段填写；`sequence` 按 ADTV 报告类别和证券递增。 |
 
-批量提交长度须为 `1..100`；所有条目必须属于同一个 `sourceMonth`，并按 `securityId` 严格递增且不重复。批次全有或全无：任一条无效，整笔交易回滚。新适用月份必须有对应 ADTV；同一来源月的更正使用递增 `version`，不会重置已用成交量。
+批量提交长度须为 `1..100`；所有条目必须属于同一个 `sourceMonth`，并按 `securityId` 严格递增且不重复。批次全有或全无：任一条无效，整笔交易回滚。新适用月份必须有对应 ADTV；同一来源月的更正使用递增 `sequence`，跨月不重置序号，也不会重置已用成交量。Ledger 只保存金额，报告来源保留在 AdtvAccepted 事件中，reportId 仍由 Inbox 全局去重。
 
 #### 指定日额度：`QuotaReport`
 
@@ -364,7 +362,6 @@ struct QuotaReport {
     uint256 quotaWad;
     uint64 sourceTimestamp;
     uint64 submitDeadline;
-    uint64 version;
     uint64 sequence;
     bytes32 reportId;
 }
@@ -376,10 +373,9 @@ struct QuotaReport {
 | `tradeDayId` | `uint32` | 额度生效的 TSV 计量日，格式 `YYYYMMDD`；按 UTC 起点归属，不是美股交易日历日期的自动映射。 |
 | `action` | `uint8` | `1 = SET`，`2 = CLEAR`；其他值拒绝。 |
 | `quotaWad` | `uint256` | `SET` 时须 `0 < quotaWad <=` 当日硬上限。硬上限为 `tradeDayId` 前一自然月 ADTV × 证券当前 `tierBps / 10,000` × 当日拆并股系数，一次向下取整，且必须已有该月 ADTV；`CLEAR` 时必须为零。零值不能用来停牌。 |
-| `version` | `uint64` | 针对 `(securityId, tradeDayId)` 的版本，必须严格等于已存版本加一；清除后仍保留版本和报告 ID。 |
 | 其余字段 | — | 按通用审计字段填写；`sequence` 按 Quota 报告类别和证券递增。 |
 
-新 quota 只约束提交成功后的 Swap，并与当日已用量比较；若额度调到已用量以下，后续 Swap 会被拒绝。额度不跨日继承，且覆盖值为目标日单位下的绝对数，不随系数自动相乘。需要恢复 ADTV/Tier/系数默认硬上限时提交 `CLEAR`。
+新 quota 只约束提交成功后的 Swap，并与当日已用量比较；若额度调到已用量以下，后续 Swap 会被拒绝。额度不跨日继承，且覆盖值为目标日单位下的绝对数，不随系数自动相乘。需要恢复 ADTV/Tier/系数默认硬上限时提交 `CLEAR`；清除要求已有非零覆盖。Ledger 只保存金额，零表示无覆盖，报告来源保留在 QuotaAccepted 事件中。更新顺序由 Inbox 的 `(kind,securityId)` sequence 管理，报告不含 version。
 
 #### 拆并股系数
 
@@ -390,8 +386,7 @@ struct QuotaReport {
 | `securityId`、`sourceMonth` | 已上市证券和目标计量日前一自然月 `YYYYMM` |
 | `effectiveTradeDayId` | 严格晚于当前计量日的 `YYYYMMDD`；只在该日 `dayStartUTC` 生效，不支持日内时间 |
 | `action` | `SET=1`：排期或更正最新待生效项；`CANCEL=2`：取消最新待生效项 |
-| `numerator`、`denominator` | `uint128` 正比例，表示相对来源月单位的绝对累计系数；SET 自动约分，CANCEL 两值均为零 |
-| `version` | 按证券/来源月严格加一，取消也消耗版本 |
+| `numerator`、`denominator` | `uint128` 正比例，表示相对来源月单位的绝对累计系数；SET 原样保存精确分子/分母，CANCEL 两值均为零 |
 | `sourceTimestamp`、`submitDeadline`、`sequence`、`reportId` | 沿用报告校验；序号按 kind=3/证券递增；来源时间/截止时间不决定生效 |
 
 同月连续一拆二、再一拆三，系数依次为2和6。报告服务固定 ADTV 为来源月结束时的股数单位；新月 ADTV 已体现的事件不再乘入，默认新月系数为1。生效后不可修改/取消历史；变更较早待生效项时先依次取消其后待生效项。Future 查询用于排期预检查；当前有效系数通过 `currentTradeDay` 返回的日 ID 查询。
@@ -491,11 +486,11 @@ function forceExit(
 | Registry | `marketStatus(bytes32 securityId)`、`marketPauseMode(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`hasCredential(address owner)` | 市场状态从暂停模式推导为 OPEN/HALTED，未知证券的 marketStatus 查询回滚；池是否登记/允许交易/允许普通 LP，SBT 是否持有；操作资格通过 `isAllowed(permission,account)` 独立查询，并考虑 SBT 全局暂停。isTradable 不检查 ADTV、额度或流动性。 |
 | Registry | `marketSequence(bytes32 securityId)`、`emergencyPauses(uint256 recordId)`、`activePauseCount(uint8 scope, bytes32 target, uint8 mode)` | 读取市场报告序号、暂停记录及指定范围/目标/精确模式的活动暂停数量；证券活跃池计数通过 `getSecurity` 返回，不再单独维护币种级计数。ALL 记录计入 mode=3，不重复计入 mode=1/2。 |
 | Registry | `hook()`、`lpManager()`、`dataInbox()`、`nextPauseId()`、`participantSbt()`、`sbtTokenIds()`、`sbtIdentityConfig(tokenId)` | 读取绑定地址、下一暂停记录编号和当前 SBT 配置。 |
-| VolumeLedger | `splitFactorOf(bytes32,uint32)`、`splitFactorVersion(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)` | 指定日分子/分母（默认1/1），来源月版本及保留检查点；未来查询用于预检查，取消项通过事件审计。 |
+| VolumeLedger | `splitFactorOf(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)` | 指定日分子/分母（默认1/1），来源月内保留的检查点；未来查询用于预检查，取消项通过事件审计。 |
 | DataInbox | `reportIdUsed(bytes32 reportId)`、`lastSequence(uint8 kind, bytes32 key)`、`lastSourceTimestamp(uint8 kind, bytes32 key)`、`MAX_ADTV_BATCH_SIZE()` | 核对报告去重、各类别最新序号/来源时间和批量 ADTV 上限；`kind` 为 `0=Market`、`1=ADTV`、`2=Quota`、`3=SplitFactor`，`key` 为对应 `securityId`。 |
 | DataInbox | `registry()`、`ledger()` | 读取绑定的 Registry 和 VolumeLedger。 |
-| VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()` | 查询当前计量日、指定计量日起点及日切配置历史。 |
-| VolumeLedger | `used(bytes32 securityId, uint32 tradeDayId)`、`adtvOf(bytes32 securityId, uint32 sourceMonth)`、`quotaOf(bytes32 securityId, uint32 tradeDayId)`、`remaining(bytes32 securityId, uint32 tradeDayId)` | 查询指定证券和周期的已用量、ADTV、Quota 覆盖和剩余额度；`remaining` 返回 `(valid, value)`。 |
+| VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()` | 查询当前计量日（uint32）、指定计量日起点及日切配置历史。 |
+| VolumeLedger | `used(bytes32 securityId, uint32 tradeDayId)`、`adtvOf(bytes32 securityId, uint32 sourceMonth)`、`quotaOf(bytes32 securityId, uint32 tradeDayId)`、`remaining(bytes32 securityId, uint32 tradeDayId)` | 查询指定证券和周期的已用量、ADTV、Quota 覆盖和剩余额度；`adtvOf`、`quotaOf` 返回 uint256 金额，`remaining` 返回 `(valid, value)`。 |
 | VolumeLedger | `registry()`、`hook()`、`dataInbox()`、`QUOTA_SET()`、`QUOTA_CLEAR()` | 读取绑定地址和 Quota action 常量。 |
 
 ## 四、治理系统

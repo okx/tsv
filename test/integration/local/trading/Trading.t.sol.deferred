@@ -43,7 +43,7 @@ contract TSVTradingLocalTest is ProtocolFixture {
         router.swapExactInput(request);
         assertEq(_swapStateDigest(day), beforeState);
         uint64 now_ = uint64(block.timestamp);
-        inbox.submitAdtv(AdtvReport(SECURITY, 202610, 1e24, now_ - 1, now_ + 100, 1, 2, keccak256("nov-adtv")));
+        inbox.submitAdtv(AdtvReport(SECURITY, 202610, 1e24, now_ - 1, now_ + 100, 2, keccak256("nov-adtv")));
         vm.prank(alice);
         router.swapExactInput(request);
         assertGt(ledger.used(SECURITY, day), 0);

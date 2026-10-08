@@ -236,12 +236,12 @@ abstract contract FoundationFixture is Test {
 
     /// @dev Submits a monthly ADTV report for the configured security.
     function _submitAdtv(uint256 value) internal {
-        AdtvReport memory report = _adtv(SECURITY, value, 1, 1, keccak256("adtv"));
+        AdtvReport memory report = _adtv(SECURITY, value, 1, keccak256("adtv"));
         inbox.submitAdtv(report);
     }
 
     /// @dev Builds an ADTV report with the supplied value and replay-protection metadata.
-    function _adtv(bytes32 securityId, uint256 value, uint64 version, uint64 sequence, bytes32 reportId)
+    function _adtv(bytes32 securityId, uint256 value, uint64 sequence, bytes32 reportId)
         internal
         view
         returns (AdtvReport memory)
@@ -252,7 +252,6 @@ abstract contract FoundationFixture is Test {
             value,
             uint64(block.timestamp - 1),
             uint64(block.timestamp + 100),
-            version,
             sequence,
             reportId
         );
@@ -260,26 +259,18 @@ abstract contract FoundationFixture is Test {
 
     /// @dev Submits a daily quota override report for the configured security.
     function _submitQuota(uint256 value) internal {
-        QuotaReport memory report = _quota(value, 1, 1, 1, keccak256("quota"));
+        QuotaReport memory report = _quota(value, 1, 1, keccak256("quota"));
         inbox.submitQuota(report);
     }
 
     /// @dev Builds a daily quota report with the supplied action and replay-protection metadata.
-    function _quota(uint256 value, uint8 action, uint64 version, uint64 sequence, bytes32 reportId)
+    function _quota(uint256 value, uint8 action, uint64 sequence, bytes32 reportId)
         internal
         view
         returns (QuotaReport memory)
     {
         return QuotaReport(
-            SECURITY,
-            DAY,
-            action,
-            value,
-            uint64(block.timestamp - 1),
-            uint64(block.timestamp + 100),
-            version,
-            sequence,
-            reportId
+            SECURITY, DAY, action, value, uint64(block.timestamp - 1), uint64(block.timestamp + 100), sequence, reportId
         );
     }
 }

@@ -393,7 +393,7 @@ abstract contract ProtocolFixture is Test {
     /// @dev Submits the monthly ADTV report required by the test; admission already opens the market.
     function _submitReports() internal {
         uint64 now_ = uint64(block.timestamp);
-        AdtvReport memory adtv = AdtvReport(SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, 1, keccak256("adtv"));
+        AdtvReport memory adtv = AdtvReport(SECURITY, 202609, 1e24, now_ - 1, now_ + 100, 1, keccak256("adtv"));
         inbox.submitAdtv(adtv);
     }
 }

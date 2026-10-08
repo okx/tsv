@@ -17,21 +17,20 @@ contract TSVSplitFactorTest is SplitFactorFixture {
         assertTrue(valid);
         assertEq(left, 2.5e18);
         assertEq(ledger.splitFactorCheckpointCount(SECURITY, uint32(MONTH)), 0);
-        assertEq(ledger.splitFactorVersion(SECURITY, uint32(MONTH)), 0);
     }
 
     function testSplitActivatesExactlyAtDayStartWithoutAnotherTransactionAndKeepsOldUsed() public {
         _submitAdtv(1000e18);
         _charge(1e18);
-        _setFactor(20261002, 2, 1, 1, 1);
+        _setFactor(20261002, 2, 1, 1);
         uint256 start = ledger.dayStartUTC(20261002);
         vm.warp(start - 1);
-        (, uint32 day) = ledger.currentTradeDay();
+        uint32 day = ledger.currentTradeDay();
         assertEq(day, DAY);
         (, uint256 left) = ledger.remaining(SECURITY, day);
         assertEq(left, 1.5e18);
         vm.warp(start);
-        (, day) = ledger.currentTradeDay();
+        day = ledger.currentTradeDay();
         assertEq(day, 20261002);
         (, left) = ledger.remaining(SECURITY, day);
         assertEq(left, 5e18);
@@ -40,14 +39,14 @@ contract TSVSplitFactorTest is SplitFactorFixture {
         vm.expectRevert(abi.encodeWithSelector(TSVVolumeLedgerV1.QuotaExceeded.selector, SECURITY, day));
         _charge(1);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
-        assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)).value, 1000e18);
+        assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)), 1000e18);
         assertEq(inbox.lastSequence(3, SECURITY), 1); // Warp/query/Swap do not activate through another report.
     }
 
     function testReverseSplitUsesAnExactFractionAndCanReduceTheCapToZero() public {
         _submitAdtv(1000e18);
-        _setFactor(20261002, 2, 10, 1, 1);
-        _assertFactor(20261002, 1, 5);
+        _setFactor(20261002, 2, 10, 1);
+        _assertFactor(20261002, 2, 10);
         vm.warp(ledger.dayStartUTC(20261002));
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 5e17);
@@ -55,7 +54,7 @@ contract TSVSplitFactorTest is SplitFactorFixture {
         vm.expectRevert(abi.encodeWithSelector(TSVVolumeLedgerV1.QuotaExceeded.selector, SECURITY, 20261002));
         _charge(1);
 
-        _setFactor(20261003, 1, type(uint128).max, 2, 2);
+        _setFactor(20261003, 1, type(uint128).max, 2);
         vm.warp(ledger.dayStartUTC(20261003));
         (bool valid, uint256 zeroCap) = ledger.remaining(SECURITY, 20261003);
         assertFalse(valid);
@@ -66,10 +65,10 @@ contract TSVSplitFactorTest is SplitFactorFixture {
 
     function testSeveralAbsoluteFactorsUseTheLatestApplicableCheckpointInsteadOfMultiplyingAgain() public {
         _submitAdtv(1000e18);
-        _setFactor(20261002, 2, 1, 1, 1);
-        _setFactor(20261005, 6, 1, 2, 2); // Two-for-one followed by three-for-one = absolute six.
-        _setFactor(20261009, 6, 5, 3, 3);
-        _setFactor(20261010, 1, 1, 4, 4);
+        _setFactor(20261002, 2, 1, 1);
+        _setFactor(20261005, 6, 1, 2); // Two-for-one followed by three-for-one = absolute six.
+        _setFactor(20261009, 6, 5, 3);
+        _setFactor(20261010, 1, 1, 4);
         for (uint32 date = DAY; date <= 20261031; ++date) {
             uint128 numerator = date < 20261002 ? 1 : date < 20261005 ? 2 : date < 20261010 ? 6 : 1;
             uint128 denominator = date == 20261009 ? 5 : 1;
@@ -82,20 +81,18 @@ contract TSVSplitFactorTest is SplitFactorFixture {
 
     function testNewAdtvSourceMonthStartsAtOneAndDoesNotApplyPreviousMonthsSplitAgain() public {
         _submitAdtv(1000e18);
-        _setFactor(20261002, 2, 1, 1, 1);
-        AdtvReport memory next = _adtv(SECURITY, 2000e18, 1, 2, keccak256("new-month-basis"));
+        _setFactor(20261002, 2, 1, 1);
+        AdtvReport memory next = _adtv(SECURITY, 2000e18, 2, keccak256("new-month-basis"));
         next.sourceMonth = 202610;
         inbox.submitAdtv(next);
         _assertFactor(20261031, 2, 1);
         _assertFactor(20261101, 1, 1);
         (, uint256 left) = ledger.remaining(SECURITY, 20261101);
         assertEq(left, 5e18); // October ADTV is already in October's closing units.
-        _setFactor(20261105, 1, 5, 1, 2);
+        _setFactor(20261105, 1, 5, 2);
         _assertFactor(20261105, 1, 5);
         (, left) = ledger.remaining(SECURITY, 20261105);
         assertEq(left, 1e18);
-        assertEq(ledger.splitFactorVersion(SECURITY, 202609), 1);
-        assertEq(ledger.splitFactorVersion(SECURITY, 202610), 1);
         assertEq(inbox.lastSequence(3, SECURITY), 2); // Report stream sequence does not restart each month.
     }
 
@@ -103,9 +100,9 @@ contract TSVSplitFactorTest is SplitFactorFixture {
         bytes32 second = keccak256("SEC_FACTOR_B");
         _admitAdditionalSecurity(second);
         _submitAdtv(1000e18);
-        inbox.submitAdtv(_adtv(second, 1000e18, 1, 1, keccak256("second-adtv")));
-        _setFactor(20261002, 2, 1, 1, 1);
-        SplitFactorReport memory other = _factor(20261002, 3, 1, 1, 1, keccak256("second-factor"));
+        inbox.submitAdtv(_adtv(second, 1000e18, 1, keccak256("second-adtv")));
+        _setFactor(20261002, 2, 1, 1);
+        SplitFactorReport memory other = _factor(20261002, 3, 1, 1, keccak256("second-factor"));
         other.securityId = second;
         inbox.submitSplitFactor(other);
         (, uint256 firstLeft) = ledger.remaining(SECURITY, 20261002);
@@ -115,7 +112,7 @@ contract TSVSplitFactorTest is SplitFactorFixture {
     }
 
     function testFactorCanBeScheduledBeforeMonthlyReportButDoesNotSubstituteForMissingAdtv() public {
-        _setFactor(20261002, 2, 1, 1, 1);
+        _setFactor(20261002, 2, 1, 1);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertFalse(valid);
         assertEq(left, 0);
@@ -129,44 +126,43 @@ contract TSVSplitFactorTest is SplitFactorFixture {
     }
 
     function testOnlyLatestPendingCheckpointCanBeCorrectedAndItsOldReportRemainsConsumed() public {
-        _setFactor(20261002, 2, 1, 1, 1);
-        _setFactor(20261005, 3, 1, 2, 2);
+        _setFactor(20261002, 2, 1, 1);
+        _setFactor(20261005, 3, 1, 2);
         bytes32 oldId = ledger.splitFactorCheckpoint(SECURITY, uint32(MONTH), 1).reportId;
-        SplitFactorReport memory earlier = _factor(20261002, 4, 1, 3, 3, keccak256("earlier-correction"));
+        SplitFactorReport memory earlier = _factor(20261002, 4, 1, 3, keccak256("earlier-correction"));
         bytes32 beforeState = _factorState(earlier);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
         inbox.submitSplitFactor(earlier);
         assertEq(_factorState(earlier), beforeState);
-        _setFactor(20261005, 4, 2, 3, 3);
-        _assertFactor(20261005, 2, 1);
+        _setFactor(20261005, 4, 2, 3);
+        _assertFactor(20261005, 4, 2);
         assertTrue(inbox.reportIdUsed(oldId));
         assertEq(ledger.splitFactorCheckpointCount(SECURITY, uint32(MONTH)), 2);
     }
 
-    function testCancelLatestPendingFactorRestoresEarlierFactorAndVersionNeverRewinds() public {
-        _setFactor(20261002, 2, 1, 1, 1);
-        _setFactor(20261005, 6, 1, 2, 2);
+    function testCancelLatestPendingFactorRestoresEarlierFactorAndSequenceNeverRewinds() public {
+        _setFactor(20261002, 2, 1, 1);
+        _setFactor(20261005, 6, 1, 2);
         bytes32 oldId = ledger.splitFactorCheckpoint(SECURITY, uint32(MONTH), 1).reportId;
-        _cancelFactor(20261005, 3, 3);
+        _cancelFactor(20261005, 3);
         _assertFactor(20261005, 2, 1);
         assertTrue(inbox.reportIdUsed(oldId));
-        assertEq(ledger.splitFactorVersion(SECURITY, uint32(MONTH)), 3);
-        _setFactor(20261005, 3, 1, 4, 4);
+        assertEq(inbox.lastSequence(3, SECURITY), 3);
+        _setFactor(20261005, 3, 1, 4);
         _assertFactor(20261005, 3, 1);
-        _cancelFactor(20261005, 5, 5);
-        _cancelFactor(20261002, 6, 6);
+        _cancelFactor(20261005, 5);
+        _cancelFactor(20261002, 6);
         _assertFactor(20261005, 1, 1);
         assertEq(ledger.splitFactorCheckpointCount(SECURITY, uint32(MONTH)), 0);
-        assertEq(ledger.splitFactorVersion(SECURITY, uint32(MONTH)), 6);
+        assertEq(inbox.lastSequence(3, SECURITY), 6);
     }
 
     function testActivatedFactorCannotBeEditedCancelledOrReplayed() public {
-        _setFactor(20261002, 2, 1, 1, 1);
+        _setFactor(20261002, 2, 1, 1);
         vm.warp(ledger.dayStartUTC(20261002));
         for (uint8 action = 1; action <= 2; ++action) {
-            SplitFactorReport memory report = _factor(
-                20261002, action == 1 ? 3 : 0, action == 1 ? 1 : 0, 2, 2, keccak256(abi.encode("locked", action))
-            );
+            SplitFactorReport memory report =
+                _factor(20261002, action == 1 ? 3 : 0, action == 1 ? 1 : 0, 2, keccak256(abi.encode("locked", action)));
             report.action = action;
             bytes32 beforeState = _factorState(report);
             vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
@@ -174,22 +170,22 @@ contract TSVSplitFactorTest is SplitFactorFixture {
             assertEq(_factorState(report), beforeState);
         }
         _assertFactor(20261002, 2, 1);
-        assertEq(ledger.splitFactorVersion(SECURITY, uint32(MONTH)), 1);
+        assertEq(inbox.lastSequence(3, SECURITY), 1);
     }
 
     function testTwentyAndTwentyEightHourTransitionsActivateAtTheConfiguredDayStart() public {
         _submitAdtv(1000e18);
         for (uint8 variant; variant < 2; ++variant) {
             uint256 snapshot = vm.snapshotState();
-            _setFactor(20261004, 2, 1, 1, 1);
+            _setFactor(20261004, 2, 1, 1);
             ledger.scheduleDayStart(variant == 0 ? 0 : 28800, 20261004);
             uint256 start = ledger.dayStartUTC(20261004);
             vm.warp(start - 1);
-            (, uint32 day) = ledger.currentTradeDay();
+            uint32 day = ledger.currentTradeDay();
             assertEq(day, 20261003);
             _assertFactor(day, 1, 1);
             vm.warp(start);
-            (, day) = ledger.currentTradeDay();
+            day = ledger.currentTradeDay();
             assertEq(day, 20261004);
             _assertFactor(day, 2, 1);
             (, uint256 left) = ledger.remaining(SECURITY, day);
@@ -200,12 +196,12 @@ contract TSVSplitFactorTest is SplitFactorFixture {
 
     function testQuotaRemainsAnAbsoluteTargetDayOverrideAndIsClampedByTheAdjustedHardCap() public {
         _submitAdtv(1000e18);
-        _setFactor(20261002, 2, 1, 1, 1);
+        _setFactor(20261002, 2, 1, 1);
         // The quota is stated in the target day's units; it is not multiplied again.
-        _submitFutureQuota(20261002, 4e18, 1, 1);
+        _submitFutureQuota(20261002, 4e18, 1);
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 4e18);
-        _setFactor(20261002, 1, 5, 2, 2);
+        _setFactor(20261002, 1, 5, 2);
         (, left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 5e17);
         vm.warp(ledger.dayStartUTC(20261002));
@@ -216,37 +212,35 @@ contract TSVSplitFactorTest is SplitFactorFixture {
 
     function testTierAndAdtvCorrectionsStillParticipateInTheAdjustedCap() public {
         _submitAdtv(1000e18);
-        _setFactor(20261002, 2, 1, 1, 1);
+        _setFactor(20261002, 2, 1, 1);
         registry.setTierPolicy(1, 50, 10);
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 10e18);
-        inbox.submitAdtv(_adtv(SECURITY, 2000e18, 2, 2, keccak256("same-basis-correction")));
+        inbox.submitAdtv(_adtv(SECURITY, 2000e18, 2, keccak256("same-basis-correction")));
         (, left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 20e18);
-        assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)).version, 2);
+        assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)), 2000e18);
     }
 
     function testCapUsesOneFinalFloorInsteadOfFlooringBeforeApplyingTheFactor() public {
         registry.setTierPolicy(1, 5000, 10);
         _submitAdtv(3);
-        _setFactor(20261002, 2, 1, 1, 1);
+        _setFactor(20261002, 2, 1, 1);
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 3); // floor(3 × 1/2 × 2), not floor(3 × 1/2) × 2.
     }
 
-    function _submitFutureQuota(uint32 day, uint256 amount, uint64 version, uint64 sequence) private {
-        // Build before setting any expectation: fixture getters must not consume a prank/expectRevert.
-        bytes32 id = keccak256(abi.encode("factor-quota", day, version));
-        // Reuse the unchanged quota schema.
-        inbox.submitQuota(_futureQuota(day, amount, version, sequence, id));
+    function _submitFutureQuota(uint32 day, uint256 amount, uint64 sequence) private {
+        bytes32 id = keccak256(abi.encode("factor-quota", day, sequence));
+        inbox.submitQuota(_futureQuota(day, amount, sequence, id));
     }
 
-    function _futureQuota(uint32 day, uint256 amount, uint64 version, uint64 sequence, bytes32 id)
+    function _futureQuota(uint32 day, uint256 amount, uint64 sequence, bytes32 id)
         private
         view
         returns (QuotaReport memory report)
     {
-        report = _quota(amount, 1, version, sequence, id);
+        report = _quota(amount, 1, sequence, id);
         report.tradeDayId = day;
     }
 }

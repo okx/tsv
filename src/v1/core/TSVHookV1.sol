@@ -8,13 +8,7 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
-import {
-    PoolConfig,
-    PermissionedCurrencyConfig,
-    UnderlyingConfig,
-    LPHookContext,
-    LPOperationMode
-} from "tsv-v1/types/TSVTypes.sol";
+import {LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -87,7 +81,8 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         _;
     }
 
-    /// @notice Allows initialization only for an exact registered key submitted by the LP Manager.
+    /// @notice Allows initialization only for a registered key submitted by the LP Manager.
+    /// @dev The pool ID hashes the full key, so checking registration also identifies that exact key.
     /// @param sender Contract that initiated PoolManager.initialize.
     /// @param key Full V4 pool key being initialized.
     /// @return V4 callback selector acknowledging this Hook callback.
@@ -98,7 +93,10 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         onlyPoolManager
         returns (bytes4)
     {
-        _requireRegistered(sender, key);
+        if (
+            sender != lpManager || address(key.hooks) != address(this)
+                || !registry.isKnownPool(PoolId.unwrap(key.toId()))
+        ) revert InvalidPool();
         return IHooks.beforeInitialize.selector;
     }
 
@@ -168,6 +166,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         }
         if (ctx.mode == LPOperationMode.FORCE_EXIT) {
             if (params.liquidityDelta >= 0) revert InvalidOperation();
+            if (!registry.isKnownPool(ctx.poolId)) revert InvalidPool();
         } else if (!registry.isLPAllowed(ctx.poolId)) {
             revert InvalidPool();
         }
@@ -204,31 +203,26 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
-        bytes32 poolId = PoolId.unwrap(key.toId());
-        if (!registry.isTradable(poolId)) revert InvalidOperation();
-        _requireExactKey(key, poolId);
+        if (!registry.isTradable(PoolId.unwrap(key.toId()))) revert InvalidOperation();
         return (IHooks.beforeSwap.selector, BeforeSwapDelta.wrap(0), 0);
     }
 
     /// @notice Converts actual stock-side swap deltas to legal shares and records them in the Ledger.
-    /// @param sender Contract that initiated the swap; must equal the configured Router.
+    /// @dev PoolManager forwards the sender and hookData already checked by beforeSwap unchanged.
     /// @param key Full V4 pool key that was swapped.
     /// @param delta Actual PoolManager balance delta for both currencies.
-    /// @param hookData Additional callback data; TSV requires it to be empty.
     /// @return V4 callback selector acknowledging this Hook callback.
     /// @return Zero because V1 does not alter the swap delta.
     function afterSwap(
-        address sender,
+        address,
         PoolKey calldata key,
         IPoolManager.SwapParams calldata,
         BalanceDelta delta,
-        bytes calldata hookData
+        bytes calldata
     ) external override onlyPoolManager returns (bytes4, int128) {
-        if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
         bytes32 poolId = PoolId.unwrap(key.toId());
-        PoolConfig memory pool = registry.getPool(poolId);
-        uint256 shares0 = _sharesForLeg(pool.securityId0, Currency.unwrap(key.currency0), delta.amount0());
-        uint256 shares1 = _sharesForLeg(pool.securityId1, Currency.unwrap(key.currency1), delta.amount1());
+        uint256 shares0 = _sharesForLeg(Currency.unwrap(key.currency0), delta.amount0());
+        uint256 shares1 = _sharesForLeg(Currency.unwrap(key.currency1), delta.amount1());
         ledger.recordSwap(poolId, delta.amount0(), delta.amount1(), shares0, shares1);
         return (IHooks.afterSwap.selector, 0);
     }
@@ -257,22 +251,6 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         revert UnsupportedCallback();
     }
 
-    /// @dev Requires initialization to originate from the LP Manager for an exactly registered key.
-    /// @param sender Contract that invoked the PoolManager operation.
-    /// @param key Pool key being initialized.
-    function _requireRegistered(address sender, PoolKey calldata key) private view {
-        if (sender != lpManager || address(key.hooks) != address(this)) revert InvalidPool();
-        _requireExactKey(key, PoolId.unwrap(key.toId()));
-    }
-
-    /// @dev Prevents a caller from reusing a registered pool ID with a different key.
-    /// @param key Pool key supplied to the current PoolManager callback.
-    /// @param poolId Identifier derived from that key.
-    function _requireExactKey(PoolKey calldata key, bytes32 poolId) private view {
-        PoolConfig memory pool = registry.getPool(poolId);
-        if (keccak256(abi.encode(pool.key)) != keccak256(abi.encode(key))) revert InvalidPool();
-    }
-
     /// @dev Matches the PoolManager callback against the LP Manager's one-operation context.
     /// @param sender Contract that invoked the liquidity modification.
     /// @param key Pool key being modified.
@@ -292,34 +270,19 @@ contract TSVHookV1 is TSVGoverned, IHooks {
                 || ctx.tickLower != params.tickLower || ctx.tickUpper != params.tickUpper
                 || ctx.liquidityDelta != params.liquidityDelta
         ) revert InvalidOperation();
-        _requireExactKey(key, ctx.poolId);
     }
 
     /// @dev Converts the absolute raw delta of a stock leg; non-stock and zero deltas account as zero.
-    /// @param securityId Security assigned to the pool leg, or zero for an ordinary Currency.
-    /// @param currency Pool Currency whose adapter performs the legal-share conversion.
+    /// @dev Registry binds W to U and its Adapter; Ledger validates asset identity and nonzero shares.
+    /// @param currency Pool Currency mapped to its underlying U for legal-share conversion.
     /// @param delta Actual signed PoolManager delta for this leg.
     /// @return Legal-share amount in WAD for the Ledger.
-    function _sharesForLeg(bytes32 securityId, address currency, int128 delta) private view returns (uint256) {
-        PermissionedCurrencyConfig memory config = registry.getCurrency(currency);
-        if (config.underlying == address(0)) {
-            if (!registry.getQuoteToken(currency).registered || securityId != 0) {
-                revert InvalidPool();
-            }
-            return 0;
-        }
-        UnderlyingConfig memory underlying = registry.getUnderlying(config.underlying);
-        if (securityId == 0 || underlying.securityId != securityId || underlying.legalShareAdapter == address(0)) {
-            revert InvalidPool();
-        }
-        IDirectLegalShareAdapter adapter = IDirectLegalShareAdapter(underlying.legalShareAdapter);
-        if (adapter.poolCurrency() != config.underlying) {
-            revert InvalidPool();
-        }
-        if (delta == 0) return 0;
+    function _sharesForLeg(address currency, int128 delta) private view returns (uint256) {
+        address underlying = registry.getCurrency(currency).underlying;
+        if (underlying == address(0) || delta == 0) return 0;
+        IDirectLegalShareAdapter adapter =
+            IDirectLegalShareAdapter(registry.getUnderlying(underlying).legalShareAdapter);
         uint256 rawAmount = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
-        uint256 shares = adapter.toLegalShares(config.underlying, rawAmount);
-        if (shares == 0) revert InvalidPool();
-        return shares;
+        return adapter.toLegalShares(underlying, rawAmount);
     }
 }

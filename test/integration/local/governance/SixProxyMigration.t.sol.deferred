@@ -115,7 +115,7 @@ contract TSVSixProxyMigrationLocalTest is ProtocolFixture {
     function _seedBusinessState() private returns (uint256 pauseId) {
         _seedPauseTestFees();
         uint64 now_ = uint64(block.timestamp);
-        inbox.submitQuota(QuotaReport(SECURITY, DAY, 1, 1e22, now_ - 1, now_ + 100, 1, 1, keccak256("migration-quota")));
+        inbox.submitQuota(QuotaReport(SECURITY, DAY, 1, 1e22, now_ - 1, now_ + 100, 1, keccak256("migration-quota")));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
         pauseId = registry.addEmergencyPause(

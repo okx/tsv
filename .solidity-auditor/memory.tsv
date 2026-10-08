@@ -12,3 +12,5 @@ tsvswaprouterv1|validate|redundant-pool-key-check	NEW	1	9f696db	Router repeats t
 tsvswaprouterv1|swapexactinput-swapexactoutput|duplicated-swap-mode	NEW	1	9f696db	Swap mode appears in both the selector and request	LEAD
 tsvswaprouterv1|unlockcallback|signed-delta-settlement-boundary	NEW	1	9f696db	The minimum signed input delta cannot be settled	LEAD
 tsvswaprouterv1|unlockcallback-swap|redundant-callback-return-data	NEW	1	9f696db	Callback returns a delta only used by the outer event	LEAD
+tsvlpmanagerv1|-settle|permissioned-lp-settlement-mismatch	NEW	1	444f87e	Unfinished LP settlement rejects stock deposits and withdrawals	FINDING
+backedautofeelegalshareadapter|tolegalshares|unbounded-live-fee-accrual	NEW	1	444f87e	Issuer inactivity raises the cost of legal-share conversion	LEAD
