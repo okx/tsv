@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {PermissionFlag} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 
 import {
     PermissionedCurrencyConfig,
@@ -14,6 +15,8 @@ import {
 
 /// @notice Shared W/U/Q interface. Asset records use the canonical TSVTypes definitions.
 interface ITSVPermissionedRegistry {
+    /// @notice Registers the exact pool key; only the bound LP Manager may call this.
+    function registerPool(PoolKey calldata key) external returns (bytes32 poolId);
     function getCurrency(address w) external view returns (PermissionedCurrencyConfig memory);
     function getUnderlying(address u) external view returns (UnderlyingConfig memory);
     function getQuoteToken(address q) external view returns (QuoteTokenConfig memory);

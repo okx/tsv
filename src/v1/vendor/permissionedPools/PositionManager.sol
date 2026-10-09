@@ -20,7 +20,7 @@ import {ERC721Permit_v4} from "./base/ERC721Permit_v4.sol";
 import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
 import {IPositionManager} from "v4-periphery/interfaces/IPositionManager.sol";
 import {Multicall_v4} from "v4-periphery/base/Multicall_v4.sol";
-import {PoolInitializer_v4} from "v4-periphery/base/PoolInitializer_v4.sol";
+import {PoolInitializer_v4} from "./base/PoolInitializer_v4.sol";
 import {DeltaResolver} from "v4-periphery/base/DeltaResolver.sol";
 import {BaseActionsRouter} from "v4-periphery/base/BaseActionsRouter.sol";
 import {Actions} from "v4-periphery/libraries/Actions.sol";

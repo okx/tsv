@@ -22,6 +22,8 @@ import {
     PermissionFlags as RegistryPermissionFlags
 } from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {ERC721} from "../vendor/permissionedPools/base/ERC721Permit_v4.sol";
+import {PoolInitializer_v4} from "../vendor/permissionedPools/base/PoolInitializer_v4.sol";
+import {IPoolInitializer_v4} from "v4-periphery/interfaces/IPoolInitializer_v4.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
@@ -71,6 +73,20 @@ contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
         // The EIP712 signing name remains "Uniswap v4 Positions NFT" for upstream compatibility.
         name = "Uniswap v4 Permissioned Positions NFT";
         symbol = "UNI-V4-PERM-POSM";
+    }
+
+    /// @notice Registers and initializes a pool atomically at the supplied initial price.
+    /// @dev Initialization failures propagate and roll back Registry registration.
+    function initializePool(PoolKey calldata key, uint160 sqrtPriceX96)
+        external
+        payable
+        override(PoolInitializer_v4, IPoolInitializer_v4)
+        onlyRole(POOL_CREATOR_ROLE)
+        isNotLocked
+        returns (int24 tick)
+    {
+        registry.registerPool(key);
+        return poolManager.initialize(key, sqrtPriceX96);
     }
 
     function unwindPosition(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)

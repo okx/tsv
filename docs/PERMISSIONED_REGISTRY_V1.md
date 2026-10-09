@@ -22,7 +22,7 @@
 
 W 以非零 underlying 判断准入；Q 以 registered 判断准入；Pool 以保存的非零 currency0 判断登记。证券上市标志与 TRADE/LP 暂停共同决定普通操作资格。SYMBOL_ADMIN 负责准入及上下架，EMERGENCY_PAUSER/RESUMER 负责停用及恢复。
 
-建池只执行 `Registry.registerPool(key)` 和 `PM.initialize(key,price)`，同笔交易失败时全部回滚；Hook 核验 LP Manager sender 和已登记的完整 PoolKey。没有初始化中间状态、额外激活调用、独立资产/池启停入口或活跃池计数。历史 PoolKey、资产配置、额度和仓位仍保留，强退依据登记事实及原有授权执行。
+建池入口为 LP Manager 的 `initializePool(key,sqrtPriceX96)`，调用者须持有 LP Manager 上的 `POOL_CREATOR_ROLE`。入口依次执行 `Registry.registerPool(key)` 和 `PM.initialize(key,sqrtPriceX96)`，任一步失败都会回滚整笔交易，不使用上游捕获失败并返回最大 tick 的行为；Hook 核验 LP Manager sender 和已登记的完整 PoolKey。初始化仅创建池并设置初始价格，随后通过 `MINT_POSITION` 创建仓位和注资，也可将两步放入 LP Manager 的 `multicall`。没有初始化中间状态、额外激活调用、独立资产/池启停入口或活跃池计数。历史 PoolKey、资产配置、额度和仓位仍保留，强退依据登记事实及原有授权执行。
 
 ## Factory 与 checker
 
