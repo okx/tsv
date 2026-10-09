@@ -9,16 +9,6 @@ interface IPermissionsAdapter is IERC20 {
     /// @notice Emitted when the allow list checker is updated
     event AllowListCheckerUpdated(IAllowlistChecker indexed newAllowListChecker);
 
-    event StatusQuoterUpdated(address indexed newStatusQuoter);
-
-    error InvalidStatusQuoter(address statusQuoter);
-
-    /// @notice Issuer-specific forced-exit checker; zero disables forced exits for this currency.
-    function statusQuoter() external view returns (address);
-
-    /// @notice Sets the forced-exit checker. Only callable by the owner; zero disables it.
-    function updateStatusQuoter(address newStatusQuoter) external;
-
     /// @notice Emitted when an allowed wrapper is updated
     event AllowedWrapperUpdated(address indexed wrapper, bool allowed);
 
