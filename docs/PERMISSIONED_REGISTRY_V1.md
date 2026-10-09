@@ -78,9 +78,9 @@ forge script script/DeployCoreV1.s.sol:DeployCoreV1 --libraries "src/v1/librarie
 
 `TSVSwapRouterV1` 继承本地兼容版 `PermissionedV4Router` 与既有治理父类。实现构造参数为 `(PoolManager, PermissionsAdapterFactory)`，两者固定在实现字节码中，构造时核验 F 的 PM；`initialize(anchor, pm, registry)` 验证 PM 与 Registry 的 Anchor。Router 不保存 Ledger、不读取交易日、不另发成交事件，额度记账与 `SwapAccounted` 由 Hook/Ledger 完成。升级候选必须保留相同 PM/F，并延续本批新存储布局。
 
-`swapExactInput(request)`、`swapExactOutput(request)` 与白名单入口 `swapExactInputFromAdapter(request, participant)` 可执行交易。`SwapRequest` 字段仍为 `(key, zeroForOne, amountSpecified, limitAmount, deadline)`，key 中股票地址是 W、报价地址是 Q；amountSpecified/limitAmount 使用对应腿的 raw 单位。用户直接调用并授权 Router 支出 U 或 Q，股票输出直接交付 U。支持 U→Q、Q→U 各自 exact-in/exact-out 四条路径。
+`swapExactInput(request)`、`swapExactOutput(request)` 与白名单入口 `swapExactInputFromAdapter(request, participant)` 可执行交易。`SwapRequest` 字段为 `(key, zeroForOne, amountSpecified, limitAmount, deadline, expectedMultiplier)`，key 中股票地址是 W、报价地址是 Q；amountSpecified/limitAmount 使用对应腿的 raw 单位。`expectedMultiplier` 是报价时读取的股票侧快照，Hook 在 Swap 前后核对；报价币 multiplier 不参与比较。用户直接调用并授权 Router 支出 U 或 Q，股票输出直接交付 U。支持 U→Q、Q→U 各自 exact-in/exact-out 四条路径。
 
-- Router 固定构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个动作，hookData 为空；没有公开 action dispatcher、多跳、native 或库存兜底。
+- Router 固定构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个动作，并将 `abi.encode(expectedMultiplier)` 放入 Swap `hookData`；没有公开 action dispatcher、多跳、native 或库存兜底。
 - `msgSender()` 从入口首次资格读取开始返回真实用户，空闲时依据 V4 锁返回零。真实用户、实际输入和实际输出每次交易重新赋值，不再使用 `_clearContext` 或结束时 delete。回调直接复用 V4 `SafeCallback` 的 onlyPoolManager 门禁；固定的真实 PM 将 unlock 数据原样回调一次，不再保存 payload 哈希或消费标记。
 - Router 复用 V4 Periphery 的 `ReentrancyLock`，通过 EIP-1153 临时存储保存发起者地址作为锁；交易入口和交易期间的升级尝试以 `ContractLocked()` 拒绝重入。目标链须支持 EIP-1153，运行时检查统一读取临时锁。
 - 股票输入：精确检查付款方 U 减少与 W 合约 U 增加，再由原版 W mint 相同数量到 PM。仅一次 PM sync/pay/settle；债务结清由 PM.unlock 自身保证，不再额外比较 settle 返回值。

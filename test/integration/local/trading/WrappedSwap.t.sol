@@ -181,7 +181,12 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         vm.prank(alice);
         (uint256 paid,) = router.swapExactInput(
             SwapRequest(
-                second, Currency.unwrap(second.currency0) == address(w2), 1e16, 1, uint64(block.timestamp + 100)
+                second,
+                Currency.unwrap(second.currency0) == address(w2),
+                1e16,
+                1,
+                uint64(block.timestamp + 100),
+                issuer.multiplier()
             )
         );
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed + paid);
@@ -197,7 +202,12 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         vm.prank(alice);
         router.swapExactInput(
             SwapRequest(
-                second, Currency.unwrap(second.currency0) == address(w2), 1e16, 1, uint64(block.timestamp + 100)
+                second,
+                Currency.unwrap(second.currency0) == address(w2),
+                1e16,
+                1,
+                uint64(block.timestamp + 100),
+                issuer.multiplier()
             )
         );
         Vm.Log[] memory logs = vm.getRecordedLogs();

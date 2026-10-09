@@ -6,6 +6,8 @@
 
 本文说明本仓库 `TSVSwapRouterV1` 的 Adapter 专用入口，以及外部 `GitHub-Web3-DEX-Adapters-EVM` 和 `GitHub-Web3-DEX-EVM` 需要配合的工作。外部仓库不在本次 Solidity 改动范围内。
 
+`SwapRequest` ABI 新增 `expectedMultiplier`，外部 Adapter 与客户端需要使用更新后的 ABI，并携带**报价时**观察到的股票侧 multiplier；若在提交交易时才读取当前值，就无法拒绝报价后发生的变化。固定比例 Adapter 传入其配置比例，零值会被 Hook 拒绝。
+
 ## 调用链
 
 ```text
@@ -31,6 +33,7 @@ Adapter 入口复用 `SwapRequest`，字段顺序如下：
 | `amountSpecified` | `uint128` | 本入口中表示精确输入金额 |
 | `limitAmount` | `uint128` | 本入口中表示最小输出金额 |
 | `deadline` | `uint64` | 请求过期时间 |
+| `expectedMultiplier` | `uint256` | 报价时从 Registry 所登记股票侧 Adapter 读取并保留的 Multiplier |
 
 Adapter 调用 `swapExactInputFromAdapter(request, participant)`。Router 仅接受 `setAdapterAllowed(adapter, true)` 已授权的调用地址；该函数及撤销操作 `setAdapterAllowed(adapter, false)` 仅 Governor 可调用。Router 对 `participant` 执行 SBT 资格检查，对池执行现有交易状态检查，并从 Adapter 拉取输入、把输出及任何正 delta 交给 Adapter。Adapter 调用时，`amountSpecified` 传本 hop 实际输入量，`limitAmount` 传最小输出量。价格边界由 Router 根据方向设置为 V4 的全范围边界。
 
@@ -42,7 +45,7 @@ Adapter 调用 `swapExactInputFromAdapter(request, participant)`。Router 仅接
 
 1. 实现现有 `IAdapter.sellBase` 和 `sellQuote`，分别映射到对应的 TSV 交易方向；只支持 exact-input。
 2. 仅允许配置的外部 DexRouter 调用 Adapter。解析 DexRouter 附加在 calldata 尾部的 caller marker，并将 marker 中的原始调用者作为 `participant` 传入 TSV Router。
-3. 从 calldata 倒数第 96 字节读取 DexRouter 附加的本 hop 输入量；从 `moreInfo` 解码 `PoolKey`、方向、`minAmountOut` 和 `deadline`，并据此构造共享 `SwapRequest`（输入量写入 `amountSpecified`，最小输出写入 `limitAmount`）。不得从 Adapter 的总余额推断输入量，也不得让调用请求用既有余额补足本 hop 金额；拒绝零金额及超出 TSV 支持范围的金额。
+3. 构造共享 `SwapRequest` 时保留报价阶段取得的股票侧 `expectedMultiplier`，不能在执行阶段用刚读取的当前值替换它。该值对应 Registry 所登记的股票侧 Adapter，不使用报价币的 Multiplier。输入金额与最小输出分别写入 `amountSpecified` 和 `limitAmount`；不得从 Adapter 总余额推断输入量，也不得让请求用既有余额补足本 hop 金额；拒绝零金额及超出 TSV 支持范围的金额。
 4. 为 `amountIn` 临时批准 TSV Router 拉取输入，调用后清除未用 allowance。根据 Router 返回的 `actualIn`，把 `amountIn - actualIn` 的未成交输入退回 `ORIGIN_PAYER` 尾字段中的退款地址。记录调用前 Adapter 的输出币余额，仅将本次 TSV Swap 新增的输出余额转给 `to`，不要转走 Adapter 既有余额。
 5. 按部署链配置 TSV Router 地址、DexRouter 地址及 TSV 池参数，并登记/发布 Adapter 的链上地址和所需路由元数据。
 

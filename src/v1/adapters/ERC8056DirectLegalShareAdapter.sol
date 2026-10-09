@@ -25,8 +25,18 @@ contract ERC8056DirectLegalShareAdapter is IDirectLegalShareAdapter {
         poolCurrency = currency_;
     }
 
-    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
         return interfaceId == type(IDirectLegalShareAdapter).interfaceId || interfaceId == type(IERC165).interfaceId;
+    }
+
+    /// @notice Returns the live ERC-8056 multiplier for the bound Currency.
+    function currentMultiplier(address currency) external view override returns (uint256 multiplier) {
+        (multiplier,) = _currentMultiplier(currency);
     }
 
     /// @notice Converts raw token units using the multiplier active at this call.

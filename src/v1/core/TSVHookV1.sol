@@ -38,6 +38,10 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     error InvalidPool();
     /// @dev Reverts when the requested operation is not valid in the current state or callback context.
     error InvalidOperation();
+    /// @dev Reverts when the submitted multiplier does not match the live adapter multiplier.
+    error MultiplierChanged();
+    /// @dev Reverts when a callback carries malformed multiplier snapshot data.
+    error InvalidMultiplierSnapshot();
     /// @dev Reverts when the requested Hook callback is not supported.
     error UnsupportedCallback();
 
@@ -117,7 +121,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     /// @param sender Contract that initiated PoolManager.modifyLiquidity.
     /// @param key Full V4 pool key being modified.
     /// @param params Tick range, salt, and liquidity change requested by the manager.
-    /// @param hookData Additional callback data; TSV requires it to be empty.
+    /// @param hookData Empty for existing LP calls, or ABI-encoded `uint256 expectedMultiplier` for snapshot validation.
     /// @return V4 callback selector acknowledging this Hook callback.
     function beforeAddLiquidity(
         address sender,
@@ -139,12 +143,13 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     /// @return Zero because V1 does not adjust liquidity deltas.
     function afterAddLiquidity(
         address,
-        PoolKey calldata,
+        PoolKey calldata key,
         IPoolManager.ModifyLiquidityParams calldata,
         BalanceDelta,
         BalanceDelta,
-        bytes calldata
+        bytes calldata hookData
     ) external view override onlyPoolManager returns (bytes4, BalanceDelta) {
+        _validateOptionalMultiplierSnapshot(key, hookData);
         return (IHooks.afterAddLiquidity.selector, BalanceDelta.wrap(0));
     }
 
@@ -152,7 +157,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     /// @param sender Contract that initiated PoolManager.modifyLiquidity.
     /// @param key Full V4 pool key being modified.
     /// @param params Tick range, salt, and liquidity change requested by the manager.
-    /// @param hookData Additional callback data; TSV requires it to be empty.
+    /// @param hookData Empty for existing LP calls, or ABI-encoded `uint256 expectedMultiplier` for snapshot validation.
     /// @return V4 callback selector acknowledging this Hook callback.
     function beforeRemoveLiquidity(
         address sender,
@@ -179,19 +184,20 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     /// @return Zero because V1 does not adjust liquidity deltas.
     function afterRemoveLiquidity(
         address,
-        PoolKey calldata,
+        PoolKey calldata key,
         IPoolManager.ModifyLiquidityParams calldata,
         BalanceDelta,
         BalanceDelta,
-        bytes calldata
+        bytes calldata hookData
     ) external view override onlyPoolManager returns (bytes4, BalanceDelta) {
+        _validateOptionalMultiplierSnapshot(key, hookData);
         return (IHooks.afterRemoveLiquidity.selector, BalanceDelta.wrap(0));
     }
 
-    /// @notice Allows the configured Router to swap only through an active, tradable registered pool.
+    /// @notice Allows the configured Router to swap through a tradable pool with a current multiplier snapshot.
     /// @param sender Contract that initiated the swap; must equal the configured Router.
     /// @param key Full V4 pool key being swapped.
-    /// @param hookData Additional callback data; TSV requires it to be empty.
+    /// @param hookData ABI-encoded `uint256 expectedMultiplier` supplied by the SwapRouter.
     /// @return V4 callback selector acknowledging this Hook callback.
     /// @return Zero because V1 does not alter the swap delta.
     /// @return Zero because V1 does not override the pool fee.
@@ -202,24 +208,27 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
     {
-        if (sender != router || hookData.length != 0) revert UnauthorizedCallback();
+        if (sender != router) revert UnauthorizedCallback();
         if (!registry.isTradable(PoolId.unwrap(key.toId()))) revert InvalidOperation();
+        _validateMultiplierSnapshot(key, _decodeMultiplierSnapshot(hookData));
         return (IHooks.beforeSwap.selector, BeforeSwapDelta.wrap(0), 0);
     }
 
     /// @notice Converts actual stock-side swap deltas to legal shares and records them in the Ledger.
-    /// @dev PoolManager forwards the sender and hookData already checked by beforeSwap unchanged.
+    /// @dev PoolManager forwards sender and hookData unchanged; this rechecks the snapshot before accounting.
     /// @param key Full V4 pool key that was swapped.
     /// @param delta Actual PoolManager balance delta for both currencies.
     /// @return V4 callback selector acknowledging this Hook callback.
     /// @return Zero because V1 does not alter the swap delta.
     function afterSwap(
-        address,
+        address sender,
         PoolKey calldata key,
         IPoolManager.SwapParams calldata,
         BalanceDelta delta,
-        bytes calldata
+        bytes calldata hookData
     ) external override onlyPoolManager returns (bytes4, int128) {
+        if (sender != router) revert UnauthorizedCallback();
+        _validateMultiplierSnapshot(key, _decodeMultiplierSnapshot(hookData));
         bytes32 poolId = PoolId.unwrap(key.toId());
         uint256 shares0 = _sharesForLeg(Currency.unwrap(key.currency0), delta.amount0());
         uint256 shares1 = _sharesForLeg(Currency.unwrap(key.currency1), delta.amount1());
@@ -255,7 +264,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     /// @param sender Contract that invoked the liquidity modification.
     /// @param key Pool key being modified.
     /// @param params Tick range, salt, and liquidity delta from PoolManager.
-    /// @param hookData Additional callback data, which must be empty.
+    /// @param hookData Empty for existing LP calls, or ABI-encoded `uint256 expectedMultiplier` for snapshot validation.
     /// @return ctx Validated LP context for the current operation.
     function _checkLP(
         address sender,
@@ -263,13 +272,42 @@ contract TSVHookV1 is TSVGoverned, IHooks {
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata hookData
     ) private view returns (LPHookContext memory ctx) {
-        if (sender != lpManager || hookData.length != 0) revert UnauthorizedCallback();
+        if (sender != lpManager) revert UnauthorizedCallback();
         ctx = IActiveLPContextV1(lpManager).activeLPContext();
         if (
             ctx.poolId == 0 || ctx.poolId != PoolId.unwrap(key.toId()) || ctx.salt != params.salt
                 || ctx.tickLower != params.tickLower || ctx.tickUpper != params.tickUpper
                 || ctx.liquidityDelta != params.liquidityDelta
         ) revert InvalidOperation();
+        _validateOptionalMultiplierSnapshot(key, hookData);
+    }
+
+    /// @dev Validates an optional LP snapshot. LP Manager integrations can opt in by encoding one uint256.
+    function _validateOptionalMultiplierSnapshot(PoolKey calldata key, bytes calldata hookData) private view {
+        if (hookData.length == 0) return;
+        _validateMultiplierSnapshot(key, _decodeMultiplierSnapshot(hookData));
+    }
+
+    /// @dev Decodes the shared one-word callback format used by swaps and future LP integrations.
+    function _decodeMultiplierSnapshot(bytes calldata hookData) private pure returns (uint256 expectedMultiplier) {
+        if (hookData.length != 32) revert InvalidMultiplierSnapshot();
+        expectedMultiplier = abi.decode(hookData, (uint256));
+    }
+
+    /// @dev Compares the submitted snapshot against the canonical stock Currency's live adapter value.
+    function _validateMultiplierSnapshot(PoolKey calldata key, uint256 expectedMultiplier) private view {
+        address currency0 = Currency.unwrap(key.currency0);
+        address currency1 = Currency.unwrap(key.currency1);
+        address underlying0 = registry.getCurrency(currency0).underlying;
+        address underlying1 = registry.getCurrency(currency1).underlying;
+        if ((underlying0 == address(0)) == (underlying1 == address(0))) revert InvalidPool();
+
+        address underlying = underlying0 == address(0) ? underlying1 : underlying0;
+        address adapter = registry.getUnderlying(underlying).legalShareAdapter;
+        if (adapter.code.length == 0) revert InvalidPool();
+
+        uint256 currentMultiplier = IDirectLegalShareAdapter(adapter).currentMultiplier(underlying);
+        if (currentMultiplier == 0 || currentMultiplier != expectedMultiplier) revert MultiplierChanged();
     }
 
     /// @dev Converts the absolute raw delta of a stock leg; non-stock and zero deltas account as zero.

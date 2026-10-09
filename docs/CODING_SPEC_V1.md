@@ -102,9 +102,9 @@ Q 不绑定股数 Adapter；股票要求 `securityId != 0`、证券已上市、A
 
 ## 3. 法定股数 Adapter
 
-当前唯一股数换算接口是 `IDirectLegalShareAdapter`：`poolCurrency()` 和 `toLegalShares(address currency,uint256 rawAmount)`。它不携带 rate、nonce、快照或反向换算参数。Registry 注册/替换时通过 ERC-165 验证接口声明，并检查 Adapter 绑定的 Currency；Hook 在 `afterSwap` 取得真实股票腿 delta 后，调用 `toLegalShares`，再把换算结果和两个真实 delta 一起传给 Ledger。Ledger 只接受固定 Hook 写入，检查非股票侧为零、股票侧换算结果非零、Registry 中证券和 Adapter 元数据匹配，再执行当日额度记账。对正 raw 成交，换算结果为零、外部换算调用 revert 或结果溢出时，整笔交易回滚。Registry 对 Adapter 的转换逻辑不做形式化验证；Adapter 代码、来源 Token 的方法、法律计量定义和 gas 必须在准入审核中确认。
+`IDirectLegalShareAdapter` 提供 `poolCurrency()`、`currentMultiplier(currency)` 和 `toLegalShares(currency,rawAmount)`。所有股票 Adapter 都返回其换算使用的当前 multiplier；固定比例 Adapter 返回固定值。Swap 请求携带报价时的 `expectedMultiplier`；Hook 在 `beforeSwap` 和 `afterSwap` 分别与 Registry 所登记股票侧适配器的链上值比较，变化时整笔交易回滚。报价币即使也暴露 Multiplier 接口，也不参与比较；Registry 要求池中恰好有一侧是登记股票。Registry 注册/替换时通过 ERC-165 验证 Adapter 接口声明，并检查 Adapter 绑定的 Currency；Hook 在 `afterSwap` 取得真实股票腿 delta 后，调用 `toLegalShares`，再把换算结果和两个真实 delta 一起传给 Ledger。Ledger 只接受固定 Hook 写入，检查非股票侧为零、股票侧换算结果非零、Registry 中证券和 Adapter 元数据匹配，再执行当日额度记账。对正 raw 成交，换算结果为零、外部换算调用 revert 或结果溢出时，整笔交易回滚。Registry 对 Adapter 的转换逻辑不做形式化验证；Adapter 代码、来源 Token 的方法、法律计量定义和 gas 必须在准入审核中确认。
 
-**当前唯一实现：**`BackedAutoFeeLegalShareAdapter` 绑定发行方来源 Token 与池内 Wrapped Currency；构造时要求 Wrapped `asset()` 等于来源 Token，双方 `decimals() == 18`。每次 `toLegalShares` 调用都执行来源 Token 的 `getUnderlyingAmountByShares(rawShares)`。因此适配器不复制 multiplier 公式，也不缓存参数快照；成交采用该源方法在本次回调时返回的值。wTSLAx 场景中的源码实现为 `floor(wrappedShares × currentMultiplier / 1e18)`，但股数口径是否得到发行方与法务认可仍是生产准入条件。零 raw 输入返回零，正 raw 若来源方法返回零则回滚。其他 Adapter 实现不属于当前 V1 代码；新增发行方适配器应在单独评审后扩展。
+**当前实现：**`BackedAutoFeeLegalShareAdapter` 绑定发行方来源 Token 与池内 Wrapped Currency；构造时要求 Wrapped `asset()` 等于来源 Token，双方 `decimals() == 18`。`currentMultiplier` 读取发行方 `getCurrentMultiplier()`，`toLegalShares` 调用 `getUnderlyingAmountByShares(rawShares)`。`ERC8056DirectLegalShareAdapter` 的两个方法读取同一 Token 的 `uiMultiplier()`。因此 Router 输入快照与 Adapter 实际换算使用同一来源值。wTSLAx 场景中的源码实现为 `floor(wrappedShares × currentMultiplier / 1e18)`，但股数口径是否得到发行方与法务认可仍是生产准入条件。零 raw 输入返回零，正 raw 若来源方法返回零则回滚。新增固定比例 Adapter 时，`currentMultiplier` 返回配置比例。
 
 前端展示用户当前持有股数时，仍须按发行方批准的**账户权益**规则读取与计算。当前接口不提供从 legal shares 反算 raw Token 数量的函数；前端报价与 `SwapRequest`/`LPBounds` 继续使用 raw 数量。拆并股额度按 §7 D-37 的独立系数在未来计量日开始时切换；实际成交仍按 Adapter 实时换算。发行方单位不确定或日内突变时，按[准入标准的公司行动流程](./TOKEN_ADMISSION_STANDARD_V1.md)暂停受影响资产，不能把新旧法律单位混入同一日累计量。
 
@@ -127,6 +127,7 @@ struct SwapRequest {
     uint128 amountSpecified;   // V4 输入/输出 Currency 的原始单位；须 <= int128.max
     uint128 limitAmount;       // exact-in 为最小输出；exact-out 为最大输入
     uint64 deadline;
+    uint256 expectedMultiplier; // 报价时观察到的股票侧 multiplier
 }
 
 function swapExactInput(SwapRequest calldata request)
@@ -148,14 +149,14 @@ Adapter exact-input 请求中的 `amountSpecified` 和 `limitAmount` 分别表�
 执行顺序固定如下：
 
 1. Router 使用 V4 `ReentrancyLock`。用户直连时检查 `msg.sender` 的 SBT swap 权限；Adapter 入口先检查调用 Adapter 白名单，再检查 Adapter 传入的 participant。入口检查金额、deadline 和配置的 TSV Hook；完整 PoolKey、池准入、资产状态与交易暂停由 Hook 的 `beforeSwap` 检查。Router 按 `zeroForOne` 为所有入口设置 V4 全范围价格边界。
-2. Router 构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个 V4 动作，调用 `PoolManager.unlock(payload)`。PoolManager 原样回调 payload，父类 `SafeCallback` 限制 onlyPoolManager，V4 父类解码并执行动作；不保存 payload 哈希或回调消费标记。`hookData` 为空。真实用户通过 `msgSender()` 提供给父类权限检查，V4 锁保存的入口调用方负责付款和收款：直连是用户，聚合器路径是 Adapter。
-3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，业务回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、空 `hookData`、池可交易；PoolId 已由完整 PoolKey 哈希得到，不重复读取已登记 key 做哈希比较。初始化与强制退出保留池已登记检查，普通 LP 使用 `isLPAllowed` 门禁。SBT 资格由 Router 在进入 unlock 前检查。Hook 不为 Swap 保存状态，也不读取 Router 活跃上下文。`afterSwap` 接收 PoolManager 原样转发的已校验参数，只保留 PoolManager 调用者检查，从实际 `BalanceDelta` 获取两侧 raw 成交量，将股票 W 映射到 U 后调用 Registry 绑定的 Adapter `toLegalShares(U,rawAmount)`，再将 shares 与真实 delta 交由 Ledger 原子记账；配对币使用零 shares 且不调用股数 Adapter。Adapter 的 U 绑定由 Registry 在准入和替换时验证。资产类型、证券身份、Adapter 地址配置和非零 shares 由 Ledger 统一校验，Ledger 不重复执行 Adapter 换算。Hook 返回零 delta 与零费率覆盖。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
+2. Router 构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个 V4 动作，调用 `PoolManager.unlock(payload)`。PoolManager 原样回调 payload，父类 `SafeCallback` 限制 onlyPoolManager，V4 父类解码并执行动作；不保存 payload 哈希或回调消费标记。Swap 的 `hookData` 为 `abi.encode(expectedMultiplier)`。真实用户通过 `msgSender()` 提供给父类权限检查，V4 锁保存的入口调用方负责付款和收款：直连是用户，聚合器路径是 Adapter。
+3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，业务回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、32 字节 Multiplier 快照、池可交易；`afterSwap` 在计账前再次核对相同快照。Hook 根据 Registry 找到唯一股票侧，读取该侧适配器的 Multiplier，不读取报价币的 Multiplier。初始化与强制退出保留池已登记检查，普通 LP 使用 `isLPAllowed` 门禁。LP 回调预留相同 `abi.encode(expectedMultiplier)` 格式；当前 LP Manager 可继续传空数据，后续集成可传快照启用校验。SBT 资格由 Router 在进入 unlock 前检查。Hook 不为 Swap 保存状态，也不读取 Router 活跃上下文。`afterSwap` 接收 PoolManager 原样转发的参数，从实际 `BalanceDelta` 获取两侧 raw 成交量，将股票 W 映射到 U 后调用 Registry 绑定的 Adapter `toLegalShares(U,rawAmount)`，再将 shares 与真实 delta 交由 Ledger 原子记账；配对币使用零 shares 且不调用股数 Adapter。Adapter 的 U 绑定由 Registry 在准入和替换时验证。资产类型、证券身份、Adapter 地址配置和非零 shares 由 Ledger 统一校验，Ledger 不重复执行 Adapter 换算。Hook 返回零 delta 与零费率覆盖。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
 4. V4 动作检查 exact-in 的实际输入上限和最低输出、exact-out 的最高输入和足额输出；Router 再要求两腿成交量非零及 exact-out 严格相等。SETTLE_ALL 记录实际输入，TAKE_ALL 记录实际输出。股票腿实际收付 U，报价腿实际收付 Q，两侧均核对发送方恰扣、接收方恰增；PM.unlock 自身保证债务结清，不再比较 settle 返回值。原版 W 负责 mint-to-PM 和 burn/unwrap，Router 不重复读取 W 持币余额。
 5. unlock 返回后 Router 核对整笔交易的历史 U 余额与抵押余量，返回实际输入和输出。Router 不保存 Ledger、不读取交易日、不另发成交事件。三项上下文字段每次重新赋值，msgSender() 在 V4 锁释放后返回零，无需清理函数或 delete。
 
 成交记录使用 PoolManager 的 `Swap` 和 Ledger 的 `SwapAccounted`；Router 不重复发出成交事件，也不依赖 Ledger。Governor 修改 Adapter 白名单时仍发出 `AdapterAuthorizationUpdated`。Hook/Ledger 的 `SwapAccounted` 对每个股票腿分别记录 `securityId,poolCurrency,underlying,inputSide,rawAmount,legalSharesWad`。`poolCurrency` 为池内 W（indexed），`underlying` 为对应 U；`rawAmount` 仍为 W 的实际 delta 绝对值，`legalSharesWad` 为 U canonical Adapter 换算的法律股数。交易哈希与 logIndex 由索引器取链上 receipt，不写进合约事件。
 
-**前端股数展示与 Swap 报价。**前端从 Registry 读取该股票 Currency 当前绑定的 Adapter 地址，并按发行方批准的账户权益规则显示用户持有股数。当前 Adapter 接口不提供 raw 与法律股数的通用反向报价；`SwapRequest.amountSpecified`、`limitAmount` 和 deadline 使用 raw 数量，V4 价格边界由 Router 内部按方向设置。账户总持仓的舍入可能不同于单笔成交换算，尤其是 TSLAx，前端须分别展示。V1 Router 无股数输入参数；报价后价格、余额或发行方转换结果变化可能改变实际股数，链上只保证提交的 raw 与结算边界。Hook 在 `afterSwap` 按实际股票腿 delta 调用 Adapter 并计入 VolumeLedger，前端估值不写入额度。
+**前端股数展示与 Swap 报价。**前端从 Registry 读取该股票 Currency 当前绑定的 Adapter 地址，并按发行方批准的账户权益规则显示用户持有股数。前端或调用 Adapter 在报价时读取股票侧 `currentMultiplier` 并填入 `expectedMultiplier`；固定比例 Adapter 返回其配置比例。`SwapRequest.amountSpecified`、`limitAmount` 和 deadline 仍使用 raw 数量，V4 价格边界由 Router 内部按方向设置。账户总持仓的舍入可能不同于单笔成交换算，尤其是 TSLAx，前端须分别展示。V1 Router 无股数输入参数；链上通过 Multiplier 快照拒绝报价后系数变化的交易，Hook 在 `afterSwap` 按实际股票腿 delta 调用 Adapter 并计入 VolumeLedger，前端估值不写入额度。
 
 ## 6. LP、Receipt 与强退
 
@@ -405,7 +406,7 @@ RecoveryCancelled(bytes32 indexed id)
 | VolumeLedger | `bindWriters(address hook,address dataInbox)` | Governor 仅可首次绑定；两个地址均须有代码。部署初始化入口，不可替换已绑定写入者 |
 | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId)`、`cancelPendingDayStart()` | 仅 Governor；未来边界排期、单次偏差上限与过渡日锁定按 §7 |
 | VolumeLedger | `adtvOf(bytes32,uint32)`、`quotaOf(bytes32,uint32)`、`currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()`、`splitFactorOf(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)`、`remaining(bytes32 securityId,uint32 tradeDayId)`、`used(bytes32 securityId,uint32 tradeDayId)` | 只读；`currentTradeDay` 返回 uint32 日 ID；`adtvOf(bytes32,uint32)`、`quotaOf(bytes32,uint32)` 返回 uint256 金额；ADTV 缺失或硬上限为零时 `remaining` 返回无效标志 |
-| Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用 | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；`beforeSwap` 校验 Router sender、空 hookData 和可交易状态，`afterSwap` 从实际 delta 换算股数并调用 Ledger，不重复入口校验 |
+| Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用 | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；`beforeSwap` 校验 Router sender、股票侧 Multiplier 快照和可交易状态，`afterSwap` 重核快照后从实际 delta 换算股数并调用 Ledger |
 | Router | §5 两个 Swap 入口、PoolManager `unlockCallback` | Swap 仅 participant 直接调用；资格与池校验在 unlock 前完成，非重入锁约束单笔 Swap 与解锁回调；不保存或暴露 Swap 活跃上下文 |
 | LP Manager | §6 七个 LP/建池入口、协议上下文 `activeLPContext()`、ERC-721 `ownerOf/balanceOf/tokenURI/supportsInterface` | 建池仅 POOL_CREATOR；普通 LP 仅原 owner；强退两类专职角色；Receipt 的 mint/burn 仅由 LP 生命周期内部执行；所有转移和 approve 系列入口回滚；活跃上下文只供 Hook 校验，`tokenURI` 对有效 Receipt 返回空字符串 |
 | GovernanceAnchor | §9 的批量升级、冻结/解冻/即时升级、身份恢复 | caller、目标、提案 epoch、freezeId 和恢复/升级上下文按 §9 |

@@ -206,18 +206,19 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
 
     function _payload(SwapRequest memory request, bool exactInput) private pure returns (bytes memory) {
         bytes[] memory params = new bytes[](3);
+        bytes memory hookData = abi.encode(request.expectedMultiplier);
         Currency input = request.zeroForOne ? request.key.currency0 : request.key.currency1;
         Currency output = request.zeroForOne ? request.key.currency1 : request.key.currency0;
         if (exactInput) {
             params[0] = abi.encode(
                 IV4Router.ExactInputSingleParams(
-                    request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, bytes("")
+                    request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, hookData
                 )
             );
         } else {
             params[0] = abi.encode(
                 IV4Router.ExactOutputSingleParams(
-                    request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, bytes("")
+                    request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, hookData
                 )
             );
         }

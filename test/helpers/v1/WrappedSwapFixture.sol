@@ -185,7 +185,8 @@ abstract contract WrappedSwapFixture is Test {
             stockInput == (Currency.unwrap(key.currency0) == address(stock)),
             amount,
             exactInput ? uint128(1) : uint128(1e22),
-            uint64(block.timestamp + 100)
+            uint64(block.timestamp + 100),
+            issuer.multiplier()
         );
     }
 

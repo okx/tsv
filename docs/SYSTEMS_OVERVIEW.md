@@ -127,6 +127,7 @@ struct SwapRequest {
     uint128 amountSpecified;
     uint128 limitAmount;
     uint64 deadline;
+    uint256 expectedMultiplier;
 }
 ```
 
@@ -137,8 +138,9 @@ struct SwapRequest {
 | `amountSpecified` | `uint128` | 使用池内 Currency 的 raw 最小单位，不是股数。精确输入时表示目标/上限输入量；精确输出时表示必须完整得到的输出量。必须大于零且不超过 `int128.max`。 |
 | `limitAmount` | `uint128` | 交易滑点界限，单位同样是池内 Currency 的 raw 最小单位。精确输入时为最小输出量；精确输出时为最大输入量；必须大于零。 |
 | `deadline` | `uint64` | Unix 秒时间戳。执行时若 `block.timestamp > deadline`，请求过期并回滚。 |
+| `expectedMultiplier` | `uint256` | 报价时读取的股票侧 Adapter multiplier。Hook 按 Registry 识别唯一股票侧并在 Swap 前后比较；报价币的 multiplier 不参与比较。固定比例 Adapter 传其配置比例。 |
 
-调用方不传 V4 价格停止边界。Router 根据 `zeroForOne` 设置全范围 `sqrtPriceLimitX96`；交易滑点仍由 `limitAmount` 约束。
+调用方不传 V4 价格停止边界。Router 根据 `zeroForOne` 设置全范围 `sqrtPriceLimitX96`；交易滑点仍由 `limitAmount` 约束。`expectedMultiplier` 必须保留报价时的值，不能在提交交易时替换成刚查询的当前值。
 
 #### 嵌套结构参数
 

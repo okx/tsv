@@ -134,6 +134,9 @@ struct SwapRequest {
     uint128 limitAmount;
     /// @notice Latest timestamp at which the swap may execute.
     uint64 deadline;
+    /// @notice Multiplier observed when the user or Adapter quoted this swap.
+    /// @dev Must equal the stock adapter's currentMultiplier value; zero is invalid.
+    uint256 expectedMultiplier;
 }
 
 /// @notice Raw-unit settlement limits and deadline for an LP operation.
