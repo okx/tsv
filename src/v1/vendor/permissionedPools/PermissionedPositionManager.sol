@@ -9,7 +9,7 @@ import {
     IPositionDescriptor,
     IWETH9,
     Currency
-} from "v4-periphery/PositionManager.sol";
+} from "./PositionManager.sol";
 import {IPermissionsAdapter} from "./interfaces/IPermissionsAdapter.sol";
 import {IPermissionsAdapterFactory} from "./interfaces/IPermissionsAdapterFactory.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
@@ -213,6 +213,7 @@ abstract contract PermissionedPositionManager is PositionManager {
     function _validateLiquidityCurrency(Currency currency, IHooks hooks, address owner)
         internal
         view
+        virtual
         returns (bool isVerifiedAdapter)
     {
         address currencyAddress = Currency.unwrap(currency);

@@ -14,8 +14,7 @@ import {PermissionFlag} from "./libraries/PermissionFlags.sol";
 
 contract PermissionsAdapter is ERC20, Ownable2Step, IPermissionsAdapter {
     using SafeTransferLib for SafeERC20;
-    /// @inheritdoc IPermissionsAdapter
-    address public statusQuoter;
+
     /// @inheritdoc IPermissionsAdapter
     address public immutable POOL_MANAGER;
 
@@ -43,15 +42,6 @@ contract PermissionsAdapter is ERC20, Ownable2Step, IPermissionsAdapter {
         PERMISSIONED_TOKEN = permissionedToken;
         POOL_MANAGER = poolManager;
         _updateAllowListChecker(allowListChecker_);
-    }
-
-    /// @inheritdoc IPermissionsAdapter
-    function updateStatusQuoter(address newStatusQuoter) external onlyOwner {
-        if (newStatusQuoter != address(0) && newStatusQuoter.code.length == 0) {
-            revert InvalidStatusQuoter(newStatusQuoter);
-        }
-        statusQuoter = newStatusQuoter;
-        emit StatusQuoterUpdated(newStatusQuoter);
     }
 
     /// @inheritdoc IPermissionsAdapter
