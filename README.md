@@ -82,8 +82,8 @@ forge soldeer install
 # 检查格式和 diff
 make check
 
-# 构建合约
-make build
+# 全部不联网测试
+make test
 ```
 
 编译配置：**Solidity 0.8.26 · Cancun · via-IR · optimizer 200 runs**，以 [`foundry.toml`](foundry.toml) 为准。首次完整 via-IR 编译耗时较长；后续会复用缓存。
@@ -109,11 +109,12 @@ make build
 
 ## 构建与验证
 
-TSV 当前及归档测试已移除。文档中的历史测试结果仅代表对应版本，不代表当前代码的回归验证。
+`feat/tsv-lp` 开发分支不包含 TSV 测试，其改动通过本集成分支合入目标分支。本集成分支保留兼容的旧测试，删除依赖旧 LP ABI 的套件和 fixture；清理范围见 [测试说明](test/README.md)。文档中的历史测试结果仅代表对应版本。
 
 ```sh
-make build
+forge build src
 make check
+make test
 ```
 
 ## 🗂️ 项目地图
@@ -129,6 +130,7 @@ src/v1/
 ├── types/         请求、配置与报告
 └── interfaces/    合约边界
 
+test/                     保留的单元与本地集成回归
 docs/                     规范、操作步骤、覆盖与验收记录
 lib/dexrouter-interfaces/ 可提交的薄 ABI；无需完整 DEX 源码即可运行 fork
 ```
@@ -144,7 +146,7 @@ lib/dexrouter-interfaces/ 可提交的薄 ABI；无需完整 DEX 源码即可运
 | 🏦 准入资产、核定法律股数 | [代币准入标准](docs/TOKEN_ADMISSION_STANDARD_V1.md) |
 | 🚀 开通一只股票市场 | [Opening a Stock Market](docs/OPENING_A_STOCK_MARKET_V1.md) |
 | 🔌 接入外部 DEX | [DEX Router / Adapter 接入](docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) |
-| 🧪 查看历史测试规格 | [测试规格](docs/TEST_SPEC_V1.md) |
+| 🧪 编写和维护测试 | [测试说明](test/README.md) · [测试规格](docs/TEST_SPEC_V1.md) |
 | 📋 评估当前完整度 | [实现状态](docs/IMPLEMENTATION_STATUS_V1.md) · [统一缺口](docs/TEST_GAPS_V1.md) |
 | 📦 部署或执行治理操作 | [部署清单](docs/DEPLOYMENT_CHECKLIST_V1.md) · [Manifest 模板](docs/DEPLOYMENT_MANIFEST_V1.example.json) |
 
