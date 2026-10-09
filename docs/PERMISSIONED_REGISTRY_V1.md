@@ -24,6 +24,12 @@ W 以非零 underlying 判断准入；Q 以 registered 判断准入；Pool 以�
 
 建池入口为 LP Manager 的 `initializePool(key,sqrtPriceX96)`，调用者须持有 LP Manager 上的 `POOL_CREATOR_ROLE`。入口依次执行 `Registry.registerPool(key)` 和 `PM.initialize(key,sqrtPriceX96)`，任一步失败都会回滚整笔交易，不使用上游捕获失败并返回最大 tick 的行为；Hook 核验 LP Manager sender 和已登记的完整 PoolKey。初始化仅创建池并设置初始价格，随后通过 `MINT_POSITION` 创建仓位和注资，也可将两步放入 LP Manager 的 `multicall`。没有初始化中间状态、额外激活调用、独立资产/池启停入口或活跃池计数。历史 PoolKey、资产配置、额度和仓位仍保留，强退依据登记事实及原有授权执行。
 
+LP 用户付款采用与 DexRouter legacy 模式一致的统一授权链路：用户 approve `TokenApproveProxy.tokenApprove()` 返回的 TokenApprove，LP Manager 调用 `TokenApproveProxy.claimTokens(token,payer,destination,amount)`，由 TokenApprove 划转。实现合约构造参数新增 `_tokenApproveProxy`，固定为 `TOKEN_APPROVE_PROXY`；TokenApproveProxy 管理员须将实际 LP 代理地址加入允许调用的名单，不能只授权实现合约。底层资产 U 划转到 PermissionsAdapter 后 wrap，报价币 Q 划转到 PoolManager；两者都不要求用户授权 LP Manager 或 Permit2。LP Manager 自持资金仍直接支付。现有构造参数中的 Permit2 保留用于上游继承接口，但这两类用户付款不再通过它执行。
+
+普通 LP 操作统一在 `_handleAction` 执行 Registry 门禁：`MINT_POSITION`、`MINT_POSITION_FROM_DELTAS`、`INCREASE_LIQUIDITY`、`INCREASE_LIQUIDITY_FROM_DELTAS`、`DECREASE_LIQUIDITY` 和 `BURN_POSITION` 同时要求 `Registry.isAllowed(LIQUIDITY_ALLOWED,msgSender())` 与 `Registry.isAllowed(LIQUIDITY_ALLOWED,owner)`。Mint 的 owner 从 action 参数解析并处理接收者占位地址；已有仓位使用 `ownerOf(tokenId)`。调用者和 owner 都必须持有具有 LP 权限的已登记 SBT，且 SBT 未暂停；零流动性领费也受同一门禁。两个批量入口共用检查，原有 NFT 授权及 Adapter/hook 检查继续执行。已授权 adapter owner 的 `unwindPosition` 可以在调用者或仓位 owner 无 SBT 时强制退出，临时豁免仅允许本次指定 tokenId 的 `BURN_POSITION`、其 `MINT_6909` 结算和 `UNWIND_WITH_FALLBACK` 交付，全部交付尝试结束后立即清除；其他 action 在强退上下文中禁止执行。实现使用一个原有预留存储槽，`__gap` 从 49 减为 48。
+
+普通资金 actions 同样在 `_handleAction` 检查调用者的 Registry `LIQUIDITY_ALLOWED`：包括 SETTLE/SETTLE_PAIR、TAKE/TAKE_PAIR、CLOSE_CURRENCY、CLEAR_OR_TAKE、SWEEP、WRAP/UNWRAP 及 claim actions。TAKE、TAKE_PAIR、SWEEP 额外检查 `_mapRecipient` 解析后的收款人；CLOSE_CURRENCY 和 CLEAR_OR_TAKE 的收款人为已检查的调用者。接收者占位地址 `MSG_SENDER` 和 `ADDRESS_THIS` 先解析后校验，LP 合约地址没有隐含的 SBT 豁免。`withdrawClaim` 内部 BURN_6909/TAKE 共用此门禁，调用者和收款人都须具备 LP 权限，失败时 claim burn 与转账整体回滚。普通调用不能使用强退专用 `UNWIND_WITH_FALLBACK`。
+
 ## Factory 与 checker
 
 Registry 代理 R 保存 TSV 身份、资产与市场配置，不实现 `IPermissionsAdapterFactory` 或 `IAllowlistChecker`。Router 构造参数为 `(PM,F)`，`PERMISSIONS_ADAPTER_FACTORY()` 与 R 的 `permissionsAdapterFactory()` 均为真实 Factory F。

@@ -291,7 +291,7 @@ abstract contract PermissionedPositionManager is PositionManager {
     /// @dev Handles the two unwind actions dispatched by `unwindPosition` (MINT_6909 and UNWIND_WITH_FALLBACK),
     ///      plus the BURN_6909 primitive used by `withdrawClaim`. All other actions fall through to the base
     ///      PositionManager dispatcher.
-    function _handleAction(uint256 action, bytes calldata params) internal override {
+    function _handleAction(uint256 action, bytes calldata params) internal virtual override {
         if (action == Actions.MINT_6909) {
             // Settle this contract's full positive delta for `currency` as a 6909 claim to itself.
             Currency currency = params.decodeCurrency();

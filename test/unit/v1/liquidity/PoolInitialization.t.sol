@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {TestTokenApproveProxy} from "../../../helpers/TokenApproveMocks.sol";
 import {PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
 import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
@@ -82,7 +83,8 @@ contract TSVPoolInitializationTest is Test {
             IWETH9(address(0)),
             IPermissionsAdapterFactory(address(0)),
             100_000,
-            ITSVPermissionedRegistry(address(registry))
+            ITSVPermissionedRegistry(address(registry)),
+            new TestTokenApproveProxy()
         );
         lp = TSVLPManagerV1(
             payable(address(
