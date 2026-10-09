@@ -25,8 +25,11 @@ interface ITSVPermissionedRegistry {
     function getSecurity(bytes32 id) external view returns (SecurityConfig memory);
     function isTradable(bytes32 id) external view returns (bool);
     function isLPAllowed(bytes32 id) external view returns (bool);
-    function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
-    function updatePoolLifeCycle(PoolKey calldata key, PoolLifecycle lifecycle) external returns (bool);
+    function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle);
+    function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle) external returns (bool);
+    function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle)
+        external
+        returns (uint256 changedCount);
     function updatePoolTickCount(PoolKey calldata key) external returns (bool);
     function isPaused() external view returns (bool);
     function isPermissionedOwnerApproved(address owner) external view returns (bool);

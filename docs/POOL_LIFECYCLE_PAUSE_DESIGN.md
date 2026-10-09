@@ -9,11 +9,12 @@
 - 保持现有 `registerPool(PoolKey calldata key)` 接口不变。
 - 注册 Pool 时由 Registry 内部推导股票 `securityId`，并固化该证券当前 `tierId`。
 - 增加 Pool 生命周期查询与更新、Pool Tick 数量检查入口，以及协议级全局 Pause 查询。
+- 调整 `delistSecurity(securityId)` 下架策略：只有该证券关联的所有 pool 生命周期都已经是 `DELIST` 时，才允许将证券下架。
 
 本方案区分两类 pause：
 
 - 协议级全局 Pause：由 `isPaused()` 表达，影响整个协议的普通 swap 和普通 LP。
-- Pool 业务生命周期 PAUSE：由 `updatePoolLifeCycle(key, PoolLifecycle.PAUSE)` 设置，只阻断该 pool 的 swap，普通 LP 继续进入后续门禁。
+- Pool 业务生命周期 PAUSE：由 `updatePoolLifeCycle(poolId, PoolLifecycle.PAUSE)` 设置，只阻断该 pool 的 swap，普通 LP 继续进入后续门禁。
 
 ## 2. Registry 接口变更
 
@@ -71,11 +72,31 @@ function registerPool(PoolKey calldata key) external returns (bytes32 poolId);
 本方案只新增以下接口：
 
 ```solidity
-function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
-function updatePoolLifeCycle(PoolKey calldata key, PoolLifecycle lifecycle) external returns (bool);
+function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle);
+function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle) external returns (bool);
+function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle)
+    external
+    returns (uint256 changedCount);
 function updatePoolTickCount(PoolKey calldata key) external returns (bool);
 function isPaused() external view returns (bool);
 ```
+
+### 2.5 delistSecurity 约束变更
+
+现有证券下架接口保持签名不变：
+
+```solidity
+function delistSecurity(bytes32 securityId) external;
+```
+
+语义调整：
+
+- `delistSecurity(securityId)` 不再负责批量修改 pool 生命周期。
+- 调用前，管理员必须先通过 `updatePoolLifeCycle(poolId, PoolLifecycle.DELIST)` 或
+  `batchUpdatePoolLifeCycle(poolIds, PoolLifecycle.DELIST)` 将该证券下所有已注册 pool 切到 `DELIST`。
+- Registry 必须校验 `activePoolCountBySecurity[securityId] == 0`，否则拒绝下架。
+- 证券下架后，历史 pool 仍保留在 `pools` 和 `poolsBySecurity` 中，强退、退出和审计查询仍可识别其历史身份。
+- `relistSecurity(securityId)` 只恢复证券上市状态，不自动恢复历史 pool 生命周期；如需重新开放 pool，必须显式调用 `updatePoolLifeCycle(poolId, PoolLifecycle.LIST)` 或 `PAUSE`。
 
 ## 3. Pool 生命周期
 
@@ -129,12 +150,33 @@ struct PoolConfig {
 - `securityId`：从 W/Q 资产配置中推导出的唯一非零 securityId。
 - `tierId`：从 `securities[securityId].tierId` 内部读取。
 
-### 4.3 Pool 生命周期与 Tick 数量
+### 4.3 Pool 反向索引、生命周期与 Tick 数量
 
 ```solidity
+/// @notice 按单一股票 securityId 分组保存的历史池 ID 列表。
+/// @dev 当前 TSV 池准入要求一侧是 permissioned stock，另一侧是 quote token，
+///      因此每个池只归属于一个非零 securityId。该数组建议只追加不删除：
+///      证券下架、池停用、证券重新上市和暂停状态变化都不应移除历史 poolId。
+///      该索引用于链下运营枚举、迁移和审计查询，不应用于无上限的状态变更循环。
+mapping(bytes32 securityId => bytes32[] poolIds) private poolsBySecurity;
+
+/// @notice poolId 在 `poolsBySecurity[securityIdOfPool]` 中的 1-based 下标。
+/// @dev 0 表示该 pool 尚未写入反向索引。实际保存值为 `index + 1`，
+///      用来区分数组下标 0 和“不存在”。在推荐的 append-only 模型下，
+///      该 mapping 主要用于存在性保护和迁移一致性检查；如果未来支持删除，
+///      需要和数组一起按 swap-and-pop 方式同步更新。
+mapping(bytes32 poolId => uint256 indexPlusOne) private poolSecurityIndexPlusOne;
+
 /// @notice 每个已注册池的显式生命周期状态。
 /// @dev registerPool 将新池初始化为 LIST。
 mapping(bytes32 poolId => PoolLifecycle lifecycle) public poolLifecycle;
+
+/// @notice 某个 securityId 下当前生命周期不是 DELIST 的池数量。
+/// @dev 这是 O(1) 聚合计数，用于在 `delistSecurity` 中快速判断
+///      “该证券下所有池已 DELIST”。registerPool 初始化为 LIST 时递增；
+///      updatePoolLifeCycle 从 DELIST 进入 LIST/PAUSE 时递增，从 LIST/PAUSE
+///      进入 DELIST 时递减。PAUSE 仍属于未下架池，因此会计入该数量。
+mapping(bytes32 securityId => uint32 activeCount) public activePoolCountBySecurity;
 
 /// @notice 每个 pool 当前绑定的 Tick 数量。
 /// @dev 该数量只表示绑定 Tick 个数，不表示池内流动性大小。
@@ -198,9 +240,12 @@ function registerPermissionedCurrency(PermissionedAdmission calldata admission, 
 11. 计算 `poolId = PoolId.unwrap(key.toId())`。
 12. 校验 pool 尚未注册。
 13. 写入 Pool 配置，至少包含 `key`、`securityId`、`tierId`。
-14. 设置 `poolLifecycle[poolId] = PoolLifecycle.LIST`。
-15. 初始化或确认 `poolTickCount[poolId] == 0`。
-16. 发出 `PoolRegistered`。
+14. 将 `poolId` 追加到 `poolsBySecurity[securityId]`。
+15. 设置 `poolSecurityIndexPlusOne[poolId] = poolsBySecurity[securityId].length`。
+16. 设置 `poolLifecycle[poolId] = PoolLifecycle.LIST`。
+17. 递增 `activePoolCountBySecurity[securityId]`，因为新 pool 初始状态是 `LIST`。
+18. 初始化或确认 `poolTickCount[poolId] == 0`。
+19. 发出 `PoolRegistered`。
 
 推荐事件：
 
@@ -216,12 +261,12 @@ event PoolRegistered(
 ## 7. Pool 生命周期查询
 
 ```solidity
-function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
+function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle);
 ```
 
 推荐语义：
 
-- Registry 内部通过 `PoolId.unwrap(key.toId())` 派生 `poolId`。
+- 调用方直接传入 `poolId`。该 `poolId` 应由注册时返回值、事件或链下根据完整 PoolKey 派生得到。
 - 未注册 pool：返回默认值 `DELIST`，或按实现选择 revert。若返回默认值，调用方不能只靠该接口区分“未注册”和“已 DELIST”。
 - 已注册且 `DELIST`：普通 swap 和普通 LP 不允许。
 - 已注册且 `LIST`：生命周期维度允许普通 swap 和普通 LP。
@@ -230,17 +275,22 @@ function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifec
 ## 8. Pool 生命周期更新接口
 
 ```solidity
-function updatePoolLifeCycle(PoolKey calldata key, PoolLifecycle lifecycle) external returns (bool);
+function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle) external returns (bool);
 ```
 
 推荐语义：
 
-- Registry 内部通过 `PoolId.unwrap(key.toId())` 派生 `poolId`。
+- 调用方直接传入 `poolId`。
 - 调用方必须具备 SYMBOL_ADMIN 或专门的 POOL_ADMIN 权限。
-- pool 必须已注册，且传入的完整 `PoolKey` 必须与注册时保存的 `pools[poolId].key` 一致。
+- pool 必须已注册，即 `isKnownPool(poolId) == true`。
 - `lifecycle == PoolLifecycle.LIST`：恢复普通 swap 和普通 LP 的生命周期门禁。
 - `lifecycle == PoolLifecycle.PAUSE`：Pool 业务暂停 swap，但保留普通 LP 能力；这不改变 `isPaused()`。
 - `lifecycle == PoolLifecycle.DELIST`：阻断普通 swap 和普通 LP，但保留 pool 历史身份，退出和强退路径不应依赖 LIST。
+- 如果目标状态不是 `DELIST`，该 pool 绑定的 `securityId` 必须仍处于 listed 状态；证券已下架时，不应把历史 pool 重新打开为 `LIST` 或 `PAUSE`。
+- 生命周期变更必须同步维护 `activePoolCountBySecurity[securityId]`：
+  - `DELIST -> LIST/PAUSE`：计数递增。
+  - `LIST/PAUSE -> DELIST`：计数递减。
+  - `LIST <-> PAUSE`：计数不变。
 - 若目标状态等于当前状态，建议返回 `false` 或 revert；实现应选择一种并在测试中固定。
 
 推荐事件：
@@ -253,6 +303,27 @@ event PoolLifecycleChanged(
     PoolLifecycle newLifecycle
 );
 ```
+
+批量生命周期更新接口：
+
+```solidity
+function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle)
+    external
+    returns (uint256 changedCount);
+```
+
+推荐语义：
+
+- 调用方必须具备与 `updatePoolLifeCycle` 相同的权限。
+- `poolIds.length` 必须大于 0。
+- 每个 `poolId` 都必须已注册。
+- 对每个当前生命周期不同于目标 `lifecycle` 的 pool，按单池更新逻辑切换状态，同步维护该 pool 绑定 `securityId` 的 `activePoolCountBySecurity`，并发出 `PoolLifecycleChanged`。
+- 对已经处于目标状态的 pool 视为幂等 no-op，不计入 `changedCount`。
+- 返回 `changedCount`，便于调用方确认本次批量实际改变了多少个 pool。
+- 如果目标状态不是 `DELIST`，每个 pool 绑定的 `securityId` 必须仍处于 listed 状态；证券已下架时，不应把历史 pool 批量重新打开为 `LIST` 或 `PAUSE`。
+- 推荐设置一个合理的批量上限，例如 `MAX_POOL_LIFECYCLE_BATCH_SIZE`，避免单笔交易因为 calldata 或 gas 过大失败。大量 pool 应由调用方分批提交。
+
+证券下架场景下，调用方应传入该证券下仍未 `DELIST` 的 `poolId` 列表，并将 `lifecycle` 设置为 `PoolLifecycle.DELIST`。接口本身按 pool 已保存的 `securityId` 维护计数，因此不需要再传入 `securityId`。
 
 ## 9. Pool Tick 数量接口
 
@@ -268,7 +339,27 @@ function updatePoolTickCount(PoolKey calldata key) external returns (bool);
 - 返回 `false`：pool 不存在、PoolKey 不匹配，或外部 Tick 状态暂不可同步。
 - 具体 `+1/-1` 或重算逻辑由 LP Manager / NFT 设计决定；Registry 必须保证不会把未知 pool 的 Tick 数量更新为有效状态。
 
-## 10. 协议级全局 Pause
+## 10. 证券下架流程
+
+`delistSecurity(securityId)` 推荐流程：
+
+1. 校验 `securityId` 已登记且当前 `listed == true`。
+2. 校验 `activePoolCountBySecurity[securityId] == 0`。
+3. 若计数不为 0，说明至少还有一个关联 pool 处于 `LIST` 或 `PAUSE`，必须拒绝下架。
+4. 释放该证券占用的 tier 名额。
+5. 设置 `securities[securityId].listed = false`。
+6. 发出原有 `SecurityDelisted` 事件。
+
+配套操作顺序：
+
+1. 运营或治理方通过 `poolsBySecurity[securityId]` 离线枚举该证券的历史 pool。
+2. 对仍需关闭的 pool，优先按批次调用 `batchUpdatePoolLifeCycle(poolIds, PoolLifecycle.DELIST)`。
+3. 如果只剩单个或需要精确处理，也可以调用 `updatePoolLifeCycle(poolId, PoolLifecycle.DELIST)`。
+4. 待 `activePoolCountBySecurity[securityId] == 0` 后，再调用 `delistSecurity(securityId)`。
+
+这样可以避免在 `delistSecurity` 中执行无上限循环，同时让“关闭所有 pool”这个高频运营动作具备批量入口。
+
+## 11. 协议级全局 Pause
 
 ```solidity
 function isPaused() external view returns (bool);
@@ -279,9 +370,9 @@ function isPaused() external view returns (bool);
 - `false`：协议级全局 Pause 未生效。
 - `true`：协议级全局 Pause 生效，整个协议的普通 swap 和普通 LP 都应被阻断。
 
-该接口不表达 Pool 生命周期，`PoolLifecycle.PAUSE` 也不影响 `isPaused()` 的返回值。Pool 的业务 PAUSE 必须通过 `updatePoolLifeCycle(key, PoolLifecycle.PAUSE)` 设置。
+该接口不表达 Pool 生命周期，`PoolLifecycle.PAUSE` 也不影响 `isPaused()` 的返回值。Pool 的业务 PAUSE 必须通过 `updatePoolLifeCycle(poolId, PoolLifecycle.PAUSE)` 设置。
 
-## 11. 交易门禁组合
+## 12. 交易门禁组合
 
 swap 生命周期门禁：
 
@@ -328,29 +419,37 @@ lpAllowed =
 - `PAUSE`：生命周期允许普通 LP，但不允许 swap。
 - `isPaused() == true`：协议级全局 Pause 生效，无论 Pool 生命周期为何，普通 swap 和普通 LP 均不可执行。
 
-## 12. 兼容影响
+## 13. 兼容影响
 
 需要同步更新：
 
 - `ITSVPermissionedRegistry`：删除 `admitPermissionedSecurity`，调整 `registerPermissionedCurrency` 签名，保留 `registerPool(key)` 签名，并增加查询接口。
-- `TSVRegistryV1`：删除 `admitPermissionedSecurity` 实现，改造 `registerPermissionedCurrency` 和 `registerPool`。
+- `TSVRegistryV1`：删除 `admitPermissionedSecurity` 实现，改造 `registerPermissionedCurrency`、`registerPool`、`updatePoolLifeCycle`、`batchUpdatePoolLifeCycle` 和 `delistSecurity`。
 - `TSVTypes.sol`：增加 `PoolLifecycle`，并按最终结构调整 `PoolConfig`。
 - 测试 fixture：原来调用 `admitPermissionedSecurity` 的路径改为 `registerPermissionedCurrency(admission, tierId)`。
 - LP Manager 或建池调用方：继续调用 `registerPool(key)`，不需要传入 tier。
 - ABI artifact 和文档：更新删除和变更后的接口。
 
-## 13. 不变量
+## 14. 不变量
 
 - `admitPermissionedSecurity` 不再存在。
 - 新证券首个 W 准入必须通过 `registerPermissionedCurrency(admission, tierId)` 原子完成。
 - 已有证券新增 W 时，传入 `tierId` 必须等于证券已保存 tier。
 - `registerPool(key)` 注册成功后，Pool 必须固化股票 `securityId` 和从该证券读取的 `tierId`。
 - `registerPool` 成功后，新 pool 生命周期必须是 `LIST`。
+- `registerPool` 成功后，必须把 pool 追加到 `poolsBySecurity[securityId]`，并写入 `poolSecurityIndexPlusOne[poolId]`。
+- `activePoolCountBySecurity[securityId]` 必须等于该证券下生命周期不是 `DELIST` 的 pool 数量。
+- `delistSecurity(securityId)` 只有在 `activePoolCountBySecurity[securityId] == 0` 时才能成功。
+- `delistSecurity` 不应循环修改 pool 生命周期，也不应从 `poolsBySecurity[securityId]` 删除历史 pool。
+- `batchUpdatePoolLifeCycle(poolIds, lifecycle)` 必须只接收 poolId 列表，不接收 PoolKey。
+- `batchUpdatePoolLifeCycle` 必须和单池 `updatePoolLifeCycle(..., DELIST)` 使用同一套计数更新逻辑，避免 `activePoolCountBySecurity` 漂移。
+- `relistSecurity` 不应自动把历史 pool 从 `DELIST` 恢复为 `LIST` 或 `PAUSE`。
 - Pool 生命周期维度下，只有 `LIST` 允许普通 swap。
 - Pool 生命周期维度下，`LIST` 和 `PAUSE` 允许普通 LP，`DELIST` 阻断普通 LP。
 - `PoolLifecycle.PAUSE` 不是协议级全局 Pause。
-- `PoolLifecycle.PAUSE` 必须通过 `updatePoolLifeCycle(key, PoolLifecycle.PAUSE)` 设置。
+- `PoolLifecycle.PAUSE` 必须通过 `updatePoolLifeCycle(poolId, PoolLifecycle.PAUSE)` 设置。
 - `isPaused()` 是协议级全局 Pause 查询接口。
-- `getPoolLifeCycle(key)`、`updatePoolLifeCycle(key,lifecycle)` 和 `updatePoolTickCount(key)` 都必须从完整 PoolKey 派生 poolId，不接受外部直接传入的 poolId。
+- `getPoolLifeCycle(poolId)`、`updatePoolLifeCycle(poolId,lifecycle)` 和 `batchUpdatePoolLifeCycle(poolIds,lifecycle)` 都必须接收 poolId，不接收 PoolKey。
+- `updatePoolTickCount(key)` 仍从完整 PoolKey 派生 poolId。
 - `updatePoolTickCount(key)` 是写接口，可以同步 `poolTickCount`。
 - 强退、退出和历史查询路径不应要求 pool 生命周期仍为 `LIST`。

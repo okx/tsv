@@ -108,7 +108,10 @@ contract TSVRegistryV1 is TSVGoverned {
 
     // Registered pool keys and their permanent security associations.
     mapping(bytes32 => PoolConfig) private pools;
+    mapping(bytes32 => bytes32[]) private poolsBySecurity;
+    mapping(bytes32 => uint256) private poolSecurityIndexPlusOne;
     mapping(bytes32 => PoolLifecycle) public poolLifecycle;
+    mapping(bytes32 => uint32) public activePoolCountBySecurity;
     mapping(bytes32 => uint256) public poolTickCount;
 
     // Market reports and emergency pause records.
@@ -325,7 +328,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param securityId Listed security to remove from admission.
     function delistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
         SecurityConfig storage config = securities[securityId];
-        if (!config.listed) revert InvalidStatus();
+        if (!config.listed || activePoolCountBySecurity[securityId] != 0) revert InvalidStatus();
         config.listed = false;
         tiers[config.tierId].listedCount--;
         emit SecurityDelisted(securityId);
@@ -449,7 +452,10 @@ contract TSVRegistryV1 is TSVGoverned {
         poolId = PoolId.unwrap(key.toId());
         if (isKnownPool(poolId)) revert InvalidPool();
         pools[poolId] = PoolConfig(key, securityId, tierId);
+        poolsBySecurity[securityId].push(poolId);
+        poolSecurityIndexPlusOne[poolId] = poolsBySecurity[securityId].length;
         poolLifecycle[poolId] = PoolLifecycle.LIST;
+        activePoolCountBySecurity[securityId]++;
         emit PoolRegistered(poolId, securityId, tierId, PoolLifecycle.LIST);
     }
 
@@ -467,23 +473,32 @@ contract TSVRegistryV1 is TSVGoverned {
         return Currency.unwrap(pools[poolId].key.currency0) != address(0);
     }
 
-    function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle) {
-        return poolLifecycle[PoolId.unwrap(key.toId())];
+    function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle) {
+        return poolLifecycle[poolId];
     }
 
-    function updatePoolLifeCycle(PoolKey calldata key, PoolLifecycle lifecycle)
+    function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
         returns (bool)
     {
-        bytes32 poolId = PoolId.unwrap(key.toId());
         PoolConfig storage pool = pools[poolId];
-        if (!isKnownPool(poolId) || !_poolKeyMatches(pool, key)) revert InvalidPool();
-        PoolLifecycle previousLifecycle = poolLifecycle[poolId];
-        if (previousLifecycle == lifecycle) return false;
-        poolLifecycle[poolId] = lifecycle;
-        emit PoolLifecycleChanged(poolId, pool.securityId, previousLifecycle, lifecycle);
-        return true;
+        if (!isKnownPool(poolId)) revert InvalidPool();
+        return _updatePoolLifecycle(poolId, pool, lifecycle);
+    }
+
+    function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+        returns (uint256 changedCount)
+    {
+        if (poolIds.length == 0) revert InvalidConfig();
+        for (uint256 i; i < poolIds.length; ++i) {
+            bytes32 poolId = poolIds[i];
+            PoolConfig storage pool = pools[poolId];
+            if (!isKnownPool(poolId)) revert InvalidPool();
+            if (_updatePoolLifecycle(poolId, pool, lifecycle)) changedCount++;
+        }
     }
 
     function updatePoolTickCount(PoolKey calldata key) external returns (bool) {
@@ -730,6 +745,24 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return Address left-padded to bytes32.
     function _addressKey(address a) private pure returns (bytes32) {
         return bytes32(uint256(uint160(a)));
+    }
+
+    function _updatePoolLifecycle(bytes32 poolId, PoolConfig storage pool, PoolLifecycle lifecycle)
+        private
+        returns (bool)
+    {
+        PoolLifecycle previousLifecycle = poolLifecycle[poolId];
+        if (previousLifecycle == lifecycle) return false;
+        bytes32 securityId = pool.securityId;
+        if (lifecycle != PoolLifecycle.DELIST && !securities[securityId].listed) revert InvalidStatus();
+        if (previousLifecycle == PoolLifecycle.DELIST) {
+            activePoolCountBySecurity[securityId]++;
+        } else if (lifecycle == PoolLifecycle.DELIST) {
+            activePoolCountBySecurity[securityId]--;
+        }
+        poolLifecycle[poolId] = lifecycle;
+        emit PoolLifecycleChanged(poolId, securityId, previousLifecycle, lifecycle);
+        return true;
     }
 
     function _poolKeyMatches(PoolConfig storage pool, PoolKey calldata key) private view returns (bool) {

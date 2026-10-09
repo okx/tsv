@@ -13,7 +13,14 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {PermissionedAdmission, MarketStatus, MarketAction, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PermissionedAdmission,
+    MarketStatus,
+    MarketAction,
+    PauseScope,
+    PauseMode,
+    PoolLifecycle
+} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -158,6 +165,13 @@ abstract contract FoundationFixture is Test {
         assertEq(registry.marketSequence(SECURITY), previousSequence);
         assertEq(inbox.lastSequence(0, SECURITY), previousSequence);
         assertFalse(inbox.reportIdUsed(report.reportId));
+    }
+
+    function _delistPrimarySecurity() internal {
+        if (registry.getPoolLifeCycle(poolId) != PoolLifecycle.DELIST) {
+            registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST);
+        }
+        registry.delistSecurity(SECURITY);
     }
 
     // Bound Hook and LP identity views for this unit fixture, whose writer is the test contract.

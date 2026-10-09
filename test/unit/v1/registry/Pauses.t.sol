@@ -7,7 +7,8 @@ import {
     MarketStatus,
     MarketAction,
     PauseScope,
-    PauseMode
+    PauseMode,
+    PoolLifecycle
 } from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 
@@ -32,12 +33,13 @@ contract TSVPausesTest is FoundationFixture {
 
     function testRelistingRetainsMarketPauseAndReportSequence() public {
         _submitMarketMode(MarketAction.HALT, PauseMode.ALL, 1);
-        registry.delistSecurity(SECURITY);
+        _delistPrimarySecurity();
         _assertOperationGates(false, false);
         PermissionedAdmission memory another = _newStockConfig(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
         registry.registerPermissionedCurrency(another, 1);
         registry.relistSecurity(SECURITY);
+        registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST);
         assertEq(uint8(registry.marketStatus(SECURITY)), uint8(MarketStatus.HALTED));
         assertEq(uint8(registry.marketPauseMode(SECURITY)), uint8(PauseMode.ALL));
         assertEq(registry.marketSequence(SECURITY), 1);

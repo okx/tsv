@@ -16,7 +16,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         PermissionedAdmission memory config = _newStockConfig(keccak256("new-security"));
         bytes[] memory calls = new bytes[](8);
         calls[0] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config, 1));
-        calls[1] = abi.encodeCall(TSVRegistryV1.updatePoolLifeCycle, (key, PoolLifecycle.PAUSE));
+        calls[1] = abi.encodeCall(TSVRegistryV1.updatePoolLifeCycle, (poolId, PoolLifecycle.PAUSE));
         calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
         calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY));
         calls[4] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2));
@@ -29,6 +29,8 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         _denyCalls(calls, operator, role);
         assertEq(_state(), beforeState);
         registry.grantRole(role, operator);
+        vm.prank(operator);
+        registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST);
         vm.prank(operator);
         registry.delistSecurity(SECURITY);
         vm.prank(operator);
@@ -126,6 +128,8 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
                 registry.getSecurity(SECURITY),
                 registry.getCurrency(address(stock)),
                 registry.getPool(poolId),
+                registry.getPoolLifeCycle(poolId),
+                registry.activePoolCountBySecurity(SECURITY),
                 registry.tierPolicy(1),
                 ledger.used(SECURITY, DAY),
                 registry.nextPauseId()
