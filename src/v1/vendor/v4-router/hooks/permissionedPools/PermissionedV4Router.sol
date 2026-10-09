@@ -4,7 +4,10 @@ pragma solidity ^0.8.0;
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {ActionConstants} from "../../libraries/ActionConstants.sol";
 import {V4Router, IPoolManager, Currency, PoolKey} from "../../V4Router.sol";
-import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {
+    IPermissionsAdapter,
+    IHooks as AdapterHooks
+} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {
     IPermissionsAdapterFactory
 } from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
@@ -40,7 +43,9 @@ abstract contract PermissionedV4Router is V4Router {
     /// @notice Reverts if `currency` is a verified permissions adapter that has not allow-listed `hooks`
     function _validateHook(Currency currency, IHooks hooks) internal view {
         if (PERMISSIONS_ADAPTER_FACTORY.verifiedPermissionsAdapterOf(Currency.unwrap(currency)) == address(0)) return;
-        if (!IPermissionsAdapter(Currency.unwrap(currency)).allowedHooks(hooks)) revert HookNotAllowed();
+        if (!IPermissionsAdapter(Currency.unwrap(currency)).allowedHooks(AdapterHooks(address(hooks)))) {
+            revert HookNotAllowed();
+        }
     }
 
     function _take(Currency currency, address recipient, uint256 amount) internal virtual override {
