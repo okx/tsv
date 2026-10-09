@@ -102,7 +102,7 @@ abstract contract FoundationFixture is Test {
         stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         PermissionedAdmission memory admission = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         stock = PermissionsAdapter(admission.currency);
-        registry.admitPermissionedSecurity(1, admission);
+        registry.registerPermissionedCurrency(admission, 1);
         registry.registerQuoteToken(address(quote));
 
         address a = address(stock) < address(quote) ? address(stock) : address(quote);
@@ -177,7 +177,7 @@ abstract contract FoundationFixture is Test {
     }
 
     function _admitAdditionalSecurity(bytes32 securityId) internal {
-        registry.admitPermissionedSecurity(1, _newStockConfig(securityId));
+        registry.registerPermissionedCurrency(_newStockConfig(securityId), 1);
     }
 
     function _newStockConfig(bytes32 securityId) internal returns (PermissionedAdmission memory) {

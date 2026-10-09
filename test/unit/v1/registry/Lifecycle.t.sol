@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {PermissionedAdmission, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, PauseScope, PauseMode, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 
@@ -13,7 +13,7 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
 
     function testDelistingStopsAllPoolsAndRelistingKeepsIndependentPauses() public {
         PermissionedAdmission memory secondCurrency = _newStockConfig(SECURITY);
-        registry.registerPermissionedCurrency(secondCurrency);
+        registry.registerPermissionedCurrency(secondCurrency, 1);
         PoolKey memory secondKey = key;
         address a = secondCurrency.currency < address(quote) ? secondCurrency.currency : address(quote);
         address b = secondCurrency.currency < address(quote) ? address(quote) : secondCurrency.currency;
@@ -122,13 +122,30 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         registry.delistSecurity(SECURITY);
         bytes32 otherSecurity = keccak256("other-security");
         PermissionedAdmission memory config = _newStockConfig(otherSecurity);
-        registry.admitPermissionedSecurity(1, config);
+        registry.registerPermissionedCurrency(config, 1);
         config.securityId = SECURITY;
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitPermissionedSecurity(1, config);
+        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
+        registry.registerPermissionedCurrency(config, 1);
         assertEq(registry.tierPolicy(1).listedCount, 1);
         registry.relistSecurity(SECURITY);
         assertEq(registry.tierPolicy(1).listedCount, 2);
+    }
+
+    function testPoolLifecyclePauseAllowsLpButBlocksSwap() public {
+        assertEq(uint8(registry.getPoolLifeCycle(key)), uint8(PoolLifecycle.LIST));
+        _assertOperationGates(true, true);
+
+        assertTrue(registry.updatePoolLifeCycle(key, PoolLifecycle.PAUSE));
+        assertEq(uint8(registry.getPoolLifeCycle(key)), uint8(PoolLifecycle.PAUSE));
+        _assertOperationGates(false, true);
+
+        assertTrue(registry.updatePoolLifeCycle(key, PoolLifecycle.DELIST));
+        assertEq(uint8(registry.getPoolLifeCycle(key)), uint8(PoolLifecycle.DELIST));
+        _assertOperationGates(false, false);
+
+        assertTrue(registry.updatePoolLifeCycle(key, PoolLifecycle.LIST));
+        assertEq(uint8(registry.getPoolLifeCycle(key)), uint8(PoolLifecycle.LIST));
+        _assertOperationGates(true, true);
     }
 
     function _lifecycleState() private view returns (bytes32) {

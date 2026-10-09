@@ -12,6 +12,7 @@ import {
     PermissionedAdmission,
     SecurityConfig,
     PoolConfig,
+    PoolLifecycle,
     MarketStatus,
     MarketAction,
     PauseScope,
@@ -107,6 +108,8 @@ contract TSVRegistryV1 is TSVGoverned {
 
     // Registered pool keys and their permanent security associations.
     mapping(bytes32 => PoolConfig) private pools;
+    mapping(bytes32 => PoolLifecycle) public poolLifecycle;
+    mapping(bytes32 => uint256) public poolTickCount;
 
     // Market reports and emergency pause records.
     mapping(bytes32 => uint64) public marketSequence;
@@ -163,6 +166,15 @@ contract TSVRegistryV1 is TSVGoverned {
     event EmergencyPauseClosed(uint256 indexed recordId, bytes32 reasonCode);
     /// @notice Emitted when an identity is registered or its operation permissions are updated.
     event SbtConfigChanged(address indexed sbt, uint256 indexed tokenId, PermissionFlag permissions);
+    event PoolRegistered(
+        bytes32 indexed poolId, bytes32 indexed securityId, uint8 indexed tierId, PoolLifecycle lifecycle
+    );
+    event PoolLifecycleChanged(
+        bytes32 indexed poolId,
+        bytes32 indexed securityId,
+        PoolLifecycle oldLifecycle,
+        PoolLifecycle newLifecycle
+    );
 
     /// @notice Initializes governance and starts emergency-pause IDs at one.
     /// @param anchor Fixed governance Anchor used by the governed base contract.
@@ -286,20 +298,6 @@ contract TSVRegistryV1 is TSVGoverned {
         return tiers[tierId];
     }
 
-    /// @notice Atomically lists a security and admits its first stock W.
-    function admitPermissionedSecurity(uint8 tierId, PermissionedAdmission calldata admission)
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
-        if (admission.securityId == 0 || securities[admission.securityId].securityId != 0) {
-            revert InvalidConfig();
-        }
-        _takeTierSlot(tierId);
-        securities[admission.securityId] = SecurityConfig(admission.securityId, tierId, true);
-        emit SecurityListed(admission.securityId, tierId);
-        _registerPermissionedCurrency(admission);
-    }
-
     /// @notice Relists a delisted security under its existing tier.
     /// @param securityId Existing security to relist.
     function relistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
@@ -341,11 +339,21 @@ contract TSVRegistryV1 is TSVGoverned {
     }
 
     // W, U, and Q admission and configuration.
-    /// @notice Adds a stock W to an already listed security, sharing its U configuration.
-    function registerPermissionedCurrency(PermissionedAdmission calldata admission)
+    /// @notice Atomically lists a new security with its first stock W, or adds a W to an existing listed security.
+    function registerPermissionedCurrency(PermissionedAdmission calldata admission, uint8 tierId)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
     {
+        if (admission.securityId == 0) revert InvalidConfig();
+        _requireEnvironment();
+        SecurityConfig storage config = securities[admission.securityId];
+        if (config.securityId == 0) {
+            _takeTierSlot(tierId);
+            securities[admission.securityId] = SecurityConfig(admission.securityId, tierId, true);
+            emit SecurityListed(admission.securityId, tierId);
+        } else if (!config.listed || config.tierId != tierId) {
+            revert InvalidStatus();
+        }
         _registerPermissionedCurrency(admission);
     }
 
@@ -434,9 +442,15 @@ contract TSVRegistryV1 is TSVGoverned {
         bytes32 securityId0 = underlyings[currencies[currency0].underlying].securityId;
         bytes32 securityId1 = underlyings[currencies[currency1].underlying].securityId;
         if ((securityId0 == 0) == (securityId1 == 0)) revert InvalidPool();
+        bytes32 securityId = securityId0 == 0 ? securityId1 : securityId0;
+        SecurityConfig storage security = securities[securityId];
+        if (!security.listed) revert InvalidPool();
+        uint8 tierId = security.tierId;
         poolId = PoolId.unwrap(key.toId());
         if (isKnownPool(poolId)) revert InvalidPool();
-        pools[poolId] = PoolConfig(key, securityId0, securityId1);
+        pools[poolId] = PoolConfig(key, securityId, tierId);
+        poolLifecycle[poolId] = PoolLifecycle.LIST;
+        emit PoolRegistered(poolId, securityId, tierId, PoolLifecycle.LIST);
     }
 
     /// @notice Returns the registered key and permanent securities for a pool.
@@ -451,6 +465,32 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return Whether a nonzero first Currency is stored for this pool.
     function isKnownPool(bytes32 poolId) public view returns (bool) {
         return Currency.unwrap(pools[poolId].key.currency0) != address(0);
+    }
+
+    function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle) {
+        return poolLifecycle[PoolId.unwrap(key.toId())];
+    }
+
+    function updatePoolLifeCycle(PoolKey calldata key, PoolLifecycle lifecycle)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+        returns (bool)
+    {
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        PoolConfig storage pool = pools[poolId];
+        if (!isKnownPool(poolId) || !_poolKeyMatches(pool, key)) revert InvalidPool();
+        PoolLifecycle previousLifecycle = poolLifecycle[poolId];
+        if (previousLifecycle == lifecycle) return false;
+        poolLifecycle[poolId] = lifecycle;
+        emit PoolLifecycleChanged(poolId, pool.securityId, previousLifecycle, lifecycle);
+        return true;
+    }
+
+    function updatePoolTickCount(PoolKey calldata key) external returns (bool) {
+        if (msg.sender != lpManager) revert InvalidPool();
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        if (!isKnownPool(poolId) || !_poolKeyMatches(pools[poolId], key)) revert InvalidPool();
+        return true;
     }
 
     // Market state and emergency pauses.
@@ -549,6 +589,12 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return Whether pool and asset admission checks pass and no LP pause applies.
     function isLPAllowed(bytes32 poolId) external view returns (bool) {
         return _isOperationAllowed(poolId, PauseMode.LP);
+    }
+
+    /// @notice Whether a protocol-wide emergency pause currently blocks ordinary operation.
+    function isPaused() external view returns (bool) {
+        return _isPaused(PauseScope.GLOBAL, 0, PauseMode.TRADE)
+            || _isPaused(PauseScope.GLOBAL, 0, PauseMode.LP);
     }
 
     // Private helpers, grouped by identity, admission, pool, and pause duties.
@@ -650,6 +696,12 @@ contract TSVRegistryV1 is TSVGoverned {
     function _isOperationAllowed(bytes32 poolId, PauseMode operation) private view returns (bool) {
         PoolConfig storage pool = pools[poolId];
         if (!isKnownPool(poolId)) return false;
+        PoolLifecycle lifecycle = poolLifecycle[poolId];
+        if (operation == PauseMode.TRADE) {
+            if (lifecycle != PoolLifecycle.LIST) return false;
+        } else if (operation == PauseMode.LP) {
+            if (lifecycle == PoolLifecycle.DELIST) return false;
+        }
         address currency0 = Currency.unwrap(pool.key.currency0);
         address currency1 = Currency.unwrap(pool.key.currency1);
         if (!_assetAllowed(currency0) || !_assetAllowed(currency1)) return false;
@@ -658,8 +710,7 @@ contract TSVRegistryV1 is TSVGoverned {
                 || _isPaused(PauseScope.TOKEN, _addressKey(currency0), operation)
                 || _isPaused(PauseScope.TOKEN, _addressKey(currency1), operation)
         ) return false;
-        // Admission guarantees exactly one stock security per pool.
-        bytes32 securityId = pool.securityId0 == 0 ? pool.securityId1 : pool.securityId0;
+        bytes32 securityId = pool.securityId;
         return (uint8(marketPauseMode[securityId]) & uint8(operation)) == 0
             && !_isPaused(PauseScope.SECURITY, securityId, operation);
     }
@@ -679,5 +730,11 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return Address left-padded to bytes32.
     function _addressKey(address a) private pure returns (bytes32) {
         return bytes32(uint256(uint160(a)));
+    }
+
+    function _poolKeyMatches(PoolConfig storage pool, PoolKey calldata key) private view returns (bool) {
+        return Currency.unwrap(pool.key.currency0) == Currency.unwrap(key.currency0)
+            && Currency.unwrap(pool.key.currency1) == Currency.unwrap(key.currency1) && pool.key.fee == key.fee
+            && pool.key.tickSpacing == key.tickSpacing && address(pool.key.hooks) == address(key.hooks);
     }
 }

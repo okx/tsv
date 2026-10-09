@@ -10,7 +10,8 @@ import {
     QuoteTokenConfig,
     PermissionedAdmission,
     PoolConfig,
-    SecurityConfig
+    SecurityConfig,
+    PoolLifecycle
 } from "tsv-v1/types/TSVTypes.sol";
 
 /// @notice Shared W/U/Q interface. Asset records use the canonical TSVTypes definitions.
@@ -23,6 +24,11 @@ interface ITSVPermissionedRegistry {
     function getPool(bytes32 id) external view returns (PoolConfig memory);
     function getSecurity(bytes32 id) external view returns (SecurityConfig memory);
     function isTradable(bytes32 id) external view returns (bool);
+    function isLPAllowed(bytes32 id) external view returns (bool);
+    function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
+    function updatePoolLifeCycle(PoolKey calldata key, PoolLifecycle lifecycle) external returns (bool);
+    function updatePoolTickCount(PoolKey calldata key) external returns (bool);
+    function isPaused() external view returns (bool);
     function isPermissionedOwnerApproved(address owner) external view returns (bool);
     function exitAdminOf(address u) external view returns (address);
     function permissionsAdapterFactory() external view returns (address);
@@ -41,8 +47,7 @@ interface ITSVPermissionedRegistry {
     function setSbtConfig(uint256 tokenId, PermissionFlag permissions) external;
     function marketSequence(bytes32 id) external view returns (uint64);
 
-    function admitPermissionedSecurity(uint8 tierId, PermissionedAdmission calldata admission) external;
-    function registerPermissionedCurrency(PermissionedAdmission calldata admission) external;
+    function registerPermissionedCurrency(PermissionedAdmission calldata admission, uint8 tierId) external;
     function registerQuoteToken(address q) external;
     function setPermissionedOwnerApproval(address owner, bool approved) external;
     function updatePermissionedExpectedOwner(address w, address newOwner) external;

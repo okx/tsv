@@ -28,6 +28,12 @@ enum PauseMode {
     LP, // Blocks all ordinary LP actions only.
     ALL // Blocks swaps and all ordinary LP actions.
 }
+/// @notice Explicit lifecycle of a registered TSV pool.
+enum PoolLifecycle {
+    DELIST, // Ordinary swaps and ordinary LP operations are blocked.
+    LIST, // Ordinary swaps and ordinary LP operations may continue through later gates.
+    PAUSE // Ordinary LP operations may continue through later gates; swaps are blocked.
+}
 /// @notice Operation mode bound to an LP Manager callback context.
 enum LPOperationMode {
     OPEN, // Adds the initial positive liquidity to a new position.
@@ -76,14 +82,14 @@ struct SecurityConfig {
     bool listed;
 }
 
-/// @notice Registered key and permanent security legs for a V4 pool.
+/// @notice Registered key and permanent stock security for a V4 pool.
 struct PoolConfig {
     /// @notice Full V4 pool key.
     PoolKey key;
-    /// @notice Security ID for currency0, or zero for an ordinary Currency.
-    bytes32 securityId0;
-    /// @notice Security ID for currency1, or zero for an ordinary Currency.
-    bytes32 securityId1;
+    /// @notice Single nonzero stock security assigned to this W/Q pool.
+    bytes32 securityId;
+    /// @notice Security tier captured when this pool was registered.
+    uint8 tierId;
 }
 
 /// @notice LP Manager state exposed to the Hook while one liquidity operation is in progress.

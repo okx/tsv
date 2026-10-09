@@ -36,7 +36,7 @@ contract TSVPausesTest is FoundationFixture {
         _assertOperationGates(false, false);
         PermissionedAdmission memory another = _newStockConfig(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
-        registry.registerPermissionedCurrency(another);
+        registry.registerPermissionedCurrency(another, 1);
         registry.relistSecurity(SECURITY);
         assertEq(uint8(registry.marketStatus(SECURITY)), uint8(MarketStatus.HALTED));
         assertEq(uint8(registry.marketPauseMode(SECURITY)), uint8(PauseMode.ALL));
