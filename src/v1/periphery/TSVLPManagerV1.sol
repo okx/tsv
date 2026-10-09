@@ -56,17 +56,17 @@ contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
         )
         TSVGoverned()
     {
-        if (address(registry_).code.length == 0) revert InvalidRegistry();
+        if (address(_registry).code.length == 0) revert InvalidRegistry();
         registry = _registry;
         _disableInitializers();
     }
 
     /// @notice Initializes proxy governance, Registry and ERC-721 state exactly once.
     /// @dev Supply this call as the ERC-1967 proxy's constructor initialization data.
-    function initialize(address anchor, ITSVPermissionedRegistry registry_) external initializer {
-        if (address(registry_).code.length == 0) revert InvalidRegistry();
+    function initialize(address anchor, ITSVPermissionedRegistry _registry) external initializer {
+        if (address(_registry).code.length == 0) revert InvalidRegistry();
         __TSVGoverned_init(anchor);
-        registry = registry_;
+        registry = _registry;
         nextTokenId = 1;
         // The EIP712 signing name remains "Uniswap v4 Positions NFT" for upstream compatibility.
         name = "Uniswap v4 Permissioned Positions NFT";
