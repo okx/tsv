@@ -54,7 +54,7 @@ contract TSVDataInboxV1 is TSVGoverned {
     }
 
     /// @notice Validates and accepts one monthly ADTV report.
-    /// @param report Security, source month, ADTV value, version, and source metadata.
+    /// @param report Security, source month, ADTV value, and source metadata.
     function submitAdtv(AdtvReport calldata report) external {
         _submitAdtv(report);
     }
@@ -98,7 +98,7 @@ contract TSVDataInboxV1 is TSVGoverned {
     }
 
     /// @notice Validates and accepts a quota override for one security and trade day.
-    /// @param report Quota action, target day, version, and source metadata.
+    /// @param report Quota action, target day, and source metadata.
     function submitQuota(QuotaReport calldata report) external {
         _accept(
             2,

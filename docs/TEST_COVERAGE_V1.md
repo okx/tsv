@@ -1,10 +1,18 @@
 # TSV V1 测试覆盖矩阵
 
+> **2026-10-07 Wrapped Swap 更新：** Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
+
 当前 ABI 已移除业务 hash 参数；本页覆盖率保留此前版本的历史统计，当前回归计数与 ABI 校验见[实现状态](./IMPLEMENTATION_STATUS_V1.md#3-本地验证记录)。
 
 更新：2026-10-04。这里按业务行为解释测试完整度；具体规范编号见[测试规格](./TEST_SPEC_V1.md)，运行与维护规则见[测试说明](../test/README.md)。百分比衡量被触达的源码位置，不能证明所有输入或状态组合正确。
 
 后续待办以[测试缺口统一清单](./TEST_GAPS_V1.md)为准；该清单合并各领域限制，并补记 Ledger、初始化、ERC-8056 与区块时间的直接补测项。本文保留已执行覆盖与统计证据。
+
+## 当前 Wrapped 测试
+
+`WrappedInventory` 使用普通持有人的 U 转账验证 PM/Router 既有余额不会阻断四条交易路径，且不会参与结算；覆盖后续再次转入、少付回滚、U/Q 转账回调改变 U 余额时的整笔回滚和修正后重试。Registry 准入回归同时覆盖既有 PM U 余额下的首次证券准入和同 U 新增 W。
+
+当前执行套件见 [test/README](../test/README.md)，最终数量与尺寸见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)。`WrappedSwap` 验证真实结算、费用、额度与转账故障；`WrappedPolicy` 验证入口资格、支付回调策略变化、真实用户和升级身份；`WrappedBoundaries` / `WrappedPrecision` 验证部分成交、滑点、严格输出、回调与 18/6 raw 精度。成功流程均用真实 PM 和原版 W，回调/返回值故障注入只用于拒绝路径。下方 DIRECT/LP/fork 矩阵与数量均为历史记录，不计为 Wrapped 通过证据。
 
 ## 原有缺口与补齐方式
 

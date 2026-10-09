@@ -9,7 +9,7 @@ import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapt
 contract ERC8056DirectLegalShareAdapterTest is Test {
     function testConvertsUsingMultiplierActiveAtCallTime() public {
         ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token), 1);
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
 
         assertEq(adapter.toLegalShares(address(token), 3e18), 3e18);
         token.setUIMultiplier(2e18, block.timestamp + 10);
@@ -21,14 +21,14 @@ contract ERC8056DirectLegalShareAdapterTest is Test {
 
     function testScalesUsingTokenDecimals() public {
         ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 6, 0);
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token), 1);
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
 
         assertEq(adapter.toLegalShares(address(token), 1_500_001), 1_500_001e12);
     }
 
     function testUsesFloorRounding() public {
         ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token), 1);
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
         token.setUIMultiplier(5e17, block.timestamp + 1);
         vm.warp(block.timestamp + 1);
 
@@ -37,7 +37,7 @@ contract ERC8056DirectLegalShareAdapterTest is Test {
 
     function testZeroRawAmountConvertsToZero() public {
         ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token), 1);
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
 
         assertEq(adapter.toLegalShares(address(token), 0), 0);
     }
@@ -45,7 +45,7 @@ contract ERC8056DirectLegalShareAdapterTest is Test {
     function testRejectsOtherCurrency() public {
         ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
         ERC8056TestToken other = new ERC8056TestToken("Other", "OTH", 18, 0);
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token), 1);
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
 
         vm.expectRevert(ERC8056DirectLegalShareAdapter.InvalidCurrency.selector);
         adapter.toLegalShares(address(other), 1e18);
@@ -53,7 +53,7 @@ contract ERC8056DirectLegalShareAdapterTest is Test {
 
     function testDeclaresDirectAdapterInterface() public {
         ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
-        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token), 1);
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
 
         assertTrue(adapter.supportsInterface(type(IDirectLegalShareAdapter).interfaceId));
     }
@@ -62,6 +62,6 @@ contract ERC8056DirectLegalShareAdapterTest is Test {
         ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 19, 0);
 
         vm.expectRevert(ERC8056DirectLegalShareAdapter.InvalidAdapterConfig.selector);
-        new ERC8056DirectLegalShareAdapter(address(token), 1);
+        new ERC8056DirectLegalShareAdapter(address(token));
     }
 }

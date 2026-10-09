@@ -1,5 +1,18 @@
 # TSV V1 全新部署与发布验收清单
 
+> **2026-10-07 Wrapped Swap 更新：** Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。## 当前 Wrapped 部署补充
+
+当前可发布制品范围及生产门禁以 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)和 [W/U/Q 市场开通流程](./OPENING_A_STOCK_MARKET_V1.md)为准。下方为历史六代理部署框架，不能据其旧 DIRECT/LP/DEX 步骤启用 Wrapped 市场。
+
+1. 先部署并核验唯一 `PermissionedValidationLib`，Registry 使用该地址编译链接；将地址写入 manifest 及 `TSV_PERMISSIONED_VALIDATION_LIBRARY`。
+2. 使用原版 `PermissionsAdapterFactory(PM)`，记录真实 F 为 `TSV_PERMISSIONS_ADAPTER_FACTORY`。Router 直接依赖 F；发行方独立开发、部署和配置 checker。
+3. Router **实现**构造为 `new TSVSwapRouterV1(PM,F)`；随后代理 `initialize(anchor,PM,R)`。Router 不持有 Ledger 引用；初始化与候选升级都须保留相同 PM/F，不复用旧 Router 布局。
+4. 组件部署完成后，Governor 一次调用 `R.bindComponents(Hook,LPManager,DataInbox,F,SBT)`；随后用 VerifyDeploymentV1 验证 Hook Router/LP 引用、Ledger Registry、Anchor、Registry 库链接与 Router 不可变 PM/F。
+5. 先以无广播方式模拟脚本。`VerifyDeploymentV1` 为只读核验，不证明发行方权限或流动性；按 manifest 分别保存 W/U/Q、SBT/owner/exitAdmin、额度、issuer 与生产 LP 证据。
+6. 生产 Wrapped LP 尚待迁移和验收；测试 seed 不可部署替代。模板的 `wrappedRouterReady` / `wrappedLiquidityReady` 保持 false，证据齐备后再由 owner 开启 W swapping。
+
+当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
+
 当前 ABI 已移除业务 hash 参数和配置字段，部署脚本及 manifest 也不接收 CODEHASH 输入。业务 ID、reasonCode、salt 与内部哈希计算保留。此变更改变函数/事件 ABI 和存储布局，须全新部署；不得直接升级使用旧字段布局的实例。链下审查材料按证券、资产、报告 ID 和交易记录归档。
 
 版本：1.1，2026-10-03
@@ -16,7 +29,6 @@
 | 业务代理 | Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager | 六个地址全部新建；使用非空初始化数据部署 `TSVERC1967Proxy` |
 | 治理合约 | `TSVGovernanceAnchor` | 非代理、不可升级；直接保存 Governor/Guardian/Council 和升级冻结状态，六代理只保存 Anchor 地址 |
 | 外部依赖 | 官方 V4 `PoolManager`、SmartWalletSbt、发行方 Token、实现 `IDirectLegalShareAdapter` 的 Adapter | 地址、版本、ABI/ERC-165 接口声明及法律换算依据必须写入发布清单 |
-| 历史源码 | `src/v1/legacy/` 下的旧包装/赎回 Adapter | 只用于隔离回归测试，不部署、不登记、不写入核心配置 |
 
 不得把旧 `TSVReceiptV1`、旧 `TSVSBTAdapterV1`、旧 Router 或旧 LP Manager 地址填入新清单。旧 LP 仓位和旧 SIP 日账不属于本部署状态，因此不执行迁移，也不保留兼容分支。
 
@@ -38,7 +50,7 @@ manifest 中不能只写“由多签控制”。链上只识别具体地址，�
 
 ## 3. 治理合约部署顺序
 
-仓库提供 [`DeployGovernanceV1.s.sol`](../script/DeployGovernanceV1.s.sol)、[`DeployCoreV1.s.sol`](../script/DeployCoreV1.s.sol) 和只读的 [`VerifyDeploymentV1.s.sol`](../script/VerifyDeploymentV1.s.sol)。先以目标链 RPC 对两者执行无 `--broadcast` 的模拟，再在已冻结 manifest、链 ID、官方 PoolManager 与 SBT 地址、版本和接口核对后广播。Core 脚本在广播交易之外枚举 CREATE2 salt；模拟时按本仓库 Foundry CLI 的 `--disable-block-gas-limit` 关闭本地枚举的区块 gas 检查，实际广播的每笔交易仍须满足目标链 gas 限制。脚本从环境读取 `TSV_DEPLOYER_PRIVATE_KEY`，由密钥管理器注入，不能写入仓库或命令行文本。主要输入为 `TSV_CHAIN_ID`、`TSV_GOVERNOR`、`TSV_GUARDIAN`、`TSV_RECOVERY_COUNCIL`；第二阶段还需 `TSV_GOVERNANCE_ANCHOR`、`TSV_POOL_MANAGER`、`TSV_SBT`、`TSV_SBT_TOKEN_ID` 和 `TSV_DAY_START_OFFSET_SECONDS`。两个脚本只部署并验证其明确列出的合约；后续 Anchor/Registry/Ledger 绑定、资产与角色操作由治理身份分别执行。发布事务须回填 manifest。完成 Anchor、Registry、Ledger、SBT 绑定后，使用 `VerifyDeploymentV1` 只读检查六代理地址、实现地址、Hook 权限位及所有交叉引用；校验脚本还需从 manifest 注入六组 `TSV_*_IMPLEMENTATION`，以及六个代理地址 `TSV_REGISTRY`、`TSV_VOLUME_LEDGER`、`TSV_DATA_INBOX`、`TSV_HOOK`、`TSV_SWAP_ROUTER`、`TSV_LP_MANAGER`。
+仓库提供 [`DeployGovernanceV1.s.sol`](../script/DeployGovernanceV1.s.sol)、[`DeployCoreV1.s.sol`](../script/DeployCoreV1.s.sol) 和只读的 [`VerifyDeploymentV1.s.sol`](../script/VerifyDeploymentV1.s.sol)。先以目标链 RPC 对两者执行无 `--broadcast` 的模拟，再在已冻结 manifest、链 ID、官方 PoolManager 与 SBT 地址、版本和接口核对后广播。Core 脚本在广播交易之外枚举 CREATE2 salt；模拟时按本仓库 Foundry CLI 的 `--disable-block-gas-limit` 关闭本地枚举的区块 gas 检查，实际广播的每笔交易仍须满足目标链 gas 限制。脚本从环境读取 `TSV_DEPLOYER_PRIVATE_KEY`，由密钥管理器注入，不能写入仓库或命令行文本。主要输入为 `TSV_CHAIN_ID`、`TSV_GOVERNOR`、`TSV_GUARDIAN`、`TSV_RECOVERY_COUNCIL`；第二阶段还需 `TSV_GOVERNANCE_ANCHOR`、`TSV_POOL_MANAGER`、`TSV_PERMISSIONS_ADAPTER_FACTORY`、`TSV_SBT`、`TSV_RETAIL_SBT_TOKEN_ID`、`TSV_MARKETMAKER_SBT_TOKEN_ID`、`TSV_RETAIL_SBT_PERMISSIONS`、`TSV_MARKETMAKER_SBT_PERMISSIONS` 和 `TSV_DAY_START_OFFSET_SECONDS`。两个脚本只部署并验证其明确列出的合约；后续 Anchor/Registry/Ledger 绑定、资产与角色操作由治理身份分别执行。发布事务须回填 manifest。完成 Anchor、Registry、Ledger、SBT 绑定后，使用 `VerifyDeploymentV1` 只读检查六代理地址、实现地址、Hook 权限位及所有交叉引用；校验脚本还需从 manifest 注入六组 `TSV_*_IMPLEMENTATION`，以及六个代理地址 `TSV_REGISTRY`、`TSV_VOLUME_LEDGER`、`TSV_DATA_INBOX`、`TSV_HOOK`、`TSV_SWAP_ROUTER`、`TSV_LP_MANAGER`。
 
 1. 部署 `TSVGovernanceAnchor(governor, guardian, recoveryCouncil)`；直接设置 Governor/Guardian/Council。
 2. 回填 Anchor 地址及三身份到 manifest 与第二阶段环境变量。
@@ -99,7 +111,7 @@ Hook 地址低 14 位 == 0x3FFF
    ```solidity
    TSVSwapRouterV1.initialize(
        anchor,
-       poolManager, registry, ledger
+       poolManager, registry
    )
    ```
 
@@ -127,7 +139,7 @@ Hook 地址低 14 位 == 0x3FFF
 
 按以下顺序调用一次性绑定入口：
 
-1. `Registry.bindComponents(hook, lpManager, dataInbox)`
+1. `Registry.bindComponents(hook, lpManager, dataInbox, permissionsAdapterFactory, sbt)`
 2. `VolumeLedger.bindWriters(hook, dataInbox)`
 3. `GovernanceAnchor.bindProxies([registry, volumeLedger, dataInbox, hook, swapRouter, lpManager])`
 
@@ -135,9 +147,9 @@ Hook 地址低 14 位 == 0x3FFF
 
 然后逐项读取：
 
-- Registry 的 `hook/lpManager/dataInbox`
+- Registry 的 `hook/lpManager/dataInbox/permissionsAdapterFactory/permissionedPoolManager/participantSbt`
 - VolumeLedger 的 `hook/dataInbox`
-- Router 的 `poolManager/registry/ledger`
+- Router 的 `poolManager/registry`
 - LP Manager 的 `poolManager/registry`
 - Hook 的 `poolManager/registry/ledger/router/lpManager`
 - 六代理 `governanceAnchor()` 指向同一个 Anchor，且 Anchor 保存的六地址顺序正确
@@ -151,18 +163,19 @@ Hook 地址低 14 位 == 0x3FFF
 先调用：
 
 ```solidity
-Registry.setSbtConfig(sbt, tokenId)
+Registry.setSbtConfig(tokenId, permissions)
 ```
 
-当前实现会在配置时读取 `paused()` 和 `verify(address, tokenId)`，用于确认目标地址具备所需 ABI。未配置 SBT 时，`hasCredential` 和 `isEligible` 明确回滚 `SbtNotConfigured()`；这属于 fail-closed 行为。
+SBT 地址已在 `bindComponents` 中一次绑定，并探测 `paused()` 和 `verify(address(this),0)` ABI。每次 `setSbtConfig` 仅登记或更新一个 tokenId，校验该 ID 的 `verify` 读取；各身份独立配置 swap/LP 权限，同一地址取持有身份的权限并集。暂停不阻止绑定或更新配置。部署权限位为 swap=1、LP=2、两者=3、均关闭=0；当前 retail、marketmaker 均配置为 3。组件未绑定时，`hasCredential` 和 `permissionsOf` 回滚 `SbtNotConfigured()`；绑定后若没有已登记身份，持有查询为 false，操作权限为 NONE。
 
 配置后必须验证：
 
-- 有资格地址：`isEligible(user) == true`
-- 无资格地址：`isEligible(user) == false`
-- SBT paused：`isEligible(user) == false`
+- 有资格地址：`isAllowed(PermissionFlags.SWAP_ALLOWED, user) == true`
+- 无资格地址：`isAllowed(PermissionFlags.SWAP_ALLOWED, user) == false`
+- SBT paused：`isAllowed(PermissionFlags.SWAP_ALLOWED, user) == false`
+- LP 权限：独立查询 `isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, user)`；两项操作均另行检查发行方 W 权限
 - `verify` 调用失败：交易回滚
-- SBT 配置事件包含正确的旧地址、新地址以及旧/新 tokenId
+- SBT 配置事件包含正确的 SBT 地址、tokenId 和 swap/LP 权限；重复配置更新该 ID，不重复登记
 
 ### 5.2 业务角色
 
@@ -183,10 +196,10 @@ Registry.setSbtConfig(sbt, tokenId)
 
 资产准入证据和实例边界以[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)为准；本节只列上线时的执行顺序：
 
-1. 完成链下审查后，由 `SYMBOL_ADMIN` 一次调用 `admitSecurity`，登记 `securityId`、Tier、首个 Currency 和 LegalShareAdapter 并批准 Token；输入 status=APPROVED，市场默认 OPEN。证据未齐不得准入。
-2. 报价 Currency 若未准入，调用 `registerToken` 登记即批准；已有上市证券的新增 Currency 也使用此入口。
+1. 完成链下审查后，由 `SYMBOL_ADMIN` 调用 `admitPermissionedSecurity`，原子登记证券、Tier、首个 W 及 U 的规范股数 Adapter；市场默认 OPEN，资产没有独立状态枚举。证据未齐不得准入。
+2. 报价币 Q 使用 `registerQuoteToken`；已有上市证券新增 W 使用 `registerPermissionedCurrency`，同一 U 共享规范配置。
 3. 由 `VOLUME_ORACLE` 提交当前适用月份 ADTV；quota 仅在需要覆盖某计量日硬上限时提交。拆/并股按公告提前提交 SplitFactor，默认系数1无需报告；仅可选择未来计量日开始。报告服务须固定 ADTV 来源月月末单位、kind=3 独立序号和最新待生效项版本，复核绝对 quota 及未来日切起点。无需首次开市报告。
-4. 由 `POOL_CREATOR` 调用 `LPManager.initializePool`。Registry pending、V4 initialize 和 Registry active 必须在同一交易完成；建池和 ADTV 可按任意顺序执行。
+4. 由 `POOL_CREATOR` 调用 `LPManager.initializePool`。Registry.registerPool 和 PM.initialize 必须在同一交易完成，失败连同注册回滚；建池和 ADTV 可按任意顺序执行。
 5. 核对 PoolKey、PoolId、Hook 地址、初始价格及状态，写入 manifest；LP 可在 ADTV 前提供流动性，首笔股票 Swap 前必须有有效 ADTV。
 
 ## 7. 发布后最小验收
@@ -195,15 +208,15 @@ Registry.setSbtConfig(sbt, tokenId)
 
 - 六个业务代理和一个固定治理合约的地址及绑定关系。
 - Hook 地址权限位、实现地址和初始化事件。
-- SBT 配置、角色授予、资产配置和 TokenStatus。
+- SBT 配置、角色授予、W/U/Q 准入配置和证券 listed 标志。
 - 准入后默认 OPEN、marketSequence=0；ADTV、可选 quota、SplitFactor 排期/取消及后续 HALT/RESUME 的 reportId 和 sequence；新 Ledger/Inbox ABI 与索引器同时发布，已有实例升级核对追加布局并建议原子批量升级二者。
 - 四种紧急暂停范围及 TRADE/LP/ALL 模式、市场 HALT 叠加与 RESUME 部分恢复；索引器读取新事件模式字段、marketPauseMode 和三参数 activePauseCount。
-- 使用本版准入、Token/Market 状态及暂停/MarketReport ABI 首次部署，不作为旧合约存储的原地迁移实现。
+- 使用本版准入、证券上市及暂停/MarketReport ABI 首次部署，不作为旧合约存储的原地迁移实现。
 - 至少一个普通 ERC-20 报价资产和一个 Backed-compatible 股票资产及 Adapter 的登记结果。
 - 一个股票/报价币池的初始化结果和 PoolId。
-- 一笔成功 Swap：实际输入、实际输出、`SwapExecuted`、`SwapAccounted`、usedWad。
+- 一笔成功 Swap：返回的实际输入、实际输出、PM `Swap`、Ledger `SwapAccounted`、usedWad。
 - 一次 LP 开仓、部分减仓、关闭和强退的 Receipt/余额变化。
-- 一个拒绝用例：SBT 无资格、SBT paused、缺 ADTV、TokenStatus 非 APPROVED、旧 TSLAx 结算配置。
+- 一个拒绝用例：SBT 无资格、SBT paused、缺 ADTV、资产未登记、TOKEN/POOL 暂停或证券下架、旧 TSLAx 结算配置。
 
 所有失败用例都必须证明用户、PoolManager、仓位、Receipt 和 usedWad 回到交易前状态。
 
@@ -226,7 +239,7 @@ Registry.setSbtConfig(sbt, tokenId)
 - Hook 权限位不是 `0x3FFF`
 - SBT 未配置或 ABI 校验失败
 - wTSLAx 仍缺少发行方/法务准入证据
-- 任一资产未准入（`ABSENT`）或为 `DISABLED` 却尝试建池
+- 任一资产未准入或证券已下架却尝试建池
 - 使用了旧代理、旧 Receipt、旧 SBT Adapter 或 legacy Adapter
 - Hook 初始化中 Router/LP Manager 地址未经过预测和实际地址比对
 

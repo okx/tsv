@@ -1,5 +1,19 @@
 # TSV V1 实现状态
 
+## 当前 Wrapped 交付状态（2026-10-07）
+
+Registry 与单池 Wrapped Swap 已编码；Router 支持 U↔Q 四条 exact-in/exact-out 路径，原版 W/PM 结算、一次回调绑定、精确双侧转账、surplus 不变、严格 exact-out 和不可变 PM/F 升级检查均已落地。白名单 Adapter 使用已验证的真实用户身份，负责 U/Q 收付。`PermissionedValidationLib` 无存储，仅供 Registry 资产准入校验使用；资金与上下文留在 Router。
+
+当前验收记录、代码尺寸、库链接、ABI/layout 见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)。生产 Wrapped LP 源码尚未迁移；测试 seed 不属于生产制品。manifest readiness 保持 false，真实发行方/生产 SBT/目标链及流动性证据另行验收。
+
+review 已修正 PM/Router 绝对零 U 余额带来的交易和准入阻断：Swap 保留本次调用的余额基线并校验局部及整笔交易余额不变；Registry 只核对新 W 自身库存。既有 U 不能覆盖少付，未新增代理存储槽。
+
+## 历史实现记录
+
+更新：Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
+
+2026-10-08 当前本地回归：48 个套件、323 项通过、0 失败、0 跳过，包含 Wrapped Swap、DEX Adapter、报告及治理/运营 invariant。Ledger 删除不可达零 delta 分支、重复交易门禁和派生 pending/active 状态；ADTV/quota 只存金额，三类计量报告已移除 version，顺序与去重由 Inbox sequence/reportIdUsed 管理。拆并股保留原始分子/分母及非零、溢出校验。`currentTradeDay` 只返回日 ID，`SwapAccounted` 同时记录 W/U。`make check`、编译制品源码哈希与 ABI 核验通过；日志见 [Ledger 精简回归](../out/tsv-ledger-simplification/full-tests.log)。
+
 更新：2026-10-05。本文是当前工作区的状态看板：记录源码已实现什么、还缺哪些实现或外部证据。目标流程见[三系统总览](./SYSTEMS_OVERVIEW.md)，行为规范见[编码规格](./CODING_SPEC_V1.md)和[代币准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)，目标验收条件见[测试规格](./TEST_SPEC_V1.md)。日期评审保留其当时结论，不自动代表当前实现。
 
 **状态用语：**“已编码”表示源码存在；“部分实现”表示仍缺目标行为或自动防护；“外部阻断”表示须取得发行方、法务或目标链证据。测试规格是目标清单，不代表所有测试已执行。
@@ -12,7 +26,7 @@
 | --- | --- | --- |
 | GAP-01 **已编码（本地）** | Registry、Router 和 LP Manager 只直接结算唯一池内 Currency；旧 TSLAx→wTSLAx 用户结算组合不在当前 ABI | 真实 wTSLAx 实例及法律计股依据仍待准入；本部署无旧仓位迁移，验收见 A05/A06 |
 | GAP-02 **已编码（本地行为 mock）** | 唯一 `BackedAutoFeeLegalShareAdapter` 已接入 Hook；实际股票腿在 `afterSwap` 直接调用来源 Token `getUnderlyingAmountByShares(rawShares)`，本地 V4 集成覆盖两方向 Swap 与 LP | 本地来源/Wrapped mock 不构成真实发行方证据；真实代理、转换方法语义和法律计量仍须逐实例审查，验收见 A01/A04 |
-| GAP-03 **部分实现** | 直接换算接口已取代 RateSnapshot、rateId 与反向 raw 换算；Hook 在 `afterSwap` 换算，Ledger 校验正/零 shares 与 Registry 元数据后记账；Adapter 可受控版本替换 | 成交事件只记 Adapter 版本，不记录实时发行方参数；链上没有 unitEpoch，也不能拦截未预告的法律股数单位变化。拆并股额度已按 D-37 支持未来日独立系数；实际成交仍实时 Adapter 计股。来源法律单位异常时须暂停并在口径一致的新日恢复；无足够预告期的资产不得准入。流程见[准入标准 §4](./TOKEN_ADMISSION_STANDARD_V1.md#4-公司行动与数据单位) |
+| GAP-03 **部分实现** | 直接换算接口已取代 RateSnapshot、rateId 与反向 raw 换算；Hook 在 `afterSwap` 换算，Ledger 校验正/零 shares 与 Registry 元数据后记账；Adapter 可受控替换 | 成交事件记录实际计股量，不记录实时发行方参数；链上没有 unitEpoch，也不能拦截未预告的法律股数单位变化。拆并股额度已按 D-37 支持未来日独立系数；实际成交仍实时 Adapter 计股。来源法律单位异常时须暂停并在口径一致的新日恢复；无足够预告期的资产不得准入。流程见[准入标准 §4](./TOKEN_ADMISSION_STANDARD_V1.md#4-公司行动与数据单位) |
 | GAP-04 **已编码** | DataInbox 接受角色地址直写的 Market、ADTV、可选 Quota 和未来日 SplitFactor；支持 quota SET/CLEAR、版本顺序和硬上限 | 生产报告服务、索引器与角色操作留证仍须准备；规则见[编码规格 `7](./CODING_SPEC_V1.md#7-角色报告计量日和额度) |
 | GAP-05 **已编码** | VolumeLedger 按 UTC 与可配置起点自动生成计量日；支持未来排期、偏移边界、过渡日锁定和取消待生效配置 | 生产报告服务与索引器须采用同一日切规则；部署与验收见[部署清单](./DEPLOYMENT_CHECKLIST_V1.md)及 D04/D05/P03 |
 | GAP-06 **已编码，本地回归通过** | 独立 Authority 与治理根迁移已移除；唯一固定 Anchor 直接保存 Governor/Guardian/Council 和升级开关；Council 提案、当前 Guardian 批准后可恢复 Governor/Guardian | Anchor 不可升级，Council 固定；本版用于全新部署，目标链部署与真实多签恢复仍须独立核验；验收见 G09 |
@@ -40,7 +54,7 @@
 
 | ID | 尚待取得的证据或交付物 |
 | --- | --- |
-| EXT-01 | 发行方与法务确认 TSLAx/wTSLAx 的逐笔法定股数公式、账户权益定义、成交量费用口径、公司行动单位及拒转强退方案；证据未齐不得准入；未登记为 ABSENT |
+| EXT-01 | 发行方与法务确认 TSLAx/wTSLAx 的逐笔法定股数公式、账户权益定义、成交量费用口径、公司行动单位及拒转强退方案；证据未齐不得准入；未登记资产不能建池 |
 | EXT-02 | 核验真实代理 ABI、管理员、制裁/暂停权限、wTSLAx 精确转账、`getUnderlyingAmountByShares` 调用 gas 与返回语义，并留存代理升级监控及暂停复审证据 |
 | EXT-03 | 固定 V4 上游来源和可重现版本；分别构建并通过薄接口集成 SmartWalletSbt 与 Backed 产物 |
 | EXT-04 | 完成固定区块 X Layer 核验、fuzz/invariant、存储布局升级回归、最坏 gas、Hook salt manifest、目标链部署演练及监控留证 |
@@ -80,4 +94,6 @@ X Layer 固定区块 **72,271,000** 使用真实 DexRouter `0x7c5bee2a8091c3ef39
 
 复现：`FOUNDRY_PROFILE=default FOUNDRY_OUT=out/split-factor-regression FOUNDRY_CACHE_PATH=cache/split-factor-regression forge test --fuzz-seed 0x20261004 --summary`；fork 为 `FOUNDRY_PROFILE=xlayer forge test --fuzz-seed 0x20261004 --summary`。原始记录在忽略的 `out/`：`tsv-split-factor-all-tests.log`、`tsv-split-factor-xlayer.log`、`tsv-split-factor-coverage.log`、`tsv-split-factor-coverage.lcov`、`tsv-split-factor-check.log` 和 `tsv-split-factor-layout.json`。
 
-系数新增两个 mapping 位于 Ledger slot 9/10，既有 ADTV、quota、used 和日切字段顺序保持；实际成交计股仍由现有实时 Adapter 决定。新增单元/真实 V4/模型覆盖及更新后的覆盖率见[覆盖矩阵](./TEST_COVERAGE_V1.md)。
+2026-10-04 当时的系数新增两个 mapping 位于 Ledger slot 9/10；2026-10-08 已按未部署项目精简布局，不保留旧槽位或来源月版本 mapping。实际成交计股仍由现有实时 Adapter 决定。新增单元/真实 V4/模型覆盖及更新后的覆盖率见[覆盖矩阵](./TEST_COVERAGE_V1.md)。
+
+2026-10-08 Registry 精简：`bindComponents(hook,lpManager,dataInbox,factory,sbt)` 一次绑定并只发一个 ComponentsBound；SBT 身份配置为 `setSbtConfig(tokenId,permissions)`。Router 从 Hook 读取，删除 Registry 重复 Router 配置与绑定交叉检查，部署核验保留在 VerifyDeploymentV1。U 共享 exitAdmin 保持；Registry 70 项回归通过。运行时代码 22,923 字节，格式与布局检查通过。

@@ -13,18 +13,17 @@ abstract contract OperationsFixture is FoundationFixture {
         uint64 timestamp;
         uint64 deadline;
         uint64 sequence;
-        uint64 version;
         bytes32 id;
     }
 
-    function _metadata(uint64 sequence, uint64 version, bytes32 id) internal view returns (ReportMetadata memory) {
-        return ReportMetadata(uint64(block.timestamp), uint64(block.timestamp + 100), sequence, version, id);
+    function _metadata(uint64 sequence, bytes32 id) internal view returns (ReportMetadata memory) {
+        return ReportMetadata(uint64(block.timestamp), uint64(block.timestamp + 100), sequence, id);
     }
 
     function _reportPayload(uint8 kind, ReportMetadata memory m) internal view returns (bytes memory) {
         if (kind == 0) {
             MarketReport memory market =
-                _market(m.version == 1 ? MarketAction.HALT : MarketAction.RESUME, m.sequence, m.id);
+                _market(m.sequence == 1 ? MarketAction.HALT : MarketAction.RESUME, m.sequence, m.id);
             market.mode = PauseMode.TRADE;
             market.sourceTimestamp = m.timestamp;
             market.submitDeadline = m.deadline;
@@ -32,13 +31,13 @@ abstract contract OperationsFixture is FoundationFixture {
             return abi.encodeCall(TSVDataInboxV1.submitMarketStatus, (market));
         }
         if (kind == 1) {
-            AdtvReport memory adtv = _adtv(SECURITY, 1000e18, m.version, m.sequence, m.id);
+            AdtvReport memory adtv = _adtv(SECURITY, 1000e18, m.sequence, m.id);
             adtv.sourceTimestamp = m.timestamp;
             adtv.submitDeadline = m.deadline;
 
             return abi.encodeCall(TSVDataInboxV1.submitAdtv, (adtv));
         }
-        QuotaReport memory quota = _quota(2e18, 1, m.version, m.sequence, m.id);
+        QuotaReport memory quota = _quota(2e18, 1, m.sequence, m.id);
         quota.sourceTimestamp = m.timestamp;
         quota.submitDeadline = m.deadline;
 

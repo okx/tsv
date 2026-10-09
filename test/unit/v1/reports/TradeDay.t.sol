@@ -8,8 +8,7 @@ import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 contract TSVTradeDayTest is FoundationFixture {
     /// @dev Verifies automatic trade-day calculations use Gregorian dates and the previous month.
     function testAutomaticTradeDayUsesGregorianDatesAndPreviousMonth() public {
-        (bool exists, uint32 day) = ledger.currentTradeDay();
-        assertTrue(exists);
+        uint32 day = ledger.currentTradeDay();
         assertEq(day, DAY);
         assertEq(ledger.dayStartUTC(DAY), 1_790_827_200);
         assertEq(ledger.dayStartUTC(20280229), ledger.dayStartUTC(20280228) + 86_400);
@@ -30,15 +29,14 @@ contract TSVTradeDayTest is FoundationFixture {
         vm.warp(oldTransitionStart);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidPeriod.selector);
         ledger.cancelPendingDayStart();
-        (bool exists, uint32 day) = ledger.currentTradeDay();
-        assertTrue(exists);
+        uint32 day = ledger.currentTradeDay();
         assertEq(day, 20261003);
         uint64 effectiveStart = ledger.dayStartUTC(effectiveDay);
         vm.warp(effectiveStart - 1);
-        (, day) = ledger.currentTradeDay();
+        day = ledger.currentTradeDay();
         assertEq(day, 20261003);
         vm.warp(effectiveStart);
-        (, day) = ledger.currentTradeDay();
+        day = ledger.currentTradeDay();
         assertEq(day, effectiveDay);
     }
 

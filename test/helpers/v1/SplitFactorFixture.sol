@@ -7,7 +7,7 @@ import {OperationsFixture} from "./OperationsFixture.sol";
 
 /// @dev Report builders and rollback snapshots only; each executable suite owns its cases.
 abstract contract SplitFactorFixture is OperationsFixture {
-    function _factor(uint32 day, uint128 numerator, uint128 denominator, uint64 version, uint64 sequence, bytes32 id)
+    function _factor(uint32 day, uint128 numerator, uint128 denominator, uint64 sequence, bytes32 id)
         internal
         view
         returns (SplitFactorReport memory report)
@@ -21,22 +21,20 @@ abstract contract SplitFactorFixture is OperationsFixture {
             denominator,
             uint64(block.timestamp),
             uint64(block.timestamp + 100),
-            version,
             sequence,
             id
         );
     }
 
-    function _setFactor(uint32 day, uint128 numerator, uint128 denominator, uint64 version, uint64 sequence) internal {
-        SplitFactorReport memory report = _factor(
-            day, numerator, denominator, version, sequence, keccak256(abi.encode("factor", day, version, sequence))
-        );
+    function _setFactor(uint32 day, uint128 numerator, uint128 denominator, uint64 sequence) internal {
+        SplitFactorReport memory report =
+            _factor(day, numerator, denominator, sequence, keccak256(abi.encode("factor", day, sequence)));
         inbox.submitSplitFactor(report);
     }
 
-    function _cancelFactor(uint32 day, uint64 version, uint64 sequence) internal {
+    function _cancelFactor(uint32 day, uint64 sequence) internal {
         SplitFactorReport memory report =
-            _factor(day, 0, 0, version, sequence, keccak256(abi.encode("cancel-factor", day, version, sequence)));
+            _factor(day, 0, 0, sequence, keccak256(abi.encode("cancel-factor", day, sequence)));
         report.action = 2;
         inbox.submitSplitFactor(report);
     }
@@ -53,7 +51,6 @@ abstract contract SplitFactorFixture is OperationsFixture {
                 _reportState(report.securityId, report.sourceMonth, report.effectiveTradeDayId, report.reportId),
                 inbox.lastSequence(3, report.securityId),
                 inbox.lastSourceTimestamp(3, report.securityId),
-                ledger.splitFactorVersion(report.securityId, report.sourceMonth),
                 ledger.splitFactorCheckpointCount(report.securityId, report.sourceMonth)
             )
         );

@@ -1,0 +1,298 @@
+{
+  "runtime_note": "Pass 2 uses three reused threads for twelve separately assigned specialty tasks after new-thread allocation failed. This reduces reviewer independence.",
+  "reviews": [
+    {
+      "specialty": "math-precision",
+      "thread": "p2_math",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "LEAD",
+          "contract": "BackedAutoFeeLegalShareAdapter",
+          "function": "toLegalShares",
+          "bug_class": "unbounded-live-fee-accrual",
+          "file": "src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol:75",
+          "code_smells": "The adapter calls an issuer view function that repeats the fee calculation for every elapsed period; wrapped-token transfers leave its fee checkpoint unchanged.",
+          "description": "Traders face higher conversion costs after issuer inactivity; production fee settings and the gas limit remain unverified.",
+          "trace": "getUnderlyingAmountByShares(rawAmount) calls getCurrentMultiplier(); periodsPassed=(block.timestamp-lastTimeFeeApplied)/periodLength. A 31,536,000-second gap means 365 iterations for a daily period or 525,600 for a 60-second period. Wrapped-token transfers do not checkpoint.",
+          "unverified": "Production issuer implementation, fee period, checkpoint frequency and max conversion gas."
+        }
+      ]
+    },
+    {
+      "specialty": "access-control",
+      "thread": "p2_access",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "file": "src/v1/periphery/TSVLPManagerV1.sol:361",
+          "title": "The LP Manager rejects every positive W withdrawal.",
+          "description": "A trader turns a quote-only position into W, so the LP Manager rejects the owner's withdrawal.",
+          "proof": "Admitted W/Q with W0/Q1, fee0, spacing60, tick0, [-120,-60], L=1e18. Open deltas W0/Q-2986382804598882. Ordinary U→Q amountSpecified=1e16 consumes W3013380206076240 and outputs Q2986382804598881. Close principal W3013380206076239. PermissionsAdapter burns W and sends U; owner's W remains0; takeTo expects positive W receipt and reverts. No historical migration needed.",
+          "scope_note": "Production Wrapped LP unfinished. Source-only arithmetic trace; no repository source modification.",
+          "fix_prerequisite": "The issuer must allow the LP Manager as a wrapper; the diff alone does not complete Wrapped LP acceptance.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n import {ERC721Upgradeable} from \"@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol\";\n+import {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n@@\n import {TSVDirectSettlementLib} from \"tsv-v1/libraries/TSVDirectSettlementLib.sol\";\n+import {TSVPermissionedSettlementLib} from \"tsv-v1/libraries/TSVPermissionedSettlementLib.sol\";\n@@\n         if (delta < 0 && amount > maxIn) revert SlippageExceeded();\n         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();\n+        address underlying = registry.getCurrency(token).underlying;\n+        if (underlying != address(0)) {\n+            if (delta < 0) {\n+                poolManager.sync(currency);\n+                TSVPermissionedSettlementLib.payStock(token, underlying, owner, amount);\n+                if (poolManager.settle() != amount) revert SettlementMismatch();\n+            } else if (delta > 0) {\n+                uint256 collateralBefore = IERC20(underlying).balanceOf(token);\n+                uint256 ownerBefore = IERC20(underlying).balanceOf(owner);\n+                poolManager.take(currency, owner, amount);\n+                TSVPermissionedSettlementLib.assertDecrease(\n+                    collateralBefore, IERC20(underlying).balanceOf(token), amount\n+                );\n+                TSVPermissionedSettlementLib.assertIncrease(\n+                    ownerBefore, IERC20(underlying).balanceOf(owner), amount\n+                );\n+            }\n+            return;\n+        }\n         if (delta < 0) {\n             TSVDirectSettlementLib.settleFrom(poolManager, currency, token, owner, amount);"
+        }
+      ]
+    },
+    {
+      "specialty": "economic-security",
+      "thread": "p1_trust",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "description": "An eligible trader receives Q and blocks the LP owner's withdrawal because the LP Manager checks W receipts after the adapter returns U.",
+          "proof": "W0/Q1,fee3000,protocol0,ticks[0,60],L1e18, sqrt=79466191966197645195421774833. Open0W/3004354062741926Q. U swap1e15→Q1001997688046272, sqrt79386805530530198007689818529. Close W996999999999999principal+2999999999999fees=999999999999998, PMtake burnsW sendsU, Wreceipt0=>revert balancesrestored.",
+          "delivery_limit": "Production Wrapped LP unfinished, retained source in scope.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n import {TSVDirectSettlementLib} from \"tsv-v1/libraries/TSVDirectSettlementLib.sol\";\n+import {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n+import {TSVPermissionedSettlementLib} from \"tsv-v1/libraries/TSVPermissionedSettlementLib.sol\";\n@@\n         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();\n+        address underlying = registry.getCurrency(token).underlying;\n+        if (underlying != address(0)) {\n+            if (delta < 0) {\n+                poolManager.sync(currency);\n+                TSVPermissionedSettlementLib.payStock(token, underlying, owner, amount);\n+                if (poolManager.settle() != amount) revert SettlementMismatch();\n+            } else if (delta > 0) {\n+                uint256 sourceBefore = IERC20(underlying).balanceOf(token);\n+                uint256 ownerBefore = IERC20(underlying).balanceOf(owner);\n+                poolManager.take(currency, owner, amount);\n+                TSVPermissionedSettlementLib.assertDecrease(\n+                    sourceBefore, IERC20(underlying).balanceOf(token), amount\n+                );\n+                TSVPermissionedSettlementLib.assertIncrease(\n+                    ownerBefore, IERC20(underlying).balanceOf(owner), amount\n+                );\n+            }\n+            return;\n+        }\n         if (delta < 0) {\n--- a/src/v1/libraries/PermissionedValidationLib.sol\n+++ b/src/v1/libraries/PermissionedValidationLib.sol\n@@\n                 ) || !_readBool(w, IPermissionsAdapter.allowedHooks.selector, r.hook())\n+                || !_readBool(w, IPermissionsAdapter.allowedWrappers.selector, r.lpManager())\n         ) revert PermissionedPolicyMismatch();"
+        },
+        {
+          "kind": "LEAD",
+          "contract": "BackedAutoFeeLegalShareAdapter",
+          "function": "toLegalShares",
+          "bug_class": "unbounded-live-fee-accrual",
+          "code_smells": "The issuer calculates the multiplier with one loop iteration per elapsed fee period when feePerPeriod exceeds zero.",
+          "description": "The issuer repeats one step per elapsed fee period; we did not verify a production configuration that blocks swaps.",
+          "partial_path": "Hook→adapter→getUnderlyingAmountByShares→getCurrentMultiplier. 100000 elapsed periods means100000iterations. updateMultiplier also protects issuer checkpoint/timestamp setters.",
+          "unverified": "Production implementation, fee settings, checkpoint age/maintenance, target-chain gas."
+        }
+      ]
+    },
+    {
+      "specialty": "execution-trace",
+      "thread": "p2_math",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "confidence": 90,
+          "file": "src/v1/periphery/TSVLPManagerV1.sol:361–381",
+          "description": "Traders convert a quote-only position into stock, so its owner cannot withdraw through the manager or the forced-exit path.",
+          "proof": "W0/Q1, fee0, spacing60,tick60,[0,60],L33399,zero-decimalU/Q/ERC8056 multiplier1e18. Open101Q/0W. Swap101U→100Q tick0; close+100W/0Q; PMtakeburns100W pays100U soownerW0 expected100 =>revert.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n         bytes32 poolId = PoolId.unwrap(key.toId());\n         _requireUserPool(poolId, key, bounds.deadline);\n+        if (\n+            registry.getCurrency(Currency.unwrap(key.currency0)).underlying != address(0)\n+                || registry.getCurrency(Currency.unwrap(key.currency1)).underlying != address(0)\n+        ) revert InvalidPool();\n         if (liquidity == 0 || liquidity > uint128(type(int128).max)) revert InvalidPosition();",
+          "scope_note": "Retained in-scope source; Wrapped LP unfinished.",
+          "fix_limit": "Only blocks new deposits; existing positions would need proper U settlement."
+        }
+      ]
+    },
+    {
+      "specialty": "invariant",
+      "thread": "p2_access",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "file": "src/v1/periphery/TSVLPManagerV1.sol:361",
+          "title": "The LP Manager rejects every positive W withdrawal.",
+          "description": "A trader turns a quote-only position into W, so the LP Manager rejects the owner's withdrawal.",
+          "proof": "Admitted W/Q with W0/Q1, fee0, spacing60, tick0, [-120,-60], L=1e18. Open deltas W0/Q-2986382804598882. Ordinary U→Q amountSpecified=1e16 consumes W3013380206076240 and outputs Q2986382804598881. Close principal W3013380206076239. PermissionsAdapter burns W and sends U; owner's W remains0; takeTo expects positive W receipt and reverts. No historical migration needed.",
+          "scope_note": "Production Wrapped LP unfinished. Source-only arithmetic trace; no repository source modification.",
+          "fix_prerequisite": "The issuer must allow the LP Manager as a wrapper; the diff alone does not complete Wrapped LP acceptance.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n import {ERC721Upgradeable} from \"@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol\";\n+import {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n@@\n import {TSVDirectSettlementLib} from \"tsv-v1/libraries/TSVDirectSettlementLib.sol\";\n+import {TSVPermissionedSettlementLib} from \"tsv-v1/libraries/TSVPermissionedSettlementLib.sol\";\n@@\n         if (delta < 0 && amount > maxIn) revert SlippageExceeded();\n         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();\n+        address underlying = registry.getCurrency(token).underlying;\n+        if (underlying != address(0)) {\n+            if (delta < 0) {\n+                poolManager.sync(currency);\n+                TSVPermissionedSettlementLib.payStock(token, underlying, owner, amount);\n+                if (poolManager.settle() != amount) revert SettlementMismatch();\n+            } else if (delta > 0) {\n+                uint256 collateralBefore = IERC20(underlying).balanceOf(token);\n+                uint256 ownerBefore = IERC20(underlying).balanceOf(owner);\n+                poolManager.take(currency, owner, amount);\n+                TSVPermissionedSettlementLib.assertDecrease(\n+                    collateralBefore, IERC20(underlying).balanceOf(token), amount\n+                );\n+                TSVPermissionedSettlementLib.assertIncrease(\n+                    ownerBefore, IERC20(underlying).balanceOf(owner), amount\n+                );\n+            }\n+            return;\n+        }\n         if (delta < 0) {\n             TSVDirectSettlementLib.settleFrom(poolManager, currency, token, owner, amount);",
+          "invariant": "A valid position with positive W credit must settle that credit as an equal raw amount of U to its stored owner.",
+          "violation_path": "Quote-only open → ordinary U→Q swap → positive W principal → close/takeW releasesU → expectedWreceipt fails."
+        }
+      ]
+    },
+    {
+      "specialty": "periphery",
+      "thread": "p1_trust",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "description": "The LP Manager rejects stock withdrawals because its helper checks W balances after the adapter delivers U to the owner.",
+          "proof": "W0/Q1,fee3000,protocol0,ticks[0,60],L1e18, sqrt=79466191966197645195421774833. Open0W/3004354062741926Q. U swap1e15→Q1001997688046272, sqrt79386805530530198007689818529. Close W996999999999999principal+2999999999999fees=999999999999998, PMtake burnsW sendsU, Wreceipt0=>revert balancesrestored.",
+          "delivery_limit": "Production Wrapped LP unfinished, retained source in scope.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n import {TSVDirectSettlementLib} from \"tsv-v1/libraries/TSVDirectSettlementLib.sol\";\n+import {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n+import {TSVPermissionedSettlementLib} from \"tsv-v1/libraries/TSVPermissionedSettlementLib.sol\";\n@@\n         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();\n+        address underlying = registry.getCurrency(token).underlying;\n+        if (underlying != address(0)) {\n+            if (delta < 0) {\n+                poolManager.sync(currency);\n+                TSVPermissionedSettlementLib.payStock(token, underlying, owner, amount);\n+                if (poolManager.settle() != amount) revert SettlementMismatch();\n+            } else if (delta > 0) {\n+                uint256 sourceBefore = IERC20(underlying).balanceOf(token);\n+                uint256 ownerBefore = IERC20(underlying).balanceOf(owner);\n+                poolManager.take(currency, owner, amount);\n+                TSVPermissionedSettlementLib.assertDecrease(\n+                    sourceBefore, IERC20(underlying).balanceOf(token), amount\n+                );\n+                TSVPermissionedSettlementLib.assertIncrease(\n+                    ownerBefore, IERC20(underlying).balanceOf(owner), amount\n+                );\n+            }\n+            return;\n+        }\n         if (delta < 0) {\n--- a/src/v1/libraries/PermissionedValidationLib.sol\n+++ b/src/v1/libraries/PermissionedValidationLib.sol\n@@\n                 ) || !_readBool(w, IPermissionsAdapter.allowedHooks.selector, r.hook())\n+                || !_readBool(w, IPermissionsAdapter.allowedWrappers.selector, r.lpManager())\n         ) revert PermissionedPolicyMismatch();"
+        },
+        {
+          "kind": "LEAD",
+          "contract": "BackedAutoFeeLegalShareAdapter",
+          "function": "toLegalShares",
+          "bug_class": "unbounded-live-fee-accrual",
+          "code_smells": "The wrapper calls an issuer conversion whose loop has one iteration per elapsed fee period.",
+          "description": "The issuer repeats one step per elapsed fee period; we did not verify a production configuration that blocks swaps.",
+          "partial_path": "Hook→adapter→getUnderlyingAmountByShares→getCurrentMultiplier. 100000 elapsed periods means100000iterations. updateMultiplier also protects issuer checkpoint/timestamp setters.",
+          "unverified": "Production implementation, fee settings, checkpoint age/maintenance, target-chain gas."
+        }
+      ]
+    },
+    {
+      "specialty": "first-principles",
+      "thread": "p2_math",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "confidence": 90,
+          "file": "src/v1/periphery/TSVLPManagerV1.sol:361–381",
+          "description": "Traders convert a quote-only position into stock, so its owner cannot withdraw through the manager or the forced-exit path.",
+          "proof": "W0/Q1, fee0, spacing60,tick60,[0,60],L33399,zero-decimalU/Q/ERC8056 multiplier1e18. Open101Q/0W. Swap101U→100Q tick0; close+100W/0Q; PMtakeburns100W pays100U soownerW0 expected100 =>revert.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n         bytes32 poolId = PoolId.unwrap(key.toId());\n         _requireUserPool(poolId, key, bounds.deadline);\n+        if (\n+            registry.getCurrency(Currency.unwrap(key.currency0)).underlying != address(0)\n+                || registry.getCurrency(Currency.unwrap(key.currency1)).underlying != address(0)\n+        ) revert InvalidPool();\n         if (liquidity == 0 || liquidity > uint128(type(int128).max)) revert InvalidPosition();",
+          "scope_note": "Retained in-scope source; Wrapped LP unfinished.",
+          "fix_limit": "Only blocks new deposits; existing positions would need proper U settlement.",
+          "assumption": "Positive pool-currency delta delivers the same ERC-20 to the owner.",
+          "violation": "W from PoolManager burns at recipient and releases U."
+        },
+        {
+          "kind": "LEAD",
+          "contract": "BackedAutoFeeLegalShareAdapter",
+          "function": "toLegalShares",
+          "bug_class": "unbounded-live-fee-accrual",
+          "file": "src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol:75",
+          "code_smells": "The adapter assumes the issuer can calculate its conversion within bounded gas, but the issuer repeats one step for each elapsed fee period.",
+          "description": "Traders face higher conversion costs after issuer inactivity; production fee settings and the gas limit remain unverified.",
+          "trace": "getUnderlyingAmountByShares(rawAmount) calls getCurrentMultiplier(); periodsPassed=(block.timestamp-lastTimeFeeApplied)/periodLength. A 31,536,000-second gap means 365 iterations for a daily period or 525,600 for a 60-second period. Wrapped-token transfers do not checkpoint.",
+          "unverified": "Production issuer implementation, fee period, checkpoint frequency and max conversion gas."
+        }
+      ]
+    },
+    {
+      "specialty": "asymmetry",
+      "thread": "p2_access",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "file": "src/v1/periphery/TSVLPManagerV1.sol:361",
+          "title": "The LP Manager rejects every positive W withdrawal.",
+          "description": "A trader turns a quote-only position into W, so the LP Manager rejects the owner's withdrawal.",
+          "proof": "Admitted W/Q with W0/Q1, fee0, spacing60, tick0, [-120,-60], L=1e18. Open deltas W0/Q-2986382804598882. Ordinary U→Q amountSpecified=1e16 consumes W3013380206076240 and outputs Q2986382804598881. Close principal W3013380206076239. PermissionsAdapter burns W and sends U; owner's W remains0; takeTo expects positive W receipt and reverts. No historical migration needed.",
+          "scope_note": "Production Wrapped LP unfinished. Source-only arithmetic trace; no repository source modification.",
+          "fix_prerequisite": "The issuer must allow the LP Manager as a wrapper; the diff alone does not complete Wrapped LP acceptance.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n import {ERC721Upgradeable} from \"@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol\";\n+import {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n@@\n import {TSVDirectSettlementLib} from \"tsv-v1/libraries/TSVDirectSettlementLib.sol\";\n+import {TSVPermissionedSettlementLib} from \"tsv-v1/libraries/TSVPermissionedSettlementLib.sol\";\n@@\n         if (delta < 0 && amount > maxIn) revert SlippageExceeded();\n         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();\n+        address underlying = registry.getCurrency(token).underlying;\n+        if (underlying != address(0)) {\n+            if (delta < 0) {\n+                poolManager.sync(currency);\n+                TSVPermissionedSettlementLib.payStock(token, underlying, owner, amount);\n+                if (poolManager.settle() != amount) revert SettlementMismatch();\n+            } else if (delta > 0) {\n+                uint256 collateralBefore = IERC20(underlying).balanceOf(token);\n+                uint256 ownerBefore = IERC20(underlying).balanceOf(owner);\n+                poolManager.take(currency, owner, amount);\n+                TSVPermissionedSettlementLib.assertDecrease(\n+                    collateralBefore, IERC20(underlying).balanceOf(token), amount\n+                );\n+                TSVPermissionedSettlementLib.assertIncrease(\n+                    ownerBefore, IERC20(underlying).balanceOf(owner), amount\n+                );\n+            }\n+            return;\n+        }\n         if (delta < 0) {\n             TSVDirectSettlementLib.settleFrom(poolManager, currency, token, owner, amount);",
+          "pair_or_branch": "LP stock/quote settlement; LP/Router settlement; deposit/withdrawal.",
+          "asymmetry": "Router paysU and wrapsW toPM/checksUout; LP pullsW and checksWreceipt."
+        },
+        {
+          "kind": "LEAD",
+          "contract": "BackedAutoFeeLegalShareAdapter",
+          "function": "toLegalShares",
+          "bug_class": "unbounded-live-fee-accrual",
+          "file": "src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol:75",
+          "code_smells": "The adapter calls an issuer view function that repeats the fee calculation for every elapsed period; wrapped-token transfers leave its fee checkpoint unchanged.",
+          "description": "Traders pay for all elapsed fee steps on each swap; the production period length and gas limit remain unverified.",
+          "trace": "getUnderlyingAmountByShares(rawAmount) calls getCurrentMultiplier(); periodsPassed=(block.timestamp-lastTimeFeeApplied)/periodLength. A 31,536,000-second gap means 365 iterations for a daily period or 525,600 for a 60-second period. Wrapped-token transfers do not checkpoint.",
+          "unverified": "Production issuer implementation, fee period, checkpoint frequency and max conversion gas.",
+          "pair_or_branch": "Issuer multiplier view/checkpoint write; issuer/wrapped transfer."
+        }
+      ]
+    },
+    {
+      "specialty": "numerical-gap",
+      "thread": "p2_math",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "confidence": 90,
+          "file": "src/v1/periphery/TSVLPManagerV1.sol:361–381",
+          "description": "Traders convert a quote-only position into stock, so its owner cannot withdraw through the manager or the forced-exit path.",
+          "proof": "W0/Q1, fee0, spacing60,tick60,[0,60],L33399,zero-decimalU/Q/ERC8056 multiplier1e18. Open101Q/0W. Swap101U→100Q tick0; close+100W/0Q; PMtakeburns100W pays100U soownerW0 expected100 =>revert.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n         bytes32 poolId = PoolId.unwrap(key.toId());\n         _requireUserPool(poolId, key, bounds.deadline);\n+        if (\n+            registry.getCurrency(Currency.unwrap(key.currency0)).underlying != address(0)\n+                || registry.getCurrency(Currency.unwrap(key.currency1)).underlying != address(0)\n+        ) revert InvalidPool();\n         if (liquidity == 0 || liquidity > uint128(type(int128).max)) revert InvalidPosition();",
+          "scope_note": "Retained in-scope source; Wrapped LP unfinished.",
+          "fix_limit": "Only blocks new deposits; existing positions would need proper U settlement.",
+          "seam": "boundary×invariant",
+          "root_cause": "Zero W delta skips entry settlement; later stock withdrawals require a W receipt that the wrapper cannot provide."
+        }
+      ]
+    },
+    {
+      "specialty": "boundary",
+      "thread": "p1_trust",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "description": "The LP Manager rejects stock withdrawals because its helper checks W balances after the adapter delivers U to the owner.",
+          "proof": "W0/Q1,fee3000,protocol0,ticks[0,60],L1e18, sqrt=79466191966197645195421774833. Open0W/3004354062741926Q. U swap1e15→Q1001997688046272, sqrt79386805530530198007689818529. Close W996999999999999principal+2999999999999fees=999999999999998, PMtake burnsW sendsU, Wreceipt0=>revert balancesrestored.",
+          "delivery_limit": "Production Wrapped LP unfinished, retained source in scope.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n import {TSVDirectSettlementLib} from \"tsv-v1/libraries/TSVDirectSettlementLib.sol\";\n+import {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n+import {TSVPermissionedSettlementLib} from \"tsv-v1/libraries/TSVPermissionedSettlementLib.sol\";\n@@\n         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();\n+        address underlying = registry.getCurrency(token).underlying;\n+        if (underlying != address(0)) {\n+            if (delta < 0) {\n+                poolManager.sync(currency);\n+                TSVPermissionedSettlementLib.payStock(token, underlying, owner, amount);\n+                if (poolManager.settle() != amount) revert SettlementMismatch();\n+            } else if (delta > 0) {\n+                uint256 sourceBefore = IERC20(underlying).balanceOf(token);\n+                uint256 ownerBefore = IERC20(underlying).balanceOf(owner);\n+                poolManager.take(currency, owner, amount);\n+                TSVPermissionedSettlementLib.assertDecrease(\n+                    sourceBefore, IERC20(underlying).balanceOf(token), amount\n+                );\n+                TSVPermissionedSettlementLib.assertIncrease(\n+                    ownerBefore, IERC20(underlying).balanceOf(owner), amount\n+                );\n+            }\n+            return;\n+        }\n         if (delta < 0) {\n--- a/src/v1/libraries/PermissionedValidationLib.sol\n+++ b/src/v1/libraries/PermissionedValidationLib.sol\n@@\n                 ) || !_readBool(w, IPermissionsAdapter.allowedHooks.selector, r.hook())\n+                || !_readBool(w, IPermissionsAdapter.allowedWrappers.selector, r.lpManager())\n         ) revert PermissionedPolicyMismatch();",
+          "boundary": "LP _settle forwards W to an ordinary ERC-20 takeTo helper.",
+          "assumption": "PoolManager take increases recipient W balance.",
+          "actual": "W burns on receipt and releases U; recipient W remains zero."
+        },
+        {
+          "kind": "LEAD",
+          "contract": "BackedAutoFeeLegalShareAdapter",
+          "function": "toLegalShares",
+          "bug_class": "unbounded-live-fee-accrual",
+          "code_smells": "The adapter calls an issuer conversion whose gas cost grows with elapsed fee periods.",
+          "description": "The issuer repeats one step per elapsed fee period; we did not verify a production configuration that blocks swaps.",
+          "partial_path": "Hook→adapter→getUnderlyingAmountByShares→getCurrentMultiplier. 100000 elapsed periods means100000iterations. updateMultiplier also protects issuer checkpoint/timestamp setters.",
+          "unverified": "Production implementation, fee settings, checkpoint age/maintenance, target-chain gas."
+        }
+      ]
+    },
+    {
+      "specialty": "trust-gap",
+      "thread": "p2_access",
+      "status": "complete",
+      "items": [],
+      "coverage": "Reviewed actual external TSVAdapter authentication/nonce/participant marker, SBT and issuer checks, payer/recipient separation, exit-admin stored-owner separation and accrued protocol-fee bounds; no supported multi-lens gap."
+    },
+    {
+      "specialty": "flow-gap",
+      "thread": "p1_trust",
+      "status": "complete",
+      "items": [
+        {
+          "kind": "FINDING",
+          "contract": "TSVLPManagerV1",
+          "function": "_settle",
+          "bug_class": "permissioned-lp-settlement-mismatch",
+          "description": "The LP Manager rejects stock withdrawals because its helper checks W balances after the adapter delivers U to the owner.",
+          "proof": "W0/Q1,fee3000,protocol0,ticks[0,60],L1e18, sqrt=79466191966197645195421774833. Open0W/3004354062741926Q. U swap1e15→Q1001997688046272, sqrt79386805530530198007689818529. Close W996999999999999principal+2999999999999fees=999999999999998, PMtake burnsW sendsU, Wreceipt0=>revert balancesrestored.",
+          "delivery_limit": "Production Wrapped LP unfinished, retained source in scope.",
+          "fix_diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n import {TSVDirectSettlementLib} from \"tsv-v1/libraries/TSVDirectSettlementLib.sol\";\n+import {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n+import {TSVPermissionedSettlementLib} from \"tsv-v1/libraries/TSVPermissionedSettlementLib.sol\";\n@@\n         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();\n+        address underlying = registry.getCurrency(token).underlying;\n+        if (underlying != address(0)) {\n+            if (delta < 0) {\n+                poolManager.sync(currency);\n+                TSVPermissionedSettlementLib.payStock(token, underlying, owner, amount);\n+                if (poolManager.settle() != amount) revert SettlementMismatch();\n+            } else if (delta > 0) {\n+                uint256 sourceBefore = IERC20(underlying).balanceOf(token);\n+                uint256 ownerBefore = IERC20(underlying).balanceOf(owner);\n+                poolManager.take(currency, owner, amount);\n+                TSVPermissionedSettlementLib.assertDecrease(\n+                    sourceBefore, IERC20(underlying).balanceOf(token), amount\n+                );\n+                TSVPermissionedSettlementLib.assertIncrease(\n+                    ownerBefore, IERC20(underlying).balanceOf(owner), amount\n+                );\n+            }\n+            return;\n+        }\n         if (delta < 0) {\n--- a/src/v1/libraries/PermissionedValidationLib.sol\n+++ b/src/v1/libraries/PermissionedValidationLib.sol\n@@\n                 ) || !_readBool(w, IPermissionsAdapter.allowedHooks.selector, r.hook())\n+                || !_readBool(w, IPermissionsAdapter.allowedWrappers.selector, r.lpManager())\n         ) revert PermissionedPolicyMismatch();",
+          "boundary": "LP _settle forwards W to an ordinary ERC-20 takeTo helper.",
+          "assumption": "PoolManager take increases recipient W balance.",
+          "actual": "W burns on receipt and releases U; recipient W remains zero.",
+          "seam": "three-way",
+          "delivery_limits": "Retained source, production Wrapped LP unfinished. No permanent-loss proof: an increase can capitalize W fees when negative W principal exactly offsets positive W fees."
+        },
+        {
+          "kind": "LEAD",
+          "contract": "BackedAutoFeeLegalShareAdapter",
+          "function": "toLegalShares",
+          "bug_class": "unbounded-live-fee-accrual",
+          "code_smells": "The adapter calls an issuer conversion whose gas cost grows with elapsed fee periods.",
+          "description": "The issuer repeats one step per elapsed fee period; we did not verify a production configuration that blocks swaps.",
+          "partial_path": "Hook→adapter→getUnderlyingAmountByShares→getCurrentMultiplier. 100000 elapsed periods means100000iterations. updateMultiplier also protects issuer checkpoint/timestamp setters.",
+          "unverified": "Production implementation, fee settings, checkpoint age/maintenance, target-chain gas. The reference default zero fee skips the loop.",
+          "seam": "execution×periphery"
+        }
+      ]
+    }
+  ]
+}

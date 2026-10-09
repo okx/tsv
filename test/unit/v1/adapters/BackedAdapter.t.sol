@@ -14,7 +14,7 @@ contract TSVBackedAdapterTest is FoundationFixture {
         V1MockIssuerShares underlying = new V1MockIssuerShares();
         V1MockIssuerWrapped wrapped = new V1MockIssuerWrapped(underlying);
         BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(underlying), address(wrapped), 1);
+            new BackedAutoFeeLegalShareAdapter(address(underlying), address(wrapped));
         assertEq(adapter.toLegalShares(address(wrapped), 3e18), 3e18);
         underlying.setMultiplier(0.9e18, 7);
         assertEq(adapter.toLegalShares(address(wrapped), 3e18), 2.7e18);
@@ -25,8 +25,8 @@ contract TSVBackedAdapterTest is FoundationFixture {
     /// @dev Verifies the backed adapter validates Currency and accepts a zero amount.
     function testBackedAdapterValidatesCurrencyAndAllowsZeroAmount() public {
         BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
-        assertEq(adapter.toLegalShares(address(stock), 0), 0);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        assertEq(adapter.toLegalShares(address(stockToken), 0), 0);
 
         vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidCurrency.selector);
         adapter.toLegalShares(address(quote), 1e18);
@@ -37,17 +37,17 @@ contract TSVBackedAdapterTest is FoundationFixture {
         V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
         V1MockIssuerWrapped otherWrapped = new V1MockIssuerWrapped(otherUnderlying);
         vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidAdapterConfig.selector);
-        new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(otherWrapped), 1);
+        new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(otherWrapped));
     }
 
     /// @dev Verifies the backed adapter rejects zero conversion and reports its direct interface.
     function testBackedAdapterRejectsZeroConversionAndDeclaresDirectInterface() public {
         BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         stockUnderlying.setMultiplier(0, 1);
 
         vm.expectRevert(BackedAutoFeeLegalShareAdapter.InvalidConversion.selector);
-        adapter.toLegalShares(address(stock), 1);
+        adapter.toLegalShares(address(stockToken), 1);
         assertTrue(adapter.supportsInterface(type(IDirectLegalShareAdapter).interfaceId));
     }
 }

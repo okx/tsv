@@ -1,5 +1,7 @@
 # TSV V1 三个系统：交易、运营与治理
 
+> **2026-10-07 Wrapped Swap 更新：** Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
+
 本文从业务角度说明当前仓库中的 TSV V1 如何组成交易、运营和治理三个系统，以及它们如何共同约束交易。描述以 `src/v1/` 当前源码为准；目标链部署、实际 wTSLAx/SBT 准入证据等未完成项见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。完整 ABI 和算法以[编码规格](./CODING_SPEC_V1.md)为准。
 
 ## 一、整体关系
@@ -45,7 +47,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   U["用户 / AA 钱包"] -->|"Swap 请求"| R["Swap Router<br/>资格门禁与请求边界"]
-  R -->|"检查 isEligible / isTradable"| RG["Registry<br/>资格、池状态与暂停"]
+  R -->|"检查 isAllowed(SWAP) / isTradable"| RG["Registry<br/>资格、池状态与暂停"]
   RG -. "返回资格与可交易结果" .-> R
   RG -->|"读取 verify / paused"| SBT["SmartWalletSbt<br/>外部凭证合约"]
   SBT -. "凭证与全局暂停结果" .-> RG
@@ -64,7 +66,7 @@ flowchart LR
   PM -->|"输出 Currency"| U
 
   U -->|"LP 请求"| LP["LP Manager<br/>资格、仓位与边界检查"]
-  LP -->|"检查 isEligible / isLPAllowed"| RG
+  LP -->|"检查 isAllowed(LP) / isLPAllowed"| RG
   RG -. "返回资格与可交易结果" .-> LP
   LP -->|"modifyLiquidity"| PM
   LP --> RC["不可转让 Receipt"]
@@ -85,7 +87,7 @@ flowchart LR
 ### 2.1 Swap：授权、执行、计量、结算
 
 1. **提交请求。**用户可通过 [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol) 直接提交单池 exact-in 或 exact-out 请求。外部 DexRouter 可通过其现有 Adapter 接口路由到 TSV Adapter，再调用 TSV Router 的 Adapter 专用 exact-in 入口。用户直连时调用者是 participant、payer 和 recipient；Adapter 路径由 Router 检查白名单 Adapter 与其提供的 participant，Adapter 作为结算方并接收输出。
-2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：直连路径检查 `msg.sender`，Adapter 路径检查白名单 Adapter 并校验其提供的 participant；两条路径都会查询 Registry 的 `isEligible` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户查询 isEligible 和 isLPAllowed；Hook 的 LP 回调复核 isLPAllowed。交易和 LP 分别检查命中的暂停模式。
+2. **通过资格与交易门禁。**Router 负责发起 Swap 门禁调用，并根据返回结果拒绝或继续交易：直连路径检查 `msg.sender`，Adapter 路径检查白名单 Adapter 并校验其提供的 participant；两条路径都会查询 Registry 的 `isAllowed(SWAP_ALLOWED,participant)` 和 `isTradable`。Registry 负责计算资格与可交易状态，并封装对外部 [SmartWalletSbt](../lib/soul-bound-token-1155/src/SmartWalletSbt.sol) 的读取，包括 `verify(owner, tokenId)` 和 `paused()`；池/Token 状态、市场 HALT 和命中的紧急暂停也由 Registry 检查。LP Manager 对普通 LP 用户查询 isAllowed(LIQUIDITY_ALLOWED,owner) 和 isLPAllowed；Hook 的 LP 回调复核 isLPAllowed。交易和 LP 分别检查命中的暂停模式。
 3. **在 V4 中执行。**Router 通过官方 [PoolManager](../lib/v4-core/src/PoolManager.sol) 发起 Swap。PoolManager 调用 [TSVHookV1](../src/v1/core/TSVHookV1.sol)；Hook 检查回调来自 Router、池可交易且 PoolKey 与 Registry 配置一致。Router 非重入锁限制单笔 Swap，不使用 Swap `operationId`，也不保存 Swap 活跃上下文。
 4. **按实际成交量计量。**`afterSwap` 收到实际 delta 后，对股票腿调用 Registry 绑定的 LegalShareAdapter `toLegalShares(currency,rawAmount)`，再把结果和真实 delta 一起交给 [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol)。Ledger 校验股票身份、Adapter 配置及非零 shares，按 `(securityId, tradeDayId)` 更新全平台共享用量并检查当日有效上限；它不重复调用 Adapter。
 5. **原子结算。**用户直连路径由 Router 以池内 ERC-20 Currency 和用户结算；Adapter 路径由 Router 从 Adapter 拉取输入并将输出交给 Adapter，再由 Adapter 转发到外部 DexRouter 指定的 hop 收款地址。交易门禁、计股、额度检查或精确余额校验任一失败，整笔交易回滚，成交和账本不会只成功一半。
@@ -125,6 +127,7 @@ struct SwapRequest {
     uint128 amountSpecified;
     uint128 limitAmount;
     uint64 deadline;
+    uint256 expectedMultiplier;
 }
 ```
 
@@ -135,8 +138,9 @@ struct SwapRequest {
 | `amountSpecified` | `uint128` | 使用池内 Currency 的 raw 最小单位，不是股数。精确输入时表示目标/上限输入量；精确输出时表示必须完整得到的输出量。必须大于零且不超过 `int128.max`。 |
 | `limitAmount` | `uint128` | 交易滑点界限，单位同样是池内 Currency 的 raw 最小单位。精确输入时为最小输出量；精确输出时为最大输入量；必须大于零。 |
 | `deadline` | `uint64` | Unix 秒时间戳。执行时若 `block.timestamp > deadline`，请求过期并回滚。 |
+| `expectedMultiplier` | `uint256` | 报价时读取的股票侧 Adapter multiplier。Hook 按 Registry 识别唯一股票侧并在 Swap 前后比较；报价币的 multiplier 不参与比较。固定比例 Adapter 传其配置比例。 |
 
-调用方不传 V4 价格停止边界。Router 根据 `zeroForOne` 设置全范围 `sqrtPriceLimitX96`；交易滑点仍由 `limitAmount` 约束。
+调用方不传 V4 价格停止边界。Router 根据 `zeroForOne` 设置全范围 `sqrtPriceLimitX96`；交易滑点仍由 `limitAmount` 约束。`expectedMultiplier` 必须保留报价时的值，不能在提交交易时替换成刚查询的当前值。
 
 #### 嵌套结构参数
 
@@ -188,7 +192,7 @@ Receipt 是 LP 仓位凭证，不可转让；普通 LP 操作检查用户 SBT �
 
 | 合约 | 直接查询入口 | 含义 |
 | --- | --- | --- |
-| SwapRouter | `poolManager()`、`registry()`、`ledger()` | 查询 Router 绑定的组件地址。 |
+| SwapRouter | `poolManager()`、`registry()` | 查询 Router 绑定的组件地址。 |
 | LPManager | `getPosition(uint256 positionId) returns (Position memory)` | 读取仓位 owner、PoolKey、ticks、salt、流动性和 active 状态。 |
 | LPManager | `ownerOf(uint256 tokenId)`、`balanceOf(address owner)`、`tokenURI(uint256 tokenId)`、`name()`、`symbol()`、`getApproved(uint256 tokenId)`、`isApprovedForAll(address owner, address operator)`、`supportsInterface(bytes4 interfaceId)` | ERC-721 Receipt 标准查询；`tokenURI` 对有效 Receipt 返回空字符串；Receipt 不可转让，approve 查询通常为零/false。 |
 | LPManager | `poolManager()`、`registry()`、`nextPositionId()` | 查询绑定的 PoolManager、Registry 和下一个仓位编号。 |
@@ -212,7 +216,7 @@ flowchart LR
     direction TB
     SA["SYMBOL_ADMIN"] -->|"证券、Token、Tier、池状态"| RG["Registry"]
     PC["POOL_CREATOR"] -->|"初始化获批 PoolKey"| LP["LP Manager"]
-    LP -->|"登记 PENDING / 激活"| RG
+    LP -->|"登记 PoolKey"| RG
     LP -->|"initialize"| PM["V4 PoolManager"]
   end
 
@@ -264,23 +268,22 @@ flowchart LR
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitAdtvBatch(AdtvReport[] calldata reports)` | 同月、按 `securityId` 严格递增的 ADTV 报告数组；见 §3.1「月度成交量」。 |
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitQuota(QuotaReport calldata report)` | `report` 字段见 §3.1「指定日额度」。 |
 | `VOLUME_ORACLE_ROLE` | DataInbox | `submitSplitFactor(SplitFactorReport calldata report)` | 在未来计量日开始生效的拆/并股系数排期、更正或取消，见 §3.1「拆并股系数」。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `admitSecurity(bytes32 securityId, uint8 tierId, TokenConfig calldata config)` | 新证券 ID、Tier、首个 Currency 的已审 TokenConfig；同笔登记证券并批准 Token。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `admitPermissionedSecurity(uint8 tierId, PermissionedAdmission calldata admission)` | Tier、新证券及首个 W 的准入参数；见 §3.2。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `relistSecurity(bytes32 securityId)` | 已下架证券 ID。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `setSecurityTier(bytes32 securityId, uint8 tierId)` | 证券 ID、新 Tier。 |
 | `SYMBOL_ADMIN_ROLE` | Registry | `delistSecurity(bytes32 securityId)` | 证券 ID。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `registerToken(TokenConfig calldata config)` | 完整 `TokenConfig`；字段见 §3.2。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `setTokenStatus(address currency, TokenStatus status)` | 池内 Currency、目标状态。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `replaceLegalShareAdapter(address currency, address newAdapter)` | 股票 Currency、新 Adapter。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `registerPermissionedCurrency(PermissionedAdmission calldata admission)` | 已上市证券新增 W；见 §3.2。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `registerQuoteToken(address quote)` | 普通报价币 Q。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `updatePermissionedExpectedOwner(address w, address newOwner)` | 已暂停 W、新 owner；见 §3.2。 |
+| `SYMBOL_ADMIN_ROLE` | Registry | `replaceUnderlyingLegalShareAdapter(address u, address newAdapter)` | U、新规范股数 Adapter；见 §3.2。 |
 | `EMERGENCY_PAUSER_ROLE` | Registry | `addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode) returns (uint256 recordId)` | 暂停范围、范围目标、TRADE/LP/ALL 模式、原因码；返回新暂停记录 ID。 |
 | `EMERGENCY_RESUMER_ROLE` | Registry | `clearEmergencyPause(uint256 recordId, bytes32 reasonCode)` | 暂停记录 ID、清除原因码。 |
 | Governor | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId)` | 新 UTC 偏移秒数、生效日。 |
 | Governor | VolumeLedger | `cancelPendingDayStart()` | 无参数。 |
 | `POOL_CREATOR_ROLE` | LPManager | `initializePool(PoolKey calldata key, uint160 sqrtPriceX96)` | V4 池键、初始平方根价格。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `disablePool(bytes32 poolId)` | 池 ID。 |
-| `SYMBOL_ADMIN_ROLE` | Registry | `enablePool(bytes32 poolId)` | 池 ID。 |
 | `FORCE_EXIT_ADMIN_ROLE` 或 `REVOKE_EXIT_EXECUTOR_ROLE` | LPManager | `forceExit(uint256 positionId, uint256 minPoolOut0, uint256 minPoolOut1, bytes32 reasonCode)` | 仓位 ID、两侧最低返还量、原因码。 |
 
-以上是运营直接写入口全集。`Registry.registerPendingPool/markPoolActive`、`Registry.applyMarketStatus`、`VolumeLedger.acceptAdtv/acceptQuota/recordSwap` 是由 LPManager、DataInbox 或 Hook 调用的合约间入口，不属于此清单。
+以上是运营直接写入口全集。`Registry.registerPool`、`Registry.applyMarketStatus`、`VolumeLedger.acceptAdtv/acceptQuota/recordSwap` 是由 LPManager、DataInbox 或 Hook 调用的合约间入口，不属于此清单。
 
 ### 3.1 报告和额度入口
 
@@ -335,7 +338,6 @@ struct AdtvReport {
     uint256 adtvWad;
     uint64 sourceTimestamp;
     uint64 submitDeadline;
-    uint64 version;
     uint64 sequence;
     bytes32 reportId;
 }
@@ -346,10 +348,9 @@ struct AdtvReport {
 | `securityId` | `bytes32` | 已登记且 listed 的证券 ID。 |
 | `sourceMonth` | `uint32` | ADTV 来源自然月，格式 `YYYYMM`，如 `202610`；年份范围为 1970–9999，月份为 01–12。 |
 | `adtvWad` | `uint256` | 月均日成交量，按 18 位 WAD 表示；必须大于零。具体统计口径由已批准的数据源/业务定义给出。 |
-| `version` | `uint64` | 针对 `(securityId, sourceMonth)` 的版本，必须严格等于已存版本加一。 |
 | 其余字段 | — | 按通用审计字段填写；`sequence` 按 ADTV 报告类别和证券递增。 |
 
-批量提交长度须为 `1..100`；所有条目必须属于同一个 `sourceMonth`，并按 `securityId` 严格递增且不重复。批次全有或全无：任一条无效，整笔交易回滚。新适用月份必须有对应 ADTV；同一来源月的更正使用递增 `version`，不会重置已用成交量。
+批量提交长度须为 `1..100`；所有条目必须属于同一个 `sourceMonth`，并按 `securityId` 严格递增且不重复。批次全有或全无：任一条无效，整笔交易回滚。新适用月份必须有对应 ADTV；同一来源月的更正使用递增 `sequence`，跨月不重置序号，也不会重置已用成交量。Ledger 只保存金额，报告来源保留在 AdtvAccepted 事件中，reportId 仍由 Inbox 全局去重。
 
 #### 指定日额度：`QuotaReport`
 
@@ -363,7 +364,6 @@ struct QuotaReport {
     uint256 quotaWad;
     uint64 sourceTimestamp;
     uint64 submitDeadline;
-    uint64 version;
     uint64 sequence;
     bytes32 reportId;
 }
@@ -375,10 +375,9 @@ struct QuotaReport {
 | `tradeDayId` | `uint32` | 额度生效的 TSV 计量日，格式 `YYYYMMDD`；按 UTC 起点归属，不是美股交易日历日期的自动映射。 |
 | `action` | `uint8` | `1 = SET`，`2 = CLEAR`；其他值拒绝。 |
 | `quotaWad` | `uint256` | `SET` 时须 `0 < quotaWad <=` 当日硬上限。硬上限为 `tradeDayId` 前一自然月 ADTV × 证券当前 `tierBps / 10,000` × 当日拆并股系数，一次向下取整，且必须已有该月 ADTV；`CLEAR` 时必须为零。零值不能用来停牌。 |
-| `version` | `uint64` | 针对 `(securityId, tradeDayId)` 的版本，必须严格等于已存版本加一；清除后仍保留版本和报告 ID。 |
 | 其余字段 | — | 按通用审计字段填写；`sequence` 按 Quota 报告类别和证券递增。 |
 
-新 quota 只约束提交成功后的 Swap，并与当日已用量比较；若额度调到已用量以下，后续 Swap 会被拒绝。额度不跨日继承，且覆盖值为目标日单位下的绝对数，不随系数自动相乘。需要恢复 ADTV/Tier/系数默认硬上限时提交 `CLEAR`。
+新 quota 只约束提交成功后的 Swap，并与当日已用量比较；若额度调到已用量以下，后续 Swap 会被拒绝。额度不跨日继承，且覆盖值为目标日单位下的绝对数，不随系数自动相乘。需要恢复 ADTV/Tier/系数默认硬上限时提交 `CLEAR`；清除要求已有非零覆盖。Ledger 只保存金额，零表示无覆盖，报告来源保留在 QuotaAccepted 事件中。更新顺序由 Inbox 的 `(kind,securityId)` sequence 管理，报告不含 version。
 
 #### 拆并股系数
 
@@ -389,8 +388,7 @@ struct QuotaReport {
 | `securityId`、`sourceMonth` | 已上市证券和目标计量日前一自然月 `YYYYMM` |
 | `effectiveTradeDayId` | 严格晚于当前计量日的 `YYYYMMDD`；只在该日 `dayStartUTC` 生效，不支持日内时间 |
 | `action` | `SET=1`：排期或更正最新待生效项；`CANCEL=2`：取消最新待生效项 |
-| `numerator`、`denominator` | `uint128` 正比例，表示相对来源月单位的绝对累计系数；SET 自动约分，CANCEL 两值均为零 |
-| `version` | 按证券/来源月严格加一，取消也消耗版本 |
+| `numerator`、`denominator` | `uint128` 正比例，表示相对来源月单位的绝对累计系数；SET 原样保存精确分子/分母，CANCEL 两值均为零 |
 | `sourceTimestamp`、`submitDeadline`、`sequence`、`reportId` | 沿用报告校验；序号按 kind=3/证券递增；来源时间/截止时间不决定生效 |
 
 同月连续一拆二、再一拆三，系数依次为2和6。报告服务固定 ADTV 为来源月结束时的股数单位；新月 ADTV 已体现的事件不再乘入，默认新月系数为1。生效后不可修改/取消历史；变更较早待生效项时先依次取消其后待生效项。Future 查询用于排期预检查；当前有效系数通过 `currentTradeDay` 返回的日 ID 查询。
@@ -398,43 +396,22 @@ struct QuotaReport {
 新日用量独立累计，旧日用量不换算。可选 quota 是目标日绝对上限，排期时按需更正或 CLEAR。Token 更新时间不能提前/延后额度切换；逐笔成交仍由现有实时 Adapter 换算。发行方单位异常或多个 Token 不一致时按准入流程核对并暂停。准确 ABI 与存储规则见[编码规格 §7 D-37](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。
 
 
-### 3.2 证券、Token 与股数 Adapter 准入
+### 3.2 证券、W/Q 与股数 Adapter 准入
 
-证券和资产由 `SYMBOL_ADMIN_ROLE` 在链下审查完成后准入。新证券及首个 Currency 用 `admitSecurity` 同笔登记和批准；报价币及已有上市证券新增 Currency 用 `registerToken` 登记即批准。链上没有待审流程，未登记资产为 `ABSENT`，只有 `APPROVED` Token 才能建池。
+证券和资产由 `SYMBOL_ADMIN_ROLE` 在链下审查完成后准入。新证券及首个 W 使用 `admitPermissionedSecurity` 原子登记；已有上市证券新增 W 使用 `registerPermissionedCurrency`，普通报价币 Q 使用 `registerQuoteToken`。资产没有独立状态枚举：W 的非零 underlying 和 Q 的 registered 标志表示已准入，证券的 listed 标志决定其所有池是否允许普通操作。
 
 | 入口 | 参数 | 主要效果和约束 |
 | --- | --- | --- |
-| `admitSecurity(bytes32 securityId, uint8 tierId, TokenConfig calldata config)` | 内部证券 ID、Tier 编号、首个 Currency 的 TokenConfig | 原子登记证券并批准首个 Token，`config.securityId` 必须匹配；失败回滚证券、Token 及 Tier 名额；`securityId` 必须非零且未登记；Tier 必须已配置且尚有名额。 |
-| `relistSecurity(bytes32 securityId)` | 已下架证券 ID | 恢复原证券并增加版本；证券必须存在且当前未 listed，原 Tier 仍须有名额。 |
-| `setSecurityTier(bytes32 securityId, uint8 tierId)` | 证券 ID、新 Tier | 修改已上市证券的 Tier；扣减旧 Tier 名额、占用新 Tier 名额并增加证券版本。 |
-| `delistSecurity(bytes32 securityId)` | 证券 ID | 下架证券并释放 Tier 名额；必须已 listed 且 `activePoolCount == 0`。 |
-| `registerToken(TokenConfig calldata config)` | 下方完整 TokenConfig | 登记即批准报价 Currency 或已上市证券的新增 Currency；输入 `status` 必须为 `APPROVED`。地址的代码存在性、decimals 和直接结算规则均按下表校验。 |
-| `setTokenStatus(address currency, TokenStatus status)` | TokenConfig 主键 Currency、目标状态 | 只允许 `APPROVED → DISABLED`、`DISABLED → APPROVED`；不能设置 `ABSENT`，也不能重复设置当前状态。恢复批准时 Currency 地址必须仍有代码；股票证券仍须 listed。 |
-| `replaceLegalShareAdapter(address currency, address newAdapter)` | 股票 Currency、新 Adapter | 只对已登记股票 Token；新 Adapter 版本须等于旧版本加一，通过 ERC-165 声明 `IDirectLegalShareAdapter` 并绑定相同 Currency。若该 Currency 仍有活跃池，GLOBAL 或该 TOKEN 范围的紧急记录必须共同覆盖交易和 LP（单条 ALL 或分别叠加 TRADE、LP）；单项暂停、SECURITY 或 POOL 范围暂停均不足。Registry 不调用换算函数验证其结果。 |
+| `admitPermissionedSecurity(uint8 tierId, PermissionedAdmission calldata admission)` | Tier、securityId、W、expectedOwner、U 的 LegalShareAdapter | 原子上市证券并准入首个 W；失败回滚证券、W/U 和 Tier 名额。证券 ID 必须非零且未登记，Tier 必须有名额。 |
+| `registerPermissionedCurrency(PermissionedAdmission calldata admission)` | 已上市证券及新增 W 的准入参数 | 校验原版 Factory/W、U 绑定、精度、owner、wrapper/Hook 权限和首次库存；同一 U 共享规范股数 Adapter。 |
+| `registerQuoteToken(address quote)` | 普通报价币 Q | 校验身份和精度，登记 rawDecimals 和 registered；零位精度合法，已登记 Q 不可重复登记。 |
+| `relistSecurity(bytes32 securityId)` | 已下架证券 ID | 恢复原证券并占用原 Tier 名额；独立暂停及报告序号保留，未暂停的历史池恢复普通操作。 |
+| `setSecurityTier(bytes32 securityId, uint8 tierId)` | 已上市证券 ID、新 Tier | 扣减旧 Tier 名额并占用新 Tier 名额。 |
+| `delistSecurity(bytes32 securityId)` | 已上市证券 ID | 直接阻止该证券全部池的交易和普通 LP，释放 Tier 名额；不删除历史池或仓位。 |
+| `updatePermissionedExpectedOwner(address w, address newOwner)` | W、新 owner | 该 W 的交易及 LP 均须暂停；TOKEN、SECURITY、GLOBAL 和市场暂停可组合覆盖两类操作。新 owner 须通过发行方绑定和 Governor 批准检查。 |
+| `replaceUnderlyingLegalShareAdapter(address u, address newAdapter)` | U、新规范股数 Adapter | 整个证券的交易及 LP 均须暂停；仅 GLOBAL、SECURITY 或市场暂停可覆盖。新 Adapter 须实现对应接口并绑定同一 U。 |
 
-`TokenConfig` 的 ABI 字段顺序如下：
-
-```solidity
-struct TokenConfig {
-    address poolCurrency;
-    uint8 poolDecimals;
-    bytes32 securityId;
-    address legalShareAdapter;
-    uint32 legalAdapterVersion;
-    TokenStatus status;
-}
-```
-
-| 字段 | 含义与当前规则 |
-| --- | --- |
-| `poolCurrency` | 作为 V4 Currency 使用的 ERC-20 地址，也是 Registry TokenConfig 的主键；必须非零且有代码。 |
-| `poolDecimals` | 池内 Currency 的 `decimals()`；登记时与链上值核对且不得超过 18。 |
-| `securityId` | 股票资产的证券 ID；`0` 表示普通配对币，非零表示股票且必须指向已上市证券。 |
-| `legalShareAdapter` | 股票的法律股数换算 Adapter；普通配对币必须为零，股票必须提供有效合约并绑定同一 Currency。 |
-| `legalAdapterVersion` | 股数 Adapter 版本；普通币为 `0`，新登记股票当前为 `1`。 |
-| `status` | `ABSENT=0`、`APPROVED=1` 或 `DISABLED=2`；未登记为 ABSENT，准入输入必须为 APPROVED。 |
-
-`TokenConfig` 只描述实际池内 Currency 和股数计量配置；用户结算 Token 与池内 Currency 不再分别登记，V1 也没有结算 Adapter 替换入口。ABI 首次部署后，后续代理升级必须遵守已部署的存储布局。SBT 地址/tokenId、角色授权和 Tier 风险参数由 Governor 控制，见治理系统；运营角色不能自行更换这些治理根配置。
+`getCurrency(W)` 返回 underlying 和 expectedOwner；`getUnderlying(U)` 返回 securityId、legalShareAdapter 和 rawDecimals；`getQuoteToken(Q)` 返回 rawDecimals 和 registered。用户 Swap 收付 U/Q，PoolKey 使用 W/Q。证券及资产身份永久保留，运营停止和恢复统一使用下一节的暂停入口。
 
 ### 3.3 紧急暂停与恢复
 
@@ -451,7 +428,7 @@ struct TokenConfig {
 | 入口 | 角色 | 参数含义与约束 |
 | --- | --- | --- |
 | `addEmergencyPause(PauseScope scope, bytes32 target, PauseMode mode, bytes32 reasonCode) returns (uint256 recordId)` | `EMERGENCY_PAUSER_ROLE` | 新建独立暂停记录并返回递增的 `recordId`。`scope` 为 `GLOBAL`、`SECURITY`、`TOKEN` 或 `POOL`；GLOBAL 的 `target` 必须为零，其余 scope 的 target 必须非零。`mode` 必须为 TRADE/LP/ALL；`reasonCode` 必须非零。 |
-| `clearEmergencyPause(uint256 recordId, bytes32 reasonCode)` | `EMERGENCY_RESUMER_ROLE` | 按记录 ID 清除一条暂停；记录必须存在且仍 active，清除原因码非零。不同记录独立计数，清除一条不会清除其他暂停。 |
+| `clearEmergencyPause(uint256 recordId, bytes32 reasonCode)` | `EMERGENCY_RESUMER_ROLE` | 按记录 ID 清除一条暂停；记录必须存在且仍 active，清除原因码非零。不同记录独立计数，清除一条不会清除其他暂停。清除 TOKEN 记录时复核已准入 W 的绑定、精度、owner/wrapper/Hook 权限和股数 Adapter，或 Q 的身份与精度；不重做首次库存检查。 |
 
 `target` 的编码按范围解释：GLOBAL 使用 `bytes32(0)`；SECURITY 使用 `securityId`；TOKEN 使用地址左侧补零转为 `bytes32(uint256(uint160(token)))`；POOL 使用 `PoolId.unwrap(key.toId())`。命中的 TRADE 或 ALL 记录阻止交易，LP 或 ALL 记录阻止开仓、加仓、减仓、收费、关闭等全部普通 LP 操作。记录按 scope/target/mode 分别计数，并与市场暂停叠加；清除一条记录仅解除该记录，不影响其他记录或市场 HALT。授权 forceExit 继续可用。
 
@@ -466,15 +443,13 @@ struct TokenConfig {
 
 每次偏移变化使起效日前一计量日成为 20–28 小时的过渡日；新偏移只从 `effectiveDayId` 开始生效。历史 dayId、边界和已用额度不回写。更完整的日期例子见[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。
 
-### 3.5 池初始化与状态管理
+### 3.5 池初始化与暂停
 
-| 入口 | 角色 | 参数含义与约束 |
-| --- | --- | --- |
-| `initializePool(PoolKey calldata key, uint160 sqrtPriceX96)` | `POOL_CREATOR_ROLE`，调用 `TSVLPManagerV1` | 创建 V4 池并在同一交易中登记 PENDING→ACTIVE。`key` 由 `currency0/currency1/fee/tickSpacing/hooks` 组成，字段含义见交易系统 §2.2；两侧 Token 都须 APPROVED，Currency 地址须排序且不能为零，Hook 必须为 TSV Hook，fee `< 1,000,000`，tickSpacing 为 `1..32767`，最多一侧可为股票。`sqrtPriceX96` 是 V4 初始 Q64.96 平方根价格；范围及池是否已初始化由 PoolManager 校验。初始定价依据在链下归档。 |
-| `disablePool(bytes32 poolId)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 ACTIVE 池可停用。池状态变为 DISABLED，禁止新 Swap 和普通 LP 操作，但不自动清退存量仓位；历史池身份仍保留供强退使用。 |
-| `enablePool(bytes32 poolId)` | `SYMBOL_ADMIN_ROLE`，Registry | 仅 DISABLED 池可恢复。两侧 Token 必须仍为 APPROVED，所含证券必须仍 listed；恢复时要求交易和 LP 两类门禁均通过，因此全局/池/Token/证券的两类暂停均须解除，股票市场状态必须为 OPEN。 |
+`POOL_CREATOR_ROLE` 调用 `TSVLPManagerV1.initializePool(PoolKey key, uint160 sqrtPriceX96)`。Registry 要求恰好一侧为已上市证券的 W，另一侧为已登记 Q；Currency 地址有序且非零，Hook 为 TSV Hook，静态 fee 小于 1,000,000，tickSpacing 为 1..32767。价格范围及重复初始化由真实 PoolManager 校验，初始定价依据保存在链下。
 
-`initializePool` 的原子流程是 LP Manager 调用 Registry 登记 PENDING、调用 PoolManager `initialize`，成功后再由 Manager 通知 Registry 标为 ACTIVE 并更新 active-pool 计数。失败时三步全部回滚。运营不直接调用 Registry 的 `registerPendingPool`/`markPoolActive`；这两个入口仅允许已绑定的 LP Manager 调用。
+同一交易依次执行 `Registry.registerPool(key)` 和 `PoolManager.initialize(key, sqrtPriceX96)`。Hook 检查调用者是绑定的 LPManager，且 PoolKey 与登记记录完全一致；初始化失败连同注册一起回滚。Registry 不保存池生命周期状态或池计数，初始化结果使用 PM 的 Initialize 事件。
+
+停用池使用 `addEmergencyPause(POOL, poolId, mode, reasonCode)`，恢复使用 `clearEmergencyPause(recordId, reasonCode)`；资产和证券的其他暂停继续生效。`isKnownPool` 通过保存的非零 currency0 判断历史池身份，证券下架或暂停不删除记录，授权强退仍可识别原池。
 
 ### 3.6 强制退出仓位
 
@@ -495,11 +470,11 @@ function forceExit(
 | `minPoolOut0` / `minPoolOut1` | `currency0/1` 返还仓位 owner 的最小 raw 数量；任一侧未达到即整笔回滚。 |
 | `reasonCode` | 非零处置原因编码。 |
 
-两种角色都必须提供非零 `reasonCode`。`FORCE_EXIT_ADMIN_ROLE` 可按管理员授权执行；`REVOKE_EXIT_EXECUTOR_ROLE` 只有在仓位原 owner 已失去 SBT 凭证时才能执行，单独的 SBT 全局 paused 不等同撤证。资产固定返还仓位原 owner，调用者不能指定收款地址。强退不要求池仍可交易，也不受一般市场暂停门禁阻挡；若 Token 拒绝转账或最低返还量不满足，仓位、Receipt 和资产变化全部回滚。
+两种角色都必须提供非零 `reasonCode`。`FORCE_EXIT_ADMIN_ROLE` 可按管理员授权执行；`REVOKE_EXIT_EXECUTOR_ROLE` 只有在仓位原 owner 已失去全部已登记 SBT 身份时才能执行；关闭某个 tokenId 的操作权限不构成身份撤销，单独的 SBT 全局 paused 不等同撤证。资产固定返还仓位原 owner，调用者不能指定收款地址。强退不要求池仍可交易，也不受一般市场暂停门禁阻挡；若 Token 拒绝转账或最低返还量不满足，仓位、Receipt 和资产变化全部回滚。
 
 ### 3.7 运营入口与治理入口的边界
 
-运营地址不会自行授予角色。Governor 通过各业务代理的 `grantRole(bytes32 role, address account)` / `revokeRole(bytes32 role, address account)` 配置运营角色；权限配置属于治理。`setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed)` 和 `setSbtConfig(address sbt, uint256 tokenId)` 同样仅 Governor 可调用，故分别属于风险参数和资格体系治理，不授予 `SYMBOL_ADMIN` 执行权。日切虽然由 Governor 调用，但在本系统业务分类中作为运营计量周期配置列于 §3.4。
+运营地址不会自行授予角色。Governor 通过各业务代理的 `grantRole(bytes32 role, address account)` / `revokeRole(bytes32 role, address account)` 配置运营角色；权限配置属于治理。`setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed)` 和 `setSbtConfig(uint256 tokenId, PermissionFlag permissions)` 同样仅 Governor 可调用，故分别属于风险参数和资格体系治理，不授予 `SYMBOL_ADMIN` 执行权。日切虽然由 Governor 调用，但在本系统业务分类中作为运营计量周期配置列于 §3.4。
 
 资产先经链下审查，再由 `SYMBOL_ADMIN` 一次调用 `admitSecurity` 完成证券和首个 Currency 准入，市场默认开放。随后 `VOLUME_ORACLE` 提交 ADTV、`POOL_CREATOR` 初始化获批的 PoolKey，两者可按任意顺序完成。LP 可在 ADTV 提交前提供流动性，首笔股票 Swap 必须有适用 ADTV 和流动性。普通 Pool 创建权限不意味着可以跳过 Registry 的资产准入或运行期交易门禁。
 
@@ -510,14 +485,14 @@ function forceExit(
 | 合约 | 直接查询入口 | 返回/用途 |
 | --- | --- | --- |
 | Registry | `getSecurity(bytes32 securityId)`、`getToken(address currency)`、`getPool(bytes32 poolId)`、`tierPolicy(uint8 tierId)` | 读取证券、Token、池和 Tier 配置结构。 |
-| Registry | `marketStatus(bytes32 securityId)`、`marketPauseMode(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`hasCredential(address owner)`、`isEligible(address owner)` | 市场状态从暂停模式推导为 OPEN/HALTED，未知证券的 marketStatus 查询回滚；池是否登记/允许交易/允许普通 LP，SBT 是否持有/当前是否合格。`isEligible` 同时考虑 SBT 全局暂停。isTradable 不检查 ADTV、额度或流动性。 |
-| Registry | `activePoolCountByCurrency(address currency)`、`marketSequence(bytes32 securityId)`、`emergencyPauses(uint256 recordId)`、`activePauseCount(uint8 scope, bytes32 target, uint8 mode)` | 读取活跃池计数、市场报告序号、暂停记录及指定范围/目标/精确模式的活动暂停数量；ALL 记录计入 mode=3，不重复计入 mode=1/2。 |
-| Registry | `hook()`、`lpManager()`、`dataInbox()`、`nextPauseId()`、`participantSbt()`、`sbtTokenId()` | 读取绑定地址、下一暂停记录编号和当前 SBT 配置。 |
-| VolumeLedger | `splitFactorOf(bytes32,uint32)`、`splitFactorVersion(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)` | 指定日分子/分母（默认1/1），来源月版本及保留检查点；未来查询用于预检查，取消项通过事件审计。 |
+| Registry | `marketStatus(bytes32 securityId)`、`marketPauseMode(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`hasCredential(address owner)` | 市场状态从暂停模式推导为 OPEN/HALTED，未知证券的 marketStatus 查询回滚；池是否登记/允许交易/允许普通 LP，SBT 是否持有；操作资格通过 `isAllowed(permission,account)` 独立查询，并考虑 SBT 全局暂停。isTradable 不检查 ADTV、额度或流动性。 |
+| Registry | `marketSequence(bytes32 securityId)`、`emergencyPauses(uint256 recordId)`、`activePauseCount(uint8 scope, bytes32 target, uint8 mode)` | 读取市场报告序号、暂停记录及指定范围/目标/精确模式的活动暂停数量；证券活跃池计数通过 `getSecurity` 返回，不再单独维护币种级计数。ALL 记录计入 mode=3，不重复计入 mode=1/2。 |
+| Registry | `hook()`、`lpManager()`、`dataInbox()`、`nextPauseId()`、`participantSbt()`、`sbtTokenIds()`、`sbtIdentityConfig(tokenId)` | 读取绑定地址、下一暂停记录编号和当前 SBT 配置。 |
+| VolumeLedger | `splitFactorOf(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)` | 指定日分子/分母（默认1/1），来源月内保留的检查点；未来查询用于预检查，取消项通过事件审计。 |
 | DataInbox | `reportIdUsed(bytes32 reportId)`、`lastSequence(uint8 kind, bytes32 key)`、`lastSourceTimestamp(uint8 kind, bytes32 key)`、`MAX_ADTV_BATCH_SIZE()` | 核对报告去重、各类别最新序号/来源时间和批量 ADTV 上限；`kind` 为 `0=Market`、`1=ADTV`、`2=Quota`、`3=SplitFactor`，`key` 为对应 `securityId`。 |
 | DataInbox | `registry()`、`ledger()` | 读取绑定的 Registry 和 VolumeLedger。 |
-| VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()` | 查询当前计量日、指定计量日起点及日切配置历史。 |
-| VolumeLedger | `used(bytes32 securityId, uint32 tradeDayId)`、`adtvOf(bytes32 securityId, uint32 sourceMonth)`、`quotaOf(bytes32 securityId, uint32 tradeDayId)`、`remaining(bytes32 securityId, uint32 tradeDayId)` | 查询指定证券和周期的已用量、ADTV、Quota 覆盖和剩余额度；`remaining` 返回 `(valid, value)`。 |
+| VolumeLedger | `currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()` | 查询当前计量日（uint32）、指定计量日起点及日切配置历史。 |
+| VolumeLedger | `used(bytes32 securityId, uint32 tradeDayId)`、`adtvOf(bytes32 securityId, uint32 sourceMonth)`、`quotaOf(bytes32 securityId, uint32 tradeDayId)`、`remaining(bytes32 securityId, uint32 tradeDayId)` | 查询指定证券和周期的已用量、ADTV、Quota 覆盖和剩余额度；`adtvOf`、`quotaOf` 返回 uint256 金额，`remaining` 返回 `(valid, value)`。 |
 | VolumeLedger | `registry()`、`hook()`、`dataInbox()`、`QUOTA_SET()`、`QUOTA_CLEAR()` | 读取绑定地址和 Quota action 常量。 |
 
 ## 四、治理系统
@@ -585,8 +560,8 @@ flowchart TB
 | Governor | 六个业务代理的 `revokeRole(bytes32 role, address account)` | 撤销指定地址的业务角色；不能撤销动态 `DEFAULT_ADMIN_ROLE`。 |
 | 角色持有人 | 六个业务代理的 `renounceRole(bytes32 role, address callerConfirmation)` | 持有人主动放弃自己的业务角色；`callerConfirmation` 必须等于 `msg.sender`；不能放弃动态 `DEFAULT_ADMIN_ROLE`。 |
 | Governor | Registry 的 `setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed)` | `tierId` 必须非零；`tierBps` 范围 `1..10000`；`maxListed` 不得低于当前已上市数量。 |
-| Governor | Registry 的 `setSbtConfig(address sbt, uint256 tokenId)` | SBT 合约地址、资格 Token ID。地址须有代码；配置时探测 `paused()` 与 `verify()` 是否可调用。 |
-| Governor（首次绑定） | Registry 的 `bindComponents(address hook, address lpManager, address dataInbox)` | 三个组件地址都须有代码，且只能绑定一次。 |
+| Governor | Registry 的 `setSbtConfig(uint256 tokenId, PermissionFlag permissions)` | 单个身份 tokenId 及 swap/LP 权限；可再次更新同一 ID 权限。使用组件绑定时固定的 SBT，配置时校验该 ID 的 `verify()` 读取。 |
+| Governor（首次绑定） | Registry 的 `bindComponents(address hook, address lpManager, address dataInbox, address factory, address sbt)` | 五个组件地址都须有代码；SBT ABI 和 F 的 PM 有效后一次绑定，发一个包含全部地址的 ComponentsBound 事件。 |
 | Governor（首次绑定） | VolumeLedger 的 `bindWriters(address hook, address dataInbox)` | Hook 与 DataInbox 地址都须有代码，且只能绑定一次。 |
 | Governor（首次绑定） | GovernanceAnchor 的 `bindProxies(address[6] addresses)` | 按固定顺序绑定 Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager；地址必须是互不相同且组件交叉绑定一致的已部署代理；只能绑定一次。 |
 
@@ -634,7 +609,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  A[资产已登记并获批] --> B[PoolKey 已登记且池 ACTIVE]
+  A[W/Q 已准入且证券上市] --> B[PoolKey 已登记且 PM 已初始化]
   B --> C[用户 SBT 资格与请求授权有效]
   C --> D[证券仍 listed 且没有命中的 TRADE/ALL 暂停]
   C --> LP[无命中的 LP/ALL 暂停时执行普通 LP]
@@ -644,7 +619,7 @@ flowchart TD
   F --> G[Ledger 检查 ADTV / Tier / 拆并股系数 / 可选 quota]
   G --> H[结算成功并写入日成交量]
   G -->|任一检查失败| X[整笔交易回滚]
-  R[运营报告、资产状态和暂停状态] --> D
+  R[运营报告、证券上市和暂停状态] --> D
   R --> G
   T[治理角色、参数和升级] --> R
   T --> A
@@ -706,12 +681,12 @@ Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager 均继承 `T
 | VolumeLedger | `initialize(address anchor, address registry, uint32 dayStartOffsetSeconds)` |
 | DataInbox | `initialize(address anchor, address registry, address ledger)` |
 | Hook | `initialize(address anchor, address poolManager, address registry, address ledger, address router, address lpManager)` |
-| SwapRouter | `initialize(address anchor, address poolManager, address registry, address ledger)` |
+| SwapRouter | `initialize(address anchor, address poolManager, address registry)` |
 | LPManager | `initialize(address anchor, address poolManager, address registry)` |
 
 ### 7.4 ABI 范围说明
 
-本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Hook 在 `afterSwap` 调用 LegalShareAdapter 的 `toLegalShares(...)` 并调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)` / `acceptSplitFactor(...)`；LPManager 调用 Registry 的 `registerPendingPool(...)` / `markPoolActive(...)`。Adapter 的直接换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Governor 的升级与 Guardian 的统一开关入口见 §4.2。
+本文件列的是三系统中由用户、运营角色、治理角色发起的业务操作、可用查询和部署初始化。以下源码入口明确属于合约间调用，不作为人类角色的直接操作列入：PoolManager 调用 Hook 的 `IHooks` 回调；PoolManager 调用 Router/LPManager 的 `unlockCallback(bytes)`；Hook 在 `afterSwap` 调用 LegalShareAdapter 的 `toLegalShares(...)` 并调用 VolumeLedger 的 `recordSwap(...)`；DataInbox 调用 Registry 的 `applyMarketStatus(...)` 和 VolumeLedger 的 `acceptAdtv(...)` / `acceptQuota(...)` / `acceptSplitFactor(...)`；LPManager 调用 Registry 的 `registerPool(...)`。Adapter 的直接换算接口和外部 SBT 的 `paused()` / `verify(...)` 同样是 TSV 合约读取的依赖接口。Governor 的升级与 Guardian 的统一开关入口见 §4.2。
 
 LP Receipt 继承的转移/授权 selector 虽在 ABI 中存在，但会回滚，见 §2.6。部署工厂 `TSVHookProxyFactory.predict(address implementation, bytes initData, bytes32 salt)` / `deploy(address implementation, bytes initData, bytes32 salt)` 属于部署工具，不属于交易、运营或治理业务入口。
 

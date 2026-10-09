@@ -7,6 +7,7 @@ import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
+import {V1PermissionedComponent} from "../../../helpers/v1/PermissionedMocks.sol";
 
 contract TSVOperationsBindingsTest is FoundationFixture {
     function testLedgerAndInboxInitializationRejectZeroDependenciesAndInvalidOffsets() public {
@@ -45,24 +46,33 @@ contract TSVOperationsBindingsTest is FoundationFixture {
                 )
             )
         );
+        V1PermissionedComponent h =
+            new V1PermissionedComponent(address(manager), address(fresh), address(permissionsFactory));
+        V1PermissionedComponent lp =
+            new V1PermissionedComponent(address(manager), address(fresh), address(permissionsFactory));
+        V1PermissionedComponent router_ =
+            new V1PermissionedComponent(address(manager), address(fresh), address(permissionsFactory));
+        h.setLinks(address(router_), address(lp), address(ledger));
         address stranger = makeAddr("binding-outsider");
         vm.expectRevert(
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, bytes32(0))
         );
         vm.prank(stranger);
-        fresh.bindComponents(address(this), address(this), address(inbox));
-        for (uint8 slot; slot < 3; ++slot) {
-            address[3] memory components = [address(this), address(this), address(inbox)];
+        fresh.bindComponents(address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt));
+        for (uint8 slot; slot < 5; ++slot) {
+            address[5] memory components =
+                [address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt)];
             components[slot] = stranger;
             vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            fresh.bindComponents(components[0], components[1], components[2]);
+            fresh.bindComponents(components[0], components[1], components[2], components[3], components[4]);
             assertEq(fresh.hook(), address(0));
             assertEq(fresh.lpManager(), address(0));
             assertEq(fresh.dataInbox(), address(0));
+            assertEq(address(fresh.participantSbt()), address(0));
         }
-        fresh.bindComponents(address(this), address(this), address(inbox));
+        fresh.bindComponents(address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt));
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        fresh.bindComponents(address(this), address(this), address(inbox));
+        fresh.bindComponents(address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt));
         assertEq(fresh.dataInbox(), address(inbox));
     }
 

@@ -18,17 +18,13 @@ contract TSVReportsTest is FoundationFixture {
         bytes32 firstSecurity = uint256(SECURITY) < uint256(secondSecurity) ? SECURITY : secondSecurity;
         bytes32 lastSecurity = firstSecurity == SECURITY ? secondSecurity : SECURITY;
         AdtvReport[] memory reports = new AdtvReport[](2);
-        reports[0] = _adtv(firstSecurity, 1000e18, 1, 1, keccak256("adtv-batch-a"));
-        reports[1] = _adtv(lastSecurity, 2000e18, 1, 1, keccak256("adtv-batch-b"));
+        reports[0] = _adtv(firstSecurity, 1000e18, 1, keccak256("adtv-batch-a"));
+        reports[1] = _adtv(lastSecurity, 2000e18, 1, keccak256("adtv-batch-b"));
 
         inbox.submitAdtvBatch(reports);
 
-        TSVVolumeLedgerV1.AdtvValue memory first = ledger.adtvOf(firstSecurity, uint32(MONTH));
-        TSVVolumeLedgerV1.AdtvValue memory last = ledger.adtvOf(lastSecurity, uint32(MONTH));
-        assertEq(first.value, 1000e18);
-        assertEq(last.value, 2000e18);
-        assertEq(first.version, 1);
-        assertEq(last.version, 1);
+        assertEq(ledger.adtvOf(firstSecurity, uint32(MONTH)), 1000e18);
+        assertEq(ledger.adtvOf(lastSecurity, uint32(MONTH)), 2000e18);
     }
 
     /// @dev Verifies an ADTV batch reverts atomically when one report is invalid.
@@ -39,17 +35,16 @@ contract TSVReportsTest is FoundationFixture {
         bytes32 firstSecurity = uint256(SECURITY) < uint256(secondSecurity) ? SECURITY : secondSecurity;
         bytes32 lastSecurity = firstSecurity == SECURITY ? secondSecurity : SECURITY;
         AdtvReport[] memory reports = new AdtvReport[](2);
-        reports[0] = _adtv(firstSecurity, 1000e18, 1, 1, keccak256("adtv-atomic-a"));
-        // Version 2 is invalid because this security has no accepted version 1.
-        reports[1] = _adtv(lastSecurity, 2000e18, 2, 1, keccak256("adtv-atomic-b"));
+        reports[0] = _adtv(firstSecurity, 1000e18, 1, keccak256("adtv-atomic-a"));
+        reports[1] = _adtv(lastSecurity, 0, 1, keccak256("adtv-atomic-b"));
 
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
         inbox.submitAdtvBatch(reports);
 
         assertFalse(inbox.reportIdUsed(reports[0].reportId));
         assertFalse(inbox.reportIdUsed(reports[1].reportId));
-        assertEq(ledger.adtvOf(firstSecurity, uint32(MONTH)).version, 0);
-        assertEq(ledger.adtvOf(lastSecurity, uint32(MONTH)).version, 0);
+        assertEq(ledger.adtvOf(firstSecurity, uint32(MONTH)), 0);
+        assertEq(ledger.adtvOf(lastSecurity, uint32(MONTH)), 0);
     }
 
     /// @dev Verifies daily quota overrides are optional and clearing one restores the hard cap.
@@ -59,17 +54,16 @@ contract TSVReportsTest is FoundationFixture {
         assertTrue(valid);
         assertEq(left, 2.5e18);
 
-        QuotaReport memory setReport = _quota(2e18, 1, 1, 1, keccak256("quota-set"));
+        QuotaReport memory setReport = _quota(2e18, 1, 1, keccak256("quota-set"));
         inbox.submitQuota(setReport);
         (valid, left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 2e18);
 
-        QuotaReport memory clearReport = _quota(0, 2, 2, 2, keccak256("quota-clear"));
+        QuotaReport memory clearReport = _quota(0, 2, 2, keccak256("quota-clear"));
         inbox.submitQuota(clearReport);
-        TSVVolumeLedgerV1.QuotaOverride memory quota = ledger.quotaOf(SECURITY, DAY);
-        assertFalse(quota.active);
-        assertEq(quota.version, 2);
+        assertEq(ledger.quotaOf(SECURITY, DAY), 0);
+        assertEq(inbox.lastSequence(2, SECURITY), 2);
         (valid, left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 2.5e18);
@@ -78,17 +72,17 @@ contract TSVReportsTest is FoundationFixture {
     /// @dev Verifies invalid clears and above-cap quota values revert atomically.
     function testQuotaRejectsInvalidClearAndValuesAboveHardCapAtomically() public {
         _submitAdtv(1000e18);
-        QuotaReport memory report = _quota(0, 2, 1, 1, keccak256("clear-without-set"));
+        QuotaReport memory report = _quota(0, 2, 1, keccak256("clear-without-set"));
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
         inbox.submitQuota(report);
         assertFalse(inbox.reportIdUsed(report.reportId));
 
-        report = _quota(0, 1, 1, 1, keccak256("zero-set"));
+        report = _quota(0, 1, 1, keccak256("zero-set"));
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
         inbox.submitQuota(report);
         assertFalse(inbox.reportIdUsed(report.reportId));
 
-        report = _quota(3e18, 1, 1, 1, keccak256("over-hard-cap"));
+        report = _quota(3e18, 1, 1, keccak256("over-hard-cap"));
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
         inbox.submitQuota(report);
         assertFalse(inbox.reportIdUsed(report.reportId));

@@ -1,0 +1,47 @@
+{
+  "failed_agents": ["access-control", "economic-security", "execution-trace", "invariant", "first-principles", "asymmetry"],
+  "completeness": {"raw_items": 8, "unique_functions": 5, "accepted_functions": 2, "rejected_functions": 3},
+  "items": [
+    {
+      "key": "tsvlpmanagerv1|-settle|permissioned-lp-settlement-mismatch",
+      "contract": "TSVLPManagerV1", "function": "_settle", "bug_class": "permissioned-lp-settlement-mismatch",
+      "kind": "FINDING", "confidence": 90, "agents": 3,
+      "title": "Unfinished LP settlement rejects stock deposits and withdrawals",
+      "description": "The LP manager rejects stock deposits and withdrawals because it checks W transfers instead of U; production Wrapped LP remains unfinished.",
+      "gates": [
+        "ALLOWS: Registry/SBT/issuer/tick/deadline checks accept an eligible quote-only position; zero W delta passes _settle; normal wrapped swap creates a positive W position delta.",
+        "ALLOWS: The compiled source exposes this path with normal roles and ordinary price movement; manifest false is a documented release boundary, not an on-chain entry guard.",
+        "ALLOWS: An eligible unprivileged trader calls swapExactInput; the existing LP owner then encounters the incorrect W receipt check.",
+        "CONFIRMED: Positive stock principal or fees prevents normal or forced stock withdrawal and keeps the position active. No permanent-loss or deployed-victim claim is made."
+      ],
+      "confidence_basis": "100 minus 10 for the specified but achievable single-sided LP state.",
+      "scope_caveat": "Compiled retained LP implementation only. Current repository explicitly defers production Wrapped LP and has no demonstrated production deployment.",
+      "evidence_agents": ["periphery", "boundary", "trust-gap"],
+      "fix_options": [
+        {
+          "label": "A — block unfinished LP entries",
+          "diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n     ) private returns (BalanceDelta delta) {\n         Position storage p = positions[positionId];\n+        if (\n+            (mode == LPOperationMode.OPEN || mode == LPOperationMode.INCREASE)\n+                && (\n+                    registry.getCurrency(Currency.unwrap(p.key.currency0)).underlying != address(0)\n+                        || registry.getCurrency(Currency.unwrap(p.key.currency1)).underlying != address(0)\n+                )\n+        ) {\n+            revert InvalidPool();\n+        }\n         activeContext = LPContext(poolId, positionId, p.tickLower, p.tickUpper, mode, p.salt, liquidityDelta);"
+        },
+        {
+          "label": "B — settle stocks in U",
+          "diff": "--- a/src/v1/periphery/TSVLPManagerV1.sol\n+++ b/src/v1/periphery/TSVLPManagerV1.sol\n@@\n import {TSVDirectSettlementLib} from \"tsv-v1/libraries/TSVDirectSettlementLib.sol\";\n+import {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n+import {TSVPermissionedSettlementLib} from \"tsv-v1/libraries/TSVPermissionedSettlementLib.sol\";\n@@\n         if ((delta >= 0 || mode == LPOperationMode.FORCE_EXIT) && amount < minOut) revert SlippageExceeded();\n+        address underlying = registry.getCurrency(token).underlying;\n+        if (underlying != address(0)) {\n+            if (delta < 0) {\n+                poolManager.sync(currency);\n+                TSVPermissionedSettlementLib.payStock(token, underlying, owner, amount);\n+                if (poolManager.settle() != amount) revert SettlementMismatch();\n+            } else if (delta > 0) {\n+                uint256 sourceBefore = IERC20(underlying).balanceOf(token);\n+                uint256 ownerBefore = IERC20(underlying).balanceOf(owner);\n+                poolManager.take(currency, owner, amount);\n+                TSVPermissionedSettlementLib.assertDecrease(\n+                    sourceBefore, IERC20(underlying).balanceOf(token), amount\n+                );\n+                TSVPermissionedSettlementLib.assertIncrease(\n+                    ownerBefore, IERC20(underlying).balanceOf(owner), amount\n+                );\n+            }\n+            return;\n+        }\n         if (delta < 0) {\n--- a/src/v1/libraries/PermissionedValidationLib.sol\n+++ b/src/v1/libraries/PermissionedValidationLib.sol\n@@\n                 ) || !_readBool(w, IPermissionsAdapter.allowedHooks.selector, r.hook())\n+                || !_readBool(w, IPermissionsAdapter.allowedWrappers.selector, r.lpManager())\n         ) revert PermissionedPolicyMismatch();"
+        }
+      ]
+    },
+    {
+      "key": "backedautofeelegalshareadapter|tolegalshares|unbounded-live-fee-accrual",
+      "contract": "BackedAutoFeeLegalShareAdapter", "function": "toLegalShares", "bug_class": "unbounded-live-fee-accrual",
+      "kind": "LEAD", "agents": 2,
+      "title": "Issuer inactivity raises the cost of legal-share conversion",
+      "code_smells": "The adapter calls an issuer conversion method whose reference implementation repeats fee arithmetic for each elapsed period.",
+      "description": "A trader faces higher swap gas after long issuer inactivity; we have not verified the admitted token's fee settings or a failed swap.",
+      "gates": ["ALLOWS: Hook forwards the actual stock amount to the live issuer conversion.", "UNCERTAIN: Production issuer configuration, checkpoint activity, and gas budget were not supplied."],
+      "promotion": "Convergence establishes the same external reference loop, but no concrete production failure or material impact is proved. Shared-rules requires a LEAD when concrete proof is absent; repeated assumptions do not supply the missing configuration."
+    }
+  ],
+  "rejected": [
+    {"contract":"TSVDataInboxV1", "function":"_accept", "bug_class":"sequence-saturation-lock", "gate":3, "verdict":"REJECTED", "reason":"Only an authorized reporter supplies this terminal sequence; no unprivileged amplifier is shown. A trusted report writer's malicious or erroneous input is excluded by judging.md."},
+    {"contract":"TSVRegistryV1", "function":"_registerPermissionedCurrency", "bug_class":"mutable-adapter-implementation", "gate":2, "verdict":"REJECTED", "reason":"No concrete admitted adapter proxy, unauthorized upgrade, or user path is supplied. Generic centralization/mutable-dependency warning is expressly excluded."},
+    {"contract":"TSVRegistryV1", "function":"replaceUnderlyingLegalShareAdapter", "bug_class":"intra-day-unit-mix", "gate":3, "verdict":"REJECTED", "reason":"The alleged change requires a trusted administrator to perform documented-unsupported intraday legal-unit migration. No supported issuer-backed unit change or unprivileged amplifier is proved."}
+  ]
+}

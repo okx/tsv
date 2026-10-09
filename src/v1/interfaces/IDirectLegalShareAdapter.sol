@@ -8,8 +8,10 @@ interface IDirectLegalShareAdapter is IERC165 {
     /// @notice Returns the pool Currency to which this adapter is bound.
     function poolCurrency() external view returns (address);
 
-    /// @notice Returns the reviewed conversion-policy version.
-    function adapterVersion() external view returns (uint32);
+    /// @notice Returns the live multiplier used by this adapter's legal-share conversion.
+    /// @dev Static-rate adapters return their configured rate; the value must be nonzero.
+    /// @param currency Canonical underlying Currency registered for the security.
+    function currentMultiplier(address currency) external view returns (uint256 multiplier);
 
     /// @notice Converts an amount of the bound Currency into legal shares expressed in WAD.
     /// @param currency Currency being converted; implementations must enforce their configured asset.

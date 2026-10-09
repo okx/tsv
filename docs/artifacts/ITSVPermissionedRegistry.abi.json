@@ -1,0 +1,700 @@
+[
+  {
+    "type": "function",
+    "name": "admitPermissionedSecurity",
+    "inputs": [
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "admission",
+        "type": "tuple",
+        "internalType": "struct PermissionedAdmission",
+        "components": [
+          {
+            "name": "currency",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "expectedOwner",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "legalShareAdapter",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "bindComponents",
+    "inputs": [
+      {
+        "name": "hook",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "lpManager",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "dataInbox",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "factory",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "sbt",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "dataInbox",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "exitAdminOf",
+    "inputs": [
+      {
+        "name": "u",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getCurrency",
+    "inputs": [
+      {
+        "name": "w",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct PermissionedCurrencyConfig",
+        "components": [
+          {
+            "name": "underlying",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "expectedOwner",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPool",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct PoolConfig",
+        "components": [
+          {
+            "name": "key",
+            "type": "tuple",
+            "internalType": "struct PoolKey",
+            "components": [
+              {
+                "name": "currency0",
+                "type": "address",
+                "internalType": "Currency"
+              },
+              {
+                "name": "currency1",
+                "type": "address",
+                "internalType": "Currency"
+              },
+              {
+                "name": "fee",
+                "type": "uint24",
+                "internalType": "uint24"
+              },
+              {
+                "name": "tickSpacing",
+                "type": "int24",
+                "internalType": "int24"
+              },
+              {
+                "name": "hooks",
+                "type": "address",
+                "internalType": "contract IHooks"
+              }
+            ]
+          },
+          {
+            "name": "securityId0",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "securityId1",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getQuoteToken",
+    "inputs": [
+      {
+        "name": "q",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct QuoteTokenConfig",
+        "components": [
+          {
+            "name": "rawDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "registered",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSecurity",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct SecurityConfig",
+        "components": [
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "tierId",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "listed",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUnderlying",
+    "inputs": [
+      {
+        "name": "u",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct UnderlyingConfig",
+        "components": [
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "legalShareAdapter",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "rawDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "governanceAnchor",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasCredential",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasIdentity",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hook",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isAllowed",
+    "inputs": [
+      {
+        "name": "permission",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isPermissionedOwnerApproved",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isTradable",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lpManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "marketSequence",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "participantSbt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permissionedPoolManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permissionsAdapterFactory",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permissionsOf",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "registerPermissionedCurrency",
+    "inputs": [
+      {
+        "name": "admission",
+        "type": "tuple",
+        "internalType": "struct PermissionedAdmission",
+        "components": [
+          {
+            "name": "currency",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "expectedOwner",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "legalShareAdapter",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "registerQuoteToken",
+    "inputs": [
+      {
+        "name": "q",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "replaceUnderlyingLegalShareAdapter",
+    "inputs": [
+      {
+        "name": "u",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "newAdapter",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "sbtIdentityConfig",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "registered",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "sbtTokenIds",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setExitAdmin",
+    "inputs": [
+      {
+        "name": "u",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "newAdmin",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPermissionedOwnerApproval",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "approved",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSbtConfig",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updatePermissionedExpectedOwner",
+    "inputs": [
+      {
+        "name": "w",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]

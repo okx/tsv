@@ -9,7 +9,6 @@ import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
-import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 
 /// @dev Observable external side effect used to prove whole-transaction rollback.
 contract MigrationJournal {
@@ -61,9 +60,9 @@ contract InboxV2 is TSVDataInboxV1, GovernanceMigrationV2 {}
 
 contract HookV2 is TSVHookV1, GovernanceMigrationV2 {}
 
-contract RouterV2 is TSVSwapRouterV1, GovernanceMigrationV2 {}
-
-contract LPManagerV2 is TSVLPManagerV1, GovernanceMigrationV2 {}
+contract RouterV2 is TSVSwapRouterV1, GovernanceMigrationV2 {
+    constructor(address pm, address factory) TSVSwapRouterV1(pm, factory) {}
+}
 
 contract WrongUUIDImplementation {
     function proxiableUUID() external pure returns (bytes32) {

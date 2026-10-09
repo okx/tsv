@@ -2,14 +2,13 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {TSVAdapter} from "dex-adapters/adapters/uniswap-v4/TSVAdapter.sol";
 import {ITSVSwapRouter} from "dex-adapters/interfaces/ITSVSwapRouter.sol";
 import {DEX_ROUTER_CALLER_MARKER, ORIGIN_PAYER} from "dex-adapters/libraries/Constants.sol";
 
-/// @dev Uses the pinned upstream Adapter unchanged. The fixed key below is test-only.
+/// @dev Uses the upstream Adapter with W-to-U settlement currency resolution. The fixed key below is test-only.
 abstract contract TSVAdapterFixture is Test {
     uint256 internal constant TEST_AUTH_KEY = 0xA11CE;
     uint256 internal authNonce;
@@ -35,20 +34,6 @@ abstract contract TSVAdapterFixture is Test {
             vm.sign(TEST_AUTH_KEY, keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", inner)));
         bytes32 vs = bytes32(uint256(s) | (uint256(v - 27) << 255));
         return abi.encode(TSVAdapter.MoreInfo(externalKey, expiry, allowed, nonce, abi.encodePacked(r, vs)));
-    }
-
-    /// @dev Observe the real TSV event rather than adding getters to the upstream Adapter.
-    function _assertSwapParticipant(address tsvRouter, address participant) internal {
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        bytes32 signature = keccak256("SwapExecuted(bytes32,address,bool,int128,int128,uint32)");
-        uint256 swaps;
-        for (uint256 i; i < logs.length; i++) {
-            if (logs[i].emitter == tsvRouter && logs[i].topics.length == 3 && logs[i].topics[0] == signature) {
-                assertEq(address(uint160(uint256(logs[i].topics[2]))), participant);
-                swaps++;
-            }
-        }
-        assertGt(swaps, 0, "no TSV swap event");
     }
 
     function _adapterPayload(

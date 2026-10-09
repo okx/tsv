@@ -17,18 +17,26 @@ contract ERC8056DirectLegalShareAdapter is IDirectLegalShareAdapter {
     error InvalidRate();
 
     address public immutable override poolCurrency;
-    uint32 public immutable override adapterVersion;
 
-    constructor(address currency_, uint32 version_) {
-        if (currency_ == address(0) || currency_.code.length == 0 || version_ == 0) revert InvalidAdapterConfig();
+    constructor(address currency_) {
+        if (currency_ == address(0) || currency_.code.length == 0) revert InvalidAdapterConfig();
         uint8 decimals_ = IERC8056DirectMultiplierSource(currency_).decimals();
         if (decimals_ > 18) revert InvalidAdapterConfig();
         poolCurrency = currency_;
-        adapterVersion = version_;
     }
 
-    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
         return interfaceId == type(IDirectLegalShareAdapter).interfaceId || interfaceId == type(IERC165).interfaceId;
+    }
+
+    /// @notice Returns the live ERC-8056 multiplier for the bound Currency.
+    function currentMultiplier(address currency) external view override returns (uint256 multiplier) {
+        (multiplier,) = _currentMultiplier(currency);
     }
 
     /// @notice Converts raw token units using the multiplier active at this call.

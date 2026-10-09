@@ -1,35 +1,39 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {TokenConfig, TokenStatus, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
-import {OperationsSbt} from "../../../helpers/v1/OperationsMocks.sol";
 
 contract TSVOperationsPermissionsTest is OperationsFixture {
     function testEverySymbolAdminEntryRejectsUnassignedAndRevokedRoleIncludingGovernor() public {
         bytes32 role = registry.SYMBOL_ADMIN_ROLE();
         address operator = makeAddr("symbol-operator");
-        TokenConfig memory config = _newStockConfig(keccak256("new-security"));
-        bytes[] memory calls = new bytes[](9);
-        calls[0] = abi.encodeCall(TSVRegistryV1.admitSecurity, (config.securityId, 1, config));
-        calls[1] = abi.encodeCall(TSVRegistryV1.registerToken, (config));
+        PermissionedAdmission memory config = _newStockConfig(keccak256("new-security"));
+        bytes[] memory calls = new bytes[](8);
+        calls[0] = abi.encodeCall(TSVRegistryV1.admitPermissionedSecurity, (1, config));
+        calls[1] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config));
         calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
         calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY));
         calls[4] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2));
-        calls[5] = abi.encodeCall(TSVRegistryV1.setTokenStatus, (address(stock), TokenStatus.DISABLED));
-        calls[6] = abi.encodeCall(TSVRegistryV1.replaceLegalShareAdapter, (address(stock), address(stockAdapter)));
-        calls[7] = abi.encodeCall(TSVRegistryV1.disablePool, (poolId));
-        calls[8] = abi.encodeCall(TSVRegistryV1.enablePool, (poolId));
+        calls[5] = abi.encodeCall(
+            TSVRegistryV1.replaceUnderlyingLegalShareAdapter, (address(stockToken), address(stockAdapter))
+        );
+        calls[6] = abi.encodeCall(TSVRegistryV1.registerQuoteToken, (address(quote)));
+        calls[7] = abi.encodeCall(TSVRegistryV1.updatePermissionedExpectedOwner, (address(stock), operator));
         bytes32 beforeState = _state();
         _denyCalls(calls, operator, role);
+        assertEq(_state(), beforeState);
         registry.grantRole(role, operator);
         vm.prank(operator);
-        registry.setTokenStatus(address(stock), TokenStatus.DISABLED);
+        registry.delistSecurity(SECURITY);
         vm.prank(operator);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
+        registry.relistSecurity(SECURITY);
+        beforeState = _state();
         registry.revokeRole(role, operator);
         _denyCalls(calls, operator, role);
         registry.revokeRole(role, address(this));
@@ -72,13 +76,12 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         address operator = makeAddr("business-only");
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), operator);
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), operator);
-        OperationsSbt sbt = new OperationsSbt();
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
         registry.setTierPolicy(2, 10, 1);
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
-        registry.setSbtConfig(address(sbt), 1);
+        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
         ledger.scheduleDayStart(18000, 20261004);
@@ -88,7 +91,8 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         ledger.cancelPendingDayStart();
         assertEq(ledger.dayStartCheckpointCount(), 1);
         assertEq(registry.tierPolicy(2).tierBps, 0);
-        assertEq(address(registry.participantSbt()), address(0));
+        assertEq(address(registry.participantSbt()), address(identitySbt));
+        assertEq(registry.sbtTokenIds().length, 0);
     }
 
     function testPoolIntercontractEntriesRequireBoundLpManager() public {
@@ -96,10 +100,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         address stranger = makeAddr("not-lp-manager");
         vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
         vm.prank(stranger);
-        registry.registerPendingPool(key);
-        vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
-        vm.prank(stranger);
-        registry.markPoolActive(poolId, uint160(1 << 96), stranger);
+        registry.registerPool(key);
         vm.expectRevert(TSVVolumeLedgerV1.UnauthorizedWriter.selector);
         vm.prank(stranger);
         _charge(1e18);
@@ -123,7 +124,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         return keccak256(
             abi.encode(
                 registry.getSecurity(SECURITY),
-                registry.getToken(address(stock)),
+                registry.getCurrency(address(stock)),
                 registry.getPool(poolId),
                 registry.tierPolicy(1),
                 ledger.used(SECURITY, DAY),

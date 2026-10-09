@@ -10,19 +10,19 @@ contract TSVOperationsCapCorrectionsTest is OperationsFixture {
         _submitAdtv(1000e18);
         _submitQuota(2e18);
         _charge(1e18);
-        inbox.submitAdtv(_adtv(SECURITY, 400e18, 2, 2, keccak256("lower-adtv")));
+        inbox.submitAdtv(_adtv(SECURITY, 400e18, 2, keccak256("lower-adtv")));
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 0);
-        assertEq(ledger.quotaOf(SECURITY, DAY).quotaWad, 2e18);
+        assertEq(ledger.quotaOf(SECURITY, DAY), 2e18);
         bytes32 beforeState = _reportState(keccak256("unrelated"));
         vm.expectRevert(abi.encodeWithSelector(TSVVolumeLedgerV1.QuotaExceeded.selector, SECURITY, DAY));
         _charge(1);
         assertEq(_reportState(keccak256("unrelated")), beforeState);
-        inbox.submitAdtv(_adtv(SECURITY, 2000e18, 3, 3, keccak256("raise-adtv")));
+        inbox.submitAdtv(_adtv(SECURITY, 2000e18, 3, keccak256("raise-adtv")));
         (, left) = ledger.remaining(SECURITY, DAY);
         assertEq(left, 1e18); // Quota 2, not the raised hard cap 5.
-        inbox.submitQuota(_quota(0, 2, 2, 2, keccak256("clear")));
+        inbox.submitQuota(_quota(0, 2, 2, keccak256("clear")));
         (, left) = ledger.remaining(SECURITY, DAY);
         assertEq(left, 4e18);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
@@ -42,7 +42,7 @@ contract TSVOperationsCapCorrectionsTest is OperationsFixture {
         (, left) = ledger.remaining(SECURITY, DAY);
         assertEq(left, 1e18);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
-        assertEq(ledger.quotaOf(SECURITY, DAY).version, 1);
+        assertEq(ledger.quotaOf(SECURITY, DAY), 2e18);
     }
 
     function testAcceptedReportsDoNotExpireWithSubmissionDeadline() public {
@@ -80,7 +80,7 @@ contract TSVOperationsCapCorrectionsTest is OperationsFixture {
     function testFutureDayQuotaDoesNotChangeCurrentDayAndRequiresApplicableMonth() public {
         _submitAdtv(1000e18);
         _charge(1e18);
-        QuotaReport memory r = _quota(1e18, 1, 1, 1, keccak256("future-quota"));
+        QuotaReport memory r = _quota(1e18, 1, 1, keccak256("future-quota"));
         r.tradeDayId = 20261002;
         inbox.submitQuota(r);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
@@ -91,7 +91,7 @@ contract TSVOperationsCapCorrectionsTest is OperationsFixture {
         (valid, left) = ledger.remaining(SECURITY, 20261101);
         assertFalse(valid);
         assertEq(left, 0);
-        AdtvReport memory nextMonth = _adtv(SECURITY, 1000e18, 1, 2, keccak256("next-adtv"));
+        AdtvReport memory nextMonth = _adtv(SECURITY, 1000e18, 2, keccak256("next-adtv"));
         nextMonth.sourceMonth = 202610;
         inbox.submitAdtv(nextMonth);
         (valid, left) = ledger.remaining(SECURITY, 20261101);

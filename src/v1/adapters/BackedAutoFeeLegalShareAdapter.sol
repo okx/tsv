@@ -11,6 +11,12 @@ interface IBackedShareConversionSource {
 
     /// @notice Converts a wrapped-share amount to its underlying legal-share amount.
     function getUnderlyingAmountByShares(uint256 sharesAmount) external view returns (uint256 underlyingAmount);
+
+    /// @notice Returns the current multiplier used by the issuer's share conversion.
+    function getCurrentMultiplier()
+        external
+        view
+        returns (uint256 currentMultiplier, uint256 periodsPassed, uint256 nonce);
 }
 
 /// @dev Exposes the underlying asset associated with the wrapped token.
@@ -34,15 +40,13 @@ contract BackedAutoFeeLegalShareAdapter is IDirectLegalShareAdapter {
 
     address public immutable userToken;
     address public immutable override poolCurrency;
-    uint32 public immutable override adapterVersion;
 
-    /// @notice Binds the wrapped pool currency to its issuer conversion source and adapter version.
+    /// @notice Binds the wrapped pool currency to its issuer conversion source.
     /// @param underlying_ Issuer token that exposes the live share conversion method.
     /// @param wrapped_ Token used as the pool currency and returned by the issuer wrapper.
-    /// @param version_ Reviewed adapter version recorded by the Registry.
-    constructor(address underlying_, address wrapped_, uint32 version_) {
+    constructor(address underlying_, address wrapped_) {
         if (
-            underlying_ == address(0) || wrapped_ == address(0) || underlying_ == wrapped_ || version_ == 0
+            underlying_ == address(0) || wrapped_ == address(0) || underlying_ == wrapped_
                 || underlying_.code.length == 0 || wrapped_.code.length == 0
         ) revert InvalidAdapterConfig();
         if (
@@ -52,14 +56,25 @@ contract BackedAutoFeeLegalShareAdapter is IDirectLegalShareAdapter {
         ) revert InvalidAdapterConfig();
         userToken = underlying_;
         poolCurrency = wrapped_;
-        adapterVersion = version_;
     }
 
     /// @notice Reports support for the direct legal-share adapter and ERC-165 interfaces.
     /// @param interfaceId Interface identifier to check.
     /// @return True when this adapter implements the requested interface.
-    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
         return interfaceId == type(IDirectLegalShareAdapter).interfaceId || interfaceId == type(IERC165).interfaceId;
+    }
+
+    /// @notice Returns the live issuer multiplier used for the bound pool Currency.
+    function currentMultiplier(address currency) external view override returns (uint256 multiplier) {
+        if (currency != poolCurrency) revert InvalidCurrency();
+        (multiplier,,) = IBackedShareConversionSource(userToken).getCurrentMultiplier();
+        if (multiplier == 0) revert InvalidConversion();
     }
 
     /// @notice Converts a pool-currency amount to its live legal-share amount in WAD.

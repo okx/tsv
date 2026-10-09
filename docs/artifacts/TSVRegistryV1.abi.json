@@ -1,0 +1,2090 @@
+[
+  {
+    "type": "function",
+    "name": "DEFAULT_ADMIN_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "EMERGENCY_PAUSER_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "EMERGENCY_RESUMER_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "FORCE_EXIT_ADMIN_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "HALT_REPORTER_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "POOL_CREATOR_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "REVOKE_EXIT_EXECUTOR_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "SYMBOL_ADMIN_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "UPGRADE_INTERFACE_VERSION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "VOLUME_ORACLE_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "activePauseCount",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "addEmergencyPause",
+    "inputs": [
+      {
+        "name": "scope",
+        "type": "uint8",
+        "internalType": "enum PauseScope"
+      },
+      {
+        "name": "target",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "mode",
+        "type": "uint8",
+        "internalType": "enum PauseMode"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "recordId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "admitPermissionedSecurity",
+    "inputs": [
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "admission",
+        "type": "tuple",
+        "internalType": "struct PermissionedAdmission",
+        "components": [
+          {
+            "name": "currency",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "expectedOwner",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "legalShareAdapter",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "applyMarketStatus",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "action",
+        "type": "uint8",
+        "internalType": "enum MarketAction"
+      },
+      {
+        "name": "mode",
+        "type": "uint8",
+        "internalType": "enum PauseMode"
+      },
+      {
+        "name": "sequence",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "reportId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "bindComponents",
+    "inputs": [
+      {
+        "name": "hook_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "lpManager_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "dataInbox_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "factory",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "sbt_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "clearEmergencyPause",
+    "inputs": [
+      {
+        "name": "recordId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "dataInbox",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "delistSecurity",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "emergencyPauses",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "scope",
+        "type": "uint8",
+        "internalType": "enum PauseScope"
+      },
+      {
+        "name": "target",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "mode",
+        "type": "uint8",
+        "internalType": "enum PauseMode"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "openedBy",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "openedAt",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "exitAdminOf",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getCurrency",
+    "inputs": [
+      {
+        "name": "w",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct PermissionedCurrencyConfig",
+        "components": [
+          {
+            "name": "underlying",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "expectedOwner",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPool",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct PoolConfig",
+        "components": [
+          {
+            "name": "key",
+            "type": "tuple",
+            "internalType": "struct PoolKey",
+            "components": [
+              {
+                "name": "currency0",
+                "type": "address",
+                "internalType": "Currency"
+              },
+              {
+                "name": "currency1",
+                "type": "address",
+                "internalType": "Currency"
+              },
+              {
+                "name": "fee",
+                "type": "uint24",
+                "internalType": "uint24"
+              },
+              {
+                "name": "tickSpacing",
+                "type": "int24",
+                "internalType": "int24"
+              },
+              {
+                "name": "hooks",
+                "type": "address",
+                "internalType": "contract IHooks"
+              }
+            ]
+          },
+          {
+            "name": "securityId0",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "securityId1",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getQuoteToken",
+    "inputs": [
+      {
+        "name": "quote",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct QuoteTokenConfig",
+        "components": [
+          {
+            "name": "rawDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "registered",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getRoleAdmin",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSecurity",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct SecurityConfig",
+        "components": [
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "tierId",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "listed",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUnderlying",
+    "inputs": [
+      {
+        "name": "u",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct UnderlyingConfig",
+        "components": [
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "legalShareAdapter",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "rawDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "governanceAnchor",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract TSVGovernanceAnchor"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "grantRole",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "hasCredential",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "held",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasIdentity",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasRole",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hook",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "initialize",
+    "inputs": [
+      {
+        "name": "anchor",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isAllowed",
+    "inputs": [
+      {
+        "name": "permission",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isKnownPool",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isLPAllowed",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isPermissionedOwnerApproved",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isTradable",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lpManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "marketPauseMode",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum PauseMode"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "marketSequence",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "marketStatus",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum MarketStatus"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "nextPauseId",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "participantSbt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract ISmartWalletSbtV1"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permissionedPoolManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permissionedValidationLibrary",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "permissionsAdapterFactory",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permissionsOf",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "proxiableUUID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "registerPermissionedCurrency",
+    "inputs": [
+      {
+        "name": "admission",
+        "type": "tuple",
+        "internalType": "struct PermissionedAdmission",
+        "components": [
+          {
+            "name": "currency",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "securityId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "expectedOwner",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "legalShareAdapter",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "registerPool",
+    "inputs": [
+      {
+        "name": "key",
+        "type": "tuple",
+        "internalType": "struct PoolKey",
+        "components": [
+          {
+            "name": "currency0",
+            "type": "address",
+            "internalType": "Currency"
+          },
+          {
+            "name": "currency1",
+            "type": "address",
+            "internalType": "Currency"
+          },
+          {
+            "name": "fee",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "tickSpacing",
+            "type": "int24",
+            "internalType": "int24"
+          },
+          {
+            "name": "hooks",
+            "type": "address",
+            "internalType": "contract IHooks"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "registerQuoteToken",
+    "inputs": [
+      {
+        "name": "quote",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "relistSecurity",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "renounceRole",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "replaceUnderlyingLegalShareAdapter",
+    "inputs": [
+      {
+        "name": "u",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "newAdapter",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "revokeRole",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "sbtIdentityConfig",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "registered",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "sbtTokenIds",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setExitAdmin",
+    "inputs": [
+      {
+        "name": "u",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "newAdmin",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPermissionedOwnerApproval",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "approved",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSbtConfig",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSecurityTier",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setTierPolicy",
+    "inputs": [
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "tierBps",
+        "type": "uint16",
+        "internalType": "uint16"
+      },
+      {
+        "name": "maxListed",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "tierPolicy",
+    "inputs": [
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct TSVRegistryV1.TierPolicy",
+        "components": [
+          {
+            "name": "tierBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxListed",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "listedCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "updatePermissionedExpectedOwner",
+    "inputs": [
+      {
+        "name": "w",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "upgradeToAndCall",
+    "inputs": [
+      {
+        "name": "newImplementation",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "data",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "event",
+    "name": "ComponentsBound",
+    "inputs": [
+      {
+        "name": "hook",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "lpManager",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "dataInbox",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "factory",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "poolManager",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "sbt",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EmergencyPauseClosed",
+    "inputs": [
+      {
+        "name": "recordId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EmergencyPauseOpened",
+    "inputs": [
+      {
+        "name": "recordId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "scope",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "target",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "mode",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ExitAdminUpdated",
+    "inputs": [
+      {
+        "name": "underlying",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "oldAdmin",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "newAdmin",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MarketStatusChanged",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "oldStatus",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "newStatus",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "oldPauseMode",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "newPauseMode",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "sequence",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "reportId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PermissionedCurrencyRegistered",
+    "inputs": [
+      {
+        "name": "currency",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "underlying",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PermissionedExpectedOwnerChanged",
+    "inputs": [
+      {
+        "name": "currency",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "oldOwner",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PermissionedOwnerApprovalChanged",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "approved",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "QuoteTokenRegistered",
+    "inputs": [
+      {
+        "name": "quote",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "rawDecimals",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoleAdminChanged",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "previousAdminRole",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "newAdminRole",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoleGranted",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoleRevoked",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SbtConfigChanged",
+    "inputs": [
+      {
+        "name": "sbt",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "permissions",
+        "type": "bytes2",
+        "indexed": false,
+        "internalType": "PermissionFlag"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SecurityDelisted",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SecurityListed",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SecurityTierChanged",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "oldTierId",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "newTierId",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TierPolicyChanged",
+    "inputs": [
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "tierBps",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "maxListed",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UnderlyingBound",
+    "inputs": [
+      {
+        "name": "underlying",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "legalShareAdapter",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "rawDecimals",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UnderlyingLegalShareAdapterChanged",
+    "inputs": [
+      {
+        "name": "underlying",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "oldAdapter",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "newAdapter",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Upgraded",
+    "inputs": [
+      {
+        "name": "implementation",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AccessControlBadConfirmation",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "AccessControlUnauthorizedAccount",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "neededRole",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "AddressEmptyCode",
+    "inputs": [
+      {
+        "name": "target",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC1967InvalidImplementation",
+    "inputs": [
+      {
+        "name": "implementation",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC1967NonPayable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "FailedCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidConfig",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidGovernance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidInitialization",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidPermissionedConfig",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidPool",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidStatus",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotInitializing",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PermissionedEnvironmentNotBound",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PermissionedMetadataMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PermissionedPolicyMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ProtectedRole",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SbtNotConfigured",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UUPSUnauthorizedCallContext",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UUPSUnsupportedProxiableUUID",
+    "inputs": [
+      {
+        "name": "slot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnauthorizedUpgrade",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnsupportedAsset",
+    "inputs": [
+      {
+        "name": "currency",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnverifiedPermissionedAdapter",
+    "inputs": [
+      {
+        "name": "currency",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UpgradeFrozen",
+    "inputs": []
+  }
+]

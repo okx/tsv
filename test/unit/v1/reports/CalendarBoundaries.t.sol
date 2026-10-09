@@ -18,13 +18,13 @@ contract TSVOperationsCalendarTest is OperationsFixture {
             uint64 start = midnights[i] + 14400;
             assertEq(ledger.dayStartUTC(dates[i]), start);
             vm.warp(start - 1);
-            (, uint32 day) = ledger.currentTradeDay();
+            uint32 day = ledger.currentTradeDay();
             assertEq(day, previous[i]);
             vm.warp(start);
-            (, day) = ledger.currentTradeDay();
+            day = ledger.currentTradeDay();
             assertEq(day, dates[i]);
             vm.warp(start + 1);
-            (, day) = ledger.currentTradeDay();
+            day = ledger.currentTradeDay();
             assertEq(day, dates[i]);
         }
         assertEq(ledger.dayStartUTC(20000229), 951782400 + 14400);
@@ -42,8 +42,7 @@ contract TSVOperationsCalendarTest is OperationsFixture {
             )
         );
         vm.warp(1791072000 + second); // 2026-10-04 00:00 UTC + independently selected second.
-        (bool exists, uint32 day) = custom.currentTradeDay();
-        assertTrue(exists);
+        uint32 day = custom.currentTradeDay();
         assertEq(day, second >= offset ? 20261004 : 20261003);
         assertEq(custom.dayStartUTC(20261004), 1791072000 + offset);
     }
@@ -72,10 +71,10 @@ contract TSVOperationsCalendarTest is OperationsFixture {
         ledger.scheduleDayStart(0, 20261004);
         assertEq(ledger.dayStartUTC(20261004) - ledger.dayStartUTC(20261003), 20 hours);
         vm.warp(1791072000 - 1);
-        (, uint32 day) = ledger.currentTradeDay();
+        uint32 day = ledger.currentTradeDay();
         assertEq(day, 20261003);
         vm.warp(1791072000);
-        (, day) = ledger.currentTradeDay();
+        day = ledger.currentTradeDay();
         assertEq(day, 20261004);
         assertEq(ledger.dayStartUTC(DAY), 1790827200);
     }

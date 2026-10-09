@@ -4,229 +4,293 @@ pragma solidity 0.8.26;
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {TokenConfig, TokenStatus, MarketStatus, MarketAction, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, PermissionedCurrencyConfig, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
-import {V1MockIssuerShares, V1MockIssuerWrapped} from "../../../helpers/v1/MockIssuerTokens.sol";
+import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
+import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
-import {V1MockToken, V1SnapshotOnlyAdapterMock} from "../../../helpers/v1/FoundationMocks.sol";
+import {V1MockToken} from "../../../helpers/v1/FoundationMocks.sol";
+import {V1MockIssuerWrapped} from "../../../helpers/v1/MockIssuerTokens.sol";
+import {V1ConfigReceiver} from "../../../helpers/v1/PermissionedMocks.sol";
 
-/// @dev TSVAdmissionTest scenarios; inherited fixtures contain no test functions.
 contract TSVAdmissionTest is FoundationFixture {
-    /// @dev Verifies the Registry rejects the same security on both pool legs.
-    function testRegistryRejectsSameSecurityBothSides() public {
-        V1MockIssuerShares secondUnderlying = new V1MockIssuerShares();
-        V1MockIssuerWrapped secondStock = new V1MockIssuerWrapped(secondUnderlying);
-        BackedAutoFeeLegalShareAdapter secondAdapter =
-            new BackedAutoFeeLegalShareAdapter(address(secondUnderlying), address(secondStock), 1);
-        registry.registerToken(_config(address(secondStock), SECURITY, address(secondAdapter)));
-        address a = address(stock) < address(secondStock) ? address(stock) : address(secondStock);
-        address b = address(stock) < address(secondStock) ? address(secondStock) : address(stock);
-        PoolKey memory bad = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(this)));
-        vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
-        registry.registerPendingPool(bad);
-    }
-
-    /// @dev Verifies the Registry accepts a direct adapter and stores its configuration.
-    function testRegistryAcceptsDirectAdapterAndStoresConfiguration() public {
-        V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
-        V1MockIssuerWrapped other = new V1MockIssuerWrapped(otherUnderlying);
-        BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(otherUnderlying), address(other), 1);
-        TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
-        registry.registerToken(config);
-        TokenConfig memory stored = registry.getToken(address(other));
-        assertEq(stored.securityId, SECURITY);
-        assertEq(stored.legalShareAdapter, address(adapter));
-
-        TokenConfig memory quoteConfig = registry.getToken(address(quote));
-        assertEq(quoteConfig.securityId, bytes32(0));
-        assertEq(quoteConfig.legalShareAdapter, address(0));
-        assertEq(uint8(stored.status), uint8(TokenStatus.APPROVED));
-        assertEq(registry.tierPolicy(1).listedCount, 1);
-    }
-
-    function testAdmissionAtomicallyListsApprovesAndDefaultsToOpen() public {
+    function testAdmissionAtomicallyListsAndBindsUniqueUnderlying() public {
         bytes32 securityId = keccak256("new-security");
-
-        TokenConfig memory config = _newStockConfig(securityId);
-        vm.expectEmit(true, false, false, true, address(registry));
-        emit TSVRegistryV1.SecurityListed(securityId, 1);
-        vm.expectEmit(true, true, false, true, address(registry));
-        emit TSVRegistryV1.TokenRegistered(config.poolCurrency, securityId);
-        vm.expectEmit(true, false, false, true, address(registry));
-        emit TSVRegistryV1.TokenStatusChanged(
-            config.poolCurrency, uint8(TokenStatus.ABSENT), uint8(TokenStatus.APPROVED)
-        );
-        registry.admitSecurity(securityId, 1, config);
-        assertEq(keccak256(abi.encode(registry.getToken(config.poolCurrency))), keccak256(abi.encode(config)));
+        PermissionedAdmission memory a = _newStockConfig(securityId);
+        registry.admitPermissionedSecurity(1, a);
+        PermissionedCurrencyConfig memory c = registry.getCurrency(a.currency);
+        assertTrue(c.underlying != address(0));
+        assertEq(c.expectedOwner, address(this));
+        assertEq(registry.getUnderlying(c.underlying).securityId, securityId);
+        assertEq(registry.getUnderlying(c.underlying).rawDecimals, 18);
         assertTrue(registry.getSecurity(securityId).listed);
-
-        assertEq(registry.getSecurity(securityId).version, 1);
-        assertEq(registry.getSecurity(securityId).activePoolCount, 0);
-        assertEq(registry.tierPolicy(1).listedCount, 2);
-        assertEq(uint8(registry.marketStatus(securityId)), uint8(MarketStatus.OPEN));
-        assertEq(uint8(registry.marketPauseMode(securityId)), uint8(PauseMode.NONE));
-        assertEq(registry.marketSequence(securityId), 0);
-        _assertOperationGates(true, true);
-    }
-
-    /// @dev Rejected admissions must release the Tier slot, and all partial records.
-    function testFuzzAdmissionValidationFailureRollsBackAllRecords(uint8 scenario) public {
-        scenario = uint8(bound(scenario, 0, 10));
-        bytes32 securityId = keccak256("failed-security");
-
-        uint8 tierId = 1;
-        TokenConfig memory good = _newStockConfig(securityId);
-        TokenConfig memory config = abi.decode(abi.encode(good), (TokenConfig));
-        if (scenario == 0) config.status = TokenStatus.ABSENT;
-        else if (scenario == 1) config.status = TokenStatus.DISABLED;
-        else if (scenario == 2) config.poolDecimals = 6;
-        else if (scenario == 3) config.legalAdapterVersion = 2;
-        else if (scenario == 4) config.legalShareAdapter = address(stockAdapter);
-        else if (scenario == 5) config.legalShareAdapter = address(0);
-        else if (scenario == 6) config.securityId = SECURITY;
-        else if (scenario == 7) config.poolCurrency = address(stock);
-        else if (scenario == 8) tierId = 2;
-        else if (scenario == 9) config.poolCurrency = address(0);
-        else config.poolDecimals = 19;
-        bytes32 tokenBefore = keccak256(abi.encode(registry.getToken(config.poolCurrency)));
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(securityId, tierId, config);
-        assertEq(registry.getSecurity(securityId).securityId, bytes32(0));
-        assertEq(keccak256(abi.encode(registry.getToken(config.poolCurrency))), tokenBefore);
-        assertEq(uint8(registry.getToken(good.poolCurrency).status), uint8(TokenStatus.ABSENT));
-        assertEq(registry.tierPolicy(1).listedCount, 1);
-        assertEq(registry.marketSequence(securityId), 0);
-        // The same security can be admitted after correcting the rejected input.
-        registry.admitSecurity(securityId, 1, good);
         assertEq(registry.tierPolicy(1).listedCount, 2);
     }
 
-    function testAdmissionRejectsDuplicateSecurityAndFullTier() public {
-        bytes32 newSecurity = keccak256("duplicate-test");
-        TokenConfig memory config = _newStockConfig(newSecurity);
-        config.securityId = SECURITY;
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(SECURITY, 1, config);
-        config.securityId = newSecurity;
-        registry.setTierPolicy(1, 25, 1);
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.admitSecurity(newSecurity, 1, config);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
-        assertEq(registry.getSecurity(newSecurity).securityId, bytes32(0));
-        assertEq(uint8(registry.getToken(config.poolCurrency).status), uint8(TokenStatus.ABSENT));
-        registry.setTierPolicy(1, 25, 10);
-        registry.admitSecurity(newSecurity, 1, config);
+    function testFirstAdmissionPreservesExistingPoolManagerUnderlying() public {
+        bytes32 securityId = keccak256("prefunded-security");
+        PermissionedAdmission memory a = _newStockConfig(securityId);
+        V1MockIssuerWrapped u = V1MockIssuerWrapped(address(PermissionsAdapter(a.currency).PERMISSIONED_TOKEN()));
+        address donor = makeAddr("admission-donor");
+        u.mintTestShares(donor, 1);
+        vm.prank(donor);
+        u.transfer(address(manager), 1);
+        registry.admitPermissionedSecurity(1, a);
+        assertTrue(registry.getCurrency(a.currency).underlying != address(0));
+        assertEq(u.balanceOf(address(manager)), 1);
+        assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
+        assertEq(PermissionsAdapter(a.currency).balanceOf(address(manager)), 0);
+        assertEq(registry.tierPolicy(1).listedCount, 2);
     }
 
-    function testAdmissionAndRegistrationRequireSymbolAdmin() public {
-        bytes32 securityId = keccak256("unauthorized-security");
-        TokenConfig memory config = _newStockConfig(securityId);
-        address stranger = makeAddr("admission-stranger");
+    function testAdditionalWrapperPreservesExistingPoolManagerUnderlying() public {
+        address donor = makeAddr("additional-wrapper-donor");
+        stockToken.mintTestShares(donor, 1);
+        vm.prank(donor);
+        stockToken.transfer(address(manager), 1);
+        PermissionedAdmission memory a = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        registry.registerPermissionedCurrency(a);
+        assertTrue(registry.getCurrency(a.currency).underlying != address(0));
+        assertEq(stockToken.balanceOf(address(manager)), 1);
+        assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
+        assertEq(registry.tierPolicy(1).listedCount, 1);
+    }
+
+    function testFuzzAdmissionFailureRollsBackSecurityTierAndAsset(uint8 fault) public {
+        fault = uint8(bound(fault, 0, 8));
+        bytes32 securityId = keccak256("atomic-failure");
+        PermissionedAdmission memory a = _newStockConfig(securityId);
+        address w = a.currency;
+        address u = address(PermissionsAdapter(w).PERMISSIONED_TOKEN());
+        if (fault == 0) a.securityId = 0;
+        else if (fault == 1) a.currency = address(stockToken);
+        else if (fault == 2) a.legalShareAdapter = address(stockAdapter);
+        else if (fault == 3) a.expectedOwner = address(exitReceiver);
+        else if (fault == 4) PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), false);
+        else if (fault == 5) PermissionsAdapter(w).updateAllowedHook(IHooks(address(this)), false);
+        else if (fault == 6) registry.setPermissionedOwnerApproval(address(this), false);
+        else if (fault == 7) vm.mockCall(u, abi.encodeWithSignature("decimals()"), abi.encode(uint8(19)));
+        else vm.mockCall(w, abi.encodeWithSignature("totalSupply()"), abi.encode(uint256(1)));
         vm.expectRevert();
-        vm.prank(stranger);
-        registry.admitSecurity(securityId, 1, config);
-        V1MockToken otherQuote = new V1MockToken("OTHER_QUOTE", 6);
-        config = _config(address(otherQuote), 0, address(0));
-        vm.expectRevert();
-        vm.prank(stranger);
-        registry.registerToken(config);
+        registry.admitPermissionedSecurity(1, a);
+        assertEq(registry.getSecurity(securityId).securityId, 0);
         assertEq(registry.tierPolicy(1).listedCount, 1);
-        assertEq(registry.getSecurity(securityId).securityId, bytes32(0));
+        assertEq(registry.getCurrency(w).underlying, address(0));
+        assertEq(registry.getUnderlying(u).securityId, 0);
+        assertEq(registry.exitAdminOf(u), address(exitReceiver));
     }
 
-    function testQuoteRegistrationApprovesOnce() public {
-        V1MockToken otherQuote = new V1MockToken("OTHER_QUOTE", 6);
-        TokenConfig memory config = _config(address(otherQuote), 0, address(0));
-
-        registry.registerToken(config);
-        assertEq(uint8(registry.getToken(address(otherQuote)).status), uint8(TokenStatus.APPROVED));
+    function testSameUnderlyingManyWrappersShareCanonicalAndDoNotRequireFirstToClear() public {
+        // Existing W1 may have supply and inventory; W2 itself must be pristine.
+        stockToken.mintTestShares(address(stock), 100);
+        vm.prank(address(permissionedRouterFixture));
+        stock.wrapToPoolManager(100);
+        PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        registry.registerPermissionedCurrency(second);
+        assertEq(registry.getCurrency(second.currency).underlying, address(stockToken));
+        assertEq(registry.getCurrency(address(stock)).underlying, address(stockToken));
+        assertEq(stock.totalSupply(), 100);
         assertEq(registry.tierPolicy(1).listedCount, 1);
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config);
+        assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(stockAdapter));
+        second.securityId = keccak256("different-security");
+        second.currency = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter)).currency;
+        vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
+        registry.admitPermissionedSecurity(1, second);
+        assertEq(registry.getSecurity(second.securityId).securityId, 0);
     }
 
-    function testUnknownAssetsStayAbsentAndCannotCreatePools() public {
-        V1MockToken unknown = new V1MockToken("UNKNOWN", 6);
-        assertEq(uint8(registry.getToken(address(unknown)).status), uint8(TokenStatus.ABSENT));
-        address a = address(unknown) < address(quote) ? address(unknown) : address(quote);
-        address b = address(unknown) < address(quote) ? address(quote) : address(unknown);
-        PoolKey memory unknownKey = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(this)));
-        vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
-        registry.registerPendingPool(unknownKey);
-        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setTokenStatus(address(unknown), TokenStatus.APPROVED);
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.marketStatus(keccak256("unknown-security"));
-        TokenConfig memory config = _newStockConfig(keccak256("unknown-security"));
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config);
+    function testNewWrapperUsesCurrentCanonicalAdapter() public {
+        _grantPauseRoles();
+        _pause(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
+        BackedAutoFeeLegalShareAdapter next =
+            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next));
+        PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(next));
+        registry.registerPermissionedCurrency(second);
+        PermissionedAdmission memory wrong = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
+        registry.registerPermissionedCurrency(wrong);
     }
 
-    function testTokenDisableAndReenablePreserveApprovalChecks() public {
+    function testQuoteZeroDecimalsAndTypeIsolation() public {
+        V1MockToken zero = new V1MockToken("zero-quote", 0);
+        registry.registerQuoteToken(address(zero));
+        assertEq(registry.getQuoteToken(address(zero)).rawDecimals, 0);
+        assertTrue(registry.getQuoteToken(address(zero)).registered);
+        address[5] memory bad =
+            [address(stock), address(stockToken), address(manager), address(registry), address(permissionsFactory)];
+        for (uint256 i; i < bad.length; ++i) {
+            vm.expectRevert(abi.encodeWithSelector(TSVRegistryV1.UnsupportedAsset.selector, bad[i]));
+            registry.registerQuoteToken(bad[i]);
+        }
+        // Even a created but unverified W is not a quote.
+        address unverified = permissionsFactory.createPermissionsAdapter(
+            PermissionedIERC20(address(stockToken)), address(this), IAllowlistChecker(address(issuerChecker))
+        );
+        assertEq(permissionsFactory.verifiedPermissionsAdapterOf(unverified), address(0));
+        vm.expectRevert(abi.encodeWithSelector(TSVRegistryV1.UnsupportedAsset.selector, unverified));
+        registry.registerQuoteToken(unverified);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
-        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.setTokenStatus(address(stock), TokenStatus.ABSENT);
-        registry.setTokenStatus(address(stock), TokenStatus.DISABLED);
+        registry.registerQuoteToken(address(zero));
+    }
+
+    function testPoolOnlyAcceptsOneStockAndOneQuote() public {
+        PermissionedAdmission memory second = _newStockConfig(SECURITY);
+        registry.registerPermissionedCurrency(second);
+        V1MockToken otherQuote = new V1MockToken("Q2", 6);
+        registry.registerQuoteToken(address(otherQuote));
+        address[3] memory a = [address(stock), address(quote), address(stockToken)];
+        address[3] memory b = [second.currency, address(otherQuote), address(quote)];
+        for (uint256 i; i < a.length; ++i) {
+            PoolKey memory bad = PoolKey(
+                Currency.wrap(a[i] < b[i] ? a[i] : b[i]),
+                Currency.wrap(a[i] < b[i] ? b[i] : a[i]),
+                3000,
+                60,
+                IHooks(address(this))
+            );
+            vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
+            registry.registerPool(bad);
+        }
+    }
+
+    function testTokenRecoveryPreservesIdentityWithSupplyAndFees() public {
+        stockToken.mintTestShares(address(stock), 100);
+        vm.prank(address(permissionedRouterFixture));
+        stock.wrapToPoolManager(100);
+        _grantPauseRoles();
+        uint256 id = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
         _assertOperationGates(false, false);
-        bytes memory code = address(stock).code;
-        vm.etch(address(stock), bytes(""));
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
-        assertEq(uint8(registry.getToken(address(stock)).status), uint8(TokenStatus.DISABLED));
-        vm.etch(address(stock), code);
-        registry.setTokenStatus(address(stock), TokenStatus.APPROVED);
+        vm.mockCall(
+            address(manager),
+            abi.encodeWithSignature("protocolFeesAccrued(address)", address(stock)),
+            abi.encode(uint256(10))
+        );
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        _assertOperationGates(true, true);
+        assertEq(registry.getCurrency(address(stock)).underlying, address(stockToken));
+        assertEq(stock.totalSupply(), 100);
+        id = _pause(PauseScope.TOKEN, bytes32(uint256(uint160(address(quote)))), PauseMode.ALL);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertTrue(registry.getQuoteToken(address(quote)).registered);
         _assertOperationGates(true, true);
     }
 
-    /// @dev Verifies the Registry rejects an adapter without the direct-conversion interface.
-    function testRegistryRejectsAdapterWithoutDirectInterface() public {
-        V1MockToken other = new V1MockToken("Other", 18);
-        V1SnapshotOnlyAdapterMock adapter = new V1SnapshotOnlyAdapterMock(address(other), 1);
-        TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config);
-    }
-
-    /// @dev Verifies the Registry rejects a direct adapter bound to another Currency.
-    function testRegistryRejectsDirectAdapterBoundToDifferentCurrency() public {
-        V1MockIssuerShares otherUnderlying = new V1MockIssuerShares();
-        V1MockIssuerWrapped other = new V1MockIssuerWrapped(otherUnderlying);
-        BackedAutoFeeLegalShareAdapter adapter =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stock), 1);
-        TokenConfig memory config = _config(address(other), SECURITY, address(adapter));
-
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.registerToken(config);
-    }
-
-    /// @dev Verifies a disabled pool is re-enabled only after market and asset checks pass.
-    function testDisabledPoolOnlyReenablesAfterMarketAndAssetChecks() public {
-        registry.disablePool(poolId);
-        assertEq(registry.activePoolCountByCurrency(address(stock)), 0);
-        _submitMarket(MarketAction.HALT, 1, keccak256("halt"));
+    function testOwnerRotationRequiresFullPauseAndPreservesExitAdmin() public {
+        V1ConfigReceiver next = new V1ConfigReceiver();
+        registry.setPermissionedOwnerApproval(address(next), true);
+        stock.transferOwnership(address(next));
+        next.execute(address(stock), abi.encodeWithSignature("acceptOwnership()"));
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.enablePool(poolId);
-        _submitMarket(MarketAction.RESUME, 2, keccak256("resume"));
-        registry.enablePool(poolId);
-        assertEq(registry.activePoolCountByCurrency(address(stock)), 1);
-        assertTrue(registry.isTradable(poolId));
+        registry.updatePermissionedExpectedOwner(address(stock), address(next));
+        _grantPauseRoles();
+        uint256 trade = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.TRADE);
+        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
+        registry.updatePermissionedExpectedOwner(address(stock), address(next));
+        uint256 lp = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.LP);
+        registry.updatePermissionedExpectedOwner(address(stock), address(next));
+        assertEq(registry.getCurrency(address(stock)).expectedOwner, address(next));
+        assertEq(registry.exitAdminOf(address(stockToken)), address(exitReceiver));
+        registry.clearEmergencyPause(trade, keccak256("resume"));
+        registry.clearEmergencyPause(lp, keccak256("resume"));
+        _assertOperationGates(true, true);
+        V1ConfigReceiver receiver = new V1ConfigReceiver();
+        registry.setExitAdmin(address(stockToken), address(receiver));
+        vm.expectRevert(TSVRegistryV1.PermissionedPolicyMismatch.selector);
+        registry.setExitAdmin(address(stockToken), address(next));
     }
 
-    /// @dev Verifies the Registry rejects different stock securities in the same pool.
-    function testRegistryRejectsDifferentSecurityStocksInSamePool() public {
-        bytes32 secondSecurity = keccak256("SEC_B");
-        V1MockIssuerShares secondUnderlying = new V1MockIssuerShares();
-        V1MockIssuerWrapped second = new V1MockIssuerWrapped(secondUnderlying);
-        BackedAutoFeeLegalShareAdapter secondAdapter =
-            new BackedAutoFeeLegalShareAdapter(address(secondUnderlying), address(second), 1);
-        registry.admitSecurity(secondSecurity, 1, _config(address(second), secondSecurity, address(secondAdapter)));
-        address a = address(stock) < address(second) ? address(stock) : address(second);
-        address b = address(stock) < address(second) ? address(second) : address(stock);
-        PoolKey memory twoStocks = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(this)));
-        vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
-        registry.registerPendingPool(twoStocks);
+    function testExitAdminIsSharedByUnderlyingAndInheritedByNewWrappers() public {
+        PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        registry.registerPermissionedCurrency(second);
+        assertEq(registry.exitAdminOf(second.currency), address(0));
+        V1ConfigReceiver next = new V1ConfigReceiver();
+        vm.expectEmit(true, false, false, true, address(registry));
+        emit TSVRegistryV1.ExitAdminUpdated(address(stockToken), address(exitReceiver), address(next));
+        registry.setExitAdmin(address(stockToken), address(next));
+        PermissionedAdmission memory third = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        registry.registerPermissionedCurrency(third);
+        assertEq(registry.exitAdminOf(address(stockToken)), address(next));
+        _grantPauseRoles();
+        uint256 id = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        id = _pause(PauseScope.TOKEN, bytes32(uint256(uint160(second.currency))), PauseMode.ALL);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        PermissionedAdmission memory other = _newStockConfig(keccak256("independent-exit-underlying"));
+        registry.admitPermissionedSecurity(1, other);
+        address otherU = registry.getCurrency(other.currency).underlying;
+        assertEq(registry.exitAdminOf(otherU), address(exitReceiver));
+    }
+
+    function testSharedExitAdminRejectsEverySiblingOwnerAndInvalidUnderlying() public {
+        PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        registry.registerPermissionedCurrency(second);
+        V1ConfigReceiver siblingOwner = new V1ConfigReceiver();
+        registry.setPermissionedOwnerApproval(address(siblingOwner), true);
+        _grantPauseRoles();
+        _pause(PauseScope.TOKEN, bytes32(uint256(uint160(second.currency))), PauseMode.ALL);
+        PermissionsAdapter(second.currency).transferOwnership(address(siblingOwner));
+        siblingOwner.execute(second.currency, abi.encodeWithSignature("acceptOwnership()"));
+        // Current issuer owner must be excluded even before the Registry's expected owner is updated.
+        vm.expectRevert(TSVRegistryV1.PermissionedPolicyMismatch.selector);
+        registry.setExitAdmin(address(stockToken), address(siblingOwner));
+        registry.updatePermissionedExpectedOwner(second.currency, address(siblingOwner));
+        vm.expectRevert(TSVRegistryV1.PermissionedPolicyMismatch.selector);
+        registry.setExitAdmin(address(stockToken), address(siblingOwner));
+        address[4] memory invalidU = [address(stock), address(quote), address(registry), address(0)];
+        for (uint256 i; i < invalidU.length; ++i) {
+            vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
+            registry.setExitAdmin(invalidU[i], address(exitReceiver));
+        }
+        assertEq(registry.exitAdminOf(address(stockToken)), address(exitReceiver));
+    }
+
+    function testQuoteRecoveryRejectsChangedPrecisionAndKeepsPauseUntilFixed() public {
+        _grantPauseRoles();
+        bytes32 target = bytes32(uint256(uint160(address(quote))));
+        uint256 id = _pause(PauseScope.TOKEN, target, PauseMode.ALL);
+        vm.mockCall(address(quote), abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
+        vm.expectRevert(TSVRegistryV1.PermissionedMetadataMismatch.selector);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertEq(registry.activePauseCount(uint8(PauseScope.TOKEN), target, uint8(PauseMode.ALL)), 1);
+        _assertOperationGates(false, false);
+        vm.clearMockedCalls();
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertEq(registry.getQuoteToken(address(quote)).rawDecimals, 6);
+        assertTrue(registry.getQuoteToken(address(quote)).registered);
+        _assertOperationGates(true, true);
+    }
+
+    function testFuzzStockRecoveryRejectsInvalidPolicyAndKeepsPause(uint8 fault) public {
+        fault = uint8(bound(fault, 0, 5));
+        _grantPauseRoles();
+        bytes32 target = _pauseTarget(PauseScope.TOKEN);
+        uint256 id = _pause(PauseScope.TOKEN, target, PauseMode.ALL);
+        if (fault == 0) {
+            registry.setPermissionedOwnerApproval(address(this), false);
+        } else if (fault == 1) {
+            stock.updateAllowedWrapper(address(permissionedRouterFixture), false);
+        } else if (fault == 2) {
+            stock.updateAllowedHook(IHooks(address(this)), false);
+        } else if (fault == 3) {
+            vm.mockCall(address(stock), abi.encodeWithSignature("PERMISSIONED_TOKEN()"), abi.encode(address(quote)));
+        } else if (fault == 4) {
+            vm.mockCall(address(stockToken), abi.encodeWithSignature("decimals()"), abi.encode(uint8(6)));
+        } else {
+            vm.mockCall(address(stockAdapter), abi.encodeWithSignature("poolCurrency()"), abi.encode(address(quote)));
+        }
+        vm.expectRevert();
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertEq(registry.activePauseCount(uint8(PauseScope.TOKEN), target, uint8(PauseMode.ALL)), 1);
+        assertEq(registry.getCurrency(address(stock)).underlying, address(stockToken));
+        _assertOperationGates(false, false);
+        vm.clearMockedCalls();
+        if (fault == 0) registry.setPermissionedOwnerApproval(address(this), true);
+        else if (fault == 1) stock.updateAllowedWrapper(address(permissionedRouterFixture), true);
+        else if (fault == 2) stock.updateAllowedHook(IHooks(address(this)), true);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        _assertOperationGates(true, true);
     }
 }

@@ -1,5 +1,7 @@
 <div align="center">
 
+Registry 与单池 Wrapped Swap 已采用 W／U／原币报价 Q 模型；[当前实现与验收](docs/PERMISSIONED_REGISTRY_V1.md)说明 ABI 和只读验证库链接。用户收付 U/Q，生产 Wrapped LP 待独立交付。
+
 <img src="docs/assets/tsv-banner.svg" alt="TSV V1 — 交易与流动性、证券额度、运营报告和固定 Anchor 治理" width="100%">
 
 # TSV V1 · 证券交易合约
@@ -11,22 +13,22 @@
 ![EVM](https://img.shields.io/badge/EVM-Cancun-8B5CF6)
 ![Target](https://img.shields.io/badge/Target-X_Layer_196-14B8A6)
 
-[📖 系统总览](docs/SYSTEMS_OVERVIEW.md) · [⚡ 快速启动](#quick-start) · [🧪 测试](#tests) · [🗺️ 文档导航](#docs)
+[📖 系统总览](docs/SYSTEMS_OVERVIEW.md) · [⚡ 快速启动](#quick-start) · [构建与验证](#tests) · [🗺️ 文档导航](#docs)
 
 </div>
 
 ---
 
-TSV 是基于 **Uniswap V4** 的证券交易合约系统。它把持证资格、证券级成交额度、运营报告和升级治理接入真实 Swap 与 LP 流程：用户收付池内 Currency，实际成交按法律股数记账，同一证券的所有池共享日额度。
+TSV 是基于 **Uniswap V4** 的证券交易合约系统。它把持证资格、证券级成交额度、运营报告和升级治理接入 Swap：池内使用原版 PermissionsAdapter W 与报价 Q，用户收付 U/Q，真实成交按 U 的法律股数记账，同一证券的所有 W/池共享日额度。
 
-当前代码位于 [`src/v1/`](src/v1/)，目标链为 **X Layer / 196**。本仓库已有本地与固定区块 fork 验证，尚未广播生产部署；发布条件见[实现状态](docs/IMPLEMENTATION_STATUS_V1.md)与[部署清单](docs/DEPLOYMENT_CHECKLIST_V1.md)。
+当前代码位于 [`src/v1/`](src/v1/)，目标链为 **X Layer / 196**。当前 Wrapped Swap 使用真实本地 PM 和原版 Factory/W 验证，尚未广播生产部署；生产发行方、SBT 与 Wrapped LP 条件见[当前交付边界](docs/PERMISSIONED_REGISTRY_V1.md)和[市场开通流程](docs/OPENING_A_STOCK_MARKET_V1.md)。
 
 ## ✨ 能做什么
 
 | 系统 | 核心能力 | 关键规则 |
 | :--- | :--- | :--- |
-| 🔄 **交易** | 股票/报价币池、双向 exact-input / exact-output、白名单 Adapter 接入 | 共用 SBT 资格门禁；按实际 V4 delta 直接结算与计股；失败整笔回滚 |
-| 💧 **流动性** | 开仓、加仓、减仓、领费、关仓、授权强退 | Receipt 不可转让；仓位 owner 固定；退出资产交付原 owner；LP 不占成交额度 |
+| 🔄 **交易** | 单 W/Q 池、U↔Q 双向 exact-input / exact-output | 真实用户 SBT；精确 wrap/unwrap；回调与策略快照绑定；失败回滚；external Adapter 拒绝 |
+| 💧 **流动性** | 生产 Wrapped LP 待交付；旧 LP 源码保留 | 历史 Swap 测试使用真实 W/PM seed helper 准备流动性；测试已移除 |
 | 📊 **额度** | 证券级共享日额度、自动日切、可选 quota、拆并股系数 | 上月日均 ADTV × Tier rate × 系数；拆并股只在未来计量日开始生效 |
 | 🛠️ **运营** | 原子证券准入、报告提交、资产/池状态、范围与模式暂停 | 专职角色直接提交；报告去重与顺序校验；TRADE / LP / ALL 分别控制 |
 | 🛡️ **治理** | 固定 Anchor、单笔或原子批量升级、全局升级冻结、身份恢复 | Governor 升级；Guardian 关闭全部升级入口；Council 提案 + 当前 Guardian 批准恢复 |
@@ -71,13 +73,13 @@ flowchart LR
 
 ```sh
 # 初始化仓库固定的外部子模块
-# 已初始化的工作区可直接进入下面的检查和测试
+# 已初始化的工作区可直接进入下面的构建和检查
 git submodule update --init --recursive
 
 # 安装 foundry.toml 中锁定的 OpenZeppelin 依赖
 forge soldeer install
 
-# 检查格式、测试目录规则和 diff
+# 检查格式和 diff
 make check
 
 # 全部不联网测试
@@ -105,37 +107,15 @@ make test
 
 <a id="tests"></a>
 
-## 🧪 测试与验证
+## 构建与验证
 
-2026-10-04，固定 seed `0x20261004` 的验证结果：
-
-| 验证范围 | 通过数 | 失败 / 跳过 |
-| :--- | ---: | :--- |
-| 单元测试 | **237** | 0 / 0 |
-| 真实本地 V4 集成 | **132** | 0 / 0 |
-| X Layer 固定区块 fork | **11** | 0 / 0 |
-
-本地共 **369 项 / 63 个套件**，另有 **11 项 fork**；独立插桩运行也通过全部 369 项。七项 invariant 覆盖治理、交易/LP 和运营模型，默认每项 64 轮 × 32 步；普通 fuzz 256 次。
-
-| 想验证什么 | 命令 |
-| :--- | :--- |
-| 全部本地用例 | `make test` |
-| 治理与恢复 | `make test-governance` |
-| Swap / LP | `make test-trading` / `make test-liquidity` |
-| 注册、报告和运营 | `make test-operations` |
-| 独立状态模型 | `make test-invariants` |
-| X Layer 固定区块 DEX 流程 | `make test-xlayer` |
-| 插桩覆盖率 | `make coverage` |
-
-复现拆并股专项与运营模型：
+`feat/tsv-lp` 开发分支不包含 TSV 测试，其改动通过本集成分支合入目标分支。本集成分支保留兼容的旧测试，删除依赖旧 LP ABI 的套件和 fixture；清理范围见 [测试说明](test/README.md)。文档中的历史测试结果仅代表对应版本。
 
 ```sh
-forge test --match-contract 'TSV(SplitFactor.*|StatefulOperations)Test' --fuzz-seed 0x20261004
+forge build src
+make check
+make test
 ```
-
-X Layer fork 固定 **chainId 196 / block 72,271,000**，调用 DexRouter `0x7c5bee2a8091c3ef39072f64f18fac913060aeaf`，验证双向、拆单、多跳、退款、身份传递、失败回滚及 LP 生命周期。默认使用公开 archive RPC，可通过 `XLAYER_RPC_URL` 环境变量覆盖，运行方法见[fork 说明](test/integration/xlayer/README.md)。
-
-Fork 中 DEX 与授权组件为真实链上实例，TSV/V4 新部署，股票/Wrapped/SBT 为行为 mock，DEX Adapter 为测试实现。真实资产、生产 SBT、多签、正式 Adapter、链下报告/索引服务和生产 gas 仍需各自验收。业务覆盖与剩余工作见[覆盖矩阵](docs/TEST_COVERAGE_V1.md)、[统一缺口清单](docs/TEST_GAPS_V1.md)。
 
 ## 🗂️ 项目地图
 
@@ -148,16 +128,9 @@ src/v1/
 ├── deployment/    ERC-1967 Proxy · CREATE2 Hook Factory
 ├── libraries/     结算 · 日切 · 报告验证
 ├── types/         请求、配置与报告
-├── interfaces/    合约边界
-└── legacy/        隔离的历史结算参考
+└── interfaces/    合约边界
 
-test/
-├── helpers/v1/            无可执行用例的 fixture · 独立状态模型
-├── unit/v1/               按治理 / 交易 / 注册 / 报告分类
-├── integration/local/    真实 V4 + 行为 mock 的交易、LP、运营与升级
-└── integration/xlayer/   固定区块真实 DEX 完整流程
-
-script/                   部署、只读验证、测试目录检查
+test/                     保留的单元与本地集成回归
 docs/                     规范、操作步骤、覆盖与验收记录
 lib/dexrouter-interfaces/ 可提交的薄 ABI；无需完整 DEX 源码即可运行 fork
 ```
