@@ -100,6 +100,9 @@ contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
         isNotLocked
         returns (int24 tick)
     {
+        bool verifiedPermissionedToken0 = _verifiedPermissionedTokenOf(key.currency0) != address(0);
+        bool verifiedPermissionedToken1 = _verifiedPermissionedTokenOf(key.currency1) != address(0);
+        if (!verifiedPermissionedToken0 && !verifiedPermissionedToken1) revert NoVerifiedAdapter();
         registry.registerPool(key);
         return poolManager.initialize(key, sqrtPriceX96);
     }
