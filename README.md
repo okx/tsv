@@ -13,7 +13,7 @@ Registry 与单池 Wrapped Swap 已采用 W／U／原币报价 Q 模型；[当�
 ![EVM](https://img.shields.io/badge/EVM-Cancun-8B5CF6)
 ![Target](https://img.shields.io/badge/Target-X_Layer_196-14B8A6)
 
-[📖 系统总览](docs/SYSTEMS_OVERVIEW.md) · [⚡ 快速启动](#quick-start) · [🧪 测试](#tests) · [🗺️ 文档导航](#docs)
+[📖 系统总览](docs/SYSTEMS_OVERVIEW.md) · [⚡ 快速启动](#quick-start) · [构建与验证](#tests) · [🗺️ 文档导航](#docs)
 
 </div>
 
@@ -28,7 +28,7 @@ TSV 是基于 **Uniswap V4** 的证券交易合约系统。它把持证资格、
 | 系统 | 核心能力 | 关键规则 |
 | :--- | :--- | :--- |
 | 🔄 **交易** | 单 W/Q 池、U↔Q 双向 exact-input / exact-output | 真实用户 SBT；精确 wrap/unwrap；回调与策略快照绑定；失败回滚；external Adapter 拒绝 |
-| 💧 **流动性** | 生产 Wrapped LP 待交付；旧 LP 源码保留 | Swap 测试仅用 test 目录的真实 W/PM seed helper 准备流动性 |
+| 💧 **流动性** | 生产 Wrapped LP 待交付；旧 LP 源码保留 | 历史 Swap 测试使用真实 W/PM seed helper 准备流动性；测试已移除 |
 | 📊 **额度** | 证券级共享日额度、自动日切、可选 quota、拆并股系数 | 上月日均 ADTV × Tier rate × 系数；拆并股只在未来计量日开始生效 |
 | 🛠️ **运营** | 原子证券准入、报告提交、资产/池状态、范围与模式暂停 | 专职角色直接提交；报告去重与顺序校验；TRADE / LP / ALL 分别控制 |
 | 🛡️ **治理** | 固定 Anchor、单笔或原子批量升级、全局升级冻结、身份恢复 | Governor 升级；Guardian 关闭全部升级入口；Council 提案 + 当前 Guardian 批准恢复 |
@@ -73,17 +73,17 @@ flowchart LR
 
 ```sh
 # 初始化仓库固定的外部子模块
-# 已初始化的工作区可直接进入下面的检查和测试
+# 已初始化的工作区可直接进入下面的构建和检查
 git submodule update --init --recursive
 
 # 安装 foundry.toml 中锁定的 OpenZeppelin 依赖
 forge soldeer install
 
-# 检查格式、测试目录规则和 diff
+# 检查格式和 diff
 make check
 
-# 全部不联网测试
-make test
+# 构建合约
+make build
 ```
 
 编译配置：**Solidity 0.8.26 · Cancun · via-IR · optimizer 200 runs**，以 [`foundry.toml`](foundry.toml) 为准。首次完整 via-IR 编译耗时较长；后续会复用缓存。
@@ -107,20 +107,14 @@ make test
 
 <a id="tests"></a>
 
-## 🧪 测试与验证
+## 构建与验证
 
-当前回归覆盖 Registry、治理、报告与真实本地 Wrapped Swap。新交易套件覆盖四条路径、18/6 精度、共享额度、部分成交、协议费、双侧转账故障、交易中配置变化以及回调重放/重入。成功资金结算使用真实 PM、原版 Factory/W；issuer U/Q/SBT 为行为替身。
+TSV 当前及归档测试已移除。文档中的历史测试结果仅代表对应版本，不代表当前代码的回归验证。
 
 ```sh
-forge test -vv
-forge test --match-path 'test/integration/local/trading/Wrapped*.t.sol' -vv
-forge build src --sizes
-forge fmt --check
-python3 script/check-test-layout.py
-git diff --check
+make build
+make check
 ```
-
-最终通过数量、尺寸及 ABI/layout 记录见 [当前实现证据](docs/PERMISSIONED_REGISTRY_V1.md)。29 个旧 DIRECT/LP/DEX 文件为 `.sol.deferred`，不参与编译、未计入通过数；旧 369 本地 + 11 fork 结果仅是历史版本证据。生产 LP、真实发行方资产、生产 SBT、目标链 gas 与部署须独立验收。
 
 ## 🗂️ 项目地图
 
@@ -135,13 +129,6 @@ src/v1/
 ├── types/         请求、配置与报告
 └── interfaces/    合约边界
 
-test/
-├── helpers/v1/            无可执行用例的 fixture · 独立状态模型
-├── unit/v1/               按治理 / 交易 / 注册 / 报告分类
-├── integration/local/    真实 V4 + 行为 mock 的交易、LP、运营与升级
-└── integration/xlayer/   固定区块真实 DEX 完整流程
-
-script/                   部署、只读验证、测试目录检查
 docs/                     规范、操作步骤、覆盖与验收记录
 lib/dexrouter-interfaces/ 可提交的薄 ABI；无需完整 DEX 源码即可运行 fork
 ```
@@ -157,7 +144,7 @@ lib/dexrouter-interfaces/ 可提交的薄 ABI；无需完整 DEX 源码即可运
 | 🏦 准入资产、核定法律股数 | [代币准入标准](docs/TOKEN_ADMISSION_STANDARD_V1.md) |
 | 🚀 开通一只股票市场 | [Opening a Stock Market](docs/OPENING_A_STOCK_MARKET_V1.md) |
 | 🔌 接入外部 DEX | [DEX Router / Adapter 接入](docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) |
-| 🧪 编写和维护测试 | [测试说明](test/README.md) · [测试规格](docs/TEST_SPEC_V1.md) |
+| 🧪 查看历史测试规格 | [测试规格](docs/TEST_SPEC_V1.md) |
 | 📋 评估当前完整度 | [实现状态](docs/IMPLEMENTATION_STATUS_V1.md) · [统一缺口](docs/TEST_GAPS_V1.md) |
 | 📦 部署或执行治理操作 | [部署清单](docs/DEPLOYMENT_CHECKLIST_V1.md) · [Manifest 模板](docs/DEPLOYMENT_MANIFEST_V1.example.json) |
 
