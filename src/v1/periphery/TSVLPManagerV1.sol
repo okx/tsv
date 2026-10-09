@@ -11,25 +11,30 @@ import {
     IPermissionsAdapter,
     PoolKey,
     Currency,
-    Actions
+    Actions,
+    IHooks,
+    PermissionFlags
 } from "../vendor/permissionedPools/PermissionedPositionManager.sol";
 import {TSVGoverned} from "../governance/TSVGoverned.sol";
 import {IStatusQuoter} from "../interfaces/IStatusQuoter.sol";
-import {ERC721} from "v4-periphery/base/ERC721Permit_v4.sol";
+import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.sol";
+import {
+    PermissionFlags as RegistryPermissionFlags
+} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {ERC721} from "../vendor/permissionedPools/base/ERC721Permit_v4.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
     error LpUnWindable();
+    error InvalidRegistry();
+    error IncompatibleImplementation();
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721, AccessControlUpgradeable)
-        returns (bool)
-    {
-        return ERC721.supportsInterface(interfaceId) || AccessControlUpgradeable.supportsInterface(interfaceId);
-    }
+    ITSVPermissionedRegistry public registry;
 
+    uint256[49] private __gap;
+
+    /// @dev Fixed integration parameters belong to the implementation. Upgrades must preserve them.
+    ///      TSVGoverned's constructor disables initialization on the implementation itself.
     constructor(
         IPoolManager _poolManager,
         IAllowanceTransfer _permit2,
@@ -37,7 +42,8 @@ contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
         IPositionDescriptor _tokenDescriptor,
         IWETH9 _weth9,
         IPermissionsAdapterFactory _permissionsAdapterFactory,
-        uint256 _deliveryGasLimit
+        uint256 _deliveryGasLimit,
+        ITSVPermissionedRegistry _registry
     )
         PermissionedPositionManager(
             _poolManager,
@@ -50,7 +56,19 @@ contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
         )
         TSVGoverned()
     {
-        /// @dev The EIP712 domain separator still uses "Uniswap v4 Positions NFT" as the name
+        if (address(registry_).code.length == 0) revert InvalidRegistry();
+        registry = _registry;
+        _disableInitializers();
+    }
+
+    /// @notice Initializes proxy governance, Registry and ERC-721 state exactly once.
+    /// @dev Supply this call as the ERC-1967 proxy's constructor initialization data.
+    function initialize(address anchor, ITSVPermissionedRegistry registry_) external initializer {
+        if (address(registry_).code.length == 0) revert InvalidRegistry();
+        __TSVGoverned_init(anchor);
+        registry = registry_;
+        nextTokenId = 1;
+        // The EIP712 signing name remains "Uniswap v4 Positions NFT" for upstream compatibility.
         name = "Uniswap v4 Permissioned Positions NFT";
         symbol = "UNI-V4-PERM-POSM";
     }
@@ -106,11 +124,50 @@ contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
     }
 
     function _getLpStatus(Currency currency, address lp) internal view returns (bool) {
+        // address permissionsAdapter = Currency.unwrap(currency);
+        // address permissionedToken = _verifiedPermissionedTokenOf(currency);
+        // if (permissionedToken == address(0)) return false;
+        // address statusQuoter = IPermissionsAdapter(permissionsAdapter).statusQuoter();
+        // if (statusQuoter == address(0)) return false;
+        // return IStatusQuoter(statusQuoter).isUnwindable(lp);
         address permissionsAdapter = Currency.unwrap(currency);
         address permissionedToken = _verifiedPermissionedTokenOf(currency);
         if (permissionedToken == address(0)) return false;
-        address statusQuoter = IPermissionsAdapter(permissionsAdapter).statusQuoter();
-        if (statusQuoter == address(0)) return false;
-        return IStatusQuoter(statusQuoter).isUnwindable(lp);
+        return IPermissionsAdapter(permissionsAdapter).isAllowed(lp, PermissionFlags.NONE);
+    }
+
+    /// @notice Validate `currency` for a liquidity-adding action and report whether it is a verified adapter.
+    /// @dev Ordinary tokens pass. A factory-created adapter must be verified — otherwise it would be treated as
+    ///      ordinary here, skip its hook/`LIQUIDITY_ALLOWED` checks, and be activated later via verification. A
+    ///      verified adapter must allow `hooks` and clear the owner's `LIQUIDITY_ALLOWED`.
+    function _validateLiquidityCurrency(Currency currency, IHooks hooks, address owner)
+        internal
+        view
+        override
+        returns (bool isVerifiedAdapter)
+    {
+        address currencyAddress = Currency.unwrap(currency);
+        if (_verifiedPermissionedTokenOf(currency) == address(0)) {
+            if (PERMISSIONS_ADAPTER_FACTORY.permissionsAdapterOf(currencyAddress) != address(0)) {
+                revert NoVerifiedAdapter();
+            }
+            // a non-adapter currency must be a real contract (native ETH excepted)
+            if (currencyAddress != address(0) && currencyAddress.code.length == 0) revert NonContractCurrency();
+            return false;
+        }
+        IPermissionsAdapter adapter = IPermissionsAdapter(currencyAddress);
+        if (!registry.isAllowed(RegistryPermissionFlags.LIQUIDITY_ALLOWED, owner)) revert Unauthorized();
+        if (!adapter.allowedHooks(hooks)) revert InvalidHook();
+        if (!adapter.isAllowed(owner, PermissionFlags.LIQUIDITY_ALLOWED)) revert Unauthorized();
+        return true;
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, AccessControlUpgradeable)
+        returns (bool)
+    {
+        return ERC721.supportsInterface(interfaceId) || AccessControlUpgradeable.supportsInterface(interfaceId);
     }
 }
