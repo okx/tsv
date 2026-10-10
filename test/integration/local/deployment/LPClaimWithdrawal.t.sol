@@ -54,6 +54,7 @@ contract LPClaimWithdrawalTest is Test {
         vm.etch(registry, hex"00");
         vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(false));
         vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isAllowed.selector), abi.encode(false));
+        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.hasRole.selector), abi.encode(false));
         LPLinkedDependencies deps = new LPLinkedDependencies();
         TSVLPManagerV1 implementation = new TSVLPManagerV1(
             IPoolManager(address(manager)),
@@ -115,6 +116,71 @@ contract LPClaimWithdrawalTest is Test {
         vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
         lp.withdrawClaim(currency, 9, lpOwner);
         assertEq(manager.balanceOf(lpOwner, currency.toId()), 9);
+    }
+
+    function _setForceExitAdmin(address account, bool enabled) private {
+        vm.mockCall(
+            registry,
+            abi.encodeCall(ITSVPermissionedRegistry.hasRole, (lp.FORCE_EXIT_ADMIN_ROLE(), account)),
+            abi.encode(enabled)
+        );
+    }
+
+    function testForceExitAdminRedeemsOwnClaimWithoutSbt() public {
+        _seed(lpOwner, 9);
+        _setForceExitAdmin(lpOwner, true);
+        vm.prank(lpOwner);
+        lp.withdrawClaim(currency, 9, address(1));
+        assertEq(manager.balanceOf(lpOwner, currency.toId()), 0);
+        assertEq(underlying.balanceOf(lpOwner), 9);
+    }
+
+    function testForceExitAdminCannotSendToThirdPartyOrManager() public {
+        _seed(lpOwner, 9);
+        _setForceExitAdmin(lpOwner, true);
+        vm.startPrank(lpOwner);
+        vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
+        lp.withdrawClaim(currency, 9, address(this));
+        vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
+        lp.withdrawClaim(currency, 9, address(2));
+        vm.stopPrank();
+        assertEq(manager.balanceOf(lpOwner, currency.toId()), 9);
+    }
+
+    function testRevokedForceExitAdminCannotBypassSbt() public {
+        _seed(lpOwner, 9);
+        _setForceExitAdmin(lpOwner, true);
+        _setForceExitAdmin(lpOwner, false);
+        vm.prank(lpOwner);
+        vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
+        lp.withdrawClaim(currency, 9, lpOwner);
+        assertEq(manager.balanceOf(lpOwner, currency.toId()), 9);
+    }
+
+    function testForceExitAdminCannotSpendAnotherHoldersClaim() public {
+        _seed(address(this), 9);
+        _setForceExitAdmin(lpOwner, true);
+        vm.prank(lpOwner);
+        manager.setOperator(address(lp), true);
+        vm.prank(lpOwner);
+        vm.expectRevert();
+        lp.withdrawClaim(currency, 9, lpOwner);
+        assertEq(manager.balanceOf(address(this), currency.toId()), 9);
+        assertEq(underlying.balanceOf(lpOwner), 0);
+    }
+
+    function testForceExitAdminStillRequiresClaimApproval() public {
+        _seed(lpOwner, 9);
+        _setForceExitAdmin(lpOwner, true);
+        vm.startPrank(lpOwner);
+        manager.setOperator(address(lp), false);
+        vm.expectRevert();
+        lp.withdrawClaim(currency, 9, lpOwner);
+        assertEq(manager.balanceOf(lpOwner, currency.toId()), 9);
+        manager.approve(address(lp), currency.toId(), 9);
+        lp.withdrawClaim(currency, 9, lpOwner);
+        vm.stopPrank();
+        assertEq(underlying.balanceOf(lpOwner), 9);
     }
 
     function testOwnerCannotSendToThirdPartyOrManager() public {
