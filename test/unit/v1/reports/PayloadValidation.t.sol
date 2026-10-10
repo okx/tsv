@@ -26,7 +26,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
                 if (fault == 3) {
                     r.securityId = keccak256("absent");
                 } else {
-                    registry.delistSecurity(SECURITY);
+                    _delistPrimarySecurity();
                 }
             }
             bytes32 beforeState = _reportState(id);
@@ -58,7 +58,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             } else if (fault < 8) {
                 r.sourceMonth = invalidMonths[fault - 3];
             } else {
-                registry.delistSecurity(SECURITY);
+                _delistPrimarySecurity();
             }
             bytes32 beforeState = _reportState(id);
             bytes32 targetBefore = _reportState(r.securityId, r.sourceMonth, DAY, id);
@@ -100,7 +100,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             } else if (fault == 8) {
                 r.action = 2; // CLEAR without an active SET, even with nonzero amount.
             } else {
-                registry.delistSecurity(SECURITY);
+                _delistPrimarySecurity();
             }
             bytes32 beforeState = _reportState(id);
             bytes32 targetBefore = _reportState(r.securityId, uint32(MONTH), r.tradeDayId, id);

@@ -28,7 +28,7 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
     }
 
     function testDelistedSecurityCannotReceiveNewFactorReports() public {
-        registry.delistSecurity(SECURITY);
+        _delistPrimarySecurity();
         SplitFactorReport memory report = _factor(20261002, 2, 1, 1, keccak256("delisted-factor"));
         bytes32 beforeState = _factorState(report);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
