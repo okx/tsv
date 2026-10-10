@@ -66,6 +66,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
     bytes32 public constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
+    bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
 
     /// @notice Shared approval proxy; users approve its TokenApprove, not this LP Manager.
     ITokenApproveProxy public immutable TOKEN_APPROVE_PROXY;
@@ -348,14 +349,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
 
     /// @dev Registry's default admin or its active Anchor batch may upgrade while upgrades are unfrozen.
     function _authorizeUpgrade(address) internal view override {
-        TSVGovernanceAnchor anchor = TSVGovernanceAnchor(registry.governanceAnchor());
-        if (
-            !registry.hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
-                && !(msg.sender == address(anchor) && anchor.upgradeContextActive())
-        ) {
-            revert UnauthorizedUpgrade();
-        }
-        if (anchor.upgradesFrozen()) revert UpgradeFrozen();
+        if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert Unauthorized();
     }
 
     /// @dev Normal callbacks retain the upstream action ABI. An unwind callback must match the exact data
