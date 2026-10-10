@@ -22,7 +22,6 @@ import {
     PoolLifecycle
 } from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
-import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
@@ -37,7 +36,6 @@ abstract contract FoundationFixture is Test {
     uint32 internal constant DAY = 20261001;
     uint64 internal constant MONTH = 202609;
 
-    TSVGovernanceAnchor internal anchor;
     address internal guardian;
     address internal council;
     TSVRegistryV1 internal registry;
@@ -62,11 +60,10 @@ abstract contract FoundationFixture is Test {
         vm.warp(1_790_827_201);
         guardian = makeAddr("guardian");
         council = makeAddr("council");
-        anchor = new TSVGovernanceAnchor(address(this), guardian, council);
         registry = TSVRegistryV1(
             address(
                 new ERC1967Proxy(
-                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor)))
+                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(this)))
                 )
             )
         );
@@ -74,7 +71,7 @@ abstract contract FoundationFixture is Test {
             address(
                 new ERC1967Proxy(
                     address(new TSVVolumeLedgerV1()),
-                    abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(anchor), address(registry), 14_400))
+                    abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(registry), 14_400))
                 )
             )
         );
@@ -82,7 +79,7 @@ abstract contract FoundationFixture is Test {
             address(
                 new ERC1967Proxy(
                     address(new TSVDataInboxV1()),
-                    abi.encodeCall(TSVDataInboxV1.initialize, (address(anchor), address(registry), address(ledger)))
+                    abi.encodeCall(TSVDataInboxV1.initialize, (address(registry), address(ledger)))
                 )
             )
         );
@@ -98,8 +95,8 @@ abstract contract FoundationFixture is Test {
         issuerChecker = new V1IssuerAllowlistChecker();
         ledger.bindWriters(address(this), address(inbox));
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
-        inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
-        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
+        registry.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
+        registry.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         registry.setTierPolicy(1, 25, 10);
 
         stockUnderlying = new V1MockIssuerShares();

@@ -60,8 +60,8 @@ contract TSVOperationsIngressTest is OperationsFixture {
         address volumeReporter = makeAddr("volume-only");
         bytes32 haltRole = inbox.HALT_REPORTER_ROLE();
         bytes32 volumeRole = inbox.VOLUME_ORACLE_ROLE();
-        inbox.grantRole(haltRole, haltReporter);
-        inbox.grantRole(volumeRole, volumeReporter);
+        registry.grantRole(haltRole, haltReporter);
+        registry.grantRole(volumeRole, volumeReporter);
         _submitAdtv(1000e18);
         for (uint8 kind; kind < 4; ++kind) {
             bytes memory payload;
@@ -78,21 +78,21 @@ contract TSVOperationsIngressTest is OperationsFixture {
             vm.expectRevert(TSVDataInboxV1.UnauthorizedReporter.selector);
             vm.prank(wrongRole);
             _callInbox(payload);
-            inbox.revokeRole(role, authorized);
+            registry.revokeRole(role, authorized);
             vm.expectRevert(TSVDataInboxV1.UnauthorizedReporter.selector);
             vm.prank(authorized);
             _callInbox(payload);
-            inbox.grantRole(role, authorized);
+            registry.grantRole(role, authorized);
             uint256 snapshot = vm.snapshotState();
             vm.prank(authorized);
             _callInbox(payload);
             assertTrue(vm.revertToState(snapshot));
             vm.prank(authorized);
-            inbox.renounceRole(role, authorized);
+            registry.renounceRole(role, authorized);
             vm.expectRevert(TSVDataInboxV1.UnauthorizedReporter.selector);
             vm.prank(authorized);
             _callInbox(payload);
-            inbox.grantRole(role, authorized);
+            registry.grantRole(role, authorized);
         }
     }
 

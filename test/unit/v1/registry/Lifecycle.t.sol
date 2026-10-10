@@ -216,6 +216,7 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
                 registry.poolTickCount(poolId),
                 registry.listPoolCountBySecurity(SECURITY),
                 registry.getCurrencyUnderlying(address(stock)),
+                registry.getUnderlying(registry.getCurrencyUnderlying(address(stock))),
                 registry.getQuoteToken(address(quote)),
                 ledger.used(SECURITY, DAY)
             )

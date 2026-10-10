@@ -18,7 +18,7 @@ contract TSVRouterInitializationTest is GovernanceFixture {
             address[2] memory dependencies_ = [address(this), address(this)];
             dependencies_[i] = address(0);
             bytes memory initialization =
-                abi.encodeCall(TSVSwapRouterV1.initialize, (address(anchor), dependencies_[0], dependencies_[1]));
+                abi.encodeCall(TSVSwapRouterV1.initialize, (dependencies_[0], dependencies_[1]));
             vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
             new TSVERC1967Proxy(implementation, initialization);
         }

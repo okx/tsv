@@ -14,25 +14,16 @@ contract TSVOperationsBindingsTest is FoundationFixture {
         address ledgerImpl = address(new TSVVolumeLedgerV1());
         address inboxImpl = address(new TSVDataInboxV1());
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
-        new ERC1967Proxy(ledgerImpl, abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(anchor), address(0), 14400)));
+        new ERC1967Proxy(ledgerImpl, abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(0), 14400)));
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
-        new ERC1967Proxy(
-            ledgerImpl, abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(anchor), address(registry), 86400))
-        );
+        new ERC1967Proxy(ledgerImpl, abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(registry), 86400)));
         vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
-        new ERC1967Proxy(
-            inboxImpl, abi.encodeCall(TSVDataInboxV1.initialize, (address(anchor), address(0), address(ledger)))
-        );
+        new ERC1967Proxy(inboxImpl, abi.encodeCall(TSVDataInboxV1.initialize, (address(0), address(ledger))));
         vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
-        new ERC1967Proxy(
-            inboxImpl, abi.encodeCall(TSVDataInboxV1.initialize, (address(anchor), address(registry), address(0)))
-        );
+        new ERC1967Proxy(inboxImpl, abi.encodeCall(TSVDataInboxV1.initialize, (address(registry), address(0))));
         TSVVolumeLedgerV1 maxOffset = TSVVolumeLedgerV1(
             address(
-                new ERC1967Proxy(
-                    ledgerImpl,
-                    abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(anchor), address(registry), 86399))
-                )
+                new ERC1967Proxy(ledgerImpl, abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(registry), 86399)))
             )
         );
         assertEq(maxOffset.initialDayStartOffsetSeconds(), 86399);
@@ -42,7 +33,7 @@ contract TSVOperationsBindingsTest is FoundationFixture {
         TSVRegistryV1 fresh = TSVRegistryV1(
             address(
                 new ERC1967Proxy(
-                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor)))
+                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(this)))
                 )
             )
         );
@@ -81,7 +72,7 @@ contract TSVOperationsBindingsTest is FoundationFixture {
             address(
                 new ERC1967Proxy(
                     address(new TSVVolumeLedgerV1()),
-                    abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(anchor), address(registry), 14400))
+                    abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(registry), 14400))
                 )
             )
         );

@@ -274,9 +274,9 @@ contract TSVRegistryV1 is TSVGoverned {
     );
 
     /// @notice Initializes governance and starts emergency-pause IDs at one.
-    /// @param anchor Fixed governance Anchor used by the governed base contract.
-    function initialize(address anchor) external initializer {
-        __TSVGoverned_init(anchor);
+    /// @param admin Initial default admin and upgrade admin.
+    function initialize(address admin) external initializer {
+        __TSVGoverned_init(admin);
         nextPauseId = 1;
     }
 
@@ -289,7 +289,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param sbt_ Fixed SBT contract supplying participant identities.
     function bindComponents(address hook_, address lpManager_, address dataInbox_, address factory, address sbt_)
         external
-        onlyGovernor
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         if (permissionsAdapterFactory != address(0)) revert InvalidStatus();
         if (
@@ -327,7 +327,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Registers one identity or updates its swap/LP permissions on the bound SBT.
     /// @param tokenId Identity to register or update.
     /// @param permissions TSV operation flags: NONE, SWAP_ALLOWED, LIQUIDITY_ALLOWED, or their union.
-    function setSbtConfig(uint256 tokenId, PermissionFlag permissions) external onlyGovernor {
+    function setSbtConfig(uint256 tokenId, PermissionFlag permissions) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (participantSbt == address(0)) revert SbtNotConfigured();
         if (uint16(PermissionFlag.unwrap(permissions)) > 3) revert InvalidConfig();
         try ISmartWalletSbtV1(participantSbt).verify(address(this), tokenId) returns (bool) {}
@@ -388,7 +388,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param tierId Nonzero tier identifier.
     /// @param tierBps Volume multiplier in basis points, from 1 through 10,000.
     /// @param maxListed Maximum number of securities that may be listed in this tier.
-    function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed) external onlyGovernor {
+    function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed) external onlyRole(DEFAULT_ADMIN_ROLE) {
         TierPolicy storage tier = tiers[tierId];
         if (tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount) {
             revert InvalidConfig();
@@ -496,7 +496,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Configures the receiver shared by every W for underlying U, including before first admission.
     /// @param u Canonical underlying whose exit receiver changes.
     /// @param newAdmin New receiver for forced exits and related recovery flows.
-    function setExitAdmin(address u, address newAdmin) external onlyGovernor {
+    function setExitAdmin(address u, address newAdmin) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _requireEnvironment();
         if (newAdmin == exitAdminOf[u]) revert InvalidStatus();
         PermissionedValidationLib.validateExitAdmin(u, newAdmin);

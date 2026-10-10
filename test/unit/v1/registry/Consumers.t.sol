@@ -8,12 +8,7 @@ import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
-import {
-    UnderlyingConfig,
-    QuoteTokenConfig,
-    PauseScope,
-    PauseMode
-} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingConfig, QuoteTokenConfig, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
@@ -35,12 +30,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         consumerHook = TSVHookV1(at);
         // The test is the authorized Ledger writer and relays Hook accounting without mocking its result.
         consumerHook.initialize(
-            address(anchor),
-            address(manager),
-            address(registry),
-            address(this),
-            address(permissionedRouterFixture),
-            address(this)
+            address(manager), address(registry), address(this), address(permissionedRouterFixture), address(this)
         );
         _submitAdtv(1000e18);
     }
@@ -119,9 +109,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         assertEq(ledger.used(SECURITY, DAY), 0);
         vm.clearMockedCalls();
         vm.mockCall(
-            address(registry),
-            abi.encodeCall(TSVRegistryV1.getCurrencyUnderlying, (q)),
-            abi.encode(address(stockToken))
+            address(registry), abi.encodeCall(TSVRegistryV1.getCurrencyUnderlying, (q)), abi.encode(address(stockToken))
         );
         vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
         _callback(-1e18);

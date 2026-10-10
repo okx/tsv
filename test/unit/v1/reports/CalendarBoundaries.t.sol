@@ -37,7 +37,7 @@ contract TSVOperationsCalendarTest is OperationsFixture {
             address(
                 new ERC1967Proxy(
                     address(new TSVVolumeLedgerV1()),
-                    abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(anchor), address(registry), offset))
+                    abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(registry), offset))
                 )
             )
         );

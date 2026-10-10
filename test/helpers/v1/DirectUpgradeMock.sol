@@ -8,7 +8,7 @@ contract V1RegistryUpgradeMock is TSVRegistryV1 {
     error UpgradeInitFailed();
     uint256 public upgradeMarker;
 
-    function initializeV2(uint256 marker, bool fail) external reinitializer(2) onlyGovernor {
+    function initializeV2(uint256 marker, bool fail) external reinitializer(2) onlyRole(UPGRADE_ADMIN_ROLE) {
         upgradeMarker = marker;
         if (fail) revert UpgradeInitFailed();
     }

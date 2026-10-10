@@ -2,68 +2,31 @@
 pragma solidity 0.8.26;
 
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
-import {GovernedRoleHarness} from "../../../helpers/v1/GovernanceUpgradeMocks.sol";
-import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
-import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 /// @dev TSVBusinessRolesTest scenarios; inherited fixtures contain no test functions.
 contract TSVBusinessRolesTest is FoundationFixture {
-    /// @dev Verifies business Governor recovery updates the dynamically resolved admin.
-    function testBusinessGovernorRecoveryChangesDynamicAdmin() public {
-        address next = makeAddr("new-governor");
-        assertTrue(registry.hasRole(0, address(this)));
-        vm.prank(council);
-        bytes32 id = anchor.proposeRecovery(next, guardian, keccak256("foundation-recovery"));
-        vm.prank(guardian);
-        anchor.approveRecovery(id);
-        anchor.executeRecovery(id);
-        assertFalse(registry.hasRole(0, address(this)));
-        assertTrue(registry.hasRole(0, next));
+    function testDefaultAdminTransferChangesConfigurationAuthority() public {
+        address next = makeAddr("new-admin");
+        registry.grantRole(bytes32(0), next);
+        registry.renounceRole(bytes32(0), address(this));
+        assertFalse(registry.hasRole(bytes32(0), address(this)));
+        assertTrue(registry.hasRole(bytes32(0), next));
         vm.expectRevert(
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0))
         );
         registry.setTierPolicy(2, 25, 1);
+        vm.prank(next);
+        registry.setTierPolicy(2, 25, 1);
     }
 
-    function testDefaultAdminCannotBeGranted() public {
-        vm.expectRevert(TSVGoverned.ProtectedRole.selector);
+    function testDefaultAdminCanBeRevokedAndRenounced() public {
         registry.grantRole(bytes32(0), council);
+        registry.revokeRole(bytes32(0), council);
         assertFalse(registry.hasRole(bytes32(0), council));
-        assertTrue(registry.hasRole(bytes32(0), address(this)));
-    }
-
-    function testDefaultAdminCannotBeRevoked() public {
-        vm.expectRevert(TSVGoverned.ProtectedRole.selector);
-        registry.revokeRole(bytes32(0), address(this));
-        assertTrue(registry.hasRole(bytes32(0), address(this)));
-    }
-
-    function testDefaultAdminCannotBeRenounced() public {
-        vm.expectRevert(TSVGoverned.ProtectedRole.selector);
         registry.renounceRole(bytes32(0), address(this));
-        assertTrue(registry.hasRole(bytes32(0), address(this)));
+        assertFalse(registry.hasRole(bytes32(0), address(this)));
         assertFalse(registry.hasRole(bytes32(0), address(0)));
-    }
-
-    function testInternalRolePathsAlsoProtectDefaultAdmin() public {
-        GovernedRoleHarness implementation = new GovernedRoleHarness();
-        GovernedRoleHarness harness = GovernedRoleHarness(
-            address(
-                new TSVERC1967Proxy(
-                    address(implementation), abi.encodeCall(GovernedRoleHarness.initialize, (address(anchor)))
-                )
-            )
-        );
-        vm.expectRevert(TSVGoverned.ProtectedRole.selector);
-        harness.internalGrant(bytes32(0), council);
-        vm.expectRevert(TSVGoverned.ProtectedRole.selector);
-        harness.internalRevoke(bytes32(0), address(this));
-        bytes32 role = keccak256("TEST_BUSINESS_ROLE");
-        harness.internalGrant(role, council);
-        assertTrue(harness.hasRole(role, council));
-        harness.internalRevoke(role, council);
-        assertFalse(harness.hasRole(role, council));
     }
 
     function testBusinessRolesCanBeGrantedRevokedAndRenounced() public {
@@ -87,7 +50,7 @@ contract TSVBusinessRolesTest is FoundationFixture {
         assertTrue(registry.hasRole(role, council));
     }
 
-    function testOnlyGovernorCanGrantOrRevokeBusinessRoles() public {
+    function testOnlyDefaultAdminCanGrantOrRevokeBusinessRoles() public {
         bytes32 role = registry.SYMBOL_ADMIN_ROLE();
         address[3] memory callers = [guardian, council, makeAddr("outsider")];
         registry.grantRole(role, council);
@@ -106,15 +69,12 @@ contract TSVBusinessRolesTest is FoundationFixture {
         assertTrue(registry.hasRole(role, council));
     }
 
-    function testRecoveryTransfersRoleManagementAndGovernorConfiguration() public {
+    function testAdminTransferMovesRoleManagementAndConfiguration() public {
         address next = makeAddr("new-governor");
         bytes32 role = registry.SYMBOL_ADMIN_ROLE();
         registry.grantRole(role, council);
-        vm.prank(council);
-        bytes32 id = anchor.proposeRecovery(next, guardian, keccak256("roles"));
-        vm.prank(guardian);
-        anchor.approveRecovery(id);
-        anchor.executeRecovery(id);
+        registry.grantRole(bytes32(0), next);
+        registry.renounceRole(bytes32(0), address(this));
         bytes memory denied =
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0));
         vm.expectRevert(denied);
@@ -130,7 +90,7 @@ contract TSVBusinessRolesTest is FoundationFixture {
         vm.stopPrank();
         assertTrue(registry.hasRole(role, guardian));
         assertFalse(registry.hasRole(role, council));
-        // An explicitly granted business role survives identity recovery independently.
+        // An explicitly granted business role survives admin transfer independently.
         assertTrue(registry.hasRole(role, address(this)));
     }
 }
