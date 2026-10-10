@@ -153,7 +153,7 @@ contract V1WrappedLiquiditySeed {
         require(delta < 0);
         uint256 amount = uint256(-int256(delta));
         poolManager.sync(c);
-        address u = registry.getCurrency(Currency.unwrap(c)).underlying;
+        address u = registry.getCurrencyUnderlying(Currency.unwrap(c));
         if (u == address(0)) {
             TSVPermissionedSettlementLib.transferExact(Currency.unwrap(c), admin, address(poolManager), amount);
         } else {

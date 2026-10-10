@@ -152,22 +152,27 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
 
     function testPoolLifecyclePauseAllowsLpButBlocksSwap() public {
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.LIST));
+        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
         _assertOperationGates(true, true);
 
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.PAUSE));
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.PAUSE));
+        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
         _assertOperationGates(false, true);
 
         assertTrue(registry.updatePoolTickCount(key, 1));
+        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST);
         assertTrue(registry.updatePoolTickCount(key, -1));
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST));
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.DELIST));
+        assertEq(registry.listPoolCountBySecurity(SECURITY), 0);
         _assertOperationGates(false, false);
 
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST));
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.LIST));
+        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
         _assertOperationGates(true, true);
     }
 

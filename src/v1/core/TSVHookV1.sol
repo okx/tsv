@@ -298,8 +298,8 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     function _validateMultiplierSnapshot(PoolKey calldata key, uint256 expectedMultiplier) private view {
         address currency0 = Currency.unwrap(key.currency0);
         address currency1 = Currency.unwrap(key.currency1);
-        address underlying0 = registry.getCurrency(currency0).underlying;
-        address underlying1 = registry.getCurrency(currency1).underlying;
+        address underlying0 = registry.getCurrencyUnderlying(currency0);
+        address underlying1 = registry.getCurrencyUnderlying(currency1);
         if ((underlying0 == address(0)) == (underlying1 == address(0))) revert InvalidPool();
 
         address underlying = underlying0 == address(0) ? underlying1 : underlying0;
@@ -316,7 +316,7 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     /// @param delta Actual signed PoolManager delta for this leg.
     /// @return Legal-share amount in WAD for the Ledger.
     function _sharesForLeg(address currency, int128 delta) private view returns (uint256) {
-        address underlying = registry.getCurrency(currency).underlying;
+        address underlying = registry.getCurrencyUnderlying(currency);
         if (underlying == address(0) || delta == 0) return 0;
         IDirectLegalShareAdapter adapter =
             IDirectLegalShareAdapter(registry.getUnderlying(underlying).legalShareAdapter);
