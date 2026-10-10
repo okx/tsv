@@ -943,7 +943,6 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param delta Signed tick-count change to apply.
     function _applyPoolTickDelta(bytes32 poolId, int256 delta) private {
         if (delta == 0) return;
-        bytes32 securityId = pools[poolId].securityId;
         uint256 current = poolTickCount[poolId];
         uint256 updated;
         if (delta > 0) {
