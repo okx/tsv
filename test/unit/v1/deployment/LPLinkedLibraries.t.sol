@@ -175,7 +175,7 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         uint256 id = uint160(Currency.unwrap(key.currency1));
         manager.seedClaim(owner, id, 9);
         vm.prank(owner);
-        lp.withdrawClaim(key.currency1, 9, address(1));
+        lp.withdrawClaimByLp(key.currency1, 9, address(1));
         assertEq(manager.balanceOf(owner, id), 0);
         assertEq(manager.delivered(owner, Currency.unwrap(key.currency1)), 9);
     }
@@ -188,6 +188,8 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         lp.subscribe(tokenId, address(sub), "");
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.withdrawClaim(key.currency1, 1, owner);
+        vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
+        lp.withdrawClaimByLp(key.currency1, 1, owner);
         bytes[] memory calls = new bytes[](0);
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.multicall(calls);

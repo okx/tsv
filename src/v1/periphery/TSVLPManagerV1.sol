@@ -60,11 +60,13 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     bytes32 public constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
     bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
 
+    /// @dev Action bitset for authorized exit callbacks; BURN_POSITION has separate NFT accounting below.
+    uint256 private constant EXIT_SETTLEMENT_ACTIONS = (uint256(1) << Actions.TAKE_PAIR)
+        | (uint256(1) << Actions.MINT_6909) | (uint256(1) << Actions.UNWIND_WITH_FALLBACK)
+        | (uint256(1) << Actions.BURN_6909) | (uint256(1) << Actions.TAKE);
+
     /// @notice Shared approval proxy; users approve its TokenApprove, not this LP Manager.
     ITokenApproveProxy public immutable TOKEN_APPROVE_PROXY;
-
-    /// @dev Reserve the former TSVGoverned slot so existing proxy storage does not shift.
-    address private __deprecatedGovernanceAnchor;
 
     ITSVPermissionedRegistry public registry;
 
@@ -213,13 +215,19 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         PositionManager.modifyLiquiditiesWithoutUnlock(actions, params);
     }
 
+    /// @notice Allows a verified adapter's owner to redeem its own claims to itself without TSV SBT permission.
     function withdrawClaim(Currency currency, uint256 amount, address to)
         public
         override
         whenRegistryNotPaused
         isNotLocked
     {
-        TSVLPManagerLib.withdrawClaim(poolManager, currency, amount, to);
+        TSVLPManagerLib.withdrawClaim(poolManager, PERMISSIONS_ADAPTER_FACTORY, currency, amount, to);
+    }
+
+    /// @notice Redeems the caller's claims with TSV liquidity permission checks on caller and recipient.
+    function withdrawClaimByLp(Currency currency, uint256 amount, address to) public whenRegistryNotPaused isNotLocked {
+        TSVLPManagerLib.withdrawClaimByLp(poolManager, currency, amount, to);
     }
 
     function approve(address spender, uint256 tokenId) public override whenRegistryNotPaused {
@@ -301,10 +309,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         return SafeCallback.unlockCallback(data);
     }
 
-    receive() external payable override whenRegistryNotPaused {
-        _receiveNative();
-    }
-
     function upgradeToAndCall(address newImplementation, bytes memory data)
         public
         payable
@@ -336,9 +340,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
                 (PoolKey memory poolKey,) = getPoolAndPositionInfo(tokenId);
                 PermissionedPositionManager._handleAction(action, params[i]);
                 _updatePoolTickCount(poolKey, -1);
-            } else if (
-                action == Actions.TAKE_PAIR || action == Actions.MINT_6909 || action == Actions.UNWIND_WITH_FALLBACK
-            ) {
+            } else if ((EXIT_SETTLEMENT_ACTIONS & (uint256(1) << action)) != 0) {
                 PermissionedPositionManager._handleAction(action, params[i]);
             } else {
                 revert UnsupportedAction(action);

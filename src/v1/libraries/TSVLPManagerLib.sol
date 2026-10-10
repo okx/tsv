@@ -393,13 +393,32 @@ library TSVLPManagerLib {
         return poolManager.initialize(key, sqrtPriceX96);
     }
 
-    function withdrawClaim(IPoolManager poolManager, Currency currency, uint256 amount, address to) external {
+    function withdrawClaimByLp(IPoolManager poolManager, Currency currency, uint256 amount, address to) external {
         address resolvedTo = _mapRecipient(to, msg.sender);
         bytes memory actions = abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE));
         bytes[] memory params = new bytes[](2);
         params[0] = abi.encode(currency, msg.sender, amount);
         params[1] = abi.encode(currency, resolvedTo, amount);
         poolManager.unlock(abi.encode(actions, params));
+        emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
+    }
+
+    /// @dev Only the factory-verified adapter owner can bypass TSV SBT checks, and only for delivery to itself.
+    function withdrawClaim(
+        IPoolManager poolManager,
+        IPermissionsAdapterFactory factory,
+        Currency currency,
+        uint256 amount,
+        address to
+    ) external {
+        if (msg.sender != _getOwner(factory, currency)) revert Unauthorized();
+        address resolvedTo = _mapRecipient(to, msg.sender);
+        if (resolvedTo != msg.sender) revert Unauthorized();
+        bytes memory actions = abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE));
+        bytes[] memory params = new bytes[](2);
+        params[0] = abi.encode(currency, msg.sender, amount);
+        params[1] = abi.encode(currency, resolvedTo, amount);
+        _unlockUnwind(poolManager, abi.encode(actions, params));
         emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
     }
 
