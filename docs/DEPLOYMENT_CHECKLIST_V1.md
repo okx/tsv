@@ -187,7 +187,7 @@ SBT 地址已在 `bindComponents` 中一次绑定，并探测 `paused()` 和 `ve
 - `REVOKE_EXIT_EXECUTOR_ROLE`
 - `FORCE_EXIT_ADMIN_ROLE`
 
-LP 的 `POOL_CREATOR_ROLE` 和 `FORCE_EXIT_ADMIN_ROLE` 必须在 Registry 上授予；LP 不再管理本地角色。旧 LP 本地角色须在升级前配置到 Registry。每个角色至少配置一个独立地址，并把地址写入 manifest。用户直连 Router 时，调用者本人是 participant；若启用外部 DEX Adapter 路径，必须先由 Governor 将已审查的 Adapter 加入 Router 白名单，且 Adapter 从可信 DexRouter caller marker 解析 participant 后由 Router 执行 SBT 校验。退款地址 marker 不能代替 participant 身份。
+LP 的 `POOL_CREATOR_ROLE` 和 `FORCE_EXIT_ADMIN_ROLE` 必须在 Registry 上授予；LP 不再管理本地角色。旧 LP 本地角色须在升级前配置到 Registry。每个角色至少配置一个独立地址，并把地址写入 manifest。Swap 只能由 Router 白名单中的 Adapter 发起；Adapter 从可信 DexRouter caller marker 解析 participant 后由 Router 执行 SBT 校验。退款地址 marker 不能代替 participant 身份。
 
 ## 6. 资产、报告和池配置
 

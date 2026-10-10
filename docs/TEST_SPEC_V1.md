@@ -107,8 +107,8 @@ SBT 增补验收：按 tokenId 独立配置 swap-only、LP-only、双权限及�
 | S02 U/I | `wTSLAx` 输入 `3e18` shares，来源 Token `getUnderlyingAmountByShares` 返回 `2.7e18` | 技术股数 `2.7e18`；Adapter 返回值及事件值与独立计算一致，不生成 rateId/快照 |
 | S03 U/I | 在股票／非股票池分别让股票作输入且存在 LP/协议费、股票作输出 | 输入按实际 V4 caller delta 的**含费总支出**计，输出按净收到计；每笔只记一条股票腿，不能按 `amountSpecified` 或用户预估数记账 |
 | S04 I | exact input 完全成交；价格边界仅部分成交且仍达到 minOut；部分成交低于 minOut | 前两者只按实际 delta 直接收付 Currency 和计股；最后者全回滚 |
-| S05 I | 股票输入和 quote 输入的 exact output 完全成交、超 maxIn、价格边界部分输出 | 仅完全输出且输入在上限内时成功；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分输出即使仍有非零量也回滚；Router 无成交事件或 int128 事件转换 |
-| S06 U/I | 未持证调用、参数越界、deadline 过期；AA 钱包以自身地址直接调用 | 未持证调用拒绝；EOA 与 AA 钱包均以自身地址作为 participant/payer/recipient 直接调用；同一请求在后续独立调用中按新 Swap 校验，不做应用层 nonce 去重 |
+| S05 I | 直接结算 Adapter exact-in 的股票输入和 quote 输入完整成交、价格边界导致输入未完全消耗 | 仅完整消耗指定输入时成功；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分成交整笔回滚；Router 无成交事件或 int128 事件转换 |
+| S06 U/I | 未持证 Adapter、非白名单 Adapter、参数越界、deadline 过期；EOA/AA 尝试直接调用 Router | 未持证及非白名单 Adapter 拒绝；用户直调 Swap selector 不存在；同一请求在后续独立调用中按新 Swap 校验，不做应用层 nonce 去重 |
 | S07 I | 非 PoolManager 直接调用 Router.unlockCallback；非 Router 直接通过 PoolManager.swap；Router 收到不可交易池；Hook 收到不匹配的 PoolKey；Swap 回调期间重入 Router；直接调用 Hook 或尝试非 Swap 的 modify/donate | 全部拒绝；一次成功 Router Swap 恰一次记账；Swap 不依赖或清理活跃上下文 |
 | S08 U/I | Backed 来源换算对正 raw 返回零、来源方法 revert、极大 raw 返回溢出/异常值 | Hook 调用失败或返回零时整笔回滚；正成交不以零股计入额度 |
 | S09 I | `afterSwap` 调用 Adapter 时来源换算方法 revert 或返回零 | 整笔 Swap 回滚；没有旧快照、Ledger 复核或 Router 结算后的二次复验 |

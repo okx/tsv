@@ -62,7 +62,7 @@ VOLUME_ORACLE 向 DataInbox 提交适用上月的 `AdtvReport`，量纲为法律
 | 身份与准入 | F 对 W created/verified 均为 U；W 的 PM/U/checker、owner 与 R 记录一致；W/Q 已准入，证券上市，PoolKey 完整匹配且 PM 已初始化；相关操作未暂停。 |
 | W 权限 | owner 已获 Governor 批准；Router wrapper 和 Hook 均允许。 |
 | 发行方权限 | 用户 U→W 及 W→用户 U、Router operator、W custody、协议费接收方均可达；Q 支出与接收无税费或额外扣费。 |
-| 库存 | PM W = W supply，Router/用户 W = 0；W U collateral ≥ supply。记录 PM/Router 既有 U 余额并验证每笔交易保持不变；记录 surplus E，既有余额和验证保证金不可挪用于付款。 |
+| 库存 | 初始准入时核验 PM W = W supply、Router/用户 W = 0、W U collateral ≥ supply，并记录验证保证金。Swap 运行时不做库存快照；PM/Router 的既有 U 不作为 W/Q 结算资金。 |
 | 资格与额度 | SBT 未暂停，真实用户持证；ADTV/报告适用，当前日额度足够，交易门禁正常。SDK 分别查询 `R.isAllowed(SWAP_ALLOWED,user)` 和 `W.isAllowed(user,SWAP_ALLOWED)`；普通 LP 两层查询均使用 LIQUIDITY_ALLOWED。 |
 | 流动性与费用 | 有真实覆盖区间流动性、可用报价和滑点参数；静态 LP fee 与协议费配置合理，W 协议费提取按原版 W 自动释放 U 到获准接收方。 |
 
@@ -70,16 +70,14 @@ VOLUME_ORACLE 向 DataInbox 提交适用上月的 `AdtvReport`，量纲为法律
 
 ## 用户交易与首笔验收
 
-用户直接调用 Router，输入股票时执行 `U.approve(Router, amount)`，输入报价时执行 `Q.approve(Router, amount)`。授权 W 不能替代 Swap 对 Router 的 U 授权。PoolKey 使用 W/Q，方向按地址排序确定；调用返回真实 `actualIn, actualOut`。
+用户通过白名单 Adapter 发起交易。若使用 `swapExactInputFromAdapterDirect`，输入股票时执行 `U.approve(Router, amount)`，输入报价时执行 `Q.approve(Router, amount)`；授权 W 不能替代对 Router 的 U 授权。PoolKey 使用 W/Q，方向按地址排序确定；Router 返回真实 `actualIn, actualOut`。Router 不再提供用户直调或 exact-output 入口。
 
 | 路径 | amountSpecified / limitAmount | 用户余额效果 |
 | --- | --- | --- |
-| U→Q exact-in | 指定 U raw 最大输入 / Q raw 最小输出 | 支付实际成交 U、接收 Q；允许部分成交。 |
-| U→Q exact-out | 指定 Q raw 精确输出 / U raw 最大输入 | 支付不超上限的 U、接收严格指定 Q。 |
-| Q→U exact-in | 指定 Q raw 最大输入 / U raw 最小输出 | 支付实际成交 Q、接收 U。 |
-| Q→U exact-out | 指定 U raw 精确输出 / Q raw 最大输入 | 支付不超上限的 Q、接收严格指定 U。 |
+| U→Q exact-in | 指定 U raw 输入 / Q raw 最小输出 | 输入全额成交，输出直接交给指定收款方。 |
+| Q→U exact-in | 指定 Q raw 输入 / U raw 最小输出 | 输入全额成交，输出直接交给指定收款方。 |
 
-四条路径使用 `swapExactInput` / `swapExactOutput` 与有效 deadline。检查返回的实际输入与输出、PM `Swap`、Ledger `SwapAccounted` 的 W/U 两个地址、真实余额双侧变化、U canonical 法律股数与 Ledger.used 增量、PM 两腿零欠款，以及库存和 E 保持不变。Router 不另发成交事件或引用 Ledger。失败须余额、价格、流动性、额度与策略写入全部回滚，随后修正条件能够重试。
+两条方向路径均使用白名单 Adapter exact-in 入口与有效 deadline。检查返回的实际输入与输出、PM `Swap`、Ledger `SwapAccounted` 的 W/U 两个地址、真实余额双侧变化、U canonical 法律股数与 Ledger.used 增量、PM 两腿零欠款，以及库存和 E 保持不变。Router 不另发成交事件或引用 Ledger。失败须余额、价格、流动性、额度与策略写入全部回滚，随后修正条件能够重试。
 
 DEX Adapter 需获 Governor 白名单授权；Router 检查 Adapter 验证的真实用户身份和发行方权限，Adapter 负责 U/Q 收付。单池入口不支持 native 或 U 直接池。
 

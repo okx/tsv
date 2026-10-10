@@ -1,52 +1,60 @@
 {
   "storage": [
     {
-      "astId": 19956,
-      "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
-      "label": "governanceAnchor",
-      "offset": 0,
-      "slot": "0",
-      "type": "t_contract(TSVGovernanceAnchor)19888"
-    },
-    {
-      "astId": 24382,
+      "astId": 11303,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "registry",
       "offset": 0,
-      "slot": "1",
-      "type": "t_contract(TSVRegistryV1)16603"
+      "slot": "0",
+      "type": "t_contract(TSVRegistryV1)9898"
     },
     {
-      "astId": 24386,
+      "astId": 11307,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "isAdapterAllowed",
       "offset": 0,
-      "slot": "2",
+      "slot": "1",
       "type": "t_mapping(t_address,t_bool)"
     },
     {
-      "astId": 24388,
+      "astId": 11309,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeParticipant",
       "offset": 0,
-      "slot": "3",
+      "slot": "2",
       "type": "t_address"
     },
     {
-      "astId": 24390,
+      "astId": 11311,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeAmountIn",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_uint256"
+    },
+    {
+      "astId": 11313,
+      "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
+      "label": "activeAmountOut",
       "offset": 0,
       "slot": "4",
       "type": "t_uint256"
     },
     {
-      "astId": 24392,
+      "astId": 11315,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
-      "label": "activeAmountOut",
+      "label": "activeRecipient",
       "offset": 0,
       "slot": "5",
-      "type": "t_uint256"
+      "type": "t_address"
+    },
+    {
+      "astId": 11317,
+      "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
+      "label": "activeInputCurrency",
+      "offset": 0,
+      "slot": "6",
+      "type": "t_address"
     }
   ],
   "types": {
@@ -60,12 +68,7 @@
       "label": "bool",
       "numberOfBytes": "1"
     },
-    "t_contract(TSVGovernanceAnchor)19888": {
-      "encoding": "inplace",
-      "label": "contract TSVGovernanceAnchor",
-      "numberOfBytes": "20"
-    },
-    "t_contract(TSVRegistryV1)16603": {
+    "t_contract(TSVRegistryV1)9898": {
       "encoding": "inplace",
       "label": "contract TSVRegistryV1",
       "numberOfBytes": "20"

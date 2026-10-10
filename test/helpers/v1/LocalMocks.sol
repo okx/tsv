@@ -157,12 +157,17 @@ contract V1TestExternalAdapter {
         IERC20(token).approve(spender, type(uint256).max);
     }
 
-    /// @dev Executes a Router exact-input swap for the supplied participant.
-    function swapExactInput(TSVSwapRouterV1 router, SwapRequest calldata request, address participant)
+    /// @dev Executes a direct-settlement Router exact-input swap for the supplied participant.
+    function swapExactInputDirect(
+        TSVSwapRouterV1 router,
+        SwapRequest calldata request,
+        address participant,
+        address recipient
+    )
         external
         returns (uint256 actualIn, uint256 actualOut)
     {
-        return router.swapExactInputFromAdapter(request, participant);
+        return router.swapExactInputFromAdapterDirect(request, participant, recipient);
     }
 }
 

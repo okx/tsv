@@ -119,17 +119,17 @@ struct LPHookContext {
     int256 liquidityDelta;
 }
 
-/// @notice One-pool user request for permissioned-stock/original-quote exact-in/out swaps.
-/// @dev W raw equals U raw; users or approved DEX Adapters approve and exchange U for the stock leg.
+/// @notice One-pool exact-input request for permissioned-stock/original-quote swaps.
+/// @dev W raw equals U raw; approved DEX Adapters exchange U for the stock leg.
 /// @dev The Router derives a full-range V4 price limit from `zeroForOne`.
 struct SwapRequest {
     /// @notice Full V4 pool key; the Registry must recognize it as tradable.
     PoolKey key;
     /// @notice True for currency0-to-currency1, false for the reverse direction.
     bool zeroForOne;
-    /// @notice Exact input amount or exact output amount, depending on the entry point.
+    /// @notice Exact input amount in the input Currency's raw units.
     uint128 amountSpecified;
-    /// @notice Minimum output for exact-input swaps or maximum input for exact-output swaps.
+    /// @notice Minimum output amount in the output Currency's raw units.
     uint128 limitAmount;
     /// @notice Latest timestamp at which the swap may execute.
     uint64 deadline;
