@@ -621,6 +621,15 @@ contract TSVRegistryV1 is TSVGoverned {
         return poolLifecycle[poolId];
     }
 
+
+    /// @notice Returns the explicit lifecycle of a registered pool.
+    /// @param poolId Raw Uniswap V4 pool ID to query.
+    /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
+    function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle) {
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        return poolLifecycle[poolId];
+    }
+
     /// @notice Updates one registered pool's lifecycle.
     /// @param poolId Raw Uniswap V4 pool ID whose lifecycle changes.
     /// @param lifecycle New lifecycle to set.
@@ -662,7 +671,7 @@ contract TSVRegistryV1 is TSVGoverned {
         if (msg.sender != lpManager) revert InvalidPool();
         bytes32 poolId = PoolId.unwrap(key.toId());
         PoolConfig storage pool = pools[poolId];
-        if (!isKnownPool(poolId) || !_poolKeyMatches(pool, key)) revert InvalidPool();
+        if (!isKnownPool(poolId)) revert InvalidPool();
         if (delta > 0 && (poolLifecycle[poolId] == PoolLifecycle.DELIST || !securities[pool.securityId].listed)) {
             revert InvalidStatus();
         }
@@ -967,15 +976,5 @@ contract TSVRegistryV1 is TSVGoverned {
             updated = current - decrease;
         }
         poolTickCount[poolId] = updated;
-    }
-
-    /// @dev Compares a stored pool key against a calldata pool key field by field.
-    /// @param pool Stored pool configuration to compare.
-    /// @param key Candidate full V4 pool key.
-    /// @return Whether every V4 pool-key field matches.
-    function _poolKeyMatches(PoolConfig storage pool, PoolKey calldata key) private view returns (bool) {
-        return Currency.unwrap(pool.key.currency0) == Currency.unwrap(key.currency0)
-            && Currency.unwrap(pool.key.currency1) == Currency.unwrap(key.currency1) && pool.key.fee == key.fee
-            && pool.key.tickSpacing == key.tickSpacing && address(pool.key.hooks) == address(key.hooks);
     }
 }
