@@ -10,6 +10,7 @@ import {
     QuoteTokenConfig,
     PermissionedAdmission,
     PoolConfig,
+    PoolLifecycle,
     SecurityConfig
 } from "tsv-v1/types/TSVTypes.sol";
 
@@ -17,6 +18,14 @@ import {
 interface ITSVPermissionedRegistry {
     /// @notice Registers the exact pool key; only the bound LP Manager may call this.
     function registerPool(PoolKey calldata key) external returns (bytes32 poolId);
+    /// @notice Returns the lifecycle of the registered pool.
+    function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
+    /// @notice Updates the Registry's NFT count for the pool.
+    /// @param delta One for a newly minted NFT, minus one for a burned NFT.
+    /// @return Whether the update succeeded; callers must revert on false.
+    function updatePoolTickCount(PoolKey calldata key, int256 delta) external returns (bool);
+    /// @notice Reports the Registry's global pause state.
+    function isPaused() external view returns (bool);
     function getCurrency(address w) external view returns (PermissionedCurrencyConfig memory);
     function getUnderlying(address u) external view returns (UnderlyingConfig memory);
     function getQuoteToken(address q) external view returns (QuoteTokenConfig memory);

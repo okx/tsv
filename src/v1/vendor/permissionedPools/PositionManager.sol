@@ -19,18 +19,18 @@ import {IPositionDescriptor} from "v4-periphery/interfaces/IPositionDescriptor.s
 import {ERC721Permit_v4} from "./base/ERC721Permit_v4.sol";
 import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
 import {IPositionManager} from "v4-periphery/interfaces/IPositionManager.sol";
-import {Multicall_v4} from "v4-periphery/base/Multicall_v4.sol";
+import {Multicall_v4} from "./base/Multicall_v4.sol";
 import {PoolInitializer_v4} from "./base/PoolInitializer_v4.sol";
 import {DeltaResolver} from "v4-periphery/base/DeltaResolver.sol";
-import {BaseActionsRouter} from "v4-periphery/base/BaseActionsRouter.sol";
+import {BaseActionsRouter} from "./base/BaseActionsRouter.sol";
 import {Actions} from "v4-periphery/libraries/Actions.sol";
-import {Notifier} from "v4-periphery/base/Notifier.sol";
+import {Notifier} from "./base/Notifier.sol";
 import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
-import {Permit2Forwarder} from "v4-periphery/base/Permit2Forwarder.sol";
+import {Permit2Forwarder} from "./base/Permit2Forwarder.sol";
 import {SlippageCheck} from "v4-periphery/libraries/SlippageCheck.sol";
 import {PositionInfo, PositionInfoLibrary} from "v4-periphery/libraries/PositionInfoLibrary.sol";
 import {LiquidityAmounts} from "v4-periphery/libraries/LiquidityAmounts.sol";
-import {NativeWrapper} from "v4-periphery/base/NativeWrapper.sol";
+import {NativeWrapper} from "./base/NativeWrapper.sol";
 import {IWETH9} from "v4-periphery/interfaces/external/IWETH9.sol";
 
 //                                           444444444
@@ -166,14 +166,15 @@ contract PositionManager is
         _;
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         return IPositionDescriptor(tokenDescriptor).tokenURI(this, tokenId);
     }
 
     /// @inheritdoc IPositionManager
     function modifyLiquidities(bytes calldata unlockData, uint256 deadline)
-        external
+        public
         payable
+        virtual
         isNotLocked
         checkDeadline(deadline)
     {
@@ -182,15 +183,16 @@ contract PositionManager is
 
     /// @inheritdoc IPositionManager
     function modifyLiquiditiesWithoutUnlock(bytes calldata actions, bytes[] calldata params)
-        external
+        public
         payable
+        virtual
         isNotLocked
     {
         _executeActionsWithoutUnlock(actions, params);
     }
 
     /// @inheritdoc BaseActionsRouter
-    function msgSender() public view override returns (address) {
+    function msgSender() public view virtual override returns (address) {
         return _getLocker();
     }
 
@@ -554,13 +556,18 @@ contract PositionManager is
     }
 
     /// @inheritdoc IPositionManager
-    function getPoolAndPositionInfo(uint256 tokenId) public view returns (PoolKey memory poolKey, PositionInfo info) {
+    function getPoolAndPositionInfo(uint256 tokenId)
+        public
+        view
+        virtual
+        returns (PoolKey memory poolKey, PositionInfo info)
+    {
         info = positionInfo[tokenId];
         poolKey = poolKeys[info.poolId()];
     }
 
     /// @inheritdoc IPositionManager
-    function getPositionLiquidity(uint256 tokenId) external view returns (uint128 liquidity) {
+    function getPositionLiquidity(uint256 tokenId) public view virtual returns (uint128 liquidity) {
         (PoolKey memory poolKey, PositionInfo info) = getPoolAndPositionInfo(tokenId);
         liquidity = _getLiquidity(tokenId, poolKey, info.tickLower(), info.tickUpper());
     }

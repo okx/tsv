@@ -4,6 +4,13 @@ pragma solidity 0.8.26;
 import {PermissionFlag} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 
+/// @notice Explicit lifecycle of a registered TSV pool.
+enum PoolLifecycle {
+    DELIST, // Ordinary swaps and ordinary LP operations are blocked.
+    LIST, // Ordinary swaps and ordinary LP operations may continue through later gates.
+    PAUSE // Ordinary LP operations may continue through later gates; swaps are blocked.
+}
+
 /// @notice Market state derived from a known security's current pause mask.
 enum MarketStatus {
     OPEN, // Market operations may proceed when all other gates pass.

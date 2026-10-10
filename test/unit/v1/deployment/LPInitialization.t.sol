@@ -56,6 +56,7 @@ contract TSVLPInitializationTest is Test {
                     )
                 ))
         );
+        vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(false));
         lp.grantRole(lp.POOL_CREATOR_ROLE(), address(this));
         key = PoolKey(Currency.wrap(address(1)), Currency.wrap(address(2)), 3000, 60, IHooks(address(3)));
         _setVerified(key.currency0, address(0));

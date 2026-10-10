@@ -74,7 +74,7 @@ abstract contract PermissionedPositionManager is PositionManager {
     /// @dev Non-zero bounds revert the burn instead of executing it below them.
     /// @dev Unsubscribes before burning, so the subscriber gets notifyUnsubscribe but not notifyBurn.
     function unwindPosition(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)
-        external
+        public
         virtual
         isNotLocked
     {
@@ -129,7 +129,7 @@ abstract contract PermissionedPositionManager is PositionManager {
     /// @param currency The currency whose 6909 claim is being burned
     /// @param amount The amount of claim to burn (and underlying to deliver)
     /// @param to The recipient of the underlying currency
-    function withdrawClaim(Currency currency, uint256 amount, address to) external virtual isNotLocked {
+    function withdrawClaim(Currency currency, uint256 amount, address to) public virtual isNotLocked {
         address resolvedTo = _mapRecipient(to);
         bytes memory actions = abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE));
         bytes[] memory params = new bytes[](2);
@@ -142,15 +142,15 @@ abstract contract PermissionedPositionManager is PositionManager {
 
     /// @inheritdoc PositionManager
     /// @dev Positions of permissioned tokens are not transferable.
-    function transferFrom(address from, address to, uint256 id) public override onlyIfPoolManagerLocked {
+    function transferFrom(address from, address to, uint256 id) public virtual override onlyIfPoolManagerLocked {
         revert TransferDisabled();
     }
 
-    function safeTransferFrom(address, address, uint256) public pure override {
+    function safeTransferFrom(address, address, uint256) public pure virtual override {
         revert TransferDisabled();
     }
 
-    function safeTransferFrom(address, address, uint256, bytes calldata) public pure override {
+    function safeTransferFrom(address, address, uint256, bytes calldata) public pure virtual override {
         revert TransferDisabled();
     }
 
@@ -312,7 +312,7 @@ abstract contract PermissionedPositionManager is PositionManager {
             poolManager.burn(from, currency.toId(), amount);
             return;
         }
-        super._handleAction(action, params);
+        PositionManager._handleAction(action, params);
     }
 
     /// @notice Deliver `amount` of `currency` (held as a 6909 claim) to the LP, then the admin, else hand over the
@@ -343,7 +343,7 @@ abstract contract PermissionedPositionManager is PositionManager {
     ///         this contract's claim, take to `to`), forwarding at most `DELIVERY_GAS_LIMIT` gas. Returns false if
     ///         `to` reverts, strands a delta, or exhausts the capped gas, in which case nothing was delivered and
     ///         this contract still holds the claim.
-    function _tryDeliverAsset(Currency currency, address to, uint256 amount) internal returns (bool) {
+    function _tryDeliverAsset(Currency currency, address to, uint256 amount) internal virtual returns (bool) {
         bytes memory actions = abi.encodePacked(uint8(Actions.UNWIND_WITH_FALLBACK));
         bytes[] memory params = new bytes[](1);
         params[0] = abi.encode(currency, to, amount);
