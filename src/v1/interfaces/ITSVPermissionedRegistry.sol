@@ -16,6 +16,8 @@ import {
 
 /// @notice Shared W/U/Q interface. Asset records use the canonical TSVTypes definitions.
 interface ITSVPermissionedRegistry {
+    /// @notice Checks a role in the Registry, including its dynamically resolved default admin.
+    function hasRole(bytes32 role, address account) external view returns (bool);
     /// @notice Registers the exact pool key; only the bound LP Manager may call this.
     function registerPool(PoolKey calldata key) external returns (bytes32 poolId);
     /// @notice Returns the lifecycle of the registered pool.

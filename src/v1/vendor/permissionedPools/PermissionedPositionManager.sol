@@ -270,7 +270,7 @@ abstract contract PermissionedPositionManager is PositionManager {
     /// _update hook unwraps the adapter tokens, so this contract ends up holding the underlying
     /// permissioned token — not the adapter token. Sweep the underlying to avoid leaving
     /// tokens behind that a later caller could claim.
-    function _sweep(Currency currency, address to) internal override {
+    function _sweep(Currency currency, address to) internal virtual override {
         address permissionedToken = _verifiedPermissionedTokenOf(currency);
         if (permissionedToken == address(0)) {
             super._sweep(currency, to);

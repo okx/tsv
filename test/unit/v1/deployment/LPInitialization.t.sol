@@ -16,8 +16,9 @@ import {
 import {PermissionedPositionManager} from "tsv-v1/vendor/permissionedPools/PermissionedPositionManager.sol";
 import {ITSVPermissionedRegistry} from "tsv-v1/interfaces/ITSVPermissionedRegistry.sol";
 import {ITokenApproveProxy} from "tsv-v1/interfaces/ITokenApproveProxy.sol";
-import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
+import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
+import {LPPositionMath} from "tsv-v1/vendor/permissionedPools/libraries/LPPositionMath.sol";
 
 contract TSVLPInitializationTest is Test {
     TSVLPManagerV1 private lp;
@@ -25,6 +26,7 @@ contract TSVLPInitializationTest is Test {
     address private manager;
     address private registry;
     PoolKey private key;
+    address private implementationAddress;
 
     function setUp() public {
         factory = makeAddr("factory");
@@ -36,7 +38,6 @@ contract TSVLPInitializationTest is Test {
         vm.etch(registry, hex"00");
         vm.etch(approveProxy, hex"00");
         vm.mockCall(approveProxy, abi.encodeCall(ITokenApproveProxy.tokenApprove, ()), abi.encode(approveProxy));
-        TSVGovernanceAnchor anchor = new TSVGovernanceAnchor(address(this), makeAddr("guardian"), makeAddr("council"));
         TSVLPManagerV1 implementation = new TSVLPManagerV1(
             IPoolManager(manager),
             IAllowanceTransfer(address(0)),
@@ -48,16 +49,21 @@ contract TSVLPInitializationTest is Test {
             ITSVPermissionedRegistry(registry),
             ITokenApproveProxy(approveProxy)
         );
+        implementationAddress = address(implementation);
         lp = TSVLPManagerV1(
             payable(address(
                     new TSVERC1967Proxy(
                         address(implementation),
-                        abi.encodeCall(TSVLPManagerV1.initialize, (address(anchor), ITSVPermissionedRegistry(registry)))
+                        abi.encodeCall(TSVLPManagerV1.initialize, (ITSVPermissionedRegistry(registry)))
                     )
                 ))
         );
         vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(false));
-        lp.grantRole(lp.POOL_CREATOR_ROLE(), address(this));
+        vm.mockCall(
+            registry,
+            abi.encodeCall(ITSVPermissionedRegistry.hasRole, (lp.POOL_CREATOR_ROLE(), address(this))),
+            abi.encode(true)
+        );
         key = PoolKey(Currency.wrap(address(1)), Currency.wrap(address(2)), 3000, 60, IHooks(address(3)));
         _setVerified(key.currency0, address(0));
         _setVerified(key.currency1, address(0));
@@ -70,6 +76,14 @@ contract TSVLPInitializationTest is Test {
         vm.expectCall(manager, abi.encodeCall(IPoolManager.initialize, (key, uint160(1 << 96))), uint64(0));
         vm.expectRevert(PermissionedPositionManager.NoVerifiedAdapter.selector);
         lp.initializePool(key, uint160(1 << 96));
+    }
+
+    function testImplementationAndLinkedLibrariesFitEip170() public view {
+        assertLe(implementationAddress.code.length, 24_576);
+        assertGt(address(TSVLPManagerLib).code.length, 0);
+        assertLe(address(TSVLPManagerLib).code.length, 24_576);
+        assertGt(address(LPPositionMath).code.length, 0);
+        assertLe(address(LPPositionMath).code.length, 24_576);
     }
 
     function testAcceptsVerifiedAdapterAsCurrency0() public {

@@ -12,7 +12,7 @@ import {Position} from "@uniswap/v4-core/src/libraries/Position.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {TransientStateLibrary} from "@uniswap/v4-core/src/libraries/TransientStateLibrary.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
-import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {LPPositionMath as TickMath} from "./libraries/LPPositionMath.sol";
 import {ModifyLiquidityParams, SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
 import {IPositionDescriptor} from "v4-periphery/interfaces/IPositionDescriptor.sol";
@@ -29,7 +29,7 @@ import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
 import {Permit2Forwarder} from "./base/Permit2Forwarder.sol";
 import {SlippageCheck} from "v4-periphery/libraries/SlippageCheck.sol";
 import {PositionInfo, PositionInfoLibrary} from "v4-periphery/libraries/PositionInfoLibrary.sol";
-import {LiquidityAmounts} from "v4-periphery/libraries/LiquidityAmounts.sol";
+import {LPPositionMath as LiquidityAmounts} from "./libraries/LPPositionMath.sol";
 import {NativeWrapper} from "./base/NativeWrapper.sol";
 import {IWETH9} from "v4-periphery/interfaces/external/IWETH9.sol";
 
