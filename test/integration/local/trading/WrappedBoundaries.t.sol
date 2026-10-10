@@ -9,7 +9,7 @@ import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
-import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {SwapRequest, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {ImmutableState} from "tsv-v1/vendor/v4-router/base/ImmutableState.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
@@ -51,13 +51,16 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
 
     function testDelistingStopsSwapsAndRelistingUsesHistoricalPool() public {
         _swap(true, true, 1e16);
+        bytes32 id = PoolId.unwrap(key.toId());
+        registry.updatePoolLifeCycle(id, PoolLifecycle.DELIST);
         registry.delistSecurity(SECURITY);
         bytes32 before_ = _digest();
         vm.expectRevert();
         _swap(false, true, 1e16);
         assertEq(_digest(), before_);
-        assertTrue(registry.isKnownPool(PoolId.unwrap(key.toId())));
+        assertTrue(registry.isKnownPool(id));
         registry.relistSecurity(SECURITY);
+        registry.updatePoolLifeCycle(id, PoolLifecycle.LIST);
         _swap(false, true, 1e16);
     }
 

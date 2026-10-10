@@ -113,8 +113,8 @@ abstract contract WrappedSwapFixture is Test {
         exitReceiver = new V1ConfigReceiver();
         issuerChecker = new V1IssuerAllowlistChecker();
         stock = _newWrapper();
-        registry.admitPermissionedSecurity(
-            1, PermissionedAdmission(address(stock), SECURITY, address(this), address(legalAdapter))
+        registry.registerPermissionedCurrency(
+            PermissionedAdmission(address(stock), SECURITY, address(this), address(legalAdapter)), 1
         );
         registry.registerQuoteToken(address(quote));
         underlying.mint(address(this), 1e30);

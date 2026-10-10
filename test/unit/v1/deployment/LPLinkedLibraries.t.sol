@@ -216,7 +216,9 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         lp.modifyLiquidities(data, block.timestamp);
         vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isAllowed.selector), abi.encode(true));
         vm.mockCall(
-            registry, abi.encodeWithSelector(ITSVPermissionedRegistry.getPoolLifeCycle.selector), abi.encode(uint256(0))
+            registry,
+            abi.encodeWithSignature("getPoolLifeCycle((address,address,uint24,int24,address))", key),
+            abi.encode(uint256(0))
         );
         vm.prank(owner);
         vm.expectRevert(TSVLPManagerV1.PoolDelisted.selector);

@@ -383,8 +383,14 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         if (delta0 == 0 || delta1 == 0 || (delta0 < 0) == (delta1 < 0)) revert ZeroSwapAmount();
         PoolConfig memory pool = registry.getPool(poolId);
         uint32 day = currentTradeDay();
-        _recordLeg(poolId, pool.securityId0, Currency.unwrap(pool.key.currency0), delta0, legalShares0, day);
-        _recordLeg(poolId, pool.securityId1, Currency.unwrap(pool.key.currency1), delta1, legalShares1, day);
+        address currency0 = Currency.unwrap(pool.key.currency0);
+        address currency1 = Currency.unwrap(pool.key.currency1);
+        _recordLeg(poolId, _legSecurityId(pool.securityId, currency0), currency0, delta0, legalShares0, day);
+        _recordLeg(poolId, _legSecurityId(pool.securityId, currency1), currency1, delta1, legalShares1, day);
+    }
+
+    function _legSecurityId(bytes32 poolSecurityId, address currency) private view returns (bytes32) {
+        return registry.getCurrency(currency).underlying == address(0) ? bytes32(0) : poolSecurityId;
     }
 
     /// @dev Validates and accounts one pool leg using its canonical legal-share conversion.

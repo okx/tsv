@@ -19,7 +19,7 @@ contract TSVAdmissionTest is FoundationFixture {
     function testAdmissionAtomicallyListsAndBindsUniqueUnderlying() public {
         bytes32 securityId = keccak256("new-security");
         PermissionedAdmission memory a = _newStockConfig(securityId);
-        registry.admitPermissionedSecurity(1, a);
+        registry.registerPermissionedCurrency(a, 1);
         PermissionedCurrencyConfig memory c = registry.getCurrency(a.currency);
         assertTrue(c.underlying != address(0));
         assertEq(c.expectedOwner, address(this));
@@ -37,7 +37,7 @@ contract TSVAdmissionTest is FoundationFixture {
         u.mintTestShares(donor, 1);
         vm.prank(donor);
         u.transfer(address(manager), 1);
-        registry.admitPermissionedSecurity(1, a);
+        registry.registerPermissionedCurrency(a, 1);
         assertTrue(registry.getCurrency(a.currency).underlying != address(0));
         assertEq(u.balanceOf(address(manager)), 1);
         assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
@@ -51,7 +51,7 @@ contract TSVAdmissionTest is FoundationFixture {
         vm.prank(donor);
         stockToken.transfer(address(manager), 1);
         PermissionedAdmission memory a = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(a);
+        registry.registerPermissionedCurrency(a, 1);
         assertTrue(registry.getCurrency(a.currency).underlying != address(0));
         assertEq(stockToken.balanceOf(address(manager)), 1);
         assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
@@ -74,7 +74,7 @@ contract TSVAdmissionTest is FoundationFixture {
         else if (fault == 7) vm.mockCall(u, abi.encodeWithSignature("decimals()"), abi.encode(uint8(19)));
         else vm.mockCall(w, abi.encodeWithSignature("totalSupply()"), abi.encode(uint256(1)));
         vm.expectRevert();
-        registry.admitPermissionedSecurity(1, a);
+        registry.registerPermissionedCurrency(a, 1);
         assertEq(registry.getSecurity(securityId).securityId, 0);
         assertEq(registry.tierPolicy(1).listedCount, 1);
         assertEq(registry.getCurrency(w).underlying, address(0));
@@ -88,7 +88,7 @@ contract TSVAdmissionTest is FoundationFixture {
         vm.prank(address(permissionedRouterFixture));
         stock.wrapToPoolManager(100);
         PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(second);
+        registry.registerPermissionedCurrency(second, 1);
         assertEq(registry.getCurrency(second.currency).underlying, address(stockToken));
         assertEq(registry.getCurrency(address(stock)).underlying, address(stockToken));
         assertEq(stock.totalSupply(), 100);
@@ -97,7 +97,7 @@ contract TSVAdmissionTest is FoundationFixture {
         second.securityId = keccak256("different-security");
         second.currency = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter)).currency;
         vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
-        registry.admitPermissionedSecurity(1, second);
+        registry.registerPermissionedCurrency(second, 1);
         assertEq(registry.getSecurity(second.securityId).securityId, 0);
     }
 
@@ -108,10 +108,10 @@ contract TSVAdmissionTest is FoundationFixture {
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next));
         PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(next));
-        registry.registerPermissionedCurrency(second);
+        registry.registerPermissionedCurrency(second, 1);
         PermissionedAdmission memory wrong = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
-        registry.registerPermissionedCurrency(wrong);
+        registry.registerPermissionedCurrency(wrong, 1);
     }
 
     function testQuoteZeroDecimalsAndTypeIsolation() public {
@@ -138,7 +138,7 @@ contract TSVAdmissionTest is FoundationFixture {
 
     function testPoolOnlyAcceptsOneStockAndOneQuote() public {
         PermissionedAdmission memory second = _newStockConfig(SECURITY);
-        registry.registerPermissionedCurrency(second);
+        registry.registerPermissionedCurrency(second, 1);
         V1MockToken otherQuote = new V1MockToken("Q2", 6);
         registry.registerQuoteToken(address(otherQuote));
         address[3] memory a = [address(stock), address(quote), address(stockToken)];
@@ -204,14 +204,14 @@ contract TSVAdmissionTest is FoundationFixture {
 
     function testExitAdminIsSharedByUnderlyingAndInheritedByNewWrappers() public {
         PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(second);
+        registry.registerPermissionedCurrency(second, 1);
         assertEq(registry.exitAdminOf(second.currency), address(0));
         V1ConfigReceiver next = new V1ConfigReceiver();
         vm.expectEmit(true, false, false, true, address(registry));
         emit TSVRegistryV1.ExitAdminUpdated(address(stockToken), address(exitReceiver), address(next));
         registry.setExitAdmin(address(stockToken), address(next));
         PermissionedAdmission memory third = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(third);
+        registry.registerPermissionedCurrency(third, 1);
         assertEq(registry.exitAdminOf(address(stockToken)), address(next));
         _grantPauseRoles();
         uint256 id = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
@@ -219,14 +219,14 @@ contract TSVAdmissionTest is FoundationFixture {
         id = _pause(PauseScope.TOKEN, bytes32(uint256(uint160(second.currency))), PauseMode.ALL);
         registry.clearEmergencyPause(id, keccak256("resume"));
         PermissionedAdmission memory other = _newStockConfig(keccak256("independent-exit-underlying"));
-        registry.admitPermissionedSecurity(1, other);
+        registry.registerPermissionedCurrency(other, 1);
         address otherU = registry.getCurrency(other.currency).underlying;
         assertEq(registry.exitAdminOf(otherU), address(exitReceiver));
     }
 
     function testSharedExitAdminRejectsEverySiblingOwnerAndInvalidUnderlying() public {
         PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(second);
+        registry.registerPermissionedCurrency(second, 1);
         V1ConfigReceiver siblingOwner = new V1ConfigReceiver();
         registry.setPermissionedOwnerApproval(address(siblingOwner), true);
         _grantPauseRoles();

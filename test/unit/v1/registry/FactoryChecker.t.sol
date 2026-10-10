@@ -43,7 +43,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         vm.expectRevert(TSVRegistryV1.PermissionedEnvironmentNotBound.selector);
         empty.registerQuoteToken(address(quote));
         vm.expectRevert(TSVRegistryV1.PermissionedEnvironmentNotBound.selector);
-        empty.registerPermissionedCurrency(_config(address(stock), SECURITY, address(stockAdapter)));
+        empty.registerPermissionedCurrency(_config(address(stock), SECURITY, address(stockAdapter)), 1);
     }
 
     function testRealFactoryCreationAndVerificationDoNotGrantTSVAdmission() public {
@@ -63,7 +63,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         assertEq(registry.getCurrency(w).underlying, address(0));
         PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), true);
         PermissionsAdapter(w).updateAllowedHook(key.hooks, true);
-        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)));
+        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1);
         assertEq(registry.getCurrency(w).underlying, address(stockToken));
     }
 
@@ -74,7 +74,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         stockToken.mintTestShares(w, 1);
         foreign.verifyPermissionsAdapter(w);
         vm.expectRevert(abi.encodeWithSelector(TSVRegistryV1.UnverifiedPermissionedAdapter.selector, w));
-        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)));
+        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1);
     }
 
     function testIssuerPolicyDoesNotReadTSVSbtOrPause() public {

@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {PermissionedAdmission, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, PauseScope, PauseMode, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
@@ -15,8 +15,8 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         address operator = makeAddr("symbol-operator");
         PermissionedAdmission memory config = _newStockConfig(keccak256("new-security"));
         bytes[] memory calls = new bytes[](8);
-        calls[0] = abi.encodeCall(TSVRegistryV1.admitPermissionedSecurity, (1, config));
-        calls[1] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config));
+        calls[0] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config, 1));
+        calls[1] = abi.encodeCall(TSVRegistryV1.updatePoolLifeCycle, (poolId, PoolLifecycle.PAUSE));
         calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
         calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY));
         calls[4] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2));
@@ -29,6 +29,8 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         _denyCalls(calls, operator, role);
         assertEq(_state(), beforeState);
         registry.grantRole(role, operator);
+        vm.prank(operator);
+        registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST);
         vm.prank(operator);
         registry.delistSecurity(SECURITY);
         vm.prank(operator);
@@ -112,7 +114,11 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
             vm.expectRevert(_denied(caller, role));
             vm.prank(caller);
             (bool ok, bytes memory result) = address(registry).call(calls[i]);
-            if (!ok) assembly ("memory-safe") { revert(add(result, 32), mload(result)) }
+            if (!ok) {
+                assembly ("memory-safe") {
+                    revert(add(result, 32), mload(result))
+                }
+            }
         }
     }
 
@@ -126,6 +132,9 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
                 registry.getSecurity(SECURITY),
                 registry.getCurrency(address(stock)),
                 registry.getPool(poolId),
+                registry.getPoolLifeCycle(poolId),
+                registry.poolTickCount(poolId),
+                registry.listPoolCountBySecurity(SECURITY),
                 registry.tierPolicy(1),
                 ledger.used(SECURITY, DAY),
                 registry.nextPauseId()
