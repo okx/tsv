@@ -215,14 +215,14 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         PositionManager.modifyLiquiditiesWithoutUnlock(actions, params);
     }
 
-    /// @notice Allows a verified adapter's owner to redeem its own claims to itself without TSV SBT permission.
+    /// @notice Allows a verified adapter's owner or a force-exit admin to redeem its own claims to itself without TSV SBT permission.
     function withdrawClaim(Currency currency, uint256 amount, address to)
         public
         override
         whenRegistryNotPaused
         isNotLocked
     {
-        TSVLPManagerLib.withdrawClaim(poolManager, PERMISSIONS_ADAPTER_FACTORY, currency, amount, to);
+        TSVLPManagerLib.withdrawClaim(poolManager, PERMISSIONS_ADAPTER_FACTORY, registry, currency, amount, to);
     }
 
     /// @notice Redeems the caller's claims with TSV liquidity permission checks on caller and recipient.
@@ -326,11 +326,11 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     /// @dev Normal callbacks retain the upstream action ABI. An unwind callback must match the exact data
     ///      committed by an authorized entry point, and its authorization is consumed before executing actions.
     function _unlockCallback(bytes calldata data) internal override returns (bytes memory) {
-        bytes32 expected = TSVLPManagerLib.authorizedUnwindCallback();
+        bytes32 expected = TSVLPManagerLib.authorizedCallbackHash();
         if (expected == bytes32(0)) return BaseActionsRouter._unlockCallback(data);
         if (keccak256(data) != expected) revert Unauthorized();
 
-        TSVLPManagerLib.authorizeUnwindCallback(bytes32(0));
+        TSVLPManagerLib.authorizeCallback(bytes32(0));
         (bytes calldata actions, bytes[] calldata params) = data.decodeActionsRouterParams();
         if (actions.length != params.length) revert InputLengthMismatch();
         for (uint256 i; i < actions.length; ++i) {

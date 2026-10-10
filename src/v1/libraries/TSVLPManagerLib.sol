@@ -31,6 +31,7 @@ library TSVLPManagerLib {
     using CustomRevert for *;
 
     ISubscriber private constant NO_SUBSCRIBER = ISubscriber(address(0));
+    bytes32 private constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
 
     error Unauthorized();
     error LpUnWindable();
@@ -106,7 +107,7 @@ library TSVLPManagerLib {
         bytes[] memory params = new bytes[](2);
         params[0] = abi.encode(tokenId, amount0Min, amount1Min, hookData);
         params[1] = abi.encode(poolKey.currency0, poolKey.currency1, lp);
-        _unlockUnwind(p.poolManager, abi.encode(actions, params));
+        _unlockWithAuthorizedCallback(p.poolManager, abi.encode(actions, params));
     }
 
     /// @dev Original TSV exit body; state mappings and immutable dependencies are explicit parameters.
@@ -149,7 +150,7 @@ library TSVLPManagerLib {
         params[0] = abi.encode(tokenId, amount0Min, amount1Min, hookData);
         params[1] = abi.encode(poolKey.currency0);
         params[2] = abi.encode(poolKey.currency1);
-        _unlockUnwind(p.poolManager, abi.encode(actions, params));
+        _unlockWithAuthorizedCallback(p.poolManager, abi.encode(actions, params));
 
         // Reads the full 6909 balance, not a burn delta: the burn output plus any stray MINT_6909 claims
         // parked in this contract.
@@ -161,10 +162,10 @@ library TSVLPManagerLib {
         _deliverCurrency(p, poolKey.currency1, amount1);
     }
 
-    function _unlockUnwind(IPoolManager poolManager, bytes memory data) private {
-        authorizeUnwindCallback(keccak256(data));
+    function _unlockWithAuthorizedCallback(IPoolManager poolManager, bytes memory data) private {
+        authorizeCallback(keccak256(data));
         poolManager.unlock(data);
-        authorizeUnwindCallback(bytes32(0));
+        authorizeCallback(bytes32(0));
     }
 
     /// @dev Lifted from PermissionedPositionManager._deliverCurrency without changing the fallback order.
@@ -202,21 +203,21 @@ library TSVLPManagerLib {
         bytes[] memory params = new bytes[](1);
         params[0] = abi.encode(currency, to, amount);
         bytes memory data = abi.encode(actions, params);
-        authorizeUnwindCallback(keccak256(data));
+        authorizeCallback(keccak256(data));
         try poolManager.unlock{gas: deliveryGasLimit}(data) {
             delivered = true;
         } catch {
             delivered = false;
         }
-        authorizeUnwindCallback(bytes32(0));
+        authorizeCallback(bytes32(0));
     }
 
-    function authorizeUnwindCallback(bytes32 callbackHash) internal {
+    function authorizeCallback(bytes32 callbackHash) internal {
         bytes32 slot = UNWIND_CALLBACK_SLOT;
         assembly ("memory-safe") { tstore(slot, callbackHash) }
     }
 
-    function authorizedUnwindCallback() internal view returns (bytes32 callbackHash) {
+    function authorizedCallbackHash() internal view returns (bytes32 callbackHash) {
         bytes32 slot = UNWIND_CALLBACK_SLOT;
         assembly ("memory-safe") { callbackHash := tload(slot) }
     }
@@ -403,22 +404,25 @@ library TSVLPManagerLib {
         emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
     }
 
-    /// @dev Only the factory-verified adapter owner can bypass TSV SBT checks, and only for delivery to itself.
+    /// @dev Authorizes the adapter owner or a force-exit admin; claims are redeemed only to the caller itself.
     function withdrawClaim(
         IPoolManager poolManager,
         IPermissionsAdapterFactory factory,
+        ITSVPermissionedRegistry registry,
         Currency currency,
         uint256 amount,
         address to
     ) external {
-        if (msg.sender != _getOwner(factory, currency)) revert Unauthorized();
+        if (msg.sender != _getOwner(factory, currency) && !registry.hasRole(FORCE_EXIT_ADMIN_ROLE, msg.sender)) {
+            revert Unauthorized();
+        }
         address resolvedTo = _mapRecipient(to, msg.sender);
         if (resolvedTo != msg.sender) revert Unauthorized();
         bytes memory actions = abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE));
         bytes[] memory params = new bytes[](2);
         params[0] = abi.encode(currency, msg.sender, amount);
         params[1] = abi.encode(currency, resolvedTo, amount);
-        _unlockUnwind(poolManager, abi.encode(actions, params));
+        _unlockWithAuthorizedCallback(poolManager, abi.encode(actions, params));
         emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
     }
 
