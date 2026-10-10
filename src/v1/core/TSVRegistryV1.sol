@@ -622,8 +622,8 @@ contract TSVRegistryV1 is TSVGoverned {
     }
 
 
-    /// @notice Returns the explicit lifecycle of a registered pool.
-    /// @param poolId Raw Uniswap V4 pool ID to query.
+    /// @notice Returns the explicit lifecycle for the pool derived from a full PoolKey.
+    /// @param key Full Uniswap V4 pool key whose derived pool ID is queried.
     /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
     function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle) {
         bytes32 poolId = PoolId.unwrap(key.toId());
@@ -675,7 +675,7 @@ contract TSVRegistryV1 is TSVGoverned {
         if (delta > 0 && (poolLifecycle[poolId] == PoolLifecycle.DELIST || !securities[pool.securityId].listed)) {
             revert InvalidStatus();
         }
-        _applyPoolTickDelta(poolId, pool.securityId, delta);
+        _applyPoolTickDelta(poolId, delta);
         return true;
     }
 
@@ -964,7 +964,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param poolId Registered pool whose tick count is updated.
     /// @param securityId Security assigned to `poolId`.
     /// @param delta Signed tick-count change to apply.
-    function _applyPoolTickDelta(bytes32 poolId, bytes32 securityId, int256 delta) private {
+    function _applyPoolTickDelta(bytes32 poolId, int256 delta) private {
         if (delta == 0) return;
         uint256 current = poolTickCount[poolId];
         uint256 updated;
