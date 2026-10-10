@@ -36,7 +36,7 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         TSVRegistryV1 unbound = TSVRegistryV1(
             address(
                 new TSVERC1967Proxy(
-                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor)))
+                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(this)))
                 )
             )
         );

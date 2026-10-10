@@ -34,7 +34,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         TSVRegistryV1 empty = TSVRegistryV1(
             address(
                 new TSVERC1967Proxy(
-                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor)))
+                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(this)))
                 )
             )
         );

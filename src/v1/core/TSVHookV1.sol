@@ -9,7 +9,8 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
 import {LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
-import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
@@ -21,7 +22,7 @@ interface IActiveLPContextV1 {
 }
 
 /// @notice Upgradeable hook whose proxy address carries the V4 permission bits.
-contract TSVHookV1 is TSVGoverned, IHooks {
+contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
     using PoolIdLibrary for PoolKey;
     using BalanceDeltaLibrary for BalanceDelta;
 
@@ -29,6 +30,9 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     // V1 returns zero deltas; nonzero deltas require a separately reviewed accounting upgrade.
     uint160 public constant REQUIRED_HOOK_FLAGS = 0x3FFF;
     uint160 private constant FLAG_MASK = 0x3FFF;
+    bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
+
+    error UnauthorizedUpgrade();
 
     /// @dev Reverts when the callback caller or context is not authorized.
     error UnauthorizedCallback();
@@ -51,22 +55,26 @@ contract TSVHookV1 is TSVGoverned, IHooks {
     address public router;
     address public lpManager;
 
+    /// @dev Locks the implementation; proxy storage is initialized separately.
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @dev Upgrade authorization is managed exclusively by the Registry.
+    function _authorizeUpgrade(address) internal view override {
+        if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert UnauthorizedUpgrade();
+    }
+
     /// @notice Initializes the Hook's trusted component addresses and verifies its V4 permission bits.
-    /// @param anchor Fixed governance Anchor used by the governed base contract.
     /// @param poolManager_ V4 PoolManager that invokes Hook callbacks.
     /// @param registry_ Registry used for pool, token, and market validation.
     /// @param ledger_ Volume Ledger that records completed swaps.
     /// @param router_ Only router permitted to execute swaps through this Hook.
     /// @param lpManager_ Only LP Manager permitted to initialize pools and modify liquidity.
-    function initialize(
-        address anchor,
-        address poolManager_,
-        address registry_,
-        address ledger_,
-        address router_,
-        address lpManager_
-    ) external initializer {
-        __TSVGoverned_init(anchor);
+    function initialize(address poolManager_, address registry_, address ledger_, address router_, address lpManager_)
+        external
+        initializer
+    {
         if ((uint160(address(this)) & FLAG_MASK) != REQUIRED_HOOK_FLAGS) revert InvalidHookAddress();
         if (
             poolManager_.code.length == 0 || registry_.code.length == 0 || ledger_.code.length == 0

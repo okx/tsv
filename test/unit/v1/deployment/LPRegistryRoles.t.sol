@@ -10,32 +10,14 @@ import {
     TSVERC1967Proxy
 } from "../../../helpers/v1/LPLinkedFixture.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-/// @dev Isolates LP upgrades from the other five components' deployment and binding.
-contract LPUpgradeAnchorHarness is TSVGovernanceAnchor {
-    constructor(address governor_, address guardian_, address council_)
-        TSVGovernanceAnchor(governor_, guardian_, council_)
-    {}
-
-    function bindLpForTest(address lp) external {
-        proxies[5] = lp;
-        proxiesBound = true;
-    }
-}
-
 contract LPRegistryRolesTest is LPLinkedFixture {
-    TSVGovernanceAnchor private anchor;
-
     function _createRegistry() internal override returns (address) {
-        anchor = new LPUpgradeAnchorHarness(address(this), makeAddr("guardian"), makeAddr("council"));
         return address(
-            new TSVERC1967Proxy(
-                address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor)))
-            )
+            new TSVERC1967Proxy(address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(this))))
         );
     }
 
@@ -74,7 +56,7 @@ contract LPRegistryRolesTest is LPLinkedFixture {
         assertEq(lp.balanceOf(owner), 0);
     }
 
-    function testUpgradeRequiresRegistryAdminAndPreservesProxyState() public {
+    function testUpgradeRequiresRegistryUpgradeRoleAndPreservesProxyState() public {
         LPLinkedHarness implementation = _newImplementation();
         bytes32 domain = lp.DOMAIN_SEPARATOR();
         vm.prank(owner);
@@ -88,11 +70,12 @@ contract LPRegistryRolesTest is LPLinkedFixture {
         vm.prank(owner);
         lp.upgradeToAndCall(address(implementation), "");
 
-        vm.expectCall(registry, abi.encodeCall(ITSVPermissionedRegistry.hasRole, (bytes32(0), address(this))));
+        vm.expectCall(
+            registry, abi.encodeCall(ITSVPermissionedRegistry.hasRole, (lp.UPGRADE_ADMIN_ROLE(), address(this)))
+        );
         lp.upgradeToAndCall(address(implementation), "");
         assertEq(_implementation(), address(implementation));
         assertEq(address(lp.registry()), registry);
-        assertEq(lp.governanceAnchor(), address(anchor));
         assertEq(lp.ownerOf(tokenId), owner);
         assertEq(lp.getApproved(tokenId), address(this));
         assertEq(lp.nonces(owner, 0), 1 << 9);
@@ -100,19 +83,15 @@ contract LPRegistryRolesTest is LPLinkedFixture {
         assertEq(lp.DOMAIN_SEPARATOR(), domain);
     }
 
-    function testUpgradeTracksRegistryAdminRecovery() public {
-        address nextGovernor = makeAddr("next-governor");
-        address guardian = anchor.guardian();
-        vm.prank(anchor.recoveryCouncil());
-        bytes32 proposal = anchor.proposeRecovery(nextGovernor, guardian, bytes32(uint256(1)));
-        vm.prank(guardian);
-        anchor.approveRecovery(proposal);
-        anchor.executeRecovery(proposal);
-
+    function testUpgradeRoleGrantAndRevocationTakeEffectImmediately() public {
+        address nextAdmin = makeAddr("next-upgrade-admin");
+        bytes32 role = lp.UPGRADE_ADMIN_ROLE();
+        TSVRegistryV1(registry).grantRole(role, nextAdmin);
+        TSVRegistryV1(registry).revokeRole(role, address(this));
         LPLinkedHarness implementation = _newImplementation();
         vm.expectRevert(TSVLPManagerV1.UnauthorizedUpgrade.selector);
         lp.upgradeToAndCall(address(implementation), "");
-        vm.prank(nextGovernor);
+        vm.prank(nextAdmin);
         lp.upgradeToAndCall(address(implementation), "");
         assertEq(_implementation(), address(implementation));
     }
@@ -122,54 +101,6 @@ contract LPRegistryRolesTest is LPLinkedFixture {
         vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(true));
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.upgradeToAndCall(address(implementation), "");
-    }
-
-    function testAnchorCanUpgradeOnlyDuringActiveBatchWithoutRegistryRole() public {
-        LPLinkedHarness implementation = _newImplementation();
-        assertFalse(TSVRegistryV1(registry).hasRole(bytes32(0), address(anchor)));
-        vm.expectRevert(TSVLPManagerV1.UnauthorizedUpgrade.selector);
-        vm.prank(address(anchor));
-        lp.upgradeToAndCall(address(implementation), "");
-
-        _batchUpgrade(address(implementation));
-        assertEq(_implementation(), address(implementation));
-        assertFalse(anchor.upgradeContextActive());
-    }
-
-    function testAnchorFreezeBlocksDirectAndBatchUpgradesUntilUnfrozen() public {
-        LPLinkedHarness implementation = _newImplementation();
-        address beforeImplementation = _implementation();
-        vm.prank(anchor.guardian());
-        bytes32 freezeId = anchor.freezeUpgrades();
-        vm.expectRevert(TSVLPManagerV1.UpgradeFrozen.selector);
-        lp.upgradeToAndCall(address(implementation), "");
-        _batchUpgradeExpectingRevert(address(implementation), TSVGovernanceAnchor.UpgradeFrozen.selector);
-        assertEq(_implementation(), beforeImplementation);
-
-        // LP also checks the freeze itself, even if an Anchor reports an active batch.
-        vm.mockCall(address(anchor), abi.encodeWithSignature("upgradeContextActive()"), abi.encode(true));
-        vm.expectRevert(TSVLPManagerV1.UpgradeFrozen.selector);
-        vm.prank(address(anchor));
-        lp.upgradeToAndCall(address(implementation), "");
-        vm.mockCall(address(anchor), abi.encodeWithSignature("upgradeContextActive()"), abi.encode(false));
-
-        vm.prank(anchor.guardian());
-        anchor.unfreezeUpgrades(freezeId);
-        lp.upgradeToAndCall(address(implementation), "");
-        assertEq(_implementation(), address(implementation));
-    }
-
-    function testBatchFailureRollsBackImplementationAndActiveContext() public {
-        LPLinkedHarness implementation = _newImplementation();
-        address beforeImplementation = _implementation();
-        vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(true));
-        _batchUpgradeExpectingRevert(address(implementation), TSVLPManagerV1.RegistryPaused.selector);
-        assertEq(_implementation(), beforeImplementation);
-        assertFalse(anchor.upgradeContextActive());
-
-        vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(false));
-        _batchUpgrade(address(implementation));
-        assertEq(_implementation(), address(implementation));
     }
 
     function testInitializerAndUupsContextRemainProtected() public {
@@ -194,21 +125,6 @@ contract LPRegistryRolesTest is LPLinkedFixture {
 
     function _newImplementation() private returns (LPLinkedHarness) {
         return new LPLinkedHarness(address(manager), factory, registry, address(deps));
-    }
-
-    function _batchUpgrade(address implementation) private {
-        _batchUpgradeExpectingRevert(implementation, bytes4(0));
-    }
-
-    function _batchUpgradeExpectingRevert(address implementation, bytes4 expectedError) private {
-        LPUpgradeAnchorHarness(address(anchor)).bindLpForTest(address(lp));
-        address[] memory targets = new address[](1);
-        address[] memory implementations = new address[](1);
-        bytes[] memory initData = new bytes[](1);
-        targets[0] = address(lp);
-        implementations[0] = implementation;
-        if (expectedError != bytes4(0)) vm.expectRevert(expectedError);
-        anchor.upgradeBatch(targets, implementations, initData);
     }
 
     function _implementation() private view returns (address) {

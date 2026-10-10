@@ -6,7 +6,8 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
-import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVPermissionedSettlementLib} from "tsv-v1/libraries/TSVPermissionedSettlementLib.sol";
 import {PermissionedV4Router} from "tsv-v1/vendor/v4-router/hooks/permissionedPools/PermissionedV4Router.sol";
@@ -20,7 +21,9 @@ import {
 } from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
 /// @notice One-pool W/Q swaps. Users pay and receive U for stocks and original Q for quotes.
-contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
+contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router, ReentrancyLock {
+    error UnauthorizedUpgrade();
+    error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error InvalidRequest();
     error InvalidPool();
     error Expired();
@@ -28,6 +31,9 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
     error SettlementMismatch();
     error InvalidAdapter();
     error AdapterNotAllowed();
+
+    bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
+    bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
 
     // Registry access and approved external adapters.
     TSVRegistryV1 public registry;
@@ -44,6 +50,7 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
     constructor(address pm, address factory)
         PermissionedV4Router(IPoolManager(pm), IPermissionsAdapterFactory(factory))
     {
+        _disableInitializers();
         if (pm.code.length == 0 || factory.code.length == 0) revert InvalidRequest();
         if (PERMISSIONS_ADAPTER_FACTORY.POOL_MANAGER() != pm) revert InvalidRequest();
     }
@@ -51,20 +58,22 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
     /// @notice Initializes proxy storage and validates the implementation's immutable dependencies.
     /// @dev pm is repeated from the implementation constructor so proxy deployment can verify
     ///      that the selected implementation matches the intended environment and reject a mismatched one.
-    /// @param anchor Governance Anchor used by this proxy.
     /// @param pm Expected PoolManager; must match the implementation's immutable poolManager.
     /// @param registry_ Registry storing TSV identity permissions and admitted currencies.
-    function initialize(address anchor, address pm, address registry_) external initializer {
-        __TSVGoverned_init(anchor);
+    function initialize(address pm, address registry_) external initializer {
         if (registry_.code.length == 0 || pm != address(poolManager)) {
             revert InvalidRequest();
         }
         registry = TSVRegistryV1(registry_);
-        if (address(registry.governanceAnchor()) != anchor) revert InvalidRequest();
+    }
+
+    modifier onlyRole(bytes32 role) {
+        if (!registry.hasRole(role, msg.sender)) revert AccessControlUnauthorizedAccount(msg.sender, role);
+        _;
     }
 
     /// @notice Authorizes or revokes a contract adapter that can submit swaps for a participant.
-    function setAdapterAllowed(address adapter, bool allowed) external onlyGovernor {
+    function setAdapterAllowed(address adapter, bool allowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (adapter == address(0) || (allowed && adapter.code.length == 0)) revert InvalidAdapter();
         isAdapterAllowed[adapter] = allowed;
         emit AdapterAuthorizationUpdated(adapter, allowed);
@@ -236,7 +245,7 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
 
     /// @dev Future upgrades must preserve immutable PoolManager/Factory identities and the new storage layout.
     function _authorizeUpgrade(address implementation) internal view override {
-        super._authorizeUpgrade(implementation);
+        if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert UnauthorizedUpgrade();
         if (_getLocker() != address(0)) revert ContractLocked();
         if (
             address(TSVSwapRouterV1(implementation).poolManager()) != address(poolManager)

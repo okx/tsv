@@ -126,10 +126,6 @@ interface ITSVPermissionedRegistry {
     /// @return DataInbox address.
     function dataInbox() external view returns (address);
 
-    /// @notice Returns the governance Anchor inherited from `TSVGoverned`.
-    /// @return Governance Anchor address.
-    function governanceAnchor() external view returns (address);
-
     /// @notice Returns the participant SBT used for identity checks.
     /// @return Participant SBT address.
     function participantSbt() external view returns (address);

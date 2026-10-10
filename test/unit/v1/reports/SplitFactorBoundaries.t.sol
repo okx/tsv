@@ -39,7 +39,7 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
     function testOnlyVolumeReporterCanScheduleOrCancelAndRevocationTakesEffectImmediately() public {
         address outsider = makeAddr("factor-outsider");
         address haltReporter = makeAddr("factor-halt-reporter");
-        inbox.grantRole(inbox.HALT_REPORTER_ROLE(), haltReporter);
+        registry.grantRole(inbox.HALT_REPORTER_ROLE(), haltReporter);
         SplitFactorReport memory report = _factor(20261002, 2, 1, 1, keccak256("factor-role"));
         address[2] memory callers = [outsider, haltReporter];
         for (uint256 i; i < callers.length; ++i) {
@@ -49,17 +49,17 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
             inbox.submitSplitFactor(report);
             assertEq(_factorState(report), beforeState);
         }
-        inbox.revokeRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
+        registry.revokeRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         vm.expectRevert(TSVDataInboxV1.UnauthorizedReporter.selector);
         inbox.submitSplitFactor(report); // The Governor is not implicitly a reporter.
-        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
+        registry.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         inbox.submitSplitFactor(report);
         report = _factor(20261002, 0, 0, 2, keccak256("factor-cancel-role"));
         report.action = 2;
-        inbox.revokeRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
+        registry.revokeRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         vm.expectRevert(TSVDataInboxV1.UnauthorizedReporter.selector);
         inbox.submitSplitFactor(report);
-        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
+        registry.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         inbox.submitSplitFactor(report);
         _assertFactor(20261002, 1, 1);
     }

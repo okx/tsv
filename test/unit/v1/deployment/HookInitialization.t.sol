@@ -10,7 +10,6 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVHookV1, IActiveLPContextV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 
 contract TSVHookInitializationTest is Test {
@@ -27,11 +26,10 @@ contract TSVHookInitializationTest is Test {
         lpManager = makeAddr("lp-manager");
         vm.etch(manager, hex"00");
         vm.etch(lpManager, hex"00");
-        TSVGovernanceAnchor anchor = new TSVGovernanceAnchor(address(this), makeAddr("guardian"), makeAddr("council"));
         registry = TSVRegistryV1(
             address(
                 new TSVERC1967Proxy(
-                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor)))
+                    address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(this)))
                 )
             )
         );
@@ -42,7 +40,7 @@ contract TSVHookInitializationTest is Test {
             bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1),
             bytes32(uint256(uint160(address(new TSVHookV1()))))
         );
-        hook.initialize(address(anchor), manager, address(registry), address(this), address(this), lpManager);
+        hook.initialize(manager, address(registry), address(this), address(this), lpManager);
         key = PoolKey(Currency.wrap(address(1)), Currency.wrap(address(2)), 3000, 60, IHooks(address(hook)));
     }
 

@@ -13,7 +13,6 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {PermissionedAdmission, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {AdtvReport} from "tsv-v1/types/TSVReports.sol";
-import {TSVGovernanceAnchor} from "tsv-v1/governance/TSVGovernanceAnchor.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
@@ -36,7 +35,6 @@ abstract contract WrappedSwapFixture is Test {
     bytes32 internal constant SECURITY = keccak256("WRAPPED_STOCK");
     uint32 internal constant DAY = 20261001;
     PoolManager internal manager;
-    TSVGovernanceAnchor internal anchor;
     TSVRegistryV1 internal registry;
     TSVVolumeLedgerV1 internal ledger;
     TSVDataInboxV1 internal inbox;
@@ -59,27 +57,26 @@ abstract contract WrappedSwapFixture is Test {
         vm.warp(1_790_827_201);
         alice = makeAddr("wrapped-trader");
         manager = new PoolManager(address(this));
-        anchor = new TSVGovernanceAnchor(address(this), makeAddr("guardian"), makeAddr("council"));
         registry = TSVRegistryV1(
-            _proxy(address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(anchor))))
+            _proxy(address(new TSVRegistryV1()), abi.encodeCall(TSVRegistryV1.initialize, (address(this))))
         );
         ledger = TSVVolumeLedgerV1(
             _proxy(
                 address(new TSVVolumeLedgerV1()),
-                abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(anchor), address(registry), uint32(14_400)))
+                abi.encodeCall(TSVVolumeLedgerV1.initialize, (address(registry), uint32(14_400)))
             )
         );
         inbox = TSVDataInboxV1(
             _proxy(
                 address(new TSVDataInboxV1()),
-                abi.encodeCall(TSVDataInboxV1.initialize, (address(anchor), address(registry), address(ledger)))
+                abi.encodeCall(TSVDataInboxV1.initialize, (address(registry), address(ledger)))
             )
         );
         factory = new PermissionsAdapterFactory(address(manager));
         router = TSVSwapRouterV1(
             _proxy(
                 address(new TSVSwapRouterV1(address(manager), address(factory))),
-                abi.encodeCall(TSVSwapRouterV1.initialize, (address(anchor), address(manager), address(registry)))
+                abi.encodeCall(TSVSwapRouterV1.initialize, (address(manager), address(registry)))
             )
         );
         seed = new V1WrappedLiquiditySeed(manager, registry);
@@ -90,9 +87,7 @@ abstract contract WrappedSwapFixture is Test {
             bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1),
             bytes32(uint256(uint160(address(new TSVHookV1()))))
         );
-        hook.initialize(
-            address(anchor), address(manager), address(registry), address(ledger), address(router), address(seed)
-        );
+        hook.initialize(address(manager), address(registry), address(ledger), address(router), address(seed));
         sbt = new V1LocalSBT();
         registry.bindComponents(address(hook), address(seed), address(inbox), address(factory), address(sbt));
         ledger.bindWriters(address(hook), address(inbox));
@@ -103,8 +98,8 @@ abstract contract WrappedSwapFixture is Test {
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
         registry.setTierPolicy(1, 10_000, 10);
-        inbox.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
-        inbox.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
+        registry.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
+        registry.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
         issuer = new V1MockIssuerShares();
         underlying = new V1SwapToken("STOCK_U", 18, address(issuer));
         quote = new V1SwapToken("QUOTE_Q", _quoteDecimals(), address(0));

@@ -5,12 +5,21 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {UnderlyingConfig, PoolConfig} from "tsv-v1/types/TSVTypes.sol";
 import {AdtvReport, QuotaReport, SplitFactorReport} from "tsv-v1/types/TSVReports.sol";
-import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TradeDayLib} from "tsv-v1/libraries/TradeDayLib.sol";
 
 /// @notice Aggregates per-security volume by UTC trade day across every pool of this TSV venue.
-contract TSVVolumeLedgerV1 is TSVGoverned {
+contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
+    error UnauthorizedUpgrade();
+
+    error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
+
+    bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
+
+    bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
+
     /// @dev Reverts when the caller is not an authorized Ledger writer.
     error UnauthorizedWriter();
     /// @dev Reverts when report fields or Ledger configuration are invalid.
@@ -112,13 +121,21 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         bytes32 reportId
     );
 
-    /// @notice Initializes governance, the Registry, and the starting UTC day boundary.
-    /// @param anchor Fixed governance Anchor used by the governed base contract.
+    /// @dev Locks the implementation; proxy storage is initialized separately.
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @dev Upgrade authorization is managed exclusively by the Registry.
+    function _authorizeUpgrade(address) internal view override {
+        if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert UnauthorizedUpgrade();
+    }
+
+    /// @notice Binds the Registry for permissions and sets the starting UTC day boundary.
     /// @param registry_ Registry that supplies security tiers and pool configuration.
     /// @param dayStartOffsetSeconds Seconds after UTC midnight at which a trade day begins.
-    function initialize(address anchor, address registry_, uint32 dayStartOffsetSeconds) external initializer {
-        __TSVGoverned_init(anchor);
-        if (registry_ == address(0) || dayStartOffsetSeconds >= SECONDS_PER_DAY) revert InvalidReport();
+    function initialize(address registry_, uint32 dayStartOffsetSeconds) external initializer {
+        if (registry_.code.length == 0 || dayStartOffsetSeconds >= SECONDS_PER_DAY) revert InvalidReport();
         registry = TSVRegistryV1(registry_);
         initialDayStartOffsetSeconds = dayStartOffsetSeconds;
     }
@@ -126,13 +143,18 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     /// @notice Binds the only contracts permitted to record swaps and submit reports.
     /// @param hook_ Hook authorized to record completed swaps.
     /// @param dataInbox_ DataInbox authorized to write ADTV, quota and split-factor reports.
-    function bindWriters(address hook_, address dataInbox_) external onlyGovernor {
+    function bindWriters(address hook_, address dataInbox_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (hook != address(0) || dataInbox != address(0) || hook_.code.length == 0 || dataInbox_.code.length == 0) {
             revert InvalidReport();
         }
         hook = hook_;
         dataInbox = dataInbox_;
         emit WritersBound(hook_, dataInbox_);
+    }
+
+    modifier onlyRole(bytes32 role) {
+        if (!registry.hasRole(role, msg.sender)) revert AccessControlUnauthorizedAccount(msg.sender, role);
+        _;
     }
 
     /// @dev Restricts report-storage entry points to the configured DataInbox.
@@ -263,7 +285,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     /// @notice Schedules a bounded UTC day-start change without rewriting an active transition day.
     /// @param newOffsetSeconds New offset from UTC midnight, less than one day.
     /// @param effectiveDayId First trade-day ID that uses the new offset.
-    function scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId) external onlyGovernor {
+    function scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newOffsetSeconds >= SECONDS_PER_DAY) revert InvalidPeriod();
         uint256 count = dayStartCheckpoints.length;
         if (count != 0 && block.timestamp < _dayStartUTC(dayStartCheckpoints[count - 1].effectiveDayId)) {
@@ -291,7 +313,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     }
 
     /// @notice Cancels a scheduled day-start change before its transition day begins.
-    function cancelPendingDayStart() external onlyGovernor {
+    function cancelPendingDayStart() external onlyRole(DEFAULT_ADMIN_ROLE) {
         uint256 count = dayStartCheckpoints.length;
         if (count == 0) revert InvalidPeriod();
         uint32 effectiveDayId = dayStartCheckpoints[count - 1].effectiveDayId;

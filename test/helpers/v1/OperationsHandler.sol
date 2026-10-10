@@ -205,8 +205,8 @@ contract OperationsHandler is OperationsFixture {
 
     function toggleReporter() external {
         bytes32 role = inbox.VOLUME_ORACLE_ROLE();
-        if (volumeRole) inbox.revokeRole(role, address(this));
-        else inbox.grantRole(role, address(this));
+        if (volumeRole) registry.revokeRole(role, address(this));
+        else registry.grantRole(role, address(this));
         volumeRole = !volumeRole;
     }
 
@@ -226,7 +226,7 @@ contract OperationsHandler is OperationsFixture {
     }
 
     function assertReportModel() external view {
-        assertEq(inbox.hasRole(inbox.VOLUME_ORACLE_ROLE(), address(this)), volumeRole);
+        assertEq(registry.hasRole(inbox.VOLUME_ORACLE_ROLE(), address(this)), volumeRole);
         for (uint8 kind = 1; kind <= 3; ++kind) {
             assertEq(inbox.lastSequence(kind, SECURITY), modelSequence[kind]);
             assertEq(inbox.lastSourceTimestamp(kind, SECURITY), modelSourceTime[kind]);

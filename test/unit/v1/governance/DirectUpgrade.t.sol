@@ -18,13 +18,12 @@ contract TSVDirectUpgradeTest is GovernanceFixture {
         registry.upgradeToAndCall(address(next), abi.encodeCall(V1RegistryUpgradeMock.initializeV2, (42, true)));
         assertEq(proxy.tsvImplementation(), oldImplementation);
         assertEq(registry.nextPauseId(), 1);
-        assertEq(address(registry.governanceAnchor()), address(anchor));
         assertTrue(registry.hasRole(0, address(this)));
         registry.upgradeToAndCall(address(next), abi.encodeCall(V1RegistryUpgradeMock.initializeV2, (99, false)));
         assertEq(V1RegistryUpgradeMock(address(proxy)).upgradeMarker(), 99);
     }
 
-    function testNonGovernorRolesCannotUpgrade() public {
+    function testUnrelatedRolesCannotUpgrade() public {
         TSVERC1967Proxy proxy = _newRegistryProxy();
         TSVRegistryV1 registry = TSVRegistryV1(address(proxy));
         TSVRegistryV1 next = new TSVRegistryV1();
@@ -44,14 +43,14 @@ contract TSVDirectUpgradeTest is GovernanceFixture {
         TSVERC1967Proxy proxy = _newRegistryProxy();
         address oldImplementation = proxy.tsvImplementation();
         vm.expectRevert();
-        TSVRegistryV1(address(proxy)).upgradeToAndCall(address(anchor), "");
+        TSVRegistryV1(address(proxy)).upgradeToAndCall(address(this), "");
         assertEq(proxy.tsvImplementation(), oldImplementation);
         vm.expectRevert();
         TSVRegistryV1(address(proxy)).upgradeToAndCall(makeAddr("no-code"), "");
         assertEq(proxy.tsvImplementation(), oldImplementation);
     }
 
-    function testGovernorUpgradeAndInitializationCompleteInOneCall() public {
+    function testUpgradeAdminCanUpgradeAndInitializeInOneCall() public {
         TSVERC1967Proxy proxy = _newRegistryProxy();
         TSVRegistryV1 registry = TSVRegistryV1(address(proxy));
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), council);
@@ -61,9 +60,27 @@ contract TSVDirectUpgradeTest is GovernanceFixture {
         assertEq(proxy.tsvImplementation(), address(next));
         assertEq(V1RegistryUpgradeMock(address(proxy)).upgradeMarker(), 42);
         assertEq(registry.nextPauseId(), 1);
-        assertEq(address(registry.governanceAnchor()), address(anchor));
         assertTrue(registry.hasRole(registry.SYMBOL_ADMIN_ROLE(), council));
         assertEq(block.timestamp, timestamp);
-        assertFalse(anchor.upgradesFrozen());
+    }
+
+    function testUpgradeRoleIsIndependentOfDefaultAdminAndRevocationIsImmediate() public {
+        TSVERC1967Proxy proxy = _newRegistryProxy();
+        TSVRegistryV1 registry = TSVRegistryV1(address(proxy));
+        bytes32 role = registry.UPGRADE_ADMIN_ROLE();
+        address operator = makeAddr("upgrade-admin");
+        registry.grantRole(role, operator);
+        registry.revokeRole(role, address(this));
+        V1RegistryUpgradeMock next = new V1RegistryUpgradeMock();
+        vm.expectRevert(TSVGoverned.UnauthorizedUpgrade.selector);
+        registry.upgradeToAndCall(address(next), "");
+        vm.prank(operator);
+        registry.upgradeToAndCall(address(next), abi.encodeCall(V1RegistryUpgradeMock.initializeV2, (7, false)));
+        assertEq(proxy.tsvImplementation(), address(next));
+        assertEq(V1RegistryUpgradeMock(address(proxy)).upgradeMarker(), 7);
+        registry.revokeRole(role, operator);
+        vm.expectRevert(TSVGoverned.UnauthorizedUpgrade.selector);
+        vm.prank(operator);
+        registry.upgradeToAndCall(address(next), "");
     }
 }

@@ -167,10 +167,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         PermissionsAdapterFactory otherPMFactory = new PermissionsAdapterFactory(address(this));
         TSVSwapRouterV1 mismatchedPM = new TSVSwapRouterV1(address(this), address(otherPMFactory));
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
-        _proxy(
-            address(mismatchedPM),
-            abi.encodeCall(TSVSwapRouterV1.initialize, (address(anchor), address(manager), address(registry)))
-        );
+        _proxy(address(mismatchedPM), abi.encodeCall(TSVSwapRouterV1.initialize, (address(manager), address(registry))));
         PermissionsAdapterFactory otherFactory = new PermissionsAdapterFactory(address(manager));
         TSVSwapRouterV1 mismatchedFactory = new TSVSwapRouterV1(address(manager), address(otherFactory));
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);

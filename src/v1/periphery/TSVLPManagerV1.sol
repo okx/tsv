@@ -16,7 +16,6 @@ import {
     PermissionFlags
 } from "../vendor/permissionedPools/PermissionedPositionManager.sol";
 import {TSVLPManagerLib} from "../libraries/TSVLPManagerLib.sol";
-import {TSVGovernanceAnchor} from "../governance/TSVGovernanceAnchor.sol";
 import {IStatusQuoter} from "../interfaces/IStatusQuoter.sol";
 import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.sol";
 import {PoolLifecycle} from "../types/TSVTypes.sol";
@@ -48,7 +47,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
 
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error UnauthorizedUpgrade();
-    error UpgradeFrozen();
     error LpUnWindable();
     error InvalidRegistry();
     error PoolDelisted();
@@ -333,11 +331,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         _receiveNative();
     }
 
-    /// @notice Compatibility view for component binding; LP roles are held exclusively in Registry.
-    function governanceAnchor() external view returns (address) {
-        return registry.governanceAnchor();
-    }
-
     function upgradeToAndCall(address newImplementation, bytes memory data)
         public
         payable
@@ -347,9 +340,9 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         UUPSUpgradeable.upgradeToAndCall(newImplementation, data);
     }
 
-    /// @dev Registry's default admin or its active Anchor batch may upgrade while upgrades are unfrozen.
+    /// @dev Registry's upgrade admins may upgrade this proxy.
     function _authorizeUpgrade(address) internal view override {
-        if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert Unauthorized();
+        if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert UnauthorizedUpgrade();
     }
 
     /// @dev Normal callbacks retain the upstream action ABI. An unwind callback must match the exact data
