@@ -11,7 +11,7 @@
 | Wrapped 策略与身份 | `integration/local/trading/WrappedPolicy.t.sol`：issuer checker/wrapper/Hook/SBT/状态拒绝，tokenId 权限并集与更新、swap 操作权限门禁、原始用户从首次资格读取可见，U 授权 Router，不可变 PM/F 构造、初始化及升级。 |
 | DEX 聚合器接入 | `integration/local/trading/DexAdapter.t.sol`：Adapter 白名单、真实用户与退款/收款方分离、U/Q 双向收付、部分成交退款、签名有效期与重放拒绝、身份伪造拒绝和交易入口重入锁。 |
 | Wrapped 成交与回调边界 | `integration/local/trading/WrappedBoundaries.t.sol`：部分成交、exact-out 不足拒绝、滑点、过期/畸形请求、onlyPoolManager 回调门禁、V4 重入锁、失败后恢复、交易期间升级拒绝、单次 sync/settle、18/6 精度与非 1:1 法律计股。 |
-| Registry 与 Hook/Ledger 消费者 | `unit/v1/registry/`：真实 Factory/W、准入和三表、五组件原子绑定、独立 issuer checker、统一 isAllowed、暂停门禁、owner/U 共享 exitAdmin、U canonical Adapter、报价隔离；消费者注入 delta 仅用于计量验证。 |
+| Registry 与 Hook/Ledger 消费者 | `unit/v1/registry/`：真实 Factory/W、准入和三表、五组件原子绑定、独立 issuer checker、统一 isAllowed、暂停门禁、owner 轮换、U canonical Adapter、报价隔离；消费者注入 delta 仅用于计量验证。 |
 | 治理、部署与升级 | `unit/v1/governance/`、`unit/v1/deployment/`：Anchor、角色、冻结/恢复、直接升级和 Hook 初始化。旧 LP ABI 相关的六代理、批量升级、HookFactory 与 LP 权限套件已删除。 |
 | 报告、额度与日历 | `unit/v1/reports/`：ADTV/quota/市场报告/拆并股、Inbox 序号和去重、更正与原子回滚、原始分子/分母及溢出、UTC 日切、随机运营模型。 |
 | 单元边界与换算 | `unit/v1/trading/`、`unit/v1/adapters/`：初始化、额度、计量及法律股数接口。 |

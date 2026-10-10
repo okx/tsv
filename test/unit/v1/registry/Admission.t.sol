@@ -13,7 +13,6 @@ import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 import {V1MockToken} from "../../../helpers/v1/FoundationMocks.sol";
 import {V1MockIssuerWrapped} from "../../../helpers/v1/MockIssuerTokens.sol";
-import {V1ConfigReceiver} from "../../../helpers/v1/PermissionedMocks.sol";
 
 contract TSVAdmissionTest is FoundationFixture {
     function testAdmissionAtomicallyListsAndBindsUniqueUnderlying() public {
@@ -76,7 +75,6 @@ contract TSVAdmissionTest is FoundationFixture {
         assertEq(registry.tierPolicy(1).listedCount, 1);
         assertEq(registry.getCurrencyUnderlying(w), address(0));
         assertEq(registry.getUnderlying(u).securityId, 0);
-        assertEq(registry.exitAdminOf(u), address(exitReceiver));
     }
 
     function testSameUnderlyingManyWrappersShareCanonicalAndDoNotRequireFirstToClear() public {
@@ -176,56 +174,12 @@ contract TSVAdmissionTest is FoundationFixture {
     }
 
     function testIssuerOwnerRotationDoesNotRequireRegistryUpdate() public {
-        V1ConfigReceiver next = new V1ConfigReceiver();
+        address next = makeAddr("next-issuer-owner");
         stock.transferOwnership(address(next));
-        next.execute(address(stock), abi.encodeWithSignature("acceptOwnership()"));
+        vm.prank(next);
+        stock.acceptOwnership();
         assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
-        assertEq(registry.exitAdminOf(address(stockToken)), address(exitReceiver));
         _assertOperationGates(true, true);
-        V1ConfigReceiver receiver = new V1ConfigReceiver();
-        registry.setExitAdmin(address(stockToken), address(receiver));
-        registry.setExitAdmin(address(stockToken), address(next));
-        assertEq(registry.exitAdminOf(address(stockToken)), address(next));
-    }
-
-    function testExitAdminIsSharedByUnderlyingAndInheritedByNewWrappers() public {
-        PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(second, 1);
-        assertEq(registry.exitAdminOf(second.currency), address(0));
-        V1ConfigReceiver next = new V1ConfigReceiver();
-        vm.expectEmit(true, false, false, true, address(registry));
-        emit TSVRegistryV1.ExitAdminUpdated(address(stockToken), address(exitReceiver), address(next));
-        registry.setExitAdmin(address(stockToken), address(next));
-        PermissionedAdmission memory third = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(third, 1);
-        assertEq(registry.exitAdminOf(address(stockToken)), address(next));
-        _grantPauseRoles();
-        uint256 id = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
-        registry.clearEmergencyPause(id, keccak256("resume"));
-        id = _pause(PauseScope.TOKEN, bytes32(uint256(uint160(second.currency))), PauseMode.ALL);
-        registry.clearEmergencyPause(id, keccak256("resume"));
-        PermissionedAdmission memory other = _newStockConfig(keccak256("independent-exit-underlying"));
-        registry.registerPermissionedCurrency(other, 1);
-        address otherU = registry.getCurrencyUnderlying(other.currency);
-        assertEq(registry.exitAdminOf(otherU), address(exitReceiver));
-    }
-
-    function testSharedExitAdminAllowsIssuerOwnerButRejectsInvalidTargets() public {
-        PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(second, 1);
-        V1ConfigReceiver siblingOwner = new V1ConfigReceiver();
-        _grantPauseRoles();
-        _pause(PauseScope.TOKEN, bytes32(uint256(uint160(second.currency))), PauseMode.ALL);
-        PermissionsAdapter(second.currency).transferOwnership(address(siblingOwner));
-        siblingOwner.execute(second.currency, abi.encodeWithSignature("acceptOwnership()"));
-        registry.setExitAdmin(address(stockToken), address(siblingOwner));
-        assertEq(registry.exitAdminOf(address(stockToken)), address(siblingOwner));
-        address[4] memory invalidU = [address(stock), address(quote), address(registry), address(0)];
-        for (uint256 i; i < invalidU.length; ++i) {
-            vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
-            registry.setExitAdmin(invalidU[i], address(exitReceiver));
-        }
-        assertEq(registry.exitAdminOf(address(stockToken)), address(siblingOwner));
     }
 
     function testQuoteRecoveryRejectsChangedPrecisionAndKeepsPauseUntilFixed() public {

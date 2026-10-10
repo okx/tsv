@@ -96,4 +96,4 @@ X Layer 固定区块 **72,271,000** 使用真实 DexRouter `0x7c5bee2a8091c3ef39
 
 2026-10-04 当时的系数新增两个 mapping 位于 Ledger slot 9/10；2026-10-08 已按未部署项目精简布局，不保留旧槽位或来源月版本 mapping。实际成交计股仍由现有实时 Adapter 决定。新增单元/真实 V4/模型覆盖及更新后的覆盖率见[覆盖矩阵](./TEST_COVERAGE_V1.md)。
 
-2026-10-08 Registry 精简：`bindComponents(hook,lpManager,dataInbox,factory,sbt)` 一次绑定并只发一个 ComponentsBound；SBT 身份配置为 `setSbtConfig(tokenId,permissions)`。Router 从 Hook 读取，删除 Registry 重复 Router 配置与绑定交叉检查，部署核验保留在 VerifyDeploymentV1。U 共享 exitAdmin 保持；Registry 70 项回归通过。运行时代码 22,923 字节，格式与布局检查通过。
+2026-10-08 Registry 精简：`bindComponents(hook,lpManager,dataInbox,factory,sbt)` 一次绑定并只发一个 ComponentsBound；SBT 身份配置为 `setSbtConfig(tokenId,permissions)`。Router 从 Hook 读取，删除 Registry 重复 Router 配置与绑定交叉检查，部署核验保留在 VerifyDeploymentV1。U 级 exitAdmin 模型已移除；Registry 70 项回归通过。运行时代码 22,923 字节，格式与布局检查通过。

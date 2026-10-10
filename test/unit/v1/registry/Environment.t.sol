@@ -5,7 +5,7 @@ import {TSVRegistryV1, ISmartWalletSbtV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
-import {V1PermissionedComponent, V1ConfigReceiver} from "../../../helpers/v1/PermissionedMocks.sol";
+import {V1PermissionedComponent} from "../../../helpers/v1/PermissionedMocks.sol";
 import {OperationsSbt, OperationsPausedOnlySbt, OperationsVerifyOnlySbt} from "../../../helpers/v1/OperationsMocks.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
@@ -101,7 +101,7 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
         }
     }
 
-    function testGovernorOnlyEnvironmentOwnerAndExitAdminSettings() public {
+    function testGovernorOnlyEnvironmentSettings() public {
         (TSVRegistryV1 r, V1PermissionedComponent h, V1PermissionedComponent lp) = _fresh();
         address stranger = makeAddr("not-governor");
         bytes memory errorData =
@@ -112,23 +112,5 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
         vm.expectRevert(errorData);
         vm.prank(stranger);
         registry.setTierPolicy(2, 10, 1);
-        V1ConfigReceiver receiver = new V1ConfigReceiver();
-        vm.expectRevert(errorData);
-        vm.prank(stranger);
-        registry.setExitAdmin(address(stockToken), address(receiver));
-    }
-
-    function testCandidateExitAdminIsSeparateFromAdmissionAndForbiddenAssets() public {
-        address w = _newStockConfig(SECURITY).currency;
-        assertEq(registry.getCurrencyUnderlying(w), address(0));
-        address u = registry.getCurrencyUnderlying(w);
-        if (u == address(0)) u = address(permissionsFactory.permissionsAdapterOf(w));
-        address[6] memory bad =
-            [address(stockToken), address(stock), address(manager), address(registry), address(this), address(quote)];
-        for (uint256 i; i < bad.length; ++i) {
-            vm.expectRevert(TSVRegistryV1.PermissionedPolicyMismatch.selector);
-            registry.setExitAdmin(address(stockToken), bad[i]);
-        }
-        assertEq(registry.exitAdminOf(u), address(exitReceiver));
     }
 }

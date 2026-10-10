@@ -351,11 +351,7 @@ function registerPermissionedCurrency(PermissionedAdmission calldata admission, 
    - W 不能已绑定为 canonical underlying。
    - U 不能已注册为 W。
    - U 不能是 Factory 已知 permissions adapter。
-8. 校验 `exitAdminOf[underlying]`：
-   - 如已配置，必须是合约。
-   - 不能是 W、U、系统组件、已注册 W、已注册 U、已注册 Q 或 Factory 已知 token。
-   - 不再与 W owner 做比较。
-9. 执行首次库存检查：
+8. 执行首次库存检查：
    - W totalSupply 必须为 0。
    - PoolManager 对 W 的余额必须为 0。
    - W 合约持有的 U 余额必须大于 0。

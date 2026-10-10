@@ -126,8 +126,6 @@ contract TSVRegistryV1 is TSVGoverned {
     mapping(address => UnderlyingConfig) private underlyings;
     /// @dev Quote token records keyed by quote ERC-20 address.
     mapping(address => QuoteTokenConfig) private quoteTokens;
-    /// @notice Shared exit receiver, keyed by underlying U.
-    mapping(address => address) public exitAdminOf;
     /// @dev Permissioned stock adapters grouped by their canonical underlying U.
     mapping(address => address[]) private currenciesByUnderlying;
 
@@ -216,11 +214,6 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param oldAdapter Previous legal-share adapter.
     /// @param newAdapter New legal-share adapter.
     event UnderlyingLegalShareAdapterChanged(address indexed underlying, address oldAdapter, address newAdapter);
-    /// @notice Emitted when the exit receiver for an underlying changes.
-    /// @param underlying Canonical underlying U whose exit receiver changed.
-    /// @param oldAdmin Previous exit receiver.
-    /// @param newAdmin New exit receiver.
-    event ExitAdminUpdated(address indexed underlying, address oldAdmin, address newAdmin);
     /// @notice Emitted when a security market-state report was accepted.
     /// @param securityId Security whose market pause mask changed.
     /// @param oldStatus Previous derived market status.
@@ -493,18 +486,6 @@ contract TSVRegistryV1 is TSVGoverned {
         emit UnderlyingLegalShareAdapterChanged(u, previousAdapter, newAdapter);
     }
 
-    /// @notice Configures the receiver shared by every W for underlying U, including before first admission.
-    /// @param u Canonical underlying whose exit receiver changes.
-    /// @param newAdmin New receiver for forced exits and related recovery flows.
-    function setExitAdmin(address u, address newAdmin) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _requireEnvironment();
-        if (newAdmin == exitAdminOf[u]) revert InvalidStatus();
-        PermissionedValidationLib.validateExitAdmin(u, newAdmin);
-        address previousExitAdmin = exitAdminOf[u];
-        exitAdminOf[u] = newAdmin;
-        emit ExitAdminUpdated(u, previousExitAdmin, newAdmin);
-    }
-
     /// @notice Returns the canonical underlying bound to a permissioned stock adapter.
     /// @param w Permissioned stock adapter address to query.
     /// @return underlying Canonical underlying U, or zero when `w` is unknown.
@@ -711,7 +692,6 @@ contract TSVRegistryV1 is TSVGoverned {
         EmergencyPause storage record = emergencyPauses[recordId];
         if (!record.active || reasonCode == 0) revert InvalidStatus();
         // TOKEN recovery rechecks admitted assets; unknown targets may still have preemptive pauses.
-        if (record.scope == PauseScope.TOKEN) _validateAssetForRecovery(address(uint160(uint256(record.target))));
         record.active = false;
         activePauseCount[uint8(record.scope)][record.target][uint8(record.mode)]--;
         emit EmergencyPauseClosed(recordId, reasonCode);
@@ -818,28 +798,6 @@ contract TSVRegistryV1 is TSVGoverned {
             : quoteTokens[asset].registered;
     }
 
-    /// @dev Recovery checks current identity and policy without repeating first-admission inventory checks.
-    /// @param asset Token address whose current identity and metadata are revalidated.
-    function _validateAssetForRecovery(address asset) private view {
-        address underlying = currencyUnderlying[asset];
-        if (underlying != address(0)) {
-            UnderlyingConfig storage underlyingConfig = underlyings[underlying];
-            if (!securities[underlyingConfig.securityId].listed) revert InvalidStatus();
-            if (PermissionedValidationLib.candidateUnderlying(asset) != underlying) {
-                revert InvalidPermissionedConfig();
-            }
-            if (PermissionedValidationLib.stockDecimals(asset, underlying) != underlyingConfig.rawDecimals) {
-                revert PermissionedMetadataMismatch();
-            }
-            PermissionedValidationLib.validateLegalShareAdapter(underlyingConfig.legalShareAdapter, underlying);
-            PermissionedValidationLib.validatePolicy(asset, underlying);
-        } else if (quoteTokens[asset].registered) {
-            PermissionedValidationLib.validateQuoteIdentity(asset);
-            if (PermissionedValidationLib.readDecimals(asset) != quoteTokens[asset].rawDecimals) {
-                revert PermissionedMetadataMismatch();
-            }
-        }
-    }
 
     /// @dev Applies admission and pause checks for one pool operation type.
     /// @param poolId Registered pool ID to check.

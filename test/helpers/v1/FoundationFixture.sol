@@ -208,7 +208,6 @@ abstract contract FoundationFixture is Test {
         PermissionsAdapter(w).updateAllowedHook(IHooks(address(this)), true);
         V1MockIssuerWrapped(u).mintTestShares(w, 1);
         permissionsFactory.verifyPermissionsAdapter(w);
-        if (registry.exitAdminOf(u) == address(0)) registry.setExitAdmin(u, address(exitReceiver));
         return _config(w, securityId, adapter);
     }
 
