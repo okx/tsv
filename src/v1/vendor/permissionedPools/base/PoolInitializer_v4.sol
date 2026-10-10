@@ -9,7 +9,7 @@ import {IPoolInitializer_v4} from "v4-periphery/interfaces/IPoolInitializer_v4.s
 
 abstract contract PoolInitializer_v4 is ImmutableState, IPoolInitializer_v4 {
     /// @inheritdoc IPoolInitializer_v4
-    function initializePool(PoolKey calldata key, uint160 sqrtPriceX96) external payable virtual returns (int24) {
+    function initializePool(PoolKey calldata key, uint160 sqrtPriceX96) public payable virtual returns (int24) {
         try poolManager.initialize(key, sqrtPriceX96) returns (int24 tick) {
             return tick;
         } catch {

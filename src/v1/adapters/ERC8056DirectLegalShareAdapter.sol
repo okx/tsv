@@ -25,12 +25,7 @@ contract ERC8056DirectLegalShareAdapter is IDirectLegalShareAdapter {
         poolCurrency = currency_;
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        external
-        pure
-        override
-        returns (bool)
-    {
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return interfaceId == type(IDirectLegalShareAdapter).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 

@@ -4,7 +4,7 @@
 
 当前可发布制品范围及生产门禁以 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)和 [W/U/Q 市场开通流程](./OPENING_A_STOCK_MARKET_V1.md)为准。下方为历史六代理部署框架，不能据其旧 DIRECT/LP/DEX 步骤启用 Wrapped 市场。
 
-1. 先部署并核验唯一 `PermissionedValidationLib`，Registry 使用该地址编译链接；将地址写入 manifest 及 `TSV_PERMISSIONED_VALIDATION_LIBRARY`。
+1. 先部署并核验 `PermissionedValidationLib`，Registry 使用该地址编译链接；将地址写入 manifest 及 `TSV_PERMISSIONED_VALIDATION_LIBRARY`。LP 实现还需部署并链接 `TSVLPManagerLib`、`LPPositionMath`，见 [LP 链接库说明](LP_MANAGER_CODE_SIZE.md)。
 2. 使用原版 `PermissionsAdapterFactory(PM)`，记录真实 F 为 `TSV_PERMISSIONS_ADAPTER_FACTORY`。Router 直接依赖 F；发行方独立开发、部署和配置 checker。
 3. Router **实现**构造为 `new TSVSwapRouterV1(PM,F)`；随后代理 `initialize(anchor,PM,R)`。Router 不持有 Ledger 引用；初始化与候选升级都须保留相同 PM/F，不复用旧 Router 布局。
 4. 组件部署完成后，Governor 一次调用 `R.bindComponents(Hook,LPManager,DataInbox,F,SBT)`；随后用 VerifyDeploymentV1 验证 Hook Router/LP 引用、Ledger Registry、Anchor、Registry 库链接与 Router 不可变 PM/F。
@@ -27,7 +27,7 @@
 | 类别 | 部署内容 | V1 规则 |
 | --- | --- | --- |
 | 业务代理 | Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager | 六个地址全部新建；使用非空初始化数据部署 `TSVERC1967Proxy` |
-| 治理合约 | `TSVGovernanceAnchor` | 非代理、不可升级；直接保存 Governor/Guardian/Council 和升级冻结状态，六代理只保存 Anchor 地址 |
+| 治理合约 | `TSVGovernanceAnchor` | 非代理、不可升级；直接保存 Governor/Guardian/Council 和升级冻结状态，除 LP 外的五代理保存 Anchor 地址；LP 从 Registry 查询角色与 Anchor |
 | 外部依赖 | 官方 V4 `PoolManager`、SmartWalletSbt、发行方 Token、实现 `IDirectLegalShareAdapter` 的 Adapter | 地址、版本、ABI/ERC-165 接口声明及法律换算依据必须写入发布清单 |
 
 不得把旧 `TSVReceiptV1`、旧 `TSVSBTAdapterV1`、旧 Router 或旧 LP Manager 地址填入新清单。旧 LP 仓位和旧 SIP 日账不属于本部署状态，因此不执行迁移，也不保留兼容分支。
@@ -118,10 +118,7 @@ Hook 地址低 14 位 == 0x3FFF
 2. 部署 LP Manager 代理，调用：
 
    ```solidity
-   TSVLPManagerV1.initialize(
-       anchor,
-       poolManager, registry
-   )
+   TSVLPManagerV1.initialize(registry)
    ```
 
 3. 用 `TSVHookProxyFactoryV1` 部署 Hook 代理，调用：
@@ -143,7 +140,7 @@ Hook 地址低 14 位 == 0x3FFF
 2. `VolumeLedger.bindWriters(hook, dataInbox)`
 3. `GovernanceAnchor.bindProxies([registry, volumeLedger, dataInbox, hook, swapRouter, lpManager])`
 
-4. 核验六代理均读取同一固定 Anchor，演练 Guardian 全局冻结后逐个/批量升级均拒绝；Governor/Council 解冻拒绝，由当前 Guardian 显式解冻后恢复升级。冻结不会阻断业务操作。
+4. 核验六代理均返回同一 Anchor（LP 转发 Registry 查询），并演练 Guardian 冻结后逐个/批量升级均拒绝。LP 通过 Registry 默认管理员或活跃 Anchor 批量上下文授权升级，保留 Registry 暂停门禁。冻结须由当前 Guardian 显式解除。
 
 然后逐项读取：
 
@@ -190,7 +187,7 @@ SBT 地址已在 `bindComponents` 中一次绑定，并探测 `paused()` 和 `ve
 - `REVOKE_EXIT_EXECUTOR_ROLE`
 - `FORCE_EXIT_ADMIN_ROLE`
 
-每个角色至少配置一个独立地址，并把地址写入 manifest。用户直连 Router 时，调用者本人是 participant；若启用外部 DEX Adapter 路径，必须先由 Governor 将已审查的 Adapter 加入 Router 白名单，且 Adapter 从可信 DexRouter caller marker 解析 participant 后由 Router 执行 SBT 校验。退款地址 marker 不能代替 participant 身份。
+LP 的 `POOL_CREATOR_ROLE` 和 `FORCE_EXIT_ADMIN_ROLE` 必须在 Registry 上授予；LP 不再管理本地角色。旧 LP 本地角色须在升级前配置到 Registry。每个角色至少配置一个独立地址，并把地址写入 manifest。用户直连 Router 时，调用者本人是 participant；若启用外部 DEX Adapter 路径，必须先由 Governor 将已审查的 Adapter 加入 Router 白名单，且 Adapter 从可信 DexRouter caller marker 解析 participant 后由 Router 执行 SBT 校验。退款地址 marker 不能代替 participant 身份。
 
 ## 6. 资产、报告和池配置
 
@@ -259,7 +256,7 @@ SBT 地址已在 `bindComponents` 中一次绑定，并探测 `paused()` 和 `ve
 ### 9.2 单笔升级操作
 
 1. 部署并核验新实现代码、layout 与接口兼容性。
-2. 读取 `anchor.upgradesFrozen()`；已冻结时须当前 Guardian 按当前 freezeId 显式解冻。单代理由当前 Governor 多签直接调用 `proxy.upgradeToAndCall(newImplementation,initData)`；多代理由 Governor 调用 `anchor.upgradeBatch(targets,implementations,initData)`，目标只能为已绑定六代理，按数组顺序执行。
+2. 读取 `anchor.upgradesFrozen()`；已冻结时须当前 Guardian 按当前 freezeId 显式解冻。单代理由当前 Governor 多签直接调用 `proxy.upgradeToAndCall(newImplementation,initData)`；多代理由 Governor 调用 `anchor.upgradeBatch(targets,implementations,initData)`，目标只能为已绑定六代理，按数组顺序执行。LP 从 Registry 查询默认管理员及 Anchor，继续受 Registry 暂停门禁约束。
 3. 批量初始化调用者为 Anchor；候选迁移函数须兼容该身份及 `upgradeContextActive()`，否则整批回滚。单代理初始化调用者为 Governor。
 4. 核对升级 receipt、`Upgraded` 事件、实现地址和初始化后的业务状态；任何一步失败整笔回滚。升级无需排期或等待。
 

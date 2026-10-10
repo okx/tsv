@@ -15,6 +15,8 @@ import {
 
 /// @notice Shared W/U/Q interface. Asset records use the canonical TSVTypes definitions.
 interface ITSVPermissionedRegistry {
+    /// @notice Checks a role in the Registry, including its dynamically resolved default admin.
+    function hasRole(bytes32 role, address account) external view returns (bool);
     /// @notice Registers the exact pool key; only the bound LP Manager may call this.
     /// @param key Full Uniswap V4 pool key to admit.
     /// @return poolId Raw pool ID derived from `key`.
@@ -199,6 +201,5 @@ interface ITSVPermissionedRegistry {
     /// @param dataInbox DataInbox authorized to apply market reports.
     /// @param factory Real issuer Factory used to verify W provenance and derive PoolManager.
     /// @param sbt Fixed SBT contract supplying participant identities.
-    function bindComponents(address hook, address lpManager, address dataInbox, address factory, address sbt)
-        external;
+    function bindComponents(address hook, address lpManager, address dataInbox, address factory, address sbt) external;
 }

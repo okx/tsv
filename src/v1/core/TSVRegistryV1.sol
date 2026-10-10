@@ -20,8 +20,9 @@ import {
 import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {PermissionedValidationLib} from "tsv-v1/libraries/PermissionedValidationLib.sol";
-import {IPermissionsAdapterFactory} from
-    "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {
+    IPermissionsAdapterFactory
+} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
 /// @dev Defines the SBT pause and credential-verification views required by the Registry.
 interface ISmartWalletSbtV1 {
@@ -476,6 +477,36 @@ contract TSVRegistryV1 is TSVGoverned {
         emit QuoteTokenRegistered(quote, rawDecimals);
     }
 
+    /// @notice Adds or removes an approved permissioned-stock owner contract.
+    /// @param owner Owner contract whose approval status changes.
+    /// @param approved Whether the owner should be accepted by future policy checks.
+    function setPermissionedOwnerApproval(address owner, bool approved) external onlyGovernor {
+        if (owner == address(0) || (approved && owner.code.length == 0)) revert PermissionedPolicyMismatch();
+        isPermissionedOwnerApproved[owner] = approved;
+        emit PermissionedOwnerApprovalChanged(owner, approved);
+    }
+
+    /// @notice Updates the expected owner recorded for an admitted permissioned stock adapter.
+    /// @dev The token, security, or global pause state must cover both TRADE and LP before replacement.
+    /// @param w Permissioned stock adapter whose expected owner is updated.
+    /// @param newOwner New owner contract expected by adapter policy validation.
+    function updatePermissionedExpectedOwner(address w, address newOwner) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        PermissionedCurrencyConfig storage config = currencies[w];
+        if (config.underlying == address(0) || newOwner == config.expectedOwner) revert InvalidStatus();
+        bytes32 securityId = underlyings[config.underlying].securityId;
+        // A TOKEN, SECURITY, or GLOBAL pause must cover both ordinary operation types.
+        if (
+            !(_isPaused(PauseScope.TOKEN, _addressKey(w), PauseMode.TRADE)
+                    || _securityPausedForReplacement(securityId, PauseMode.TRADE))
+                || !(_isPaused(PauseScope.TOKEN, _addressKey(w), PauseMode.LP)
+                    || _securityPausedForReplacement(securityId, PauseMode.LP))
+        ) revert InvalidStatus();
+        PermissionedValidationLib.validateOwner(w, config.underlying, newOwner);
+        address previousExpectedOwner = config.expectedOwner;
+        config.expectedOwner = newOwner;
+        emit PermissionedExpectedOwnerChanged(w, previousExpectedOwner, newOwner);
+    }
+
     /// @notice Replaces the canonical U converter while the entire security is paused for trade and LP.
     /// @param u Canonical underlying whose legal-share adapter is replaced.
     /// @param newAdapter New legal-share adapter for `u`.
@@ -535,7 +566,8 @@ contract TSVRegistryV1 is TSVGoverned {
         address currency1 = Currency.unwrap(key.currency1);
         if (
             address(key.hooks) != hook || currency0 == address(0) || currency0 >= currency1 || key.fee >= 1_000_000
-                || key.tickSpacing < 1 || key.tickSpacing > 32767 || !_assetAllowed(currency0) || !_assetAllowed(currency1)
+                || key.tickSpacing < 1 || key.tickSpacing > 32767 || !_assetAllowed(currency0)
+                || !_assetAllowed(currency1)
         ) revert InvalidPool();
         bytes32 securityId0 = underlyings[currencyUnderlying[currency0]].securityId;
         bytes32 securityId1 = underlyings[currencyUnderlying[currency1]].securityId;
@@ -776,10 +808,9 @@ contract TSVRegistryV1 is TSVGoverned {
         UnderlyingConfig storage canonicalUnderlying = underlyings[underlying];
         if (
             canonicalUnderlying.securityId != 0
-                && (
-                    canonicalUnderlying.securityId != admission.securityId || canonicalUnderlying.rawDecimals != rawDecimals
-                        || canonicalUnderlying.legalShareAdapter != admission.legalShareAdapter
-                )
+                && (canonicalUnderlying.securityId != admission.securityId
+                    || canonicalUnderlying.rawDecimals != rawDecimals
+                    || canonicalUnderlying.legalShareAdapter != admission.legalShareAdapter)
         ) {
             revert InvalidPermissionedConfig();
         }
@@ -907,7 +938,7 @@ contract TSVRegistryV1 is TSVGoverned {
         return true;
     }
 
-    /// @dev Applies a signed tick-count delta and keeps the per-security active-pool count in sync.
+    /// @dev Applies a signed tick-count delta without changing the pool lifecycle count.
     /// @param poolId Registered pool whose tick count is updated.
     /// @param delta Signed tick-count change to apply.
     function _applyPoolTickDelta(bytes32 poolId, int256 delta) private {

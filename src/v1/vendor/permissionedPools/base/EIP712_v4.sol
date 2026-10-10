@@ -22,7 +22,7 @@ contract EIP712_v4 is IEIP712_v4 {
     }
 
     /// @inheritdoc IEIP712_v4
-    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+    function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
         // Delegatecall resolves address(this) to the proxy and preserves fork protection.
         return _buildDomainSeparator();
     }
