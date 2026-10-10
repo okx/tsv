@@ -22,18 +22,12 @@ import {ActionConstants} from "v4-periphery/libraries/ActionConstants.sol";
 import {ISubscriber} from "v4-periphery/interfaces/ISubscriber.sol";
 import {INotifier} from "v4-periphery/interfaces/INotifier.sol";
 import {CustomRevert} from "../vendor/permissionedPools/base/Notifier.sol";
-import {SignatureVerification} from "permit2/src/libraries/SignatureVerification.sol";
-import {ERC721PermitHash} from "v4-periphery/libraries/ERC721PermitHash.sol";
-import {IUnorderedNonce} from "v4-periphery/interfaces/IUnorderedNonce.sol";
-import {ERC721} from "../vendor/permissionedPools/base/ERC721Permit_v4.sol";
-import {IAllowanceTransfer} from "../vendor/permissionedPools/base/Permit2Forwarder.sol";
 import {ITokenApproveProxy} from "../interfaces/ITokenApproveProxy.sol";
 
 /// @notice Linked copies of TSV LP and inherited periphery routines, executed in the manager's context.
 /// @dev Holds no persistent state. Callback authorization uses the manager's existing transient slot.
 library TSVLPManagerLib {
     using CalldataDecoder for bytes;
-    using SignatureVerification for bytes;
     using CustomRevert for *;
 
     ISubscriber private constant NO_SUBSCRIBER = ISubscriber(address(0));
@@ -349,31 +343,7 @@ library TSVLPManagerLib {
         return true;
     }
 
-    function subscribe(
-        mapping(uint256 => PositionInfo) storage positionInfo,
-        mapping(uint256 => ISubscriber) storage subscriber,
-        uint256 tokenId,
-        address newSubscriber,
-        bytes calldata data
-    ) external {
-        ISubscriber _subscriber = subscriber[tokenId];
-
-        if (_subscriber != NO_SUBSCRIBER) revert INotifier.AlreadySubscribed(tokenId, address(_subscriber));
-        positionInfo[tokenId] = positionInfo[tokenId].setSubscribe();
-
-        subscriber[tokenId] = ISubscriber(newSubscriber);
-
-        bool success = _call(newSubscriber, abi.encodeCall(ISubscriber.notifySubscribe, (tokenId, data)));
-
-        if (!success) {
-            newSubscriber.bubbleUpAndRevertWith(
-                ISubscriber.notifySubscribe.selector, INotifier.SubscriptionReverted.selector
-            );
-        }
-
-        emit INotifier.Subscription(tokenId, newSubscriber);
-    }
-
+    /// @dev Forced exits use this internal path without the public entry point's owner approval check.
     function unsubscribe(
         mapping(uint256 => PositionInfo) storage positionInfo,
         mapping(uint256 => ISubscriber) storage subscriber,
@@ -396,88 +366,6 @@ library TSVLPManagerLib {
         }
 
         emit INotifier.Unsubscription(tokenId, address(_subscriber));
-    }
-
-    function multicall(bytes[] calldata data) external returns (bytes[] memory results) {
-        results = new bytes[](data.length);
-        for (uint256 i = 0; i < data.length; i++) {
-            (bool success, bytes memory result) = address(this).delegatecall(data[i]);
-            if (!success) {
-                assembly ("memory-safe") { revert(add(result, 0x20), mload(result)) }
-            }
-            results[i] = result;
-        }
-    }
-
-    function permit(
-        mapping(uint256 => address) storage owners,
-        mapping(uint256 => address) storage approvals,
-        mapping(address => mapping(uint256 => uint256)) storage nonces,
-        bytes32 domainSeparator,
-        address spender,
-        uint256 tokenId,
-        uint256 deadline,
-        uint256 nonce,
-        bytes calldata signature
-    ) external {
-        address owner = owners[tokenId];
-        bytes32 digest = ERC721PermitHash.hashPermit(spender, tokenId, nonce, deadline);
-        signature.verify(_hashTypedData(domainSeparator, digest), owner);
-        _useUnorderedNonce(nonces, owner, nonce);
-        _approve(approvals, owner, spender, tokenId);
-    }
-
-    function permitForAll(
-        mapping(address => mapping(address => bool)) storage approvals,
-        mapping(address => mapping(uint256 => uint256)) storage nonces,
-        bytes32 domainSeparator,
-        address owner,
-        address operator,
-        bool approved,
-        uint256 deadline,
-        uint256 nonce,
-        bytes calldata signature
-    ) external {
-        bytes32 digest = ERC721PermitHash.hashPermitForAll(operator, approved, nonce, deadline);
-        signature.verify(_hashTypedData(domainSeparator, digest), owner);
-        _useUnorderedNonce(nonces, owner, nonce);
-        _approveForAll(approvals, owner, operator, approved);
-    }
-
-    function _useUnorderedNonce(
-        mapping(address => mapping(uint256 => uint256)) storage nonces,
-        address owner,
-        uint256 nonce
-    ) private {
-        uint256 wordPos = nonce >> 8;
-        uint256 bitPos = uint8(nonce);
-        uint256 bit = 1 << bitPos;
-        uint256 flipped = nonces[owner][wordPos] ^= bit;
-        if (flipped & bit == 0) revert IUnorderedNonce.NonceAlreadyUsed();
-    }
-
-    function permit2(
-        IAllowanceTransfer allowanceTransfer,
-        address owner,
-        IAllowanceTransfer.PermitSingle calldata single,
-        bytes calldata signature
-    ) external returns (bytes memory err) {
-        try allowanceTransfer.permit(owner, single, signature) {}
-        catch (bytes memory reason) {
-            err = reason;
-        }
-    }
-
-    function permit2Batch(
-        IAllowanceTransfer allowanceTransfer,
-        address owner,
-        IAllowanceTransfer.PermitBatch calldata batch,
-        bytes calldata signature
-    ) external returns (bytes memory err) {
-        try allowanceTransfer.permit(owner, batch, signature) {}
-        catch (bytes memory reason) {
-            err = reason;
-        }
     }
 
     function _getLpStatus(IPermissionsAdapterFactory factory, Currency currency, address lp)
@@ -505,13 +393,32 @@ library TSVLPManagerLib {
         return poolManager.initialize(key, sqrtPriceX96);
     }
 
-    function withdrawClaim(IPoolManager poolManager, Currency currency, uint256 amount, address to) external {
+    function withdrawClaimByLp(IPoolManager poolManager, Currency currency, uint256 amount, address to) external {
         address resolvedTo = _mapRecipient(to, msg.sender);
         bytes memory actions = abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE));
         bytes[] memory params = new bytes[](2);
         params[0] = abi.encode(currency, msg.sender, amount);
         params[1] = abi.encode(currency, resolvedTo, amount);
         poolManager.unlock(abi.encode(actions, params));
+        emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
+    }
+
+    /// @dev Only the factory-verified adapter owner can bypass TSV SBT checks, and only for delivery to itself.
+    function withdrawClaim(
+        IPoolManager poolManager,
+        IPermissionsAdapterFactory factory,
+        Currency currency,
+        uint256 amount,
+        address to
+    ) external {
+        if (msg.sender != _getOwner(factory, currency)) revert Unauthorized();
+        address resolvedTo = _mapRecipient(to, msg.sender);
+        if (resolvedTo != msg.sender) revert Unauthorized();
+        bytes memory actions = abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE));
+        bytes[] memory params = new bytes[](2);
+        params[0] = abi.encode(currency, msg.sender, amount);
+        params[1] = abi.encode(currency, resolvedTo, amount);
+        _unlockUnwind(poolManager, abi.encode(actions, params));
         emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
     }
 
@@ -548,43 +455,5 @@ library TSVLPManagerLib {
     function _sweepOrdinary(Currency currency, address to) private {
         uint256 balance = currency.balanceOfSelf();
         if (balance > 0) currency.transfer(to, balance);
-    }
-
-    function _approve(mapping(uint256 => address) storage getApproved, address owner, address spender, uint256 id)
-        private
-    {
-        getApproved[id] = spender;
-        emit ERC721.Approval(owner, spender, id);
-    }
-
-    function _approveForAll(
-        mapping(address => mapping(address => bool)) storage isApprovedForAll,
-        address owner,
-        address operator,
-        bool approved
-    ) private {
-        isApprovedForAll[owner][operator] = approved;
-        emit ERC721.ApprovalForAll(owner, operator, approved);
-    }
-
-    /// @dev Same digest assembly as the vendored EIP712_v4; domain is read from the calling proxy.
-    function _hashTypedData(bytes32 domainSeparator, bytes32 dataHash) private pure returns (bytes32 digest) {
-        assembly ("memory-safe") {
-            let fmp := mload(0x40)
-            mstore(fmp, hex"1901")
-            mstore(add(fmp, 0x02), domainSeparator)
-            mstore(add(fmp, 0x22), dataHash)
-            digest := keccak256(fmp, 0x42)
-            mstore(fmp, 0)
-            mstore(add(fmp, 0x20), 0)
-            mstore(add(fmp, 0x40), 0)
-        }
-    }
-
-    function _call(address target, bytes memory encodedCall) internal returns (bool success) {
-        if (target.code.length == 0) INotifier.NoCodeSubscriber.selector.revertWith();
-        assembly ("memory-safe") {
-            success := call(gas(), target, 0, add(encodedCall, 0x20), mload(encodedCall), 0, 0)
-        }
     }
 }
