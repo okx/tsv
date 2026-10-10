@@ -31,7 +31,7 @@ library TSVLPManagerLib {
     using CustomRevert for *;
 
     ISubscriber private constant NO_SUBSCRIBER = ISubscriber(address(0));
-    bytes32 private constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
+    bytes32 public constant WITHDRAW_CLAIM_ROLE = keccak256("WITHDRAW_CLAIM_ROLE");
 
     error Unauthorized();
     error LpUnWindable();
@@ -404,7 +404,7 @@ library TSVLPManagerLib {
         emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
     }
 
-    /// @dev Authorizes the adapter owner or a force-exit admin; claims are redeemed only to the caller itself.
+    /// @dev Authorizes the adapter owner or a claim-withdrawal role holder; claims are redeemed only to the caller itself.
     function withdrawClaim(
         IPoolManager poolManager,
         IPermissionsAdapterFactory factory,
@@ -413,7 +413,7 @@ library TSVLPManagerLib {
         uint256 amount,
         address to
     ) external {
-        if (msg.sender != _getOwner(factory, currency) && !registry.hasRole(FORCE_EXIT_ADMIN_ROLE, msg.sender)) {
+        if (msg.sender != _getOwner(factory, currency) && !registry.hasRole(WITHDRAW_CLAIM_ROLE, msg.sender)) {
             revert Unauthorized();
         }
         address resolvedTo = _mapRecipient(to, msg.sender);

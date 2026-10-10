@@ -118,26 +118,39 @@ contract LPClaimWithdrawalTest is Test {
         assertEq(manager.balanceOf(lpOwner, currency.toId()), 9);
     }
 
-    function _setForceExitAdmin(address account, bool enabled) private {
+    function _setClaimWithdrawalRole(address account, bool enabled) private {
         vm.mockCall(
             registry,
-            abi.encodeCall(ITSVPermissionedRegistry.hasRole, (lp.FORCE_EXIT_ADMIN_ROLE(), account)),
+            abi.encodeCall(ITSVPermissionedRegistry.hasRole, (lp.WITHDRAW_CLAIM_ROLE(), account)),
             abi.encode(enabled)
         );
     }
 
-    function testForceExitAdminRedeemsOwnClaimWithoutSbt() public {
+    function testForceExitRoleAloneCannotRedeemWithoutSbt() public {
         _seed(lpOwner, 9);
-        _setForceExitAdmin(lpOwner, true);
+        vm.mockCall(
+            registry,
+            abi.encodeCall(ITSVPermissionedRegistry.hasRole, (lp.FORCE_EXIT_ADMIN_ROLE(), lpOwner)),
+            abi.encode(true)
+        );
+        vm.prank(lpOwner);
+        vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
+        lp.withdrawClaim(currency, 9, lpOwner);
+        assertEq(manager.balanceOf(lpOwner, currency.toId()), 9);
+    }
+
+    function testClaimWithdrawalRoleRedeemsOwnClaimWithoutSbt() public {
+        _seed(lpOwner, 9);
+        _setClaimWithdrawalRole(lpOwner, true);
         vm.prank(lpOwner);
         lp.withdrawClaim(currency, 9, address(1));
         assertEq(manager.balanceOf(lpOwner, currency.toId()), 0);
         assertEq(underlying.balanceOf(lpOwner), 9);
     }
 
-    function testForceExitAdminCannotSendToThirdPartyOrManager() public {
+    function testClaimWithdrawalRoleCannotSendToThirdPartyOrManager() public {
         _seed(lpOwner, 9);
-        _setForceExitAdmin(lpOwner, true);
+        _setClaimWithdrawalRole(lpOwner, true);
         vm.startPrank(lpOwner);
         vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
         lp.withdrawClaim(currency, 9, address(this));
@@ -147,19 +160,19 @@ contract LPClaimWithdrawalTest is Test {
         assertEq(manager.balanceOf(lpOwner, currency.toId()), 9);
     }
 
-    function testRevokedForceExitAdminCannotBypassSbt() public {
+    function testRevokedClaimWithdrawalRoleCannotBypassSbt() public {
         _seed(lpOwner, 9);
-        _setForceExitAdmin(lpOwner, true);
-        _setForceExitAdmin(lpOwner, false);
+        _setClaimWithdrawalRole(lpOwner, true);
+        _setClaimWithdrawalRole(lpOwner, false);
         vm.prank(lpOwner);
         vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
         lp.withdrawClaim(currency, 9, lpOwner);
         assertEq(manager.balanceOf(lpOwner, currency.toId()), 9);
     }
 
-    function testForceExitAdminCannotSpendAnotherHoldersClaim() public {
+    function testClaimWithdrawalRoleCannotSpendAnotherHoldersClaim() public {
         _seed(address(this), 9);
-        _setForceExitAdmin(lpOwner, true);
+        _setClaimWithdrawalRole(lpOwner, true);
         vm.prank(lpOwner);
         manager.setOperator(address(lp), true);
         vm.prank(lpOwner);
@@ -169,9 +182,9 @@ contract LPClaimWithdrawalTest is Test {
         assertEq(underlying.balanceOf(lpOwner), 0);
     }
 
-    function testForceExitAdminStillRequiresClaimApproval() public {
+    function testClaimWithdrawalRoleStillRequiresClaimApproval() public {
         _seed(lpOwner, 9);
-        _setForceExitAdmin(lpOwner, true);
+        _setClaimWithdrawalRole(lpOwner, true);
         vm.startPrank(lpOwner);
         manager.setOperator(address(lp), false);
         vm.expectRevert();
