@@ -9,7 +9,7 @@ import {ERC721PermitHash} from "v4-periphery/libraries/ERC721PermitHash.sol";
 import {SignatureVerification} from "permit2/src/libraries/SignatureVerification.sol";
 
 import {IERC721Permit_v4} from "v4-periphery/interfaces/IERC721Permit_v4.sol";
-import {UnorderedNonce} from "v4-periphery/base/UnorderedNonce.sol";
+import {UnorderedNonce} from "./UnorderedNonce.sol";
 
 /// @title ERC721 with permit
 /// @notice Nonfungible tokens that support an approve via signature, i.e. permit
@@ -27,8 +27,9 @@ abstract contract ERC721Permit_v4 is ERC721, IERC721Permit_v4, EIP712_v4, Unorde
 
     /// @inheritdoc IERC721Permit_v4
     function permit(address spender, uint256 tokenId, uint256 deadline, uint256 nonce, bytes calldata signature)
-        external
+        public
         payable
+        virtual
         checkSignatureDeadline(deadline)
     {
         // the .verify function checks the owner is non-0
@@ -49,7 +50,7 @@ abstract contract ERC721Permit_v4 is ERC721, IERC721Permit_v4, EIP712_v4, Unorde
         uint256 deadline,
         uint256 nonce,
         bytes calldata signature
-    ) external payable checkSignatureDeadline(deadline) {
+    ) public payable virtual checkSignatureDeadline(deadline) {
         bytes32 digest = ERC721PermitHash.hashPermitForAll(operator, approved, nonce, deadline);
         signature.verify(_hashTypedData(digest), owner);
 
@@ -64,7 +65,7 @@ abstract contract ERC721Permit_v4 is ERC721, IERC721Permit_v4, EIP712_v4, Unorde
     /// @dev Override Solmate's ERC721 setApprovalForAll so setApprovalForAll() and permit() share the _approveForAll method
     /// @param operator Address to add to the set of authorized operators
     /// @param approved True if the operator is approved, false to revoke approval
-    function setApprovalForAll(address operator, bool approved) public override {
+    function setApprovalForAll(address operator, bool approved) public virtual override {
         _approveForAll(msg.sender, operator, approved);
     }
 
@@ -80,7 +81,7 @@ abstract contract ERC721Permit_v4 is ERC721, IERC721Permit_v4, EIP712_v4, Unorde
     /// or an authorized operator of the current owner.
     /// @param spender The new approved NFT controller
     /// @param id The tokenId of the NFT to approve
-    function approve(address spender, uint256 id) public override {
+    function approve(address spender, uint256 id) public virtual override {
         address owner = _ownerOf[id];
 
         if (msg.sender != owner && !isApprovedForAll[owner][msg.sender]) revert Unauthorized();

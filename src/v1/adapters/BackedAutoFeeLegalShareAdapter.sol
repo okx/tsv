@@ -61,12 +61,7 @@ contract BackedAutoFeeLegalShareAdapter is IDirectLegalShareAdapter {
     /// @notice Reports support for the direct legal-share adapter and ERC-165 interfaces.
     /// @param interfaceId Interface identifier to check.
     /// @return True when this adapter implements the requested interface.
-    function supportsInterface(bytes4 interfaceId)
-        external
-        pure
-        override
-        returns (bool)
-    {
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return interfaceId == type(IDirectLegalShareAdapter).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
