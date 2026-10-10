@@ -144,9 +144,9 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Explicit lifecycle for each registered pool.
     /// @dev DELIST blocks swaps and ordinary LP, LIST allows both through later gates, PAUSE blocks swaps only.
     mapping(bytes32 => PoolLifecycle) public poolLifecycle;
-    /// @notice Number of pools for a security whose `poolTickCount` is nonzero.
+    /// @notice Number of pools for a security whose Lifecycle is DELIST.
     /// @dev Used by `delistSecurity` to require all related pools to have no active ticks first.
-    mapping(bytes32 => uint32) public activePoolCountBySecurity;
+    mapping(bytes32 => uint32) public listPoolCountBySecurity;
     /// @notice Current active tick/NFT count for each registered pool.
     /// @dev The LP Manager updates this value through `updatePoolTickCount` with signed deltas.
     mapping(bytes32 => uint256) public poolTickCount;
@@ -444,7 +444,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param securityId Listed security to remove from admission.
     function delistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
         SecurityConfig storage config = securities[securityId];
-        if (!config.listed || activePoolCountBySecurity[securityId] != 0) revert InvalidStatus();
+        if (!config.listed || listPoolCountBySecurity[securityId] != 0) revert InvalidStatus();
         config.listed = false;
         tiers[config.tierId].listedCount--;
         emit SecurityDelisted(securityId);
@@ -942,9 +942,9 @@ contract TSVRegistryV1 is TSVGoverned {
         if (previousLifecycle == lifecycle) return false;
         if (lifecycle != PoolLifecycle.DELIST && !securities[securityId].listed) revert InvalidStatus();
         if (previousLifecycle == PoolLifecycle.DELIST) {
-            activePoolCountBySecurity[securityId]++;
+            listPoolCountBySecurity[securityId]++;
         } else if (lifecycle == PoolLifecycle.DELIST) {
-            activePoolCountBySecurity[securityId]--;
+            listPoolCountBySecurity[securityId]--;
         }
         poolLifecycle[poolId] = lifecycle;
         emit PoolLifecycleChanged(poolId, securityId, previousLifecycle, lifecycle);
@@ -961,12 +961,10 @@ contract TSVRegistryV1 is TSVGoverned {
         uint256 updated;
         if (delta > 0) {
             updated = current + uint256(delta);
-            if (current == 0) activePoolCountBySecurity[securityId]++;
         } else {
             uint256 decrease = uint256(-(delta + 1)) + 1;
             if (decrease > current) revert InvalidStatus();
             updated = current - decrease;
-            if (updated == 0) activePoolCountBySecurity[securityId]--;
         }
         poolTickCount[poolId] = updated;
     }
