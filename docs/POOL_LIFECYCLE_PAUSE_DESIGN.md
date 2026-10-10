@@ -124,6 +124,7 @@ function registerPool(PoolKey calldata key) external returns (bytes32 poolId);
 ```solidity
 function getCurrencyUnderlying(address w) external view returns (address underlying);
 function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle);
+function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
 function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle) external returns (bool);
 function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle)
     external
@@ -398,11 +399,14 @@ event PoolRegistered(
 
 ```solidity
 function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle);
+function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
 ```
 
 推荐语义：
 
-- 调用方直接传入 `poolId`。该 `poolId` 应由注册时返回值、事件或链下根据完整 PoolKey 派生得到。
+- 调用方可以直接传入 `poolId`，也可以传入完整 `PoolKey`，由 Registry 内部派生 `poolId` 后查询。
+- `bytes32 poolId` 重载适合已保存注册返回值、事件索引或链下已派生 poolId 的调用方。
+- `PoolKey calldata key` 重载适合 Router、LPManager、前端或脚本已经持有完整 PoolKey、但不希望重复派生 poolId 的调用方。
 - 未注册 pool：返回默认值 `DELIST`，或按实现选择 revert。若返回默认值，调用方不能只靠该接口区分“未注册”和“已 DELIST”。
 - 已注册且 `DELIST`：普通 swap 和普通 LP 不允许。
 - 已注册且 `LIST`：生命周期维度允许普通 swap 和普通 LP。
@@ -605,7 +609,8 @@ lpAllowed =
 - `PoolLifecycle.PAUSE` 不是协议级全局 Pause。
 - `PoolLifecycle.PAUSE` 必须通过 `updatePoolLifeCycle(poolId, PoolLifecycle.PAUSE)` 设置。
 - `isPaused()` 是协议级全局 Pause 查询接口。
-- `getPoolLifeCycle(poolId)`、`updatePoolLifeCycle(poolId,lifecycle)` 和 `batchUpdatePoolLifeCycle(poolIds,lifecycle)` 都必须接收 poolId，不接收 PoolKey。
+- `getPoolLifeCycle` 必须同时保留 `bytes32 poolId` 和 `PoolKey calldata key` 两个查询重载；不得删除 `PoolKey` 查询重载。
+- `updatePoolLifeCycle(poolId,lifecycle)` 和 `batchUpdatePoolLifeCycle(poolIds,lifecycle)` 是写接口，必须只接收 poolId，不接收 PoolKey。
 - `updatePoolTickCount(key, delta)` 仍从完整 PoolKey 派生 poolId。
 - `updatePoolTickCount(key, delta)` 是写接口，按 delta 更新 `poolTickCount`，并维护 `activePoolCountBySecurity`。
 - 强退、退出和历史查询路径不应要求 pool 生命周期仍为 `LIST`。

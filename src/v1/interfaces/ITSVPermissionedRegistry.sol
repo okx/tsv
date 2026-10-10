@@ -60,6 +60,11 @@ interface ITSVPermissionedRegistry {
     /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
     function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle);
 
+    /// @notice Returns the explicit lifecycle for the pool derived from a full PoolKey.
+    /// @param key Full Uniswap V4 pool key whose derived pool ID is queried.
+    /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
+    function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
+
     /// @notice Updates one registered pool's lifecycle.
     /// @param poolId Raw Uniswap V4 pool ID whose lifecycle changes.
     /// @param lifecycle New lifecycle to set.
