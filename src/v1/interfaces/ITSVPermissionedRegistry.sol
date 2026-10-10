@@ -5,11 +5,11 @@ import {PermissionFlag} from "v4-periphery/hooks/permissionedPools/libraries/Per
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 
 import {
-    UnderlyingConfig,
-    QuoteTokenConfig,
+    UnderlyingRecord,
+    QuoteTokenRecord,
     PermissionedAdmission,
-    PoolConfig,
-    SecurityConfig,
+    PoolRecord,
+    SecurityRecord,
     PoolLifecycle
 } from "tsv-v1/types/TSVTypes.sol";
 
@@ -30,22 +30,22 @@ interface ITSVPermissionedRegistry {
     /// @notice Returns the stored canonical underlying configuration.
     /// @param u Canonical underlying address to query.
     /// @return Stored U configuration; unknown underlyings return a default record.
-    function getUnderlying(address u) external view returns (UnderlyingConfig memory);
+    function getUnderlying(address u) external view returns (UnderlyingRecord memory);
 
     /// @notice Returns the stored quote token configuration.
     /// @param q Quote token address to query.
     /// @return Stored quote configuration; unknown quotes return a default record.
-    function getQuoteToken(address q) external view returns (QuoteTokenConfig memory);
+    function getQuoteToken(address q) external view returns (QuoteTokenRecord memory);
 
     /// @notice Returns the registered key and permanent security for a pool.
     /// @param id Raw Uniswap V4 pool ID to query.
     /// @return Stored pool record; unknown pools return a default record.
-    function getPool(bytes32 id) external view returns (PoolConfig memory);
+    function getPool(bytes32 id) external view returns (PoolRecord memory);
 
     /// @notice Returns the stored listing and tier for a security.
     /// @param id Security identifier to query.
     /// @return Stored security record; unknown IDs return a default record.
-    function getSecurity(bytes32 id) external view returns (SecurityConfig memory);
+    function getSecurity(bytes32 id) external view returns (SecurityRecord memory);
 
     /// @notice Returns whether a registered pool permits swaps after all Registry gates.
     /// @param id Raw Uniswap V4 pool ID to check.

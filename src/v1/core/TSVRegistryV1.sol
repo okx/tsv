@@ -6,11 +6,14 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {
     SbtIdentityConfig,
-    UnderlyingConfig,
-    QuoteTokenConfig,
+    UnderlyingRecord,
+    QuoteTokenRecord,
     PermissionedAdmission,
-    SecurityConfig,
-    PoolConfig,
+    TierPolicy,
+    SecurityRecord,
+    PoolRecord,
+    MarketStateRecord,
+    EmergencyPauseRecord,
     PoolLifecycle,
     MarketStatus,
     MarketAction,
@@ -64,34 +67,6 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param currency Token address that failed asset admission.
     error UnsupportedAsset(address currency);
 
-    /// @dev Stores the listing limit and quota multiplier for a security tier.
-    struct TierPolicy {
-        /// @dev ADTV hard-cap multiplier in basis points.
-        uint16 tierBps;
-        /// @dev Maximum number of securities that may be listed in this tier.
-        uint32 maxListed;
-        /// @dev Number of securities currently assigned to this tier.
-        uint32 listedCount;
-    }
-
-    /// @dev Records the reason, operator and timing associated with an emergency pause.
-    struct EmergencyPause {
-        /// @dev Scope of the pause, such as one token, security, pool, or all pools.
-        PauseScope scope;
-        /// @dev Scope-specific target identifier; zero for a global pause.
-        bytes32 target;
-        /// @dev Trading, ordinary LP operations, or both blocked by this record.
-        PauseMode mode;
-        /// @dev Operational reason assigned to the pause.
-        bytes32 reasonCode;
-        /// @dev Account that opened the pause.
-        address openedBy;
-        /// @dev Timestamp when the pause was opened.
-        uint64 openedAt;
-        /// @dev Whether this pause currently blocks operations.
-        bool active;
-    }
-
     // Bound venue and permissioned-pool dependencies.
     /// @notice Factory that mints/verifies permissioned stock adapters.
     address public permissionsAdapterFactory;
@@ -115,7 +90,7 @@ contract TSVRegistryV1 is TSVGoverned {
 
     // Security admission and tier capacity.
     /// @dev Security records keyed by TSV security ID.
-    mapping(bytes32 => SecurityConfig) private securities;
+    mapping(bytes32 => SecurityRecord) private securities;
     /// @dev Listing-cap policies keyed by nonzero tier ID.
     mapping(uint8 => TierPolicy) private tiers;
 
@@ -123,38 +98,21 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @dev Canonical underlying U keyed by permissioned stock adapter W; zero means W is unknown.
     mapping(address => address) private currencyUnderlying;
     /// @dev Canonical underlying records keyed by U token address.
-    mapping(address => UnderlyingConfig) private underlyings;
+    mapping(address => UnderlyingRecord) private underlyings;
     /// @dev Quote token records keyed by quote ERC-20 address.
-    mapping(address => QuoteTokenConfig) private quoteTokens;
-    /// @dev Permissioned stock adapters grouped by their canonical underlying U.
-    mapping(address => address[]) private currenciesByUnderlying;
+    mapping(address => QuoteTokenRecord) private quoteTokens;
 
     // Registered pool keys and their permanent security associations.
-    /// @dev Registered pool configuration keyed by raw Uniswap V4 pool ID.
-    mapping(bytes32 => PoolConfig) private pools;
-    /// @dev Append-only pool ID list grouped by the pool's single stock security ID.
-    mapping(bytes32 => bytes32[]) private poolsBySecurity;
-    /// @dev One-based index of a pool ID inside `poolsBySecurity[pool.securityId]`; zero means absent.
-    mapping(bytes32 => uint256) private poolSecurityIndex;
-    /// @notice Explicit lifecycle for each registered pool.
-    /// @dev DELIST blocks swaps and ordinary LP, LIST allows both through later gates, PAUSE blocks swaps only.
-    mapping(bytes32 => PoolLifecycle) public poolLifecycle;
-    /// @notice Number of pools for a security whose lifecycle is not DELIST.
-    /// @dev Used by `delistSecurity` to require every related pool to be lifecycle-delisted first.
-    mapping(bytes32 => uint32) public listPoolCountBySecurity;
-    /// @notice Current active tick/NFT count for each registered pool.
-    /// @dev The LP Manager updates this value through `updatePoolTickCount` with signed deltas.
-    mapping(bytes32 => uint256) public poolTickCount;
+    /// @dev Registered pool records keyed by raw Uniswap V4 pool ID.
+    mapping(bytes32 => PoolRecord) private pools;
 
     // Market reports and emergency pause records.
-    /// @notice Last accepted market-report sequence per security ID.
-    mapping(bytes32 => uint64) public marketSequence;
+    /// @dev Market state records keyed by TSV security ID.
+    mapping(bytes32 => MarketStateRecord) private marketStates;
     /// @notice Emergency pause records keyed by monotonically increasing record ID.
-    mapping(uint256 => EmergencyPause) public emergencyPauses;
-    /// @notice Number of active records for exactly the specified scope, target, and mode.
-    mapping(uint8 => mapping(bytes32 => mapping(uint8 => uint256))) public activePauseCount;
-    /// @notice Current market pause mask; admitted securities default to NONE.
-    mapping(bytes32 => PauseMode) public marketPauseMode;
+    mapping(uint256 => EmergencyPauseRecord) public emergencyPauses;
+    /// @dev Number of active pause records keyed by normalized `(scope, target)` and mode.
+    mapping(bytes32 => mapping(uint8 => uint256)) private activePauseCounts;
     /// @notice Next emergency pause record ID to allocate.
     uint256 public nextPauseId;
 
@@ -401,7 +359,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Relists a delisted security under its existing tier.
     /// @param securityId Existing security to relist.
     function relistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        SecurityConfig storage config = securities[securityId];
+        SecurityRecord storage config = securities[securityId];
         if (config.securityId == 0 || config.listed) revert InvalidStatus();
         _takeTierSlot(config.tierId);
         config.listed = true;
@@ -412,7 +370,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param securityId Listed security whose tier changes.
     /// @param tierId Configured destination tier with available capacity.
     function setSecurityTier(bytes32 securityId, uint8 tierId) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        SecurityConfig storage config = securities[securityId];
+        SecurityRecord storage config = securities[securityId];
         if (!config.listed || config.tierId == tierId) revert InvalidStatus();
         _takeTierSlot(tierId);
         tiers[config.tierId].listedCount--;
@@ -424,8 +382,8 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Delists a security, blocking ordinary operations across all its registered pools.
     /// @param securityId Listed security to remove from admission.
     function delistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        SecurityConfig storage config = securities[securityId];
-        if (!config.listed || listPoolCountBySecurity[securityId] != 0) revert InvalidStatus();
+        SecurityRecord storage config = securities[securityId];
+        if (!config.listed || config.listedPoolCount != 0) revert InvalidStatus();
         config.listed = false;
         tiers[config.tierId].listedCount--;
         emit SecurityDelisted(securityId);
@@ -434,7 +392,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Returns the stored listing and tier for a security.
     /// @param securityId Security identifier to query.
     /// @return Stored security record; unknown IDs return a default record.
-    function getSecurity(bytes32 securityId) external view returns (SecurityConfig memory) {
+    function getSecurity(bytes32 securityId) external view returns (SecurityRecord memory) {
         return securities[securityId];
     }
 
@@ -448,10 +406,12 @@ contract TSVRegistryV1 is TSVGoverned {
     {
         if (admission.securityId == 0) revert InvalidConfig();
         _requireEnvironment();
-        SecurityConfig storage config = securities[admission.securityId];
+        SecurityRecord storage config = securities[admission.securityId];
         if (config.securityId == 0) {
             _takeTierSlot(tierId);
-            securities[admission.securityId] = SecurityConfig(admission.securityId, tierId, true);
+            config.securityId = admission.securityId;
+            config.tierId = tierId;
+            config.listed = true;
             emit SecurityListed(admission.securityId, tierId);
         } else if (!config.listed || config.tierId != tierId) {
             revert InvalidStatus();
@@ -466,7 +426,7 @@ contract TSVRegistryV1 is TSVGoverned {
         if (quoteTokens[quote].registered) revert InvalidStatus();
         PermissionedValidationLib.validateQuoteIdentity(quote);
         uint8 rawDecimals = PermissionedValidationLib.readDecimals(quote);
-        quoteTokens[quote] = QuoteTokenConfig(rawDecimals, true);
+        quoteTokens[quote] = QuoteTokenRecord(rawDecimals, true);
         emit QuoteTokenRegistered(quote, rawDecimals);
     }
 
@@ -474,7 +434,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param u Canonical underlying whose legal-share adapter is replaced.
     /// @param newAdapter New legal-share adapter for `u`.
     function replaceUnderlyingLegalShareAdapter(address u, address newAdapter) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        UnderlyingConfig storage config = underlyings[u];
+        UnderlyingRecord storage config = underlyings[u];
         if (
             config.securityId == 0 || newAdapter == config.legalShareAdapter
                 || !_securityPausedForReplacement(config.securityId, PauseMode.TRADE)
@@ -496,14 +456,14 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Returns the stored canonical underlying configuration.
     /// @param u Canonical underlying address to query.
     /// @return Stored U configuration; unknown underlyings return a default record.
-    function getUnderlying(address u) external view returns (UnderlyingConfig memory) {
+    function getUnderlying(address u) external view returns (UnderlyingRecord memory) {
         return underlyings[u];
     }
 
     /// @notice Returns the stored quote token configuration.
     /// @param quote Quote token address to query.
     /// @return Stored quote configuration; unknown quotes return a default record.
-    function getQuoteToken(address quote) external view returns (QuoteTokenConfig memory) {
+    function getQuoteToken(address quote) external view returns (QuoteTokenRecord memory) {
         return quoteTokens[quote];
     }
 
@@ -524,23 +484,21 @@ contract TSVRegistryV1 is TSVGoverned {
         bytes32 securityId1 = underlyings[currencyUnderlying[currency1]].securityId;
         if ((securityId0 == 0) == (securityId1 == 0)) revert InvalidPool();
         bytes32 securityId = securityId0 == 0 ? securityId1 : securityId0;
-        SecurityConfig storage security = securities[securityId];
+        SecurityRecord storage security = securities[securityId];
         if (!security.listed) revert InvalidPool();
         uint8 tierId = security.tierId;
         poolId = PoolId.unwrap(key.toId());
         if (isKnownPool(poolId)) revert InvalidPool();
-        pools[poolId] = PoolConfig(key, securityId, tierId);
-        poolsBySecurity[securityId].push(poolId);
-        poolSecurityIndex[poolId] = poolsBySecurity[securityId].length;
-        poolLifecycle[poolId] = PoolLifecycle.LIST;
-        listPoolCountBySecurity[securityId]++;
+        security.poolIds.push(poolId);
+        pools[poolId] = PoolRecord(key, securityId, tierId, PoolLifecycle.LIST, 0, security.poolIds.length);
+        security.listedPoolCount++;
         emit PoolRegistered(poolId, securityId, tierId, PoolLifecycle.LIST);
     }
 
     /// @notice Returns the registered key and permanent securities for a pool.
     /// @param poolId Pool identifier to query.
     /// @return Stored pool record; unknown IDs return a default record.
-    function getPool(bytes32 poolId) external view returns (PoolConfig memory) {
+    function getPool(bytes32 poolId) external view returns (PoolRecord memory) {
         return pools[poolId];
     }
 
@@ -555,14 +513,36 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param poolId Raw Uniswap V4 pool ID to query.
     /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
     function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle) {
-        return poolLifecycle[poolId];
+        return pools[poolId].lifecycle;
     }
 
     /// @notice Returns the explicit lifecycle for the pool derived from a full PoolKey.
     /// @param key Full Uniswap V4 pool key whose derived pool ID is queried.
     /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
     function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle) {
-        return poolLifecycle[PoolId.unwrap(key.toId())];
+        return pools[PoolId.unwrap(key.toId())].lifecycle;
+    }
+
+    /// @notice Returns the explicit lifecycle for a registered pool.
+    /// @dev Compatibility getter replacing the previous public mapping.
+    /// @param poolId Raw Uniswap V4 pool ID to query.
+    /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
+    function poolLifecycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle) {
+        return pools[poolId].lifecycle;
+    }
+
+    /// @notice Returns the number of pools for a security whose lifecycle is not DELIST.
+    /// @param securityId Security whose lifecycle-listed pool count is queried.
+    /// @return count Number of pools that still block `delistSecurity`.
+    function listPoolCountBySecurity(bytes32 securityId) external view returns (uint32 count) {
+        return securities[securityId].listedPoolCount;
+    }
+
+    /// @notice Returns the current Tick/NFT count tracked for a registered pool.
+    /// @param poolId Raw Uniswap V4 pool ID to query.
+    /// @return count Current tracked Tick/NFT count.
+    function poolTickCount(bytes32 poolId) external view returns (uint256 count) {
+        return pools[poolId].tickCount;
     }
 
     /// @notice Updates one registered pool's lifecycle.
@@ -574,7 +554,7 @@ contract TSVRegistryV1 is TSVGoverned {
         onlyRole(SYMBOL_ADMIN_ROLE)
         returns (bool)
     {
-        PoolConfig storage pool = pools[poolId];
+        PoolRecord storage pool = pools[poolId];
         if (!isKnownPool(poolId)) revert InvalidPool();
         return _updatePoolLifecycle(poolId, pool, lifecycle);
     }
@@ -591,7 +571,7 @@ contract TSVRegistryV1 is TSVGoverned {
         if (poolIds.length == 0) revert InvalidConfig();
         for (uint256 i; i < poolIds.length; ++i) {
             bytes32 poolId = poolIds[i];
-            PoolConfig storage pool = pools[poolId];
+            PoolRecord storage pool = pools[poolId];
             if (!isKnownPool(poolId)) revert InvalidPool();
             if (_updatePoolLifecycle(poolId, pool, lifecycle)) changedCount++;
         }
@@ -605,9 +585,9 @@ contract TSVRegistryV1 is TSVGoverned {
     function updatePoolTickCount(PoolKey calldata key, int256 delta) external returns (bool) {
         if (msg.sender != lpManager) revert InvalidPool();
         bytes32 poolId = PoolId.unwrap(key.toId());
-        PoolConfig storage pool = pools[poolId];
+        PoolRecord storage pool = pools[poolId];
         if (!isKnownPool(poolId)) revert InvalidPool();
-        if (delta > 0 && (poolLifecycle[poolId] == PoolLifecycle.DELIST || !securities[pool.securityId].listed)) {
+        if (delta > 0 && (pool.lifecycle == PoolLifecycle.DELIST || !securities[pool.securityId].listed)) {
             revert InvalidStatus();
         }
         _applyPoolTickDelta(poolId, delta);
@@ -620,7 +600,23 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return OPEN when no market pause applies, otherwise HALTED; unknown IDs revert.
     function marketStatus(bytes32 securityId) external view returns (MarketStatus) {
         if (securities[securityId].securityId == 0) revert InvalidConfig();
-        return marketPauseMode[securityId] == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
+        return marketStates[securityId].pauseMode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
+    }
+
+    /// @notice Returns the last accepted market-report sequence for a security.
+    /// @dev Compatibility getter replacing the previous public mapping.
+    /// @param securityId Security identifier to query.
+    /// @return sequence Last accepted market-report sequence number.
+    function marketSequence(bytes32 securityId) external view returns (uint64 sequence) {
+        return marketStates[securityId].sequence;
+    }
+
+    /// @notice Returns the current market pause mask for a security.
+    /// @dev Compatibility getter replacing the previous public mapping.
+    /// @param securityId Security identifier to query.
+    /// @return mode Current market pause mode.
+    function marketPauseMode(bytes32 securityId) external view returns (PauseMode mode) {
+        return marketStates[securityId].pauseMode;
     }
 
     /// @notice Applies the next valid market-state transition from the bound DataInbox.
@@ -638,9 +634,10 @@ contract TSVRegistryV1 is TSVGoverned {
     ) external {
         if (
             msg.sender != dataInbox || securityId == 0 || !securities[securityId].listed
-                || sequence <= marketSequence[securityId] || mode == PauseMode.NONE
+                || sequence <= marketStates[securityId].sequence || mode == PauseMode.NONE
         ) revert InvalidStatus();
-        PauseMode previousPauseMode = marketPauseMode[securityId];
+        MarketStateRecord storage state = marketStates[securityId];
+        PauseMode previousPauseMode = state.pauseMode;
         MarketStatus previousStatus = previousPauseMode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
         PauseMode nextPauseMode;
         if (action == MarketAction.HALT) {
@@ -650,8 +647,8 @@ contract TSVRegistryV1 is TSVGoverned {
         }
         if (nextPauseMode == previousPauseMode) revert InvalidStatus();
         MarketStatus nextStatus = nextPauseMode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED;
-        marketPauseMode[securityId] = nextPauseMode;
-        marketSequence[securityId] = sequence;
+        state.pauseMode = nextPauseMode;
+        state.sequence = sequence;
         emit MarketStatusChanged(
             securityId,
             uint8(previousStatus),
@@ -680,8 +677,8 @@ contract TSVRegistryV1 is TSVGoverned {
         ) revert InvalidConfig();
         recordId = nextPauseId++;
         emergencyPauses[recordId] =
-            EmergencyPause(scope, target, mode, reasonCode, msg.sender, uint64(block.timestamp), true);
-        activePauseCount[uint8(scope)][target][uint8(mode)]++;
+            EmergencyPauseRecord(scope, target, mode, reasonCode, msg.sender, uint64(block.timestamp), true);
+        activePauseCounts[_pauseKey(uint8(scope), target)][uint8(mode)]++;
         emit EmergencyPauseOpened(recordId, uint8(scope), target, uint8(mode), reasonCode);
     }
 
@@ -689,12 +686,18 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param recordId Active pause record to close.
     /// @param reasonCode Nonzero reason code for clearing the pause.
     function clearEmergencyPause(uint256 recordId, bytes32 reasonCode) external onlyRole(EMERGENCY_RESUMER_ROLE) {
-        EmergencyPause storage record = emergencyPauses[recordId];
+        EmergencyPauseRecord storage record = emergencyPauses[recordId];
         if (!record.active || reasonCode == 0) revert InvalidStatus();
-        // TOKEN recovery rechecks admitted assets; unknown targets may still have preemptive pauses.
+        // Unknown targets may still carry preemptive pauses; clearing only affects this active record.
         record.active = false;
-        activePauseCount[uint8(record.scope)][record.target][uint8(record.mode)]--;
+        activePauseCounts[_pauseKey(uint8(record.scope), record.target)][uint8(record.mode)]--;
         emit EmergencyPauseClosed(recordId, reasonCode);
+    }
+
+    /// @notice Number of active records for exactly the specified scope, target, and mode.
+    /// @dev Compatibility getter replacing the previous three-level public mapping.
+    function activePauseCount(uint8 scope, bytes32 target, uint8 mode) external view returns (uint256 count) {
+        return activePauseCounts[_pauseKey(scope, target)][mode];
     }
 
     /// @notice Returns whether a registered pool permits swaps after admission and trading-pause checks.
@@ -755,7 +758,7 @@ contract TSVRegistryV1 is TSVGoverned {
         }
         address underlying = PermissionedValidationLib.candidateUnderlying(currency);
         uint8 rawDecimals = PermissionedValidationLib.stockDecimals(currency, underlying);
-        UnderlyingConfig storage canonicalUnderlying = underlyings[underlying];
+        UnderlyingRecord storage canonicalUnderlying = underlyings[underlying];
         if (
             canonicalUnderlying.securityId != 0
                 && (canonicalUnderlying.securityId != admission.securityId
@@ -771,11 +774,10 @@ contract TSVRegistryV1 is TSVGoverned {
         }
         PermissionedValidationLib.validateInitialInventory(permissionedPoolManager, currency, underlying);
         if (canonicalUnderlying.securityId == 0) {
-            underlyings[underlying] = UnderlyingConfig(admission.securityId, admission.legalShareAdapter, rawDecimals);
+            underlyings[underlying] = UnderlyingRecord(admission.securityId, admission.legalShareAdapter, rawDecimals);
             emit UnderlyingBound(underlying, admission.securityId, admission.legalShareAdapter, rawDecimals);
         }
         currencyUnderlying[currency] = underlying;
-        currenciesByUnderlying[underlying].push(currency);
         emit PermissionedCurrencyRegistered(currency, underlying, admission.securityId);
     }
 
@@ -785,7 +787,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return Whether global, security, or market pause state covers `operation`.
     function _securityPausedForReplacement(bytes32 securityId, PauseMode operation) private view returns (bool) {
         return _isPaused(PauseScope.GLOBAL, 0, operation) || _isPaused(PauseScope.SECURITY, securityId, operation)
-            || (uint8(marketPauseMode[securityId]) & uint8(operation)) != 0;
+            || (uint8(marketStates[securityId].pauseMode) & uint8(operation)) != 0;
     }
 
     /// @dev Checks whether an asset is currently admitted for pool operations.
@@ -804,9 +806,9 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param operation TRADE or LP operation gate to evaluate.
     /// @return Whether the operation may continue through Registry gates.
     function _isOperationAllowed(bytes32 poolId, PauseMode operation) private view returns (bool) {
-        PoolConfig storage pool = pools[poolId];
+        PoolRecord storage pool = pools[poolId];
         if (!isKnownPool(poolId)) return false;
-        PoolLifecycle lifecycle = poolLifecycle[poolId];
+        PoolLifecycle lifecycle = pool.lifecycle;
         if (operation == PauseMode.TRADE) {
             if (lifecycle != PoolLifecycle.LIST) return false;
         } else if (operation == PauseMode.LP) {
@@ -821,7 +823,7 @@ contract TSVRegistryV1 is TSVGoverned {
                 || _isPaused(PauseScope.TOKEN, _addressKey(currency1), operation)
         ) return false;
         bytes32 securityId = pool.securityId;
-        return (uint8(marketPauseMode[securityId]) & uint8(operation)) == 0
+        return (uint8(marketStates[securityId].pauseMode) & uint8(operation)) == 0
             && !_isPaused(PauseScope.SECURITY, securityId, operation);
     }
 
@@ -831,8 +833,17 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param operation TRADE or LP operation to inspect.
     /// @return Whether the active pause count is nonzero.
     function _isPaused(PauseScope scope, bytes32 target, PauseMode operation) private view returns (bool) {
-        return activePauseCount[uint8(scope)][target][uint8(operation)] != 0
-            || activePauseCount[uint8(scope)][target][uint8(PauseMode.ALL)] != 0;
+        bytes32 pauseKey = _pauseKey(uint8(scope), target);
+        return activePauseCounts[pauseKey][uint8(operation)] != 0
+            || activePauseCounts[pauseKey][uint8(PauseMode.ALL)] != 0;
+    }
+
+    /// @dev Normalizes a pause scope and target into the key used by PauseCounter storage.
+    /// @param scope Pause scope encoded as `PauseScope`.
+    /// @param target Scope-specific target key.
+    /// @return key Canonical key for active pause counts.
+    function _pauseKey(uint8 scope, bytes32 target) private pure returns (bytes32 key) {
+        return keccak256(abi.encode(scope, target));
     }
 
     /// @dev Encodes an address as the bytes32 target key used by token-scoped pauses.
@@ -847,21 +858,21 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param pool Stored pool configuration for `poolId`.
     /// @param lifecycle New lifecycle value.
     /// @return Whether the stored lifecycle changed.
-    function _updatePoolLifecycle(bytes32 poolId, PoolConfig storage pool, PoolLifecycle lifecycle)
+    function _updatePoolLifecycle(bytes32 poolId, PoolRecord storage pool, PoolLifecycle lifecycle)
         private
         returns (bool)
     {
-        PoolLifecycle previousLifecycle = poolLifecycle[poolId];
-        if (lifecycle == PoolLifecycle.DELIST && poolTickCount[poolId] != 0) revert InvalidStatus();
+        PoolLifecycle previousLifecycle = pool.lifecycle;
+        if (lifecycle == PoolLifecycle.DELIST && pool.tickCount != 0) revert InvalidStatus();
         bytes32 securityId = pool.securityId;
         if (previousLifecycle == lifecycle) return false;
         if (lifecycle != PoolLifecycle.DELIST && !securities[securityId].listed) revert InvalidStatus();
         if (previousLifecycle == PoolLifecycle.DELIST) {
-            listPoolCountBySecurity[securityId]++;
+            securities[securityId].listedPoolCount++;
         } else if (lifecycle == PoolLifecycle.DELIST) {
-            listPoolCountBySecurity[securityId]--;
+            securities[securityId].listedPoolCount--;
         }
-        poolLifecycle[poolId] = lifecycle;
+        pool.lifecycle = lifecycle;
         emit PoolLifecycleChanged(poolId, securityId, previousLifecycle, lifecycle);
         return true;
     }
@@ -871,7 +882,8 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param delta Signed tick-count change to apply.
     function _applyPoolTickDelta(bytes32 poolId, int256 delta) private {
         if (delta == 0) return;
-        uint256 current = poolTickCount[poolId];
+        PoolRecord storage pool = pools[poolId];
+        uint256 current = pool.tickCount;
         uint256 updated;
         if (delta > 0) {
             updated = current + uint256(delta);
@@ -880,6 +892,6 @@ contract TSVRegistryV1 is TSVGoverned {
             if (decrease > current) revert InvalidStatus();
             updated = current - decrease;
         }
-        poolTickCount[poolId] = updated;
+        pool.tickCount = updated;
     }
 }

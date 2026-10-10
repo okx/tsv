@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {
     PermissionedAdmission,
-    UnderlyingConfig,
+    UnderlyingRecord,
     MarketStatus,
     MarketAction,
     PauseScope,
@@ -58,7 +58,7 @@ contract TSVPausesTest is FoundationFixture {
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         uint256 pauseId = registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.ALL, keccak256("replace"));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
-        UnderlyingConfig memory config = registry.getUnderlying(address(stockToken));
+        UnderlyingRecord memory config = registry.getUnderlying(address(stockToken));
         assertEq(config.legalShareAdapter, address(replacement));
 
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
@@ -138,6 +138,29 @@ contract TSVPausesTest is FoundationFixture {
         assertEq(registry.activePauseCount(uint8(PauseScope.POOL), poolId, uint8(PauseMode.TRADE)), 1);
         registry.clearEmergencyPause(trade2, keccak256("resume"));
         _assertOperationGates(true, true);
+    }
+
+    function testPauseCounterKeySeparatesSameTargetAcrossScopes() public {
+        _grantPauseRoles();
+        bytes32 sharedTarget = SECURITY;
+        uint256 securityPause = registry.addEmergencyPause(
+            PauseScope.SECURITY, sharedTarget, PauseMode.TRADE, keccak256("security-pause")
+        );
+        uint256 poolPause =
+            registry.addEmergencyPause(PauseScope.POOL, sharedTarget, PauseMode.LP, keccak256("pool-pause"));
+
+        assertEq(registry.activePauseCount(uint8(PauseScope.SECURITY), sharedTarget, uint8(PauseMode.TRADE)), 1);
+        assertEq(registry.activePauseCount(uint8(PauseScope.POOL), sharedTarget, uint8(PauseMode.TRADE)), 0);
+        assertEq(registry.activePauseCount(uint8(PauseScope.POOL), sharedTarget, uint8(PauseMode.LP)), 1);
+        _assertOperationGates(false, true);
+
+        registry.clearEmergencyPause(securityPause, keccak256("resume-security"));
+        assertEq(registry.activePauseCount(uint8(PauseScope.SECURITY), sharedTarget, uint8(PauseMode.TRADE)), 0);
+        assertEq(registry.activePauseCount(uint8(PauseScope.POOL), sharedTarget, uint8(PauseMode.LP)), 1);
+        _assertOperationGates(true, true);
+
+        registry.clearEmergencyPause(poolPause, keccak256("resume-pool"));
+        assertEq(registry.activePauseCount(uint8(PauseScope.POOL), sharedTarget, uint8(PauseMode.LP)), 0);
     }
 
     function testEmergencyPauseRejectsNoneInvalidEnumsAndUnauthorizedCallers() public {

@@ -4,7 +4,14 @@ pragma solidity 0.8.26;
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {PermissionedAdmission, PauseScope, PauseMode, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PermissionedAdmission,
+    SecurityRecord,
+    PoolRecord,
+    PauseScope,
+    PauseMode,
+    PoolLifecycle
+} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 
@@ -203,6 +210,46 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         assertEq(registry.listPoolCountBySecurity(SECURITY), 0);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.updatePoolTickCount(key, 1);
+    }
+
+    function testPoolAndSecurityRecordsBackCompatibilityGetters() public {
+        SecurityRecord memory security = registry.getSecurity(SECURITY);
+        PoolRecord memory pool = registry.getPool(poolId);
+
+        assertEq(uint8(registry.poolLifecycle(poolId)), uint8(PoolLifecycle.LIST));
+        assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.LIST));
+        assertEq(uint8(registry.getPoolLifeCycle(key)), uint8(PoolLifecycle.LIST));
+        assertEq(registry.poolTickCount(poolId), 0);
+        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(security.poolIds.length, 1);
+        assertEq(security.poolIds[0], poolId);
+        assertEq(security.listedPoolCount, 1);
+        assertEq(pool.securityId, SECURITY);
+        assertEq(pool.tierId, security.tierId);
+        assertEq(uint8(pool.lifecycle), uint8(PoolLifecycle.LIST));
+        assertEq(pool.tickCount, 0);
+        assertEq(pool.poolSecurityIndex, 1);
+
+        assertTrue(registry.updatePoolTickCount(key, 1));
+        pool = registry.getPool(poolId);
+        assertEq(registry.poolTickCount(poolId), 1);
+        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(pool.tickCount, 1);
+        assertEq(uint8(pool.lifecycle), uint8(PoolLifecycle.LIST));
+
+        assertTrue(registry.updatePoolTickCount(key, -1));
+        assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST));
+        security = registry.getSecurity(SECURITY);
+        pool = registry.getPool(poolId);
+        assertEq(uint8(registry.poolLifecycle(poolId)), uint8(PoolLifecycle.DELIST));
+        assertEq(registry.poolTickCount(poolId), 0);
+        assertEq(registry.listPoolCountBySecurity(SECURITY), 0);
+        assertEq(security.listedPoolCount, 0);
+        assertEq(security.poolIds[0], poolId);
+        assertEq(pool.securityId, SECURITY);
+        assertEq(uint8(pool.lifecycle), uint8(PoolLifecycle.DELIST));
+        assertEq(pool.tickCount, 0);
+        assertEq(pool.poolSecurityIndex, 1);
     }
 
     function _lifecycleState() private view returns (bytes32) {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {UnderlyingConfig, PauseScope, PauseMode, MarketAction} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingRecord, PauseScope, PauseMode, MarketAction} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";

@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {IERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
-import {UnderlyingConfig, QuoteTokenConfig} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingRecord, QuoteTokenRecord} from "tsv-v1/types/TSVTypes.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {
@@ -20,8 +20,8 @@ interface IPermissionedRegistryViews {
     function dataInbox() external view returns (address);
     function participantSbt() external view returns (address);
     function getCurrencyUnderlying(address w) external view returns (address);
-    function getUnderlying(address u) external view returns (UnderlyingConfig memory);
-    function getQuoteToken(address q) external view returns (QuoteTokenConfig memory);
+    function getUnderlying(address u) external view returns (UnderlyingRecord memory);
+    function getQuoteToken(address q) external view returns (QuoteTokenRecord memory);
 }
 
 interface IPermissionedComponentV1 {
