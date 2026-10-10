@@ -12,7 +12,7 @@
 - 保持现有 `registerPool(PoolKey calldata key)` 接口不变。
 - 注册 Pool 时由 Registry 内部推导股票 `securityId`，并固化该证券当前 `tierId`。
 - 增加 Pool 生命周期查询与更新、Pool Tick 数量检查入口，以及协议级全局 Pause 查询。
-- 调整 `delistSecurity(securityId)` 下架策略：只有该证券关联的所有 pool 的 `poolTickCount` 都为 0 时，才允许将证券下架。
+- 调整 `delistSecurity(securityId)` 下架策略：只有该证券关联的所有 pool 生命周期都为 `DELIST` 时，才允许将证券下架；进入 `DELIST` 前仍要求对应 pool 的 `poolTickCount == 0`。
 
 本方案区分两类 pause：
 
@@ -125,6 +125,9 @@ function registerPool(PoolKey calldata key) external returns (bytes32 poolId);
 function getCurrencyUnderlying(address w) external view returns (address underlying);
 function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle);
 function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
+function listPoolCountBySecurity(bytes32 securityId) external view returns (uint32 count);
+function activePoolCountBySecurity(bytes32 securityId) external view returns (uint32 count);
+function poolTickCount(bytes32 poolId) external view returns (uint256 count);
 function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle) external returns (bool);
 function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle)
     external
@@ -152,8 +155,8 @@ function delistSecurity(bytes32 securityId) external;
 语义调整：
 
 - `delistSecurity(securityId)` 不再负责批量修改 pool 生命周期。
-- 调用前，必须确保该证券下所有 pool 的 `poolTickCount` 都为 0，即没有活跃 Tick/NFT 绑定。
-- Registry 必须校验 `activePoolCountBySecurity[securityId] == 0`，否则拒绝下架；该计数表示 `poolTickCount > 0` 的活跃 pool 数量。
+- 调用前，必须确保该证券下所有 pool 生命周期都已经切到 `DELIST`。
+- Registry 必须校验 `listPoolCountBySecurity[securityId] == 0`，否则拒绝下架；该计数表示生命周期不是 `DELIST` 的 pool 数量。
 - 如需在证券下架前显式关闭 pool 业务生命周期，管理员可通过 `updatePoolLifeCycle(poolId, PoolLifecycle.DELIST)` 或
   `batchUpdatePoolLifeCycle(poolIds, PoolLifecycle.DELIST)` 设置；设置 `DELIST` 时要求对应 pool 的 `poolTickCount == 0`。
 - 证券下架后，历史 pool 仍保留在 `pools` 和 `poolsBySecurity` 中，强退、退出和审计查询仍可识别其历史身份。
@@ -271,11 +274,17 @@ mapping(bytes32 poolId => uint256 indexPlusOne) private poolSecurityIndexPlusOne
 /// @dev registerPool 将新池初始化为 LIST。
 mapping(bytes32 poolId => PoolLifecycle lifecycle) public poolLifecycle;
 
-/// @notice 某个 securityId 下 `poolTickCount > 0` 的池数量。
+/// @notice 某个 securityId 下生命周期不是 DELIST 的池数量。
 /// @dev 这是 O(1) 聚合计数，用于在 `delistSecurity` 中快速判断
-///      “该证券下所有池都没有活跃 Tick/NFT”。registerPool 初始化时 tickCount 为 0，
-///      因此不递增该计数；updatePoolTickCount 从 0 变为正数时递增，
-///      从正数变为 0 时递减。
+///      “该证券下所有池都已经完成生命周期下架”。registerPool 初始化为 LIST 时递增；
+///      `updatePoolLifeCycle` 从 DELIST 切回 LIST/PAUSE 时递增，从 LIST/PAUSE 切到 DELIST 时递减。
+///      该计数只表达运营生命周期，不表达 pool 内 Tick/NFT 或流动性数量。
+mapping(bytes32 securityId => uint32 listCount) public listPoolCountBySecurity;
+
+/// @notice 某个 securityId 下 `poolTickCount > 0` 的池数量。
+/// @dev 这是 O(1) 聚合计数，只由 `updatePoolTickCount` 根据 `poolTickCount`
+///      的 0/非 0 迁移维护。registerPool 初始化时 tickCount 为 0，因此不递增该计数；
+///      生命周期变更不维护该计数。
 mapping(bytes32 securityId => uint32 activeCount) public activePoolCountBySecurity;
 
 /// @notice 每个 pool 当前绑定的 Tick 数量。
@@ -381,8 +390,9 @@ function registerPermissionedCurrency(PermissionedAdmission calldata admission, 
 14. 将 `poolId` 追加到 `poolsBySecurity[securityId]`。
 15. 设置 `poolSecurityIndexPlusOne[poolId] = poolsBySecurity[securityId].length`。
 16. 设置 `poolLifecycle[poolId] = PoolLifecycle.LIST`。
-17. 初始化或确认 `poolTickCount[poolId] == 0`；不递增 `activePoolCountBySecurity[securityId]`。
-18. 发出 `PoolRegistered`。
+17. 递增 `listPoolCountBySecurity[securityId]`，因为新 pool 生命周期不是 `DELIST`。
+18. 初始化或确认 `poolTickCount[poolId] == 0`；不递增 `activePoolCountBySecurity[securityId]`。
+19. 发出 `PoolRegistered`。
 
 推荐事件：
 
@@ -428,6 +438,7 @@ function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle) external r
 - `lifecycle == PoolLifecycle.DELIST`：阻断普通 swap 和普通 LP，但保留 pool 历史身份，退出和强退路径不应依赖 LIST。
 - 设置 `lifecycle == PoolLifecycle.DELIST` 时，必须要求 `poolTickCount[poolId] == 0`；仍有活跃 Tick/NFT 的 pool 不允许进入 DELIST。
 - 如果目标状态不是 `DELIST`，该 pool 绑定的 `securityId` 必须仍处于 listed 状态；证券已下架时，不应把历史 pool 重新打开为 `LIST` 或 `PAUSE`。
+- 生命周期变更维护 `listPoolCountBySecurity[securityId]`：从 `DELIST` 切到 `LIST`/`PAUSE` 时递增，从 `LIST`/`PAUSE` 切到 `DELIST` 时递减。
 - 生命周期变更不维护 `activePoolCountBySecurity[securityId]`；该计数只由 `updatePoolTickCount` 根据 `poolTickCount` 的 0/非 0 迁移维护。
 - 若目标状态等于当前状态，建议返回 `false` 或 revert；实现应选择一种并在测试中固定。
 
@@ -460,9 +471,10 @@ function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle life
 - 对已经处于目标状态的 pool 视为幂等 no-op，不计入 `changedCount`。
 - 返回 `changedCount`，便于调用方确认本次批量实际改变了多少个 pool。
 - 如果目标状态不是 `DELIST`，每个 pool 绑定的 `securityId` 必须仍处于 listed 状态；证券已下架时，不应把历史 pool 批量重新打开为 `LIST` 或 `PAUSE`。
+- 批量生命周期变更逐个维护 `listPoolCountBySecurity`，但不维护 `activePoolCountBySecurity`。
 - 推荐设置一个合理的批量上限，例如 `MAX_POOL_LIFECYCLE_BATCH_SIZE`，避免单笔交易因为 calldata 或 gas 过大失败。大量 pool 应由调用方分批提交。
 
-证券下架场景下，调用方可以传入该证券下仍未 `DELIST` 的 `poolId` 列表，并将 `lifecycle` 设置为 `PoolLifecycle.DELIST`。进入 `DELIST` 前必须先通过 LP/NFT 流程把对应 pool 的 `poolTickCount` 清零；生命周期接口本身不维护 `activePoolCountBySecurity`。
+证券下架场景下，调用方可以传入该证券下仍未 `DELIST` 的 `poolId` 列表，并将 `lifecycle` 设置为 `PoolLifecycle.DELIST`。进入 `DELIST` 前必须先通过 LP/NFT 流程把对应 pool 的 `poolTickCount` 清零；生命周期接口本身维护 `listPoolCountBySecurity`，但不维护 `activePoolCountBySecurity`。
 
 ## 9. Pool Tick 数量接口
 
@@ -488,8 +500,8 @@ function updatePoolTickCount(PoolKey calldata key, int256 delta) external return
 `delistSecurity(securityId)` 推荐流程：
 
 1. 校验 `securityId` 已登记且当前 `listed == true`。
-2. 校验 `activePoolCountBySecurity[securityId] == 0`。
-3. 若计数不为 0，说明至少还有一个关联 pool 的 `poolTickCount > 0`，必须拒绝下架。
+2. 校验 `listPoolCountBySecurity[securityId] == 0`。
+3. 若计数不为 0，说明至少还有一个关联 pool 的生命周期不是 `DELIST`，必须拒绝下架。
 4. 释放该证券占用的 tier 名额。
 5. 设置 `securities[securityId].listed = false`。
 6. 发出原有 `SecurityDelisted` 事件。
@@ -500,7 +512,7 @@ function updatePoolTickCount(PoolKey calldata key, int256 delta) external return
 2. 对仍有 Tick/NFT 绑定的 pool，先通过 LP Manager 调用 `updatePoolTickCount(key, delta)`，直到 `poolTickCount == 0`。
 3. 对仍需关闭业务生命周期的 pool，优先按批次调用 `batchUpdatePoolLifeCycle(poolIds, PoolLifecycle.DELIST)`。
 4. 如果只剩单个或需要精确处理，也可以调用 `updatePoolLifeCycle(poolId, PoolLifecycle.DELIST)`。
-5. 待 `activePoolCountBySecurity[securityId] == 0` 后，再调用 `delistSecurity(securityId)`。
+5. 待 `listPoolCountBySecurity[securityId] == 0` 后，再调用 `delistSecurity(securityId)`。
 
 这样可以避免在 `delistSecurity` 中执行无上限循环，同时让“关闭所有 pool”这个高频运营动作具备批量入口。
 
@@ -598,11 +610,13 @@ lpAllowed =
 - `registerPool(key)` 注册成功后，Pool 必须固化股票 `securityId` 和从该证券读取的 `tierId`。
 - `registerPool` 成功后，新 pool 生命周期必须是 `LIST`。
 - `registerPool` 成功后，必须把 pool 追加到 `poolsBySecurity[securityId]`，并写入 `poolSecurityIndexPlusOne[poolId]`。
+- `listPoolCountBySecurity[securityId]` 必须等于该证券下生命周期不是 `DELIST` 的 pool 数量。
 - `activePoolCountBySecurity[securityId]` 必须等于该证券下 `poolTickCount > 0` 的 pool 数量。
-- `delistSecurity(securityId)` 只有在 `activePoolCountBySecurity[securityId] == 0` 时才能成功。
+- `delistSecurity(securityId)` 只有在 `listPoolCountBySecurity[securityId] == 0` 时才能成功。
 - `delistSecurity` 不应循环修改 pool 生命周期，也不应从 `poolsBySecurity[securityId]` 删除历史 pool。
 - `batchUpdatePoolLifeCycle(poolIds, lifecycle)` 必须只接收 poolId 列表，不接收 PoolKey。
 - `updatePoolLifeCycle(..., DELIST)` 和 `batchUpdatePoolLifeCycle(..., DELIST)` 必须要求目标 pool 的 `poolTickCount == 0`。
+- `updatePoolLifeCycle` 和 `batchUpdatePoolLifeCycle` 必须维护 `listPoolCountBySecurity`，但不应维护 `activePoolCountBySecurity`。
 - `relistSecurity` 不应自动把历史 pool 从 `DELIST` 恢复为 `LIST` 或 `PAUSE`。
 - Pool 生命周期维度下，只有 `LIST` 允许普通 swap。
 - Pool 生命周期维度下，`LIST` 和 `PAUSE` 允许普通 LP，`DELIST` 阻断普通 LP。
@@ -612,5 +626,5 @@ lpAllowed =
 - `getPoolLifeCycle` 必须同时保留 `bytes32 poolId` 和 `PoolKey calldata key` 两个查询重载；不得删除 `PoolKey` 查询重载。
 - `updatePoolLifeCycle(poolId,lifecycle)` 和 `batchUpdatePoolLifeCycle(poolIds,lifecycle)` 是写接口，必须只接收 poolId，不接收 PoolKey。
 - `updatePoolTickCount(key, delta)` 仍从完整 PoolKey 派生 poolId。
-- `updatePoolTickCount(key, delta)` 是写接口，按 delta 更新 `poolTickCount`，并维护 `activePoolCountBySecurity`。
+- `updatePoolTickCount(key, delta)` 是写接口，按 delta 更新 `poolTickCount`，并维护 `activePoolCountBySecurity`，不维护 `listPoolCountBySecurity`。
 - 强退、退出和历史查询路径不应要求 pool 生命周期仍为 `LIST`。

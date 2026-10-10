@@ -65,6 +65,16 @@ interface ITSVPermissionedRegistry {
     /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
     function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
 
+    /// @notice Returns the number of pools for a security whose lifecycle is not DELIST.
+    /// @param securityId Security whose lifecycle-listed pool count is queried.
+    /// @return count Number of pools that still block `delistSecurity`.
+    function listPoolCountBySecurity(bytes32 securityId) external view returns (uint32 count);
+
+    /// @notice Returns the current Tick/NFT count tracked for a registered pool.
+    /// @param poolId Raw Uniswap V4 pool ID to query.
+    /// @return count Current tracked Tick/NFT count.
+    function poolTickCount(bytes32 poolId) external view returns (uint256 count);
+
     /// @notice Updates one registered pool's lifecycle.
     /// @param poolId Raw Uniswap V4 pool ID whose lifecycle changes.
     /// @param lifecycle New lifecycle to set.
