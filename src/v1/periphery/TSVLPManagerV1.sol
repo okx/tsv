@@ -510,7 +510,7 @@ contract TSVLPManagerV1 is PermissionedPositionManager, TSVGoverned {
         address permissionsAdapter = Currency.unwrap(currency);
         address permissionedToken = _verifiedPermissionedTokenOf(currency);
         if (permissionedToken == address(0)) return false;
-        return IPermissionsAdapter(permissionsAdapter).isAllowed(lp, PermissionFlags.NONE);
+        return IPermissionsAdapter(permissionsAdapter).isAllowed(lp, PermissionFlags.UNWIND_ALLOWED);
     }
 
     /// @dev User-funded ERC20 payments use the same TokenApproveProxy chain as DexRouter.
