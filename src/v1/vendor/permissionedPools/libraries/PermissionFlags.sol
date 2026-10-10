@@ -24,6 +24,6 @@ library PermissionFlags {
     PermissionFlag constant SWAP_ALLOWED = PermissionFlag.wrap(0x0001);
     PermissionFlag constant LIQUIDITY_ALLOWED = PermissionFlag.wrap(0x0002);
     // /// @notice The account's position is eligible for an administrator-triggered unwind.
-    // PermissionFlag constant UNWIND_ALLOWED = PermissionFlag.wrap(0x0004);
+    PermissionFlag constant UNWIND_ALLOWED = PermissionFlag.wrap(0x0004);
     PermissionFlag constant ALL_ALLOWED = PermissionFlag.wrap(0xFFFF);
 }

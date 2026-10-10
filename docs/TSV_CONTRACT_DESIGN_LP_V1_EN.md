@@ -58,7 +58,7 @@ The current `_decrease` and parameterized `_burn` functions do not provide direc
 
 | Component | Managed by | Deployment/configuration responsibilities and requirements |
 | --- | --- | --- |
-| Underlying CET / security allowlist system | Securitize / issuer | Manage CET transfer compliance; allow PermissionsAdapter to receive and release CET; configure an Adapter owner capable of receiving CET through unwind fallback |
+| Underlying CET / security allowlist system | Securitize / issuer | Manage CET transfer compliance; allow PermissionsAdapter to receive and release CET; configure an Adapter owner capable of receiving permissioned W through unwind fallback |
 | [PermissionsAdapter](../src/v1/vendor/permissionedPools/PermissionsAdapter.sol) | **Securitize holds owner authority** | Owner manages checker, allowedWrappers, allowedHooks, and swappingEnabled; PermissionsAdapter is created through OKX Factory; initialOwner is the issuer governance address |
 | Concrete implementation of [BaseAllowlistChecker](../src/v1/vendor/permissionedPools/BaseAllowListChecker.sol) | **Securitize** | Develop, deploy, and configure issuer queries; support IAllowlistChecker/ERC-165; TSV SBT does not substitute for security token compliance |
 | [PermissionsAdapterFactory](../src/v1/vendor/permissionedPools/PermissionsAdapterFactory.sol) | OKX deploys and selects the Factory | POOL_MANAGER must match TSV; create and verify are not owner-restricted and can be called by any address; Securitize supports asset allowlisting and verification deposits |
@@ -70,6 +70,8 @@ The current `_decrease` and parameterized `_burn` functions do not provide direc
 | PoolManager | Selected Uniswap v4 infrastructure | Holds PermissionsAdapter virtual tokens and QuoteToken; maintains pools and ERC-6909 balances; Factory does not grant the issuer management authority over the entire PoolManager |
 
 Under the confirmed requirements, **unwind uses PermissionsAdapter.owner as the fallback recipient for actual assets and permissioned-asset claims**.
+
+The TSV Registry does not configure a separate `exitAdmin` for CET and does not require a Registry exit receiver to differ from `PermissionsAdapter.owner`. The adapter owner remains the force-unwind caller and the fallback for permissioned W delivery.
 
 ### 3.1 Query Requirements for the Securitize Checker
 
@@ -99,7 +101,7 @@ permissionsAdapter.isAllowed(lp, UNWIND_ALLOWED);
 
 PermissionsAdapter retains its original interface. Securitize's derived checker supplies this flag in the permission set returned by `checkAllowlist(lp, CET)`. **PermissionsAdapter, PermissionsAdapterFactory, and BaseAllowlistChecker remain unchanged.** `NONE` is no longer used to determine invalidity, and the absence of ordinary operation permissions does not substitute for independent unwind authorization.
 
-LPManager queries this flag for permissioned asset legs. At least one permissioned leg must allow unwind, and the caller must satisfy Adapter owner authorization. Checker query failures revert and must not be interpreted as unwind authorization. The exited LP does not need to hold an SBT; asset delivery and the Adapter owner fallback order remain unchanged.
+LPManager queries this flag for permissioned asset legs. At least one permissioned leg must allow unwind, and the caller must satisfy Adapter owner authorization. Checker query failures revert and must not be interpreted as unwind authorization. The exited LP does not need to hold an SBT. Permissioned W retains its Adapter owner fallback; direct CET has no owner fallback and remains a claim for the LP if CET compliance rejects delivery.
 
 ## 4. SBT Enforcement for LP Operations
 
@@ -109,17 +111,17 @@ The user-provided Enforcement excerpt requires the interface, AMM Router, and AM
 
 This excerpt is a requirements input for the design. This document does not infer its provenance or legal effect.
 
-**Ordinary LP operations:** minting, increasing, decreasing, burning, and collecting fees must all verify the participant's valid SBT. Removal must not retain Uniswap's exception allowing holders to exit independently after losing eligibility. **Issuer-authorized unwind:** the exited LP's SBT need not be checked because it may already have been revoked. Unwind requires independent owner authorization and the issuer's UNWIND_ALLOWED flag.
+**Ordinary LP operations:** minting, increasing, decreasing, burning, and collecting fees must verify the participant's valid, unrevoked SBT. For ordinary removal and collection, the confirmed check is `Registry.hasCredential(owner)`; this does not add an issuer `LIQUIDITY_ALLOWED` requirement. Removal must not retain Uniswap's exception allowing holders to exit independently after losing eligibility. **Issuer-authorized unwind:** the exited LP's SBT need not be checked because it may already have been revoked. Unwind requires independent owner authorization and the issuer's UNWIND_ALLOWED flag.
 
-Mint/increase operations continue to require Registry `LIQUIDITY_ALLOWED`. The confirmed minimum requirement for ordinary removal is a valid, unrevoked SBT. Whether the SBT configuration must also continue to grant the LP operation bit cannot be inferred solely from the requirement to hold an SBT; implementation must clarify this detail. `hasCredential` ignores SBT pauses and therefore does not by itself represent every condition of validity.
+Mint/increase operations continue to require Registry `LIQUIDITY_ALLOWED` and the issuer's LP permission for each permissioned asset. Ordinary removal and collection use the SBT holding check without requiring an issuer LP bit. The complete SBT validity predicate remains to be clarified with the issuer: current `hasCredential` queries `verify` for registered identities and does not itself reject a globally paused SBT.
 
-NFT owner and executor can differ because upstream supports approved operators. The actual participant must be checked, and an operator must not bypass the removal restriction for an owner who has lost their SBT. The recommendation is to check both owner and executor for ordinary operations; the operator policy remains to be confirmed. The current removal implementation checks only the owner. If the product later adopts owner-only operations, this can be simplified. The underlying asset recipient must still satisfy CET transfer compliance.
+NFT owner and executor can differ because upstream supports approved operators. The confirmed requirement checks the position owner's SBT; whether a distinct approved executor must also hold an SBT remains to be clarified. The underlying asset recipient is passed through to the actual token transfer, where CET compliance is enforced.
 
 ### 4.1 Flowchart Notation and Scope
 
 The diagrams use standard program flowchart notation: rounded terminals for start/end, parallelograms for inputs/outputs, rectangles for processing, diamonds for decisions, and double-sided rectangles for subprocedures. Solid arrows show control flow; labeled dashed arrows show exceptions propagating to transaction rollback. Decisions have explicit outcomes. Issuer setup and asset admission are prerequisites, rather than steps repeated within every LP transaction.
 
-Initialization reflects the documented implementation. Ordinary LP and unwind charts describe the target design, including Hook context and UNWIND_ALLOWED integration; outstanding implementation work is listed in Section 11. Delivery and withdrawClaim charts retain the documented existing behavior. Unhandled failures revert the entire atomic transaction. During unwind delivery, a failed isolated delivery attempt rolls back only that attempt and proceeds to the next fallback.
+Initialization reflects the documented implementation. Ordinary LP and unwind charts describe the target design, including Hook context and UNWIND_ALLOWED integration; outstanding implementation work is listed in Section 11. Delivery and withdrawClaim charts reflect the confirmed recipient and compliance rules. Unhandled failures revert the entire atomic transaction. During unwind delivery, a failed isolated delivery attempt rolls back only that attempt and proceeds to the next permitted fallback.
 
 ## 5. Pool Initialization: initializePool
 
@@ -132,7 +134,7 @@ Entry point: `TSVLPManagerV1.initializePool(key, sqrtPriceX96)`. The caller must
 3. CET compliance must allow PermissionsAdapter to hold CET and accept verification deposits. A depositor holds CET and approves PermissionsAdapter, then calls `depositForVerification(amount)`, or transfers CET to PermissionsAdapter through a compliant CET transfer.
 4. Call Factory `verifyPermissionsAdapter(PermissionsAdapter)`. PermissionsAdapter must originate from that Factory and CET.balanceOf(PermissionsAdapter)>0. Verification is permissionless and is not restricted to OKX or Securitize.
 5. Owner authorizes TSV Router and the actual LPManager proxy as allowedWrappers, and TSV Hook as an allowedHook. Enable swappingEnabled when swaps are permitted; it is not a separate switch for LP initialization or liquidity changes.
-6. Confirm that owner can receive CET through unwind fallback. Securitize should retain a valid owner and keep issuer control and TSV admission aligned during two-step ownership transfers. Use the original ownership interfaces; do not add a contract modification that disables renounceOwnership.
+6. Confirm that the adapter owner can receive permissioned W through the unwind fallback. Direct CET release targets the actual LP recipient and has no adapter-owner fallback; if CET compliance rejects that release, the claim remains with the LP. Securitize should retain a valid adapter owner and keep issuer control and TSV admission aligned during two-step ownership transfers. Use the original ownership interfaces; do not add a contract modification that disables renounceOwnership.
 
 ### 5.2 OKX Prerequisites
 
@@ -307,13 +309,13 @@ Entry points: `DECREASE_LIQUIDITY` or `BURN_POSITION` within `modifyLiquidities`
 
 ### 8.1 Prerequisites
 
-- tokenId exists; executor has NFT operation authorization; owner and actual participant pass valid SBT checks. A user who loses their SBT cannot independently decrease, burn, or collect fees.
+- tokenId exists; executor has NFT operation authorization; the position owner passes the Registry `hasCredential` check for a currently verifiable registered SBT. A user who loses their SBT cannot independently decrease, burn, or collect fees.
 - The target design retains TSV Hook's ordinary LP market checks. Delisting or an LP pause blocks ordinary removal; the separate authorized unwind path can bypass ordinary LP market checks.
 - Requested removal does not exceed the position's liquidity; amount0Min/amount1Min and deadline are valid; hookData is empty.
 - Actual recipient can legally receive CET. Quote token receipt and native currency behavior follow the supported asset scope. Admitted pools in this design use PermissionsAdapter/QuoteToken, with no native currency.
 - LPManager sets the corresponding ordinary removal context, matching the exact key, ticks, salt, and delta.
 
-Ordinary removal does not additionally require PermissionsAdapter.swappingEnabled. Upstream does not recheck issuer `LIQUIDITY_ALLOWED` for removal. This document retains that issuer permission behavior and adds the confirmed TSV SBT requirement. CET release remains subject to underlying compliance. If issuer LP permission has been revoked but SBT remains valid, any further restriction on ordinary exit requires a separate issuer decision.
+Ordinary removal does not require `PermissionsAdapter.swappingEnabled` or an issuer `LIQUIDITY_ALLOWED` bit. It uses the TSV SBT holding check instead. CET is sent to the actual recipient, and the token's transfer-compliance check decides whether release succeeds. A failed transfer reverts the ordinary removal transaction.
 
 ### 8.2 Flowchart
 
@@ -368,11 +370,11 @@ flowchart TD
     class Identity,Market,Empty,Limit,Balanced decision;
 ```
 
-Ordinary removal does not automatically use unwind's owner/claim fallback. A failed CET transfer reverts the transaction. SBT checks must cover all ordinary entry points, including `modifyLiquiditiesWithoutUnlock`, zero-liquidity fee collection, burning a zero-liquidity position, and the corresponding batched actions. They cannot rely solely on Hook callbacks for nonzero liquidity changes.
+Ordinary removal does not use unwind's owner/claim fallback. A failed CET transfer reverts the transaction, and the token's compliance check sees the actual recipient. Ordinary removal and collection require the owner's valid SBT but do not add an issuer `LIQUIDITY_ALLOWED` check. SBT checks must cover all ordinary entry points, including `modifyLiquiditiesWithoutUnlock`, zero-liquidity fee collection, burning a zero-liquidity position, and corresponding batched actions. They cannot rely solely on Hook callbacks for nonzero liquidity changes.
 
 ## 9. Forced Removal: unwindPosition
 
-Entry point: `unwindPosition(tokenId, amount0Min, amount1Min, hookData)`. The confirmed requirements retain existing asset delivery logic. An invalid SBT does not prevent issuer-authorized unwind.
+Entry point: `unwindPosition(tokenId, amount0Min, amount1Min, hookData)`. An invalid SBT does not prevent issuer-authorized unwind. Permissioned W keeps the LP-to-adapter-owner fallback. Direct CET release is attempted only to the LP; if CET compliance rejects it, the claim is retained for the LP.
 
 ### 9.1 Prerequisites
 
@@ -380,7 +382,7 @@ Entry point: `unwindPosition(tokenId, amount0Min, amount1Min, hookData)`. The co
 2. Query the issuer checker's independent `UNWIND_ALLOWED` flag for at least one permissioned asset leg. The flag must explicitly authorize unwind; missing ordinary permissions or a failed read does not constitute authorization.
 3. Exited LP need not retain an SBT or pass ordinary LP permission checks. Administrator authorization and the UNWIND_ALLOWED query are both mandatory.
 4. Set FORCE_EXIT context. Hook allows an actual negative liquidityDelta to bypass ordinary LP market checks, while still validating source, exact key, ticks/salt/delta. hookData is empty.
-5. PermissionsAdapter.owner is an issuer address capable of receiving CET. If asset delivery fails, proceed through the retained claim fallback.
+5. PermissionsAdapter.owner is an issuer address capable of receiving permissioned W through the fallback. Direct CET is delivered only to the actual LP recipient; a failed CET transfer leaves the claim with the LP.
 6. amount0Min/amount1Min constrain the principal returned by burn. Zero disables the corresponding lower bound. Failure to meet a nonzero minimum reverts the entire unwind.
 
 ### 9.2 Position Exit Flowchart
@@ -399,7 +401,7 @@ flowchart TD
     Claims["Mint both credits as LPManager claims<br/>Close deltas and complete first unlock"]
     Balances["Read full currency claim balances<br/>Set currency index i = 0"]
     More{"i less than 2?"}
-    Deliver[["Deliver currency i<br/>Call per-currency fallback subprocedure"]]
+    Deliver[["Deliver currency i<br/>Use that currency's recipient rules"]]
     Next["i = i + 1"]
     Finish["Finish operation context"]
     Success(["End: position unwound"])
@@ -453,11 +455,11 @@ flowchart TD
     EventLP["Emit CurrencyUnwound<br/>recipient = LP; asClaim = false"]
     Keep["Roll back failed delivery attempt<br/>LPManager retains claim"]
     Restricted{"Currency is a verified<br/>PermissionsAdapter?"}
-    ClaimLP["Transfer QuoteToken claim to LP"]
-    TryOwner[["Isolated unlock with capped gas<br/>Burn claim; take CET to Adapter owner"]]
+    ClaimLP["Transfer direct-CET claim to LP"]
+    TryOwner[["For permissioned W only:<br/>take underlying asset to Adapter owner"]]
     OwnerDone{"Owner delivery succeeded?"}
     EventOwner["Emit CurrencyUnwound<br/>recipient = owner; asClaim = false"]
-    ClaimOwner["Roll back failed attempt; retain claim<br/>Transfer permissioned currency claim to owner"]
+    ClaimOwner["Roll back failed attempt; retain claim<br/>Transfer permissioned W claim to owner"]
     EventClaim["Emit CurrencyUnwound<br/>recipient = claim recipient; asClaim = true"]
     Success(["Return to unwind caller"])
     Reject["Propagate failure to unwind<br/>Revert enclosing transaction"]
@@ -491,11 +493,11 @@ flowchart TD
     class Empty,LPDone,Restricted,OwnerDone decision;
 ```
 
-Each actual asset delivery uses a separate unlock capped at DELIVERY_GAS_LIMIT. A failure rolls back only that delivery attempt, leaving the claim available for the next step. The two legs are handled independently: one can deliver actual assets to the LP while the other delivers actual assets or a claim to owner. Transferring a claim does not execute CET transfer compliance and must not be described as a completed CET delivery.
+Each actual asset delivery uses a separate unlock capped at DELIVERY_GAS_LIMIT. A failure rolls back only that delivery attempt, leaving the claim available for the next step. Permissioned W tries the LP, then the Adapter owner, then transfers its claim to the Adapter owner. Direct CET tries the actual LP recipient and, if compliance rejects the transfer, transfers the claim to the LP without an owner fallback. The two legs are handled independently. Transferring a claim does not execute CET transfer compliance and must not be described as a completed CET delivery.
 
 ## 10. Subsequent LP-Related Withdrawal: withdrawClaim
 
-Retain `withdrawClaim(currency, amount, to)`. A claim holder selects the recipient; LPManager calls PoolManager to burn the caller's claim, then take the corresponding asset. PoolManager claim burn authorization is required; a typical call requires the claim holder to authorize LPManager as an operator. Taking a permissioned PermissionsAdapter currency automatically releases CET. The actual recipient must satisfy CET transfer compliance.
+Retain `withdrawClaim(currency, amount, to)`. An ordinary claim holder must pass the valid-SBT check for collection; a distinct recipient is not substituted for the claim holder's identity. LPManager calls PoolManager to burn the caller's claim, then take the corresponding asset. PoolManager claim burn authorization is required; a typical call requires the claim holder to authorize LPManager as an operator. Taking a permissioned PermissionsAdapter currency automatically releases CET. The actual recipient is passed to the token's transfer-compliance check.
 
 ```mermaid
 flowchart TD
@@ -539,7 +541,7 @@ flowchart TD
     class Unlocked,Executor,Balanced decision;
 ```
 
-**Scope pending discussion:** whether ordinary-user withdrawClaim calls also fall under the SBT requirement before other blockchain transactions, and how to preserve administrative withdrawals for the Securitize owner. The current inherited entry point has no SBT check. Retaining unwind's delivery order does not automatically determine the identity rules for this entry point. PoolManager claim transfer/transferFrom also bypasses TSV LP Hook.
+`withdrawClaim` is an ordinary collection path and uses the same SBT holding requirement. The recipient address is resolved from the caller's explicit value or the supported sentinels; CET compliance is evaluated for that resolved address. PoolManager claim `transfer`/`transferFrom` still bypasses TSV LP Hook and requires separate analysis.
 
 ## 11. Implementation Gaps and Open Items
 
@@ -547,16 +549,16 @@ flowchart TD
 | --- | --- | --- |
 | Atomic pool creation | LPManager calls registerPool before initialize | Implemented; full component integration acceptance testing remains separate |
 | Mint/increase permissions | Queries LIQUIDITY_ALLOWED in both Registry and PermissionsAdapter | Retain; complete identity and context coverage for all variants |
-| Ordinary removal SBT | Current workspace dispatcher queries owner.hasCredential for decrease/burn; the designated tokenId burn in authorized unwind is exempt | Holding check added, covering fee collection and zero-liquidity burns; hasCredential ignores SBT pauses, so full validity and executor policy remain to be clarified |
+| Ordinary removal SBT | Confirmed requirement is a Registry `hasCredential(owner)` check for removal and collection; designated-token unwind remains exempt | Current checked-in dispatcher still gates ordinary actions with `isAllowed(LIQUIDITY_ALLOWED)`; align it with the confirmed holding check. Confirm the full valid/unrevoked predicate and whether a distinct executor also needs an SBT |
 | LP Hook context | Hook calls activeLPContext; current LPManager does not implement the interface | Implement trusted context and lifecycle for OPEN/INCREASE/ordinary removal/FORCE_EXIT; full integration with the actual Hook cannot yet be claimed |
 | Three upstream components | Local vendor previously included Adapter compatibility and behavioral changes | Target uses original PermissionsAdapter, PermissionsAdapterFactory, and BaseAllowlistChecker without changes; this document does not restore source files |
 | Unwind eligibility | `_getLpStatus` still queries NONE; independent unwind bit not integrated | Query UNWIND_ALLOWED, explicitly returned by the issuer checker; retain the three original components unchanged |
-| Unwind delivery | Actual assets to LP→actual assets to owner→permissioned-asset claim to owner; ordinary-asset claim to LP | Retain existing delivery logic |
-| SBT operation bit for ordinary removal | Valid SBT is confirmed as required; continued LP operation permission has not been separately defined | Clarify identity validity versus operation permissions before implementation |
+| Unwind delivery | Permissioned W: LP→Adapter owner→claim to owner; direct CET: LP only→claim to LP if compliance rejects | Keep the actual recipient on CET release; do not route CET to a separate Registry exit admin |
+| Issuer LP bit for ordinary removal | No additional issuer `LIQUIDITY_ALLOWED` requirement is introduced for ordinary removal/collection | Keep mint/increase LP permissions distinct from the SBT holding check for exits |
 | Operator | Upstream owner/approval model | Check executor and owner to prevent an operator bypass for an ineligible owner; owner-only policy not finalized |
-| withdrawClaim identity | No current SBT check | Discuss together with ordinary operation rules and administrator exceptions |
+| withdrawClaim identity | Ordinary collection uses the valid-SBT requirement; actual CET release is checked by token compliance for the resolved recipient | Apply the collection identity rule while preserving the chosen release recipient |
 
-This work adds only the design document and user-provided image assets; it does not change the contracts above. A separate dispatcher SBT update was detected in the workspace during drafting, and the implementation notes were updated accordingly. Its regression tests were not run or claimed to pass as part of this documentation work. Future acceptance tests should cover: ordinary removal rejection after SBT revocation while authorized unwind remains available; operator bypass rejection; zero-liquidity and fee collection checks; exact Hook context matching; atomic rollback on initialization failure; actual asset/claim fallbacks for both legs; UNWIND_ALLOWED grant/revocation; and checker errors not granting unwind authorization.
+This revision updates this design document only; it does not change contracts or tests, and no regression tests are claimed. Future acceptance tests should cover: ordinary removal rejection after SBT revocation while authorized unwind remains available; the confirmed operator policy; zero-liquidity and fee collection checks; exact Hook context matching; atomic rollback on initialization failure; permissioned-W and direct-CET delivery/claim fallback; UNWIND_ALLOWED grant/revocation; and checker errors not granting unwind authorization.
 
 ## 12. Sections to Follow
 
