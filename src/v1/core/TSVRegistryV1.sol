@@ -21,9 +21,8 @@ import {
 import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {PermissionedValidationLib} from "tsv-v1/libraries/PermissionedValidationLib.sol";
-import {
-    IPermissionsAdapterFactory
-} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {IPermissionsAdapterFactory} from
+    "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
 /// @dev Defines the SBT pause and credential-verification views required by the Registry.
 interface ISmartWalletSbtV1 {
@@ -145,11 +144,11 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Explicit lifecycle for each registered pool.
     /// @dev DELIST blocks swaps and ordinary LP, LIST allows both through later gates, PAUSE blocks swaps only.
     mapping(bytes32 => PoolLifecycle) public poolLifecycle;
-    /// @notice Number of pools for a security whose lifecycle is not DELIST.
-    /// @dev Used by `delistSecurity` to require all related pools to be delisted first.
+    /// @notice Number of pools for a security whose `poolTickCount` is nonzero.
+    /// @dev Used by `delistSecurity` to require all related pools to have no active ticks first.
     mapping(bytes32 => uint32) public activePoolCountBySecurity;
-    /// @notice Reserved per-pool tick/NFT count storage exposed for manager integrations.
-    /// @dev Current update path validates caller/key and keeps this value unchanged.
+    /// @notice Current active tick/NFT count for each registered pool.
+    /// @dev The LP Manager updates this value through `updatePoolTickCount` with signed deltas.
     mapping(bytes32 => uint256) public poolTickCount;
 
     // Market reports and emergency pause records.
@@ -283,10 +282,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param oldLifecycle Previous lifecycle value.
     /// @param newLifecycle New lifecycle value.
     event PoolLifecycleChanged(
-        bytes32 indexed poolId,
-        bytes32 indexed securityId,
-        PoolLifecycle oldLifecycle,
-        PoolLifecycle newLifecycle
+        bytes32 indexed poolId, bytes32 indexed securityId, PoolLifecycle oldLifecycle, PoolLifecycle newLifecycle
     );
 
     /// @notice Initializes governance and starts emergency-pause IDs at one.
@@ -512,10 +508,14 @@ contract TSVRegistryV1 is TSVGoverned {
         bytes32 securityId = underlyings[config.underlying].securityId;
         // A TOKEN, SECURITY, or GLOBAL pause must cover both ordinary operation types.
         if (
-            !(_isPaused(PauseScope.TOKEN, _addressKey(w), PauseMode.TRADE)
-                    || _securityPausedForReplacement(securityId, PauseMode.TRADE))
-                || !(_isPaused(PauseScope.TOKEN, _addressKey(w), PauseMode.LP)
-                    || _securityPausedForReplacement(securityId, PauseMode.LP))
+            !(
+                _isPaused(PauseScope.TOKEN, _addressKey(w), PauseMode.TRADE)
+                    || _securityPausedForReplacement(securityId, PauseMode.TRADE)
+            )
+                || !(
+                    _isPaused(PauseScope.TOKEN, _addressKey(w), PauseMode.LP)
+                        || _securityPausedForReplacement(securityId, PauseMode.LP)
+                )
         ) revert InvalidStatus();
         PermissionedValidationLib.validateOwner(w, config.underlying, newOwner);
         address previousExpectedOwner = config.expectedOwner;
@@ -582,8 +582,7 @@ contract TSVRegistryV1 is TSVGoverned {
         address currency1 = Currency.unwrap(key.currency1);
         if (
             address(key.hooks) != hook || currency0 == address(0) || currency0 >= currency1 || key.fee >= 1_000_000
-                || key.tickSpacing < 1 || key.tickSpacing > 32767 || !_assetAllowed(currency0)
-                || !_assetAllowed(currency1)
+                || key.tickSpacing < 1 || key.tickSpacing > 32767 || !_assetAllowed(currency0) || !_assetAllowed(currency1)
         ) revert InvalidPool();
         bytes32 securityId0 = underlyings[currencies[currency0].underlying].securityId;
         bytes32 securityId1 = underlyings[currencies[currency1].underlying].securityId;
@@ -598,7 +597,6 @@ contract TSVRegistryV1 is TSVGoverned {
         poolsBySecurity[securityId].push(poolId);
         poolSecurityIndex[poolId] = poolsBySecurity[securityId].length;
         poolLifecycle[poolId] = PoolLifecycle.LIST;
-        activePoolCountBySecurity[securityId]++;
         emit PoolRegistered(poolId, securityId, tierId, PoolLifecycle.LIST);
     }
 
@@ -655,14 +653,20 @@ contract TSVRegistryV1 is TSVGoverned {
         }
     }
 
-    /// @notice Validates an LP Manager tick-count update for a registered pool key.
-    /// @dev This compatibility hook currently verifies caller and key integrity, then returns true.
+    /// @notice Applies an LP Manager tick-count delta for a registered pool key.
+    /// @dev Positive deltas activate a zero-count pool; negative deltas cannot reduce below zero.
     /// @param key Full V4 pool key whose derived pool ID must already be registered.
+    /// @param delta Signed tick-count change to apply.
     /// @return Whether the update was accepted.
-    function updatePoolTickCount(PoolKey calldata key) external returns (bool) {
+    function updatePoolTickCount(PoolKey calldata key, int256 delta) external returns (bool) {
         if (msg.sender != lpManager) revert InvalidPool();
         bytes32 poolId = PoolId.unwrap(key.toId());
-        if (!isKnownPool(poolId) || !_poolKeyMatches(pools[poolId], key)) revert InvalidPool();
+        PoolConfig storage pool = pools[poolId];
+        if (!isKnownPool(poolId) || !_poolKeyMatches(pool, key)) revert InvalidPool();
+        if (delta > 0 && (poolLifecycle[poolId] == PoolLifecycle.DELIST || !securities[pool.securityId].listed)) {
+            revert InvalidStatus();
+        }
+        _applyPoolTickDelta(poolId, pool.securityId, delta);
         return true;
     }
 
@@ -767,8 +771,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Whether a protocol-wide emergency pause currently blocks ordinary operation.
     /// @return Whether a GLOBAL TRADE, GLOBAL LP, or GLOBAL ALL emergency pause is active.
     function isPaused() external view returns (bool) {
-        return _isPaused(PauseScope.GLOBAL, 0, PauseMode.TRADE)
-            || _isPaused(PauseScope.GLOBAL, 0, PauseMode.LP);
+        return _isPaused(PauseScope.GLOBAL, 0, PauseMode.TRADE) || _isPaused(PauseScope.GLOBAL, 0, PauseMode.LP);
     }
 
     // Private helpers, grouped by identity, admission, pool, and pause duties.
@@ -812,9 +815,10 @@ contract TSVRegistryV1 is TSVGoverned {
         UnderlyingConfig storage canonicalUnderlying = underlyings[underlying];
         if (
             canonicalUnderlying.securityId != 0
-                && (canonicalUnderlying.securityId != admission.securityId
-                    || canonicalUnderlying.rawDecimals != rawDecimals
-                    || canonicalUnderlying.legalShareAdapter != admission.legalShareAdapter)
+                && (
+                    canonicalUnderlying.securityId != admission.securityId || canonicalUnderlying.rawDecimals != rawDecimals
+                        || canonicalUnderlying.legalShareAdapter != admission.legalShareAdapter
+                )
         ) {
             revert InvalidPermissionedConfig();
         }
@@ -923,7 +927,7 @@ contract TSVRegistryV1 is TSVGoverned {
         return bytes32(uint256(uint160(a)));
     }
 
-    /// @dev Applies one lifecycle transition and maintains the active-pool counter.
+    /// @dev Applies one lifecycle transition.
     /// @param poolId Registered pool whose lifecycle is updated.
     /// @param pool Stored pool configuration for `poolId`.
     /// @param lifecycle New lifecycle value.
@@ -933,8 +937,9 @@ contract TSVRegistryV1 is TSVGoverned {
         returns (bool)
     {
         PoolLifecycle previousLifecycle = poolLifecycle[poolId];
-        if (previousLifecycle == lifecycle) return false;
+        if (lifecycle == PoolLifecycle.DELIST && poolTickCount[poolId] != 0) revert InvalidStatus();
         bytes32 securityId = pool.securityId;
+        if (previousLifecycle == lifecycle) return false;
         if (lifecycle != PoolLifecycle.DELIST && !securities[securityId].listed) revert InvalidStatus();
         if (previousLifecycle == PoolLifecycle.DELIST) {
             activePoolCountBySecurity[securityId]++;
@@ -944,6 +949,26 @@ contract TSVRegistryV1 is TSVGoverned {
         poolLifecycle[poolId] = lifecycle;
         emit PoolLifecycleChanged(poolId, securityId, previousLifecycle, lifecycle);
         return true;
+    }
+
+    /// @dev Applies a signed tick-count delta and keeps the per-security active-pool count in sync.
+    /// @param poolId Registered pool whose tick count is updated.
+    /// @param securityId Security assigned to `poolId`.
+    /// @param delta Signed tick-count change to apply.
+    function _applyPoolTickDelta(bytes32 poolId, bytes32 securityId, int256 delta) private {
+        if (delta == 0) return;
+        uint256 current = poolTickCount[poolId];
+        uint256 updated;
+        if (delta > 0) {
+            updated = current + uint256(delta);
+            if (current == 0) activePoolCountBySecurity[securityId]++;
+        } else {
+            uint256 decrease = uint256(-(delta + 1)) + 1;
+            if (decrease > current) revert InvalidStatus();
+            updated = current - decrease;
+            if (updated == 0) activePoolCountBySecurity[securityId]--;
+        }
+        poolTickCount[poolId] = updated;
     }
 
     /// @dev Compares a stored pool key against a calldata pool key field by field.

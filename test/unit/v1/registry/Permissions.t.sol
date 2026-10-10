@@ -114,7 +114,11 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
             vm.expectRevert(_denied(caller, role));
             vm.prank(caller);
             (bool ok, bytes memory result) = address(registry).call(calls[i]);
-            if (!ok) assembly ("memory-safe") { revert(add(result, 32), mload(result)) }
+            if (!ok) {
+                assembly ("memory-safe") {
+                    revert(add(result, 32), mload(result))
+                }
+            }
         }
     }
 
@@ -129,6 +133,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
                 registry.getCurrency(address(stock)),
                 registry.getPool(poolId),
                 registry.getPoolLifeCycle(poolId),
+                registry.poolTickCount(poolId),
                 registry.activePoolCountBySecurity(SECURITY),
                 registry.tierPolicy(1),
                 ledger.used(SECURITY, DAY),

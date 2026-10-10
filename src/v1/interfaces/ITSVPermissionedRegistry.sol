@@ -75,10 +75,11 @@ interface ITSVPermissionedRegistry {
         external
         returns (uint256 changedCount);
 
-    /// @notice Validates an LP Manager tick-count update for a registered pool key.
+    /// @notice Applies an LP Manager tick-count delta for a registered pool key.
     /// @param key Full V4 pool key whose derived pool ID must already be registered.
+    /// @param delta Signed tick-count change to apply.
     /// @return Whether the update was accepted.
-    function updatePoolTickCount(PoolKey calldata key) external returns (bool);
+    function updatePoolTickCount(PoolKey calldata key, int256 delta) external returns (bool);
 
     /// @notice Returns whether a protocol-wide emergency pause is currently active.
     /// @return Whether a GLOBAL TRADE, GLOBAL LP, or GLOBAL ALL emergency pause is active.
@@ -199,5 +200,6 @@ interface ITSVPermissionedRegistry {
     /// @param dataInbox DataInbox authorized to apply market reports.
     /// @param factory Real issuer Factory used to verify W provenance and derive PoolManager.
     /// @param sbt Fixed SBT contract supplying participant identities.
-    function bindComponents(address hook, address lpManager, address dataInbox, address factory, address sbt) external;
+    function bindComponents(address hook, address lpManager, address dataInbox, address factory, address sbt)
+        external;
 }
