@@ -60,11 +60,11 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         vm.prank(caller);
         permissionsFactory.verifyPermissionsAdapter(w);
         assertEq(permissionsFactory.verifiedPermissionsAdapterOf(w), address(stockToken));
-        assertEq(registry.getCurrency(w).underlying, address(0));
+        assertEq(registry.getCurrencyUnderlying(w), address(0));
         PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), true);
         PermissionsAdapter(w).updateAllowedHook(key.hooks, true);
         registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1);
-        assertEq(registry.getCurrency(w).underlying, address(stockToken));
+        assertEq(registry.getCurrencyUnderlying(w), address(stockToken));
     }
 
     function testForeignFactoryAdapterIsNotAdmitted() public {
@@ -105,7 +105,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         assertEq(address(stock.allowListChecker()), address(next));
         assertFalse(stock.isAllowed(user, PermissionFlags.SWAP_ALLOWED));
         assertEq(address(registry.participantSbt()), address(identitySbt));
-        assertEq(registry.getCurrency(address(stock)).underlying, address(stockToken));
+        assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
         vm.expectRevert();
         stock.updateAllowListChecker(IAllowlistChecker(address(registry)));
     }

@@ -9,7 +9,6 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {
-    PermissionedCurrencyConfig,
     UnderlyingConfig,
     QuoteTokenConfig,
     PauseScope,
@@ -121,8 +120,8 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         vm.clearMockedCalls();
         vm.mockCall(
             address(registry),
-            abi.encodeCall(TSVRegistryV1.getCurrency, (q)),
-            abi.encode(PermissionedCurrencyConfig(address(stockToken), address(this)))
+            abi.encodeCall(TSVRegistryV1.getCurrencyUnderlying, (q)),
+            abi.encode(address(stockToken))
         );
         vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
         _callback(-1e18);

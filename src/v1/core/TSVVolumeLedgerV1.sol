@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {PermissionedCurrencyConfig, UnderlyingConfig, PoolConfig} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingConfig, PoolConfig} from "tsv-v1/types/TSVTypes.sol";
 import {AdtvReport, QuotaReport, SplitFactorReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -390,7 +390,7 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
     }
 
     function _legSecurityId(bytes32 poolSecurityId, address currency) private view returns (bytes32) {
-        return registry.getCurrency(currency).underlying == address(0) ? bytes32(0) : poolSecurityId;
+        return registry.getCurrencyUnderlying(currency) == address(0) ? bytes32(0) : poolSecurityId;
     }
 
     /// @dev Validates and accounts one pool leg using its canonical legal-share conversion.
@@ -408,21 +408,21 @@ contract TSVVolumeLedgerV1 is TSVGoverned {
         uint256 legalSharesWad,
         uint32 day
     ) private {
-        PermissionedCurrencyConfig memory config = registry.getCurrency(currency);
-        if (config.underlying == address(0)) {
+        address underlyingAddress = registry.getCurrencyUnderlying(currency);
+        if (underlyingAddress == address(0)) {
             if (!registry.getQuoteToken(currency).registered || securityId != 0 || legalSharesWad != 0) {
                 revert InvalidLegalShareAmount();
             }
             return;
         }
-        UnderlyingConfig memory underlying = registry.getUnderlying(config.underlying);
+        UnderlyingConfig memory underlying = registry.getUnderlying(underlyingAddress);
         if (securityId == 0 || underlying.securityId != securityId || underlying.legalShareAdapter == address(0)) {
             revert InvalidLegalShareAmount();
         }
         if (legalSharesWad == 0) revert InvalidLegalShareAmount();
         uint256 raw = delta < 0 ? uint256(-int256(delta)) : uint256(int256(delta));
         _consume(securityId, day, legalSharesWad);
-        emit SwapAccounted(poolId, securityId, currency, config.underlying, delta < 0, day, raw, legalSharesWad);
+        emit SwapAccounted(poolId, securityId, currency, underlyingAddress, delta < 0, day, raw, legalSharesWad);
     }
 
     /// @dev Adds a charge only when an ADTV-derived hard cap and effective quota permit it.

@@ -111,7 +111,7 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
         r.bindComponents(address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt));
         vm.expectRevert(errorData);
         vm.prank(stranger);
-        registry.setPermissionedOwnerApproval(address(this), false);
+        registry.setTierPolicy(2, 10, 1);
         V1ConfigReceiver receiver = new V1ConfigReceiver();
         vm.expectRevert(errorData);
         vm.prank(stranger);
@@ -120,8 +120,8 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
 
     function testCandidateExitAdminIsSeparateFromAdmissionAndForbiddenAssets() public {
         address w = _newStockConfig(SECURITY).currency;
-        assertEq(registry.getCurrency(w).underlying, address(0));
-        address u = address(registry.getCurrency(w).underlying);
+        assertEq(registry.getCurrencyUnderlying(w), address(0));
+        address u = registry.getCurrencyUnderlying(w);
         if (u == address(0)) u = address(permissionsFactory.permissionsAdapterOf(w));
         address[6] memory bad =
             [address(stockToken), address(stock), address(manager), address(registry), address(this), address(quote)];

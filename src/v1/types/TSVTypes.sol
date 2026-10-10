@@ -44,12 +44,6 @@ enum LPOperationMode {
     FORCE_EXIT // Removes all liquidity through the authorized forced-exit path.
 }
 
-/// @notice A registered stock PermissionsAdapter (W); underlying identity is permanent.
-struct PermissionedCurrencyConfig {
-    address underlying;
-    address expectedOwner;
-}
-
 /// @notice Canonical security, precision and legal-share conversion for an underlying (U).
 struct UnderlyingConfig {
     bytes32 securityId;
@@ -68,7 +62,6 @@ struct QuoteTokenConfig {
 struct PermissionedAdmission {
     address currency;
     bytes32 securityId;
-    address expectedOwner;
     address legalShareAdapter;
 }
 

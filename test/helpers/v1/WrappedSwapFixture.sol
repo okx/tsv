@@ -99,7 +99,6 @@ abstract contract WrappedSwapFixture is Test {
         sbt.setHolder(alice, 1, true);
         registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
         registry.setSbtConfig(2, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
-        registry.setPermissionedOwnerApproval(address(this), true);
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
@@ -113,9 +112,7 @@ abstract contract WrappedSwapFixture is Test {
         exitReceiver = new V1ConfigReceiver();
         issuerChecker = new V1IssuerAllowlistChecker();
         stock = _newWrapper();
-        registry.registerPermissionedCurrency(
-            PermissionedAdmission(address(stock), SECURITY, address(this), address(legalAdapter)), 1
-        );
+        registry.registerPermissionedCurrency(PermissionedAdmission(address(stock), SECURITY, address(legalAdapter)), 1);
         registry.registerQuoteToken(address(quote));
         underlying.mint(address(this), 1e30);
         quote.mint(address(this), 1e30);

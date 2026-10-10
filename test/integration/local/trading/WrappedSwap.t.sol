@@ -171,9 +171,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         _swap(true, true, 1e16);
         uint256 alreadyUsed = ledger.used(SECURITY, DAY);
         PermissionsAdapter w2 = _newWrapper();
-        registry.registerPermissionedCurrency(
-            PermissionedAdmission(address(w2), SECURITY, address(this), address(legalAdapter)), 1
-        );
+        registry.registerPermissionedCurrency(PermissionedAdmission(address(w2), SECURITY, address(legalAdapter)), 1);
         PoolKey memory second = _seedPool(w2, 500);
         w2.updateSwappingEnabled(true);
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed);

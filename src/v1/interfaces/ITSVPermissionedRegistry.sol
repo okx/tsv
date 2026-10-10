@@ -5,7 +5,6 @@ import {PermissionFlag} from "v4-periphery/hooks/permissionedPools/libraries/Per
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 
 import {
-    PermissionedCurrencyConfig,
     UnderlyingConfig,
     QuoteTokenConfig,
     PermissionedAdmission,
@@ -21,10 +20,10 @@ interface ITSVPermissionedRegistry {
     /// @return poolId Raw pool ID derived from `key`.
     function registerPool(PoolKey calldata key) external returns (bytes32 poolId);
 
-    /// @notice Returns the stored permissioned stock adapter configuration.
+    /// @notice Returns the canonical underlying bound to a permissioned stock adapter.
     /// @param w Permissioned stock adapter address to query.
-    /// @return Stored W configuration; unknown adapters return a default record.
-    function getCurrency(address w) external view returns (PermissionedCurrencyConfig memory);
+    /// @return underlying Canonical underlying U, or zero when `w` is unknown.
+    function getCurrencyUnderlying(address w) external view returns (address underlying);
 
     /// @notice Returns the stored canonical underlying configuration.
     /// @param u Canonical underlying address to query.
@@ -61,11 +60,6 @@ interface ITSVPermissionedRegistry {
     /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
     function getPoolLifeCycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle);
 
-    /// @notice Returns the explicit lifecycle for the pool derived from a full PoolKey.
-    /// @param key Full Uniswap V4 pool key whose derived pool ID is queried.
-    /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
-    function getPoolLifeCycle(PoolKey calldata key) external view returns (PoolLifecycle lifecycle);
-
     /// @notice Updates one registered pool's lifecycle.
     /// @param poolId Raw Uniswap V4 pool ID whose lifecycle changes.
     /// @param lifecycle New lifecycle to set.
@@ -89,11 +83,6 @@ interface ITSVPermissionedRegistry {
     /// @notice Returns whether a protocol-wide emergency pause is currently active.
     /// @return Whether a GLOBAL TRADE, GLOBAL LP, or GLOBAL ALL emergency pause is active.
     function isPaused() external view returns (bool);
-
-    /// @notice Returns whether a permissioned-stock owner contract is approved.
-    /// @param owner Owner contract to query.
-    /// @return Whether `owner` is approved.
-    function isPermissionedOwnerApproved(address owner) external view returns (bool);
 
     /// @notice Returns the configured exit receiver for a canonical underlying.
     /// @param u Canonical underlying address to query.
@@ -178,16 +167,6 @@ interface ITSVPermissionedRegistry {
     /// @notice Registers an original quote ERC-20.
     /// @param q Quote token address to admit.
     function registerQuoteToken(address q) external;
-
-    /// @notice Adds or removes an approved permissioned-stock owner contract.
-    /// @param owner Owner contract whose approval status changes.
-    /// @param approved Whether the owner should be accepted by future policy checks.
-    function setPermissionedOwnerApproval(address owner, bool approved) external;
-
-    /// @notice Updates the expected owner recorded for an admitted permissioned stock adapter.
-    /// @param w Permissioned stock adapter whose expected owner is updated.
-    /// @param newOwner New owner contract expected by adapter policy validation.
-    function updatePermissionedExpectedOwner(address w, address newOwner) external;
 
     /// @notice Replaces the canonical legal-share adapter for an underlying.
     /// @param u Canonical underlying whose legal-share adapter is replaced.

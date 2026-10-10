@@ -94,7 +94,6 @@ abstract contract FoundationFixture is Test {
         registry.bindComponents(
             address(this), address(this), address(inbox), address(permissionsFactory), address(identitySbt)
         );
-        registry.setPermissionedOwnerApproval(address(this), true);
         exitReceiver = new V1ConfigReceiver();
         issuerChecker = new V1IssuerAllowlistChecker();
         ledger.bindWriters(address(this), address(inbox));
@@ -221,7 +220,7 @@ abstract contract FoundationFixture is Test {
         view
         returns (PermissionedAdmission memory)
     {
-        return PermissionedAdmission(w, securityId, address(this), adapter);
+        return PermissionedAdmission(w, securityId, adapter);
     }
 
     /// @dev Builds a market-state report with the supplied action and sequence metadata.

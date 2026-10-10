@@ -102,7 +102,7 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
     // Router views.
     /// @notice Currency used outside the pool: stocks settle in U, quotes in Q.
     function settlementCurrency(address currency) external view returns (address) {
-        address underlying = registry.getCurrency(currency).underlying;
+        address underlying = registry.getCurrencyUnderlying(currency);
         return underlying == address(0) ? currency : underlying;
     }
 
@@ -141,7 +141,7 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
         if (activeAmountIn == 0 || amount == 0) revert SlippageExceeded();
         activeAmountOut = amount;
         address recipient = _getLocker();
-        address underlying = registry.getCurrency(currencyAddress).underlying;
+        address underlying = registry.getCurrencyUnderlying(currencyAddress);
         IERC20 settlementToken = IERC20(underlying == address(0) ? currencyAddress : underlying);
         // Q leaves PM directly; W burns on take and releases U from the W contract.
         address transferSource = underlying == address(0) ? address(poolManager) : currencyAddress;
@@ -189,10 +189,10 @@ contract TSVSwapRouterV1 is TSVGoverned, PermissionedV4Router, ReentrancyLock {
 
     function _stockAsset(PoolKey memory key) private view returns (address stockCurrency, address underlying) {
         stockCurrency = Currency.unwrap(key.currency0);
-        underlying = registry.getCurrency(stockCurrency).underlying;
+        underlying = registry.getCurrencyUnderlying(stockCurrency);
         if (underlying == address(0)) {
             stockCurrency = Currency.unwrap(key.currency1);
-            underlying = registry.getCurrency(stockCurrency).underlying;
+            underlying = registry.getCurrencyUnderlying(stockCurrency);
         }
     }
 
