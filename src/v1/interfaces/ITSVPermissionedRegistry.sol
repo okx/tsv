@@ -101,11 +101,6 @@ interface ITSVPermissionedRegistry {
     /// @return Whether a GLOBAL TRADE, GLOBAL LP, or GLOBAL ALL emergency pause is active.
     function isPaused() external view returns (bool);
 
-    /// @notice Returns the configured exit receiver for a canonical underlying.
-    /// @param u Canonical underlying address to query.
-    /// @return Exit receiver address, or zero when unset.
-    function exitAdminOf(address u) external view returns (address);
-
     /// @notice Returns the bound permissioned adapter Factory.
     /// @return Factory address.
     function permissionsAdapterFactory() external view returns (address);
@@ -185,11 +180,6 @@ interface ITSVPermissionedRegistry {
     /// @param u Canonical underlying whose legal-share adapter is replaced.
     /// @param newAdapter New legal-share adapter for `u`.
     function replaceUnderlyingLegalShareAdapter(address u, address newAdapter) external;
-
-    /// @notice Configures the receiver shared by every W for an underlying U.
-    /// @param u Canonical underlying whose exit receiver changes.
-    /// @param newAdmin New receiver for forced exits and related recovery flows.
-    function setExitAdmin(address u, address newAdmin) external;
 
     /// @notice Binds Registry dependencies once, after all components are deployed.
     /// @param hook TSV Hook authorized for pool callbacks.

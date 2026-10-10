@@ -22,7 +22,6 @@ interface IPermissionedRegistryViews {
     function getCurrencyUnderlying(address w) external view returns (address);
     function getUnderlying(address u) external view returns (UnderlyingConfig memory);
     function getQuoteToken(address q) external view returns (QuoteTokenConfig memory);
-    function exitAdminOf(address u) external view returns (address);
 }
 
 interface IPermissionedComponentV1 {
@@ -71,20 +70,8 @@ library PermissionedValidationLib {
         return _stockDecimals(w, u);
     }
 
-    function validateExitAdmin(address u, address admin) external view {
-        IPermissionedRegistryViews r = IPermissionedRegistryViews(address(this));
-        if (
-            u.code.length == 0 || _isSystem(u) || r.getCurrencyUnderlying(u) != address(0)
-                || r.getQuoteToken(u).registered
-                || _readAddressArgument(
-                        r.permissionsAdapterFactory(), IPermissionsAdapterFactory.permissionsAdapterOf.selector, u
-                    ) != address(0)
-        ) revert InvalidPermissionedConfig();
-        _validateExitAdmin(address(0), u, admin);
-    }
-
-    function validatePolicy(address w, address u) external view {
-        _validatePolicy(w, u);
+    function validatePolicy(address w, address) external view {
+        _validatePolicy(w);
     }
 
     function validateQuoteIdentity(address quote) external view {
@@ -202,19 +189,7 @@ library PermissionedValidationLib {
         if (_readDecimals(w) != decimals) revert PermissionedMetadataMismatch();
     }
 
-    function _validateExitAdmin(address w, address u, address admin) private view {
-        IPermissionedRegistryViews r = IPermissionedRegistryViews(address(this));
-        if (
-            admin.code.length == 0 || admin == u || admin == w || _isSystem(admin)
-                || r.getCurrencyUnderlying(admin) != address(0) || r.getUnderlying(admin).securityId != 0
-                || r.getQuoteToken(admin).registered
-                || _readAddressArgument(
-                        r.permissionsAdapterFactory(), IPermissionsAdapterFactory.permissionsAdapterOf.selector, admin
-                    ) != address(0)
-        ) revert PermissionedPolicyMismatch();
-    }
-
-    function _validatePolicy(address w, address u) private view {
+    function _validatePolicy(address w) private view {
         IPermissionedRegistryViews r = IPermissionedRegistryViews(address(this));
         if (
             !_readBool(
@@ -223,8 +198,6 @@ library PermissionedValidationLib {
                     _readAddress(r.hook(), IPermissionedComponentV1.router.selector)
                 ) || !_readBool(w, IPermissionsAdapter.allowedHooks.selector, r.hook())
         ) revert PermissionedPolicyMismatch();
-        address admin = r.exitAdminOf(u);
-        if (admin != address(0)) _validateExitAdmin(w, u, admin);
     }
 
     function _validateQuoteIdentity(address quote) private view {

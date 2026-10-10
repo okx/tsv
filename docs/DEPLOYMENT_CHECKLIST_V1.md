@@ -8,7 +8,7 @@
 2. 使用原版 `PermissionsAdapterFactory(PM)`，记录真实 F 为 `TSV_PERMISSIONS_ADAPTER_FACTORY`。Router 直接依赖 F；发行方独立开发、部署和配置 checker。
 3. Router **实现**构造为 `new TSVSwapRouterV1(PM,F)`；随后代理 `initialize(anchor,PM,R)`。Router 不持有 Ledger 引用；初始化与候选升级都须保留相同 PM/F，不复用旧 Router 布局。
 4. 组件部署完成后，Governor 一次调用 `R.bindComponents(Hook,LPManager,DataInbox,F,SBT)`；随后用 VerifyDeploymentV1 验证 Hook Router/LP 引用、Ledger Registry、Anchor、Registry 库链接与 Router 不可变 PM/F。
-5. 先以无广播方式模拟脚本。`VerifyDeploymentV1` 为只读核验，不证明发行方权限或流动性；按 manifest 分别保存 W/U/Q、SBT/owner/exitAdmin、额度、issuer 与生产 LP 证据。
+5. 先以无广播方式模拟脚本。`VerifyDeploymentV1` 为只读核验，不证明发行方权限或流动性；按 manifest 分别保存 W/U/Q、SBT/owner、额度、issuer/admin fallback 策略与生产 LP 证据。
 6. 生产 Wrapped LP 尚待迁移和验收；测试 seed 不可部署替代。模板的 `wrappedRouterReady` / `wrappedLiquidityReady` 保持 false，证据齐备后再由 owner 开启 W swapping。
 
 当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。

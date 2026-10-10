@@ -10,11 +10,11 @@
 - 新证券使用 `admitPermissionedSecurity(tierId, admission)`；已有证券添加 W 使用 `registerPermissionedCurrency(admission)`。U 和精度从真实合约派生，admission 仅含 W/securityId/expectedOwner/legalShareAdapter。
 - 报价币使用 `registerQuoteToken(Q)`。股票、underlying、报价和系统地址不得混用；Pool 只登记 W/Q。
 - W/Q 准入记录永久保留，停用与恢复使用 TOKEN 暂停；单池使用 POOL 暂停。清除 TOKEN 暂停前复核已登记 W/Q 的身份、精度和授权，失败时暂停记录及计数不变。首次 W 准入要求 supply、PM W 余额及累计 W 费用为零，恢复不重复首次库存检查。PM 的既有 U 余额不影响准入。
-- owner 批准由 Governor 控制；expectedOwner 轮换由 SYMBOL_ADMIN 执行，要求 TOKEN、SECURITY、GLOBAL 或市场暂停共同覆盖该 W 的交易和 LP 暂停、新 owner 已实际接受 ownership、获批准且与 exitAdmin 分离。
-- exitAdmin 按 U 共享，Governor 直接调用 `setExitAdmin(U, admin)`，可在首次 W 准入前配置。是否配置直接按接收地址判断。更新检查该 U 下所有已登记 W 的 expectedOwner 和当前 owner，接收方须与这些 owner 分离。它不接收本期 Swap 输出，也不授予 owner 或执行角色。
+- owner 批准由 Governor 控制；expectedOwner 轮换由 SYMBOL_ADMIN 执行，要求 TOKEN、SECURITY、GLOBAL 或市场暂停共同覆盖该 W 的交易和 LP 暂停、新 owner 已实际接受 ownership 且获批准。
+- Registry 不再维护 U 级 `setExitAdmin/exitAdminOf` 模型；强退或发行方兜底交付不通过 Registry exitAdmin 表达。
 - `replaceUnderlyingLegalShareAdapter(U, newAdapter)` 要求证券范围同时覆盖交易和 LP 暂停；单 W 的 TOKEN 暂停不足。更新立即影响该 U 的所有 W，不清 Ledger。
 
-资产、报价币、证券、池、exitAdmin 和股数 Adapter 均无配置版本计数。Adapter 准入只核验接口及 U 绑定；`SwapAccounted` 不携带 Adapter 版本。ADTV、Quota 和 SplitFactor 报告已移除 `version`；Inbox 的 `(kind,securityId)` sequence、来源时间与全局 reportId 去重管理提交顺序。Ledger 的 ADTV/quota 状态只保存金额，接受事件保留来源 ID。拆并股原样保存分子/分母，保留非零和溢出校验。`SwapAccounted` 同时记录池内 W（poolCurrency）和对应 U（underlying）。
+资产、报价币、证券、池和股数 Adapter 均无配置版本计数。Adapter 准入只核验接口及 U 绑定；`SwapAccounted` 不携带 Adapter 版本。ADTV、Quota 和 SplitFactor 报告已移除 `version`；Inbox 的 `(kind,securityId)` sequence、来源时间与全局 reportId 去重管理提交顺序。Ledger 的 ADTV/quota 状态只保存金额，接受事件保留来源 ID。拆并股原样保存分子/分母，保留非零和溢出校验。`SwapAccounted` 同时记录池内 W（poolCurrency）和对应 U（underlying）。
 
 2026-10-08 Ledger 与报告精简后的完整本地回归：**323 项通过，0 失败、0 跳过，48 个套件**。覆盖 Inbox 序号与去重、额度更正及原子回滚、原始拆并股比例与溢出、历史日切边界，以及真实 PM 四条交易路径和多个 W 共用 U 的事件字段。`make check` 及当前制品源码哈希/ABI 核验通过；Ledger/Inbox/Hook 运行时分别为 13,210 / 8,018 / 8,348 字节。命令为 `forge test --dynamic-test-linking --summary`；[完整日志](../out/tsv-ledger-simplification/full-tests.log)。
 
@@ -67,7 +67,7 @@ registry.setSbtConfig(retailTokenId, PermissionFlags.SWAP_ALLOWED);
 
 单合约版本在既定 Solidity 0.8.26 / Cancun / viaIR / optimizer 200 下超过 EIP-170 限制。经确认抽出 `PermissionedValidationLib`，未改变编译基准。
 
-`PermissionedValidationLib` 只承载 Registry 的资产准入校验，包括 Factory/W 身份、元数据、法律股数接口、owner/wrapper/Hook/exitAdmin 和首次库存。库通过 delegatecall 执行，`address(this)` 为 Registry 代理；Registry 保留映射、角色、状态写入、事件和 SBT 身份权限。已移除 `_environment()` 地址打包及 `Environment` 结构；库读取 Registry 的现有 getter，绑定入口仅保留依赖地址、F 的 PM 和 SBT ABI 检查，已删除 `validateEnvironment` 及组件交叉引用检查。共享 exitAdmin 校验读取 Registry 的 U→W 索引，不增加库自身存储。
+`PermissionedValidationLib` 只承载 Registry 的资产准入校验，包括 Factory/W 身份、元数据、法律股数接口、wrapper/Hook 和首次库存。库通过 delegatecall 执行，`address(this)` 为 Registry 代理；Registry 保留映射、角色、状态写入、事件和 SBT 身份权限。已移除 `_environment()` 地址打包及 `Environment` 结构；库读取 Registry 的现有 getter，绑定入口仅保留依赖地址、F 的 PM 和 SBT ABI 检查，已删除 `validateEnvironment` 及组件交叉引用检查。U 级 exitAdmin 校验已删除。
 
 Router 不再链接该库，也不再生成或比较运行时策略快照。执行时的 Hook、swappingEnabled 和用户权限检查复用 `PermissionedV4Router`；精确转账与库存检查保留在内部 `TSVPermissionedSettlementLib`。Registry 的 `permissionedValidationLibrary()` 返回实际链接地址，更换须随实现升级交付。
 
@@ -93,7 +93,7 @@ forge script script/DeployCoreV1.s.sol:DeployCoreV1 --libraries "src/v1/librarie
 - 股票输出：PM take 原版 W，自动 burn/unwrap 并发送 U 给结算方；只检查 W 持有的 U 减少和结算方 U 增加。Q 输出使用相同的双侧检查，发送方为 PM。实际输入在 SETTLE_ALL 中记录，实际输出在 TAKE_ALL 中记录，无需预存输出币种或重复比较 credit。
 - 原版 W 自身保证 PM W = W totalSupply、其他地址不持有 W，Router 不再重复读取这些 W 余额。保留整笔交易的一组库存检查：collateral ≥ supply；PM/Router 可以已有 U，但对应 U 余额必须保持不变；验证保证金余量 E = collateral − supply 保持不变。入金和出金不再各自重复读取整套库存。
 - exact-in 按真实成交量支付，可部分成交，须满足最小输出；exact-out 输出必须严格等于指定量且输入不超过上限。两腿最终 PM delta 为零。
-- 请求与真实用户的 TSV SBT 资格在入口校验。入口固定使用 Registry 配置的 TSV Hook，池准入、证券上市和暂停检查交给该 Hook，不再在 Router 重复调用 isTradable 或检查报价币状态。股票支付/取款复用父类的 swappingEnabled 与 W.isAllowed；Factory/W 的永久 U 绑定已在准入时验证，支付时不再重复比较。owner、exitAdmin、元数据等准入配置不再做整笔交易的快照一致性检查。
+- 请求与真实用户的 TSV SBT 资格在入口校验。入口固定使用 Registry 配置的 TSV Hook，池准入、证券上市和暂停检查交给该 Hook，不再在 Router 重复调用 isTradable 或检查报价币状态。股票支付/取款复用父类的 swappingEnabled 与 W.isAllowed；Factory/W 的永久 U 绑定已在准入时验证，支付时不再重复比较。owner、元数据等准入配置不再做整笔交易的快照一致性检查。
 - Hook 按真实股票腿 gross input / net output 计量一次，使用 U 的 canonical 法律股数换算。同 U 的多个 W/池共享 securityId 额度。Router 不另收结算费用；原版静态 LP fee、协议费仍由 PM 处理。
 
 聚合器沿用 main 的 Adapter 白名单与真实用户、结算方分离。Governor 通过 `setAdapterAllowed` 授权，并保留 `AdapterAuthorizationUpdated` 配置事件；Router 的两个成交事件已删除。`participant` 来自 Adapter 验证过的 DEX caller marker，父类 `msgSender()` 返回该用户，V4 锁中的发起者 Adapter 负责付款和收款。`settlementCurrency(W)` 返回 U、`settlementCurrency(Q)` 返回 Q；现有 TSVAdapter 仅将两处收付币种读取改为该映射，签名与 V4 请求中的 PoolKey 仍为 W/Q，输出交付和部分成交退款沿用 main 逻辑。
@@ -126,7 +126,7 @@ git diff --check
 
 2026-10-08 删除配置 Version、Router 成交事件和 Ledger 引用后的完整本地回归：**313 项通过，0 失败、0 跳过，48 个套件**，含 Wrapped Swap 30 项、DexAdapter 11 项。保留报告更新顺序和完整治理回归。命令使用默认优化配置及 `--dynamic-test-linking`；日志为 `out/tsv-router-lock.vhL8kj/version-cleanup-full-tests.log`。`make check`、生产源码构建及编译源文件哈希/ABI/layout 核对通过。
 
-2026-10-08 Registry 精简回归：Registry 目录 **70 项通过，0 失败、0 跳过**，包含 SBT 固定绑定、逐身份权限更新与并集、权限/撤证区分、U 共享 exitAdmin、W 准入及暂停叠加。绑定事件验证只产生一条完整日志。格式、测试目录布局、ABI 和 Registry 存储布局检查通过。
+2026-10-08 Registry 精简回归：Registry 目录 **70 项通过，0 失败、0 跳过**，包含 SBT 固定绑定、逐身份权限更新与并集、权限/撤证区分、W 准入及暂停叠加。绑定事件验证只产生一条完整日志。格式、测试目录布局、ABI 和 Registry 存储布局检查通过。
 
 2026-10-08 Router 第二轮简化后的当前版本：本地交易目录 6 个 suite、41 项测试通过，0 失败、0 跳过，其中 Wrapped 30 项、DexAdapter 11 项。普通 fuzz 每项 256 次。执行日志为 `out/tsv-router-lock.vhL8kj/simplified-round2-tests.log`。历史 DIRECT/LP/XLayer DEX 的 27 个延期文件不计入本次通过数。
 

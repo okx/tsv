@@ -157,9 +157,6 @@ abstract contract WrappedSwapFixture is Test {
         w.updateAllowedHook(IHooks(address(hook)), true);
         underlying.mint(address(w), 17); // Verification dust must survive all swaps.
         factory.verifyPermissionsAdapter(address(w));
-        if (registry.exitAdminOf(address(underlying)) == address(0)) {
-            registry.setExitAdmin(address(underlying), address(exitReceiver));
-        }
     }
 
     function _seedPool(PermissionsAdapter w, uint24 fee) internal returns (PoolKey memory result) {

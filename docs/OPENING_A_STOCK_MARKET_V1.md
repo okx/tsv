@@ -9,7 +9,7 @@ flowchart TD
     A[部署只读验证库及核心代理<br/>Router 实现固定 PM/F] --> B[绑定组件、真实 Factory、SBT、Tier 和角色]
     B --> C[Governor 批准合约 owner<br/>核定 U 法律股数 Adapter 和发行方权限]
     C --> D[通过 F 创建原版 W<br/>存入验证 U 并由真实 Factory 验证]
-    D --> E[owner 允许 Router 和 Hook<br/>配置独立 exitAdmin，暂不启用 swapping]
+    D --> E[owner 允许 Router 和 Hook<br/>暂不启用 swapping]
     E --> F[admitPermissionedSecurity<br/>登记 W 与 U 的 canonical 配置]
     B --> Q[registerQuoteToken：登记原币 Q]
     F --> V[提交适用月份 ADTV]
@@ -41,13 +41,13 @@ flowchart TD
 ## 每只证券的准备与准入
 
 1. **核定 U 与计股口径。** U 是项目中的股票 underlying，可能是发行方自身的 shares/wrapped token；它不等于 TSV 的 W。Adapter 的 `poolCurrency()` 必须为 U，支持 `IDirectLegalShareAdapter`。U/W 精度一致且不超过 18，raw 余额与转账必须符合精确结算。先取得 issuer 对 Router 支出用户 U、W 托管 U、W 向用户释放 U、协议费接收方收取 U 的允许条件。
-2. **批准 owner。** Governor 调用 `R.setPermissionedOwnerApproval(owner, true)`；owner 必须是合约账号，随后配置 W 的允许 wrapper、Hook 和 swapping。owner 与 exitAdmin 分离。
+2. **批准 owner。** Governor 调用 `R.setPermissionedOwnerApproval(owner, true)`；owner 必须是合约账号，随后配置 W 的允许 wrapper、Hook 和 swapping。
 3. **创建、验证 W。** 任何账号均可调用 `F.createPermissionsAdapter(IERC20(U), owner, issuerChecker)`，保存真实 F 的 Created 事件及 W 地址。持有者先 `U.approve(W, verificationAmount)`，再 `W.depositForVerification(verificationAmount)`；之后调用 `F.verifyPermissionsAdapter(W)` 并核对 F 的两个查询均返回 U。验证保证金为 surplus，不能作为 Swap 少付的抵扣。
-4. **配置 W 与 exitAdmin。** W owner 调用 `updateAllowedWrapper(Router,true)`、`updateAllowedHook(Hook,true)`；checker 为发行方自己开发、部署的 `IAllowlistChecker` 合约。Governor 调用 `R.setExitAdmin(U, exitAdmin)`，配置由该 U 的所有 W 共享，要求独立合约且不得为该 U 下任一已登记 W 的 owner、资产或系统组件。此时 swapping 可保持 false，准入不要求已开启交易。
+4. **配置 W。** W owner 调用 `updateAllowedWrapper(Router,true)`、`updateAllowedHook(Hook,true)`；checker 为发行方自己开发、部署的 `IAllowlistChecker` 合约。此时 swapping 可保持 false，准入不要求已开启交易。Registry 不再维护 U 级 `exitAdmin`。
 5. **原子准入证券与 W。** SYMBOL_ADMIN 调用 `R.admitPermissionedSecurity(tierId, PermissionedAdmission(W, securityId, owner, legalShareAdapter))`。securityId 非零且未上市；首次 W 要求 supply、PM W 余额及累计 W 协议费为零。R 派生并保存 U/decimals/canonical Adapter，默认上市且市场 OPEN。
 6. **登记报价 Q。** SYMBOL_ADMIN 调用 `R.registerQuoteToken(Q)`；Q 是原币 ERC-20，不能使用 U、W 或系统地址。报价精度独立，例如 U/W 18 decimals、Q 6 decimals。已登记 Q 可复用。
 
-同一 U 添加第二个 W 时调用 `registerPermissionedCurrency(admission)`，沿用相同 securityId、精度和 canonical Adapter。每个 W 独立管理 owner 和 TOKEN 暂停；exitAdmin 按 U 共享，但全部池共用证券日额度。
+同一 U 添加第二个 W 时调用 `registerPermissionedCurrency(admission)`，沿用相同 securityId、精度和 canonical Adapter。每个 W 独立管理 owner 和 TOKEN 暂停；全部池共用证券日额度。
 
 ## 报告、生产 LP 与启用门禁
 
@@ -60,7 +60,7 @@ VOLUME_ORACLE 向 DataInbox 提交适用上月的 `AdtvReport`，量纲为法律
 | 门禁 | 验收读值或证据 |
 | --- | --- |
 | 身份与准入 | F 对 W created/verified 均为 U；W 的 PM/U/checker、owner 与 R 记录一致；W/Q 已准入，证券上市，PoolKey 完整匹配且 PM 已初始化；相关操作未暂停。 |
-| W 权限 | owner 已获 Governor 批准；Router wrapper 和 Hook 均允许；exitAdmin 为非零地址且与 owner 分离。 |
+| W 权限 | owner 已获 Governor 批准；Router wrapper 和 Hook 均允许。 |
 | 发行方权限 | 用户 U→W 及 W→用户 U、Router operator、W custody、协议费接收方均可达；Q 支出与接收无税费或额外扣费。 |
 | 库存 | PM W = W supply，Router/用户 W = 0；W U collateral ≥ supply。记录 PM/Router 既有 U 余额并验证每笔交易保持不变；记录 surplus E，既有余额和验证保证金不可挪用于付款。 |
 | 资格与额度 | SBT 未暂停，真实用户持证；ADTV/报告适用，当前日额度足够，交易门禁正常。SDK 分别查询 `R.isAllowed(SWAP_ALLOWED,user)` 和 `W.isAllowed(user,SWAP_ALLOWED)`；普通 LP 两层查询均使用 LIQUIDITY_ALLOWED。 |
@@ -87,6 +87,6 @@ DEX Adapter 需获 Governor 白名单授权；Router 检查 Adapter 验证的真
 
 - 资产停用使用 TOKEN 暂停，单池停用使用 POOL 暂停；模式为 TRADE、LP 或 ALL。暂停/恢复分别由 EMERGENCY_PAUSER/RESUMER 执行，清除 TOKEN 暂停会复核已登记资产配置。证券下架无需逐池操作，重新上市后未被暂停覆盖的历史池自动恢复。
 - owner 轮换先通过 TOKEN、SECURITY 或 GLOBAL 范围暂停该 W 的交易和 LP，由新 owner 实际接受 ownership 并获 Governor 批准，再调用 `updatePermissionedExpectedOwner`，最后恢复暂停。
-- exitAdmin 通过 `setExitAdmin(U,admin)` 按 U 统一更新，不改变 owner/业务角色，本期不接收 Swap 输出；用户输出受发行方限制时整笔交易回滚。
+- Registry 不再维护 `setExitAdmin/exitAdminOf`；用户输出受发行方限制时整笔交易回滚。
 - canonical 计股口径更新使用 `replaceUnderlyingLegalShareAdapter(U,newAdapter)`，要求整个证券同时覆盖 TRADE 与 LP 暂停；仅暂停某个 W 不足。同 U 的全部 W 立即使用新口径，历史 used 不清零。
 - 按月提交 ADTV，必要时更新 quota、排期拆并股系数；持续监控 issuer 拒转、SBT、W 权限/库存、适用额度、生产 LP 流动性及 PM 费用。资产停用使用现有暂停入口，历史额度和准入记录不清零。
