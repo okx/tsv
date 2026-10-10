@@ -477,36 +477,6 @@ contract TSVRegistryV1 is TSVGoverned {
         emit QuoteTokenRegistered(quote, rawDecimals);
     }
 
-    /// @notice Adds or removes an approved permissioned-stock owner contract.
-    /// @param owner Owner contract whose approval status changes.
-    /// @param approved Whether the owner should be accepted by future policy checks.
-    function setPermissionedOwnerApproval(address owner, bool approved) external onlyGovernor {
-        if (owner == address(0) || (approved && owner.code.length == 0)) revert PermissionedPolicyMismatch();
-        isPermissionedOwnerApproved[owner] = approved;
-        emit PermissionedOwnerApprovalChanged(owner, approved);
-    }
-
-    /// @notice Updates the expected owner recorded for an admitted permissioned stock adapter.
-    /// @dev The token, security, or global pause state must cover both TRADE and LP before replacement.
-    /// @param w Permissioned stock adapter whose expected owner is updated.
-    /// @param newOwner New owner contract expected by adapter policy validation.
-    function updatePermissionedExpectedOwner(address w, address newOwner) external onlyRole(SYMBOL_ADMIN_ROLE) {
-        PermissionedCurrencyConfig storage config = currencies[w];
-        if (config.underlying == address(0) || newOwner == config.expectedOwner) revert InvalidStatus();
-        bytes32 securityId = underlyings[config.underlying].securityId;
-        // A TOKEN, SECURITY, or GLOBAL pause must cover both ordinary operation types.
-        if (
-            !(_isPaused(PauseScope.TOKEN, _addressKey(w), PauseMode.TRADE)
-                    || _securityPausedForReplacement(securityId, PauseMode.TRADE))
-                || !(_isPaused(PauseScope.TOKEN, _addressKey(w), PauseMode.LP)
-                    || _securityPausedForReplacement(securityId, PauseMode.LP))
-        ) revert InvalidStatus();
-        PermissionedValidationLib.validateOwner(w, config.underlying, newOwner);
-        address previousExpectedOwner = config.expectedOwner;
-        config.expectedOwner = newOwner;
-        emit PermissionedExpectedOwnerChanged(w, previousExpectedOwner, newOwner);
-    }
-
     /// @notice Replaces the canonical U converter while the entire security is paused for trade and LP.
     /// @param u Canonical underlying whose legal-share adapter is replaced.
     /// @param newAdapter New legal-share adapter for `u`.
