@@ -55,12 +55,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     error IncompatibleImplementation();
     error InvalidApproveProxy();
 
-    // Preserve the original ABI entries for SignatureVerification errors now emitted by the linked library.
-    error InvalidContractSignature();
-    error InvalidSignature();
-    error InvalidSignatureLength();
-    error InvalidSigner();
-
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
     bytes32 public constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
@@ -241,11 +235,8 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         payable
         override(ERC721Permit_v4, IERC721Permit_v4)
         whenRegistryNotPaused
-        checkSignatureDeadline(deadline)
     {
-        TSVLPManagerLib.permit(
-            _ownerOf, getApproved, nonces, DOMAIN_SEPARATOR(), spender, tokenId, deadline, nonce, signature
-        );
+        ERC721Permit_v4.permit(spender, tokenId, deadline, nonce, signature);
     }
 
     function permitForAll(
@@ -255,16 +246,8 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         uint256 deadline,
         uint256 nonce,
         bytes calldata signature
-    )
-        public
-        payable
-        override(ERC721Permit_v4, IERC721Permit_v4)
-        whenRegistryNotPaused
-        checkSignatureDeadline(deadline)
-    {
-        TSVLPManagerLib.permitForAll(
-            isApprovedForAll, nonces, DOMAIN_SEPARATOR(), owner, operator, approved, deadline, nonce, signature
-        );
+    ) public payable override(ERC721Permit_v4, IERC721Permit_v4) whenRegistryNotPaused {
+        ERC721Permit_v4.permitForAll(owner, operator, approved, deadline, nonce, signature);
     }
 
     function permit(address owner, IAllowanceTransfer.PermitSingle calldata permitSingle, bytes calldata signature)
@@ -274,7 +257,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         whenRegistryNotPaused
         returns (bytes memory err)
     {
-        return TSVLPManagerLib.permit2(permit2, owner, permitSingle, signature);
+        return Permit2Forwarder.permit(owner, permitSingle, signature);
     }
 
     function permitBatch(address owner, IAllowanceTransfer.PermitBatch calldata permits, bytes calldata signature)
@@ -284,7 +267,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         whenRegistryNotPaused
         returns (bytes memory err)
     {
-        return TSVLPManagerLib.permit2Batch(permit2, owner, permits, signature);
+        return Permit2Forwarder.permitBatch(owner, permits, signature);
     }
 
     function revokeNonce(uint256 nonce) public payable override(UnorderedNonce, IUnorderedNonce) whenRegistryNotPaused {
@@ -296,21 +279,12 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         payable
         override(Notifier, INotifier)
         whenRegistryNotPaused
-        onlyIfPoolManagerLocked
-        onlyIfApproved(msg.sender, tokenId)
     {
-        TSVLPManagerLib.subscribe(positionInfo, subscriber, tokenId, newSubscriber, data);
+        Notifier.subscribe(tokenId, newSubscriber, data);
     }
 
-    function unsubscribe(uint256 tokenId)
-        public
-        payable
-        override(Notifier, INotifier)
-        whenRegistryNotPaused
-        onlyIfPoolManagerLocked
-        onlyIfApproved(msg.sender, tokenId)
-    {
-        TSVLPManagerLib.unsubscribe(positionInfo, subscriber, tokenId, unsubscribeGasLimit);
+    function unsubscribe(uint256 tokenId) public payable override(Notifier, INotifier) whenRegistryNotPaused {
+        Notifier.unsubscribe(tokenId);
     }
 
     function multicall(bytes[] calldata data)
@@ -320,7 +294,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         whenRegistryNotPaused
         returns (bytes[] memory results)
     {
-        return TSVLPManagerLib.multicall(data);
+        return Multicall_v4.multicall(data);
     }
 
     function unlockCallback(bytes calldata data) public override whenRegistryNotPaused returns (bytes memory) {
