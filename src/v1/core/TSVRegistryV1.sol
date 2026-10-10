@@ -137,7 +137,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @dev Append-only pool ID list grouped by the pool's single stock security ID.
     mapping(bytes32 => bytes32[]) private poolsBySecurity;
     /// @dev One-based index of a pool ID inside `poolsBySecurity[pool.securityId]`; zero means absent.
-    mapping(bytes32 => uint256) private poolSecurityIndexPlusOne;
+    mapping(bytes32 => uint256) private poolSecurityIndex;
     /// @notice Explicit lifecycle for each registered pool.
     /// @dev DELIST blocks swaps and ordinary LP, LIST allows both through later gates, PAUSE blocks swaps only.
     mapping(bytes32 => PoolLifecycle) public poolLifecycle;
@@ -580,7 +580,7 @@ contract TSVRegistryV1 is TSVGoverned {
         if (isKnownPool(poolId)) revert InvalidPool();
         pools[poolId] = PoolConfig(key, securityId, tierId);
         poolsBySecurity[securityId].push(poolId);
-        poolSecurityIndexPlusOne[poolId] = poolsBySecurity[securityId].length;
+        poolSecurityIndex[poolId] = poolsBySecurity[securityId].length;
         poolLifecycle[poolId] = PoolLifecycle.LIST;
         listPoolCountBySecurity[securityId]++;
         emit PoolRegistered(poolId, securityId, tierId, PoolLifecycle.LIST);
