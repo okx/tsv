@@ -67,7 +67,7 @@ registry.setSbtConfig(retailTokenId, PermissionFlags.SWAP_ALLOWED);
 
 单合约版本在既定 Solidity 0.8.26 / Cancun / viaIR / optimizer 200 下超过 EIP-170 限制。经确认抽出 `PermissionedValidationLib`，未改变编译基准。
 
-`PermissionedValidationLib` 只承载 Registry 的资产准入校验，包括 Factory/W 身份、元数据、法律股数接口和 wrapper/Hook。库通过 delegatecall 执行，`address(this)` 为 Registry 代理；Registry 保留映射、角色、状态写入、事件和 SBT 身份权限。已移除 `_environment()` 地址打包及 `Environment` 结构；库读取 Registry 的现有 getter，绑定入口仅保留依赖地址、F 的 PM 和 SBT ABI 检查，已删除 `validateEnvironment` 及组件交叉引用检查。U 级 exitAdmin 校验已删除，首次库存校验不再由 Registry 执行。
+`PermissionedValidationLib` 只承载 Registry 的资产准入校验，包括 Factory/W 身份、元数据、W/U/Q 身份隔离、报价币身份检查和 legal-share adapter 绑定校验。库的外部方法通过 delegatecall 执行，`address(this)` 为 Registry 代理；legal-share adapter 校验作为 internal helper 由 Registry 直接调用。Registry 保留映射、角色、状态写入、事件和 SBT 身份权限。已移除 `_environment()` 地址打包及 `Environment` 结构；库读取 Registry 的现有 getter，绑定入口仅保留依赖地址、F 的 PM 和 SBT ABI 检查，已删除 `validateEnvironment` 及组件交叉引用检查。U 级 exitAdmin 校验、wrapper/Hook policy 校验和首次库存校验不再由 Registry 执行。
 
 Router 不再链接该库，也不再生成或比较运行时策略快照。执行时的 Hook、swappingEnabled 和用户权限检查复用 `PermissionedV4Router`；SafeERC20 转账由内部 `TSVPermissionedSettlementLib` 提供。Router 依赖准入审查保证 U/Q 精确转账语义，以及 Factory 验证的 W 实现保证抵押与供应量一致；Swap 不读取库存快照。Registry 的 `permissionedValidationLibrary()` 返回实际链接地址，更换须随实现升级交付。
 
