@@ -21,6 +21,7 @@ import {IERC721Permit_v4} from "v4-periphery/interfaces/IERC721Permit_v4.sol";
 import {LPPositionMath} from "tsv-v1/vendor/permissionedPools/libraries/LPPositionMath.sol";
 import {TickMath} from "lib/v4-periphery/lib/v4-core/src/libraries/TickMath.sol";
 import {LiquidityAmounts} from "v4-periphery/libraries/LiquidityAmounts.sol";
+import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
 
 contract LPLinkedLibrariesTest is LPLinkedFixture {
     function testNftPermitUsesProxyDomainAndStorageAndRejectsReplay() public {
@@ -208,7 +209,7 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         lp.sweepForTest(key.currency0, owner);
     }
 
-    function testOrdinaryBurnKeepsRegistryPermissionAndLifecycleChecks() public {
+    function testOrdinaryBurnKeepsRegistryPermissionAndPoolGateChecks() public {
         bytes[] memory params = new bytes[](1);
         params[0] = abi.encode(tokenId, uint128(0), uint128(0), bytes(""));
         bytes memory data = abi.encode(abi.encodePacked(uint8(Actions.BURN_POSITION)), params);
@@ -217,13 +218,9 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
         lp.modifyLiquidities(data, block.timestamp);
         vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isAllowed.selector), abi.encode(true));
-        vm.mockCall(
-            registry,
-            abi.encodeWithSignature("getPoolLifeCycle((address,address,uint24,int24,address))", key),
-            abi.encode(uint256(0))
-        );
+        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isLPAllowed.selector), abi.encode(false));
         vm.prank(owner);
-        vm.expectRevert(TSVLPManagerV1.PoolDelisted.selector);
+        vm.expectRevert(TSVLPManagerLib.PoolNotAllowed.selector);
         lp.modifyLiquidities(data, block.timestamp);
         assertEq(lp.ownerOf(tokenId), owner);
     }

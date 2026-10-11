@@ -8,18 +8,11 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
-import {LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
-
-/// @dev Exposes the active LP operation context used to authorize Hook callbacks.
-interface IActiveLPContextV1 {
-    /// @notice Returns the LP Manager's active operation context for Hook validation.
-    function activeLPContext() external view returns (LPHookContext memory);
-}
 
 /// @notice Upgradeable hook whose proxy address carries the V4 permission bits.
 contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
@@ -125,7 +118,7 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         return IHooks.afterInitialize.selector;
     }
 
-    /// @notice Allows positive liquidity changes only for an authorized operation passing LP admission and pause checks.
+    /// @notice Allows nonnegative liquidity changes from the LP Manager subject to LP admission and pause checks.
     /// @param sender Contract that initiated PoolManager.modifyLiquidity.
     /// @param key Full V4 pool key being modified.
     /// @param params Tick range, salt, and liquidity change requested by the manager.
@@ -137,11 +130,9 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata hookData
     ) external view override onlyPoolManager returns (bytes4) {
-        LPHookContext memory ctx = _checkLP(sender, key, params, hookData);
-        if (
-            params.liquidityDelta <= 0 || (ctx.mode != LPOperationMode.OPEN && ctx.mode != LPOperationMode.INCREASE)
-                || !registry.isLPAllowed(ctx.poolId)
-        ) revert InvalidOperation();
+        bytes32 poolId = _checkLP(sender, key, hookData);
+        if (params.liquidityDelta < 0) revert InvalidOperation();
+        if (registry.isPaused() || !registry.isLPAllowed(poolId)) revert InvalidPool();
         return IHooks.beforeAddLiquidity.selector;
     }
 
@@ -161,7 +152,7 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         return (IHooks.afterAddLiquidity.selector, BalanceDelta.wrap(0));
     }
 
-    /// @notice Validates removal context and allows forced exits to bypass ordinary LP admission and pause checks.
+    /// @notice Applies the same pool admission and pause gates to ordinary removals and authorized unwinds.
     /// @param sender Contract that initiated PoolManager.modifyLiquidity.
     /// @param key Full V4 pool key being modified.
     /// @param params Tick range, salt, and liquidity change requested by the manager.
@@ -173,16 +164,10 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata hookData
     ) external view override onlyPoolManager returns (bytes4) {
-        LPHookContext memory ctx = _checkLP(sender, key, params, hookData);
-        if (params.liquidityDelta > 0 || ctx.mode == LPOperationMode.OPEN || ctx.mode == LPOperationMode.INCREASE) {
-            revert InvalidOperation();
-        }
-        if (ctx.mode == LPOperationMode.FORCE_EXIT) {
-            if (params.liquidityDelta >= 0) revert InvalidOperation();
-            if (!registry.isKnownPool(ctx.poolId)) revert InvalidPool();
-        } else if (!registry.isLPAllowed(ctx.poolId)) {
-            revert InvalidPool();
-        }
+        bytes32 poolId = _checkLP(sender, key, hookData);
+        if (params.liquidityDelta > 0) revert InvalidOperation();
+        // Unwind authorization never exempts a removal from protocol or pool LP gates.
+        if (registry.isPaused() || !registry.isLPAllowed(poolId)) revert InvalidPool();
         return IHooks.beforeRemoveLiquidity.selector;
     }
 
@@ -268,25 +253,19 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         revert UnsupportedCallback();
     }
 
-    /// @dev Matches the PoolManager callback against the LP Manager's one-operation context.
+    /// @dev Validates the trusted LP entry point and exact registered pool; participant checks belong to the manager.
     /// @param sender Contract that invoked the liquidity modification.
     /// @param key Pool key being modified.
-    /// @param params Tick range, salt, and liquidity delta from PoolManager.
     /// @param hookData Empty for existing LP calls, or ABI-encoded `uint256 expectedMultiplier` for snapshot validation.
-    /// @return ctx Validated LP context for the current operation.
-    function _checkLP(
-        address sender,
-        PoolKey calldata key,
-        IPoolManager.ModifyLiquidityParams calldata params,
-        bytes calldata hookData
-    ) private view returns (LPHookContext memory ctx) {
+    /// @return poolId ID derived from the actual callback key.
+    function _checkLP(address sender, PoolKey calldata key, bytes calldata hookData)
+        private
+        view
+        returns (bytes32 poolId)
+    {
         if (sender != lpManager) revert UnauthorizedCallback();
-        ctx = IActiveLPContextV1(lpManager).activeLPContext();
-        if (
-            ctx.poolId == 0 || ctx.poolId != PoolId.unwrap(key.toId()) || ctx.salt != params.salt
-                || ctx.tickLower != params.tickLower || ctx.tickUpper != params.tickUpper
-                || ctx.liquidityDelta != params.liquidityDelta
-        ) revert InvalidOperation();
+        poolId = PoolId.unwrap(key.toId());
+        if (address(key.hooks) != address(this) || !registry.isKnownPool(poolId)) revert InvalidPool();
         _validateOptionalMultiplierSnapshot(key, hookData);
     }
 
