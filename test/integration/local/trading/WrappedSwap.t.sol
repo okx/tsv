@@ -24,34 +24,27 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
     using PoolIdLibrary for PoolKey;
     using TransientStateLibrary for IPoolManager;
 
-    function testMeasuresGasForAllFourLocalSwapPaths() public {
-        for (uint256 i; i < 4; ++i) {
+    function testMeasuresGasForBothExactInputDirections() public {
+        for (uint256 i; i < 2; ++i) {
             uint256 start = gasleft();
-            _swap(i < 2, i % 2 == 0, 1e16);
+            _swap(i == 0, 1e16);
             uint256 consumed = start - gasleft();
-            emit log_named_uint(
-                i == 0
-                    ? "U->Q exactInput gas"
-                    : i == 1 ? "U->Q exactOutput gas" : i == 2 ? "Q->U exactInput gas" : "Q->U exactOutput gas",
-                consumed
-            );
+            emit log_named_uint(i == 0 ? "U->Q exactInput gas" : "Q->U exactInput gas", consumed);
         }
     }
 
-    function testBothDirectionsExactInputAndExactOutputConserveInventoryAndAccountOnce() public {
-        for (uint256 i; i < 4; ++i) {
-            bool stockInput = i < 2;
-            bool exactInput = i % 2 == 0;
+    function testBothDirectionsExactInputConserveInventoryAndAccountOnce() public {
+        for (uint256 i; i < 2; ++i) {
+            bool stockInput = i == 0;
             uint256 uBefore = underlying.balanceOf(alice);
             uint256 qBefore = quote.balanceOf(alice);
             uint256 supplyBefore = stock.totalSupply();
             uint256 usedBefore = ledger.used(SECURITY, DAY);
             uint256 surplus = _inventory();
             vm.recordLogs();
-            (uint256 paid, uint256 received) = _swap(stockInput, exactInput, 1e16);
+            (uint256 paid, uint256 received) = _swap(stockInput, 1e16);
             Vm.Log[] memory logs = vm.getRecordedLogs();
-            if (exactInput) assertLe(paid, 1e16);
-            else assertEq(received, 1e16);
+            assertEq(paid, 1e16);
             assertEq(underlying.balanceOf(alice), stockInput ? uBefore - paid : uBefore + received);
             assertEq(quote.balanceOf(alice), stockInput ? qBefore + received : qBefore - paid);
             assertEq(stock.totalSupply(), stockInput ? supplyBefore + paid : supplyBefore - received);
@@ -92,16 +85,16 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
     function testVerificationDustAndHistoricalSurplusCannotMaskShortPayment() public {
         underlying.mint(address(stock), 1e18);
         uint256 surplus = _inventory();
-        _swap(true, true, 1e16);
-        _swap(false, false, 1e16);
+        _swap(true, 1e16);
+        _swap(false, 1e16);
         assertEq(_inventory(), surplus);
         underlying.setTransferMode(3);
         bytes32 before_ = _digest();
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(_digest(), before_);
         underlying.setTransferMode(0);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(_inventory(), surplus);
     }
 
@@ -111,11 +104,11 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         else quote.setTransferMode(mode);
         bytes32 before_ = _digest();
         if (mode == 4) {
-            _swap(stockInput, true, 1e16); // No-return tokens are supported when their amounts are exact.
+            _swap(stockInput, 1e16); // No-return tokens are supported when their amounts are exact.
             assertEq(_inventory(), 17);
         } else {
             vm.expectRevert();
-            _swap(stockInput, true, 1e16);
+            _swap(stockInput, 1e16);
             assertEq(_digest(), before_);
             assertEq(router.msgSender(), address(0));
         }
@@ -128,7 +121,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         else quote.setSenderFee(sender, 100);
         bytes32 before_ = _digest();
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
-        _swap(stockInput, true, 1e16);
+        _swap(stockInput, 1e16);
         assertEq(_digest(), before_);
     }
 
@@ -136,7 +129,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         deal(address(underlying), address(stock), stock.totalSupply() - 1);
         bytes32 before_ = _digest();
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(_digest(), before_);
     }
 
@@ -144,8 +137,8 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         manager.setProtocolFeeController(address(this));
         manager.setProtocolFee(key, uint24(500) | uint24(700 << 12));
         uint256 usedBefore = ledger.used(SECURITY, DAY);
-        (uint256 input,) = _swap(true, true, 1e17);
-        (, uint256 output) = _swap(false, true, 1e17);
+        (uint256 input,) = _swap(true, 1e17);
+        (, uint256 output) = _swap(false, 1e17);
         assertEq(ledger.used(SECURITY, DAY) - usedBefore, input + output);
         uint256 stockFees = manager.protocolFeesAccrued(Currency.wrap(address(stock)));
         assertGt(stockFees, 0);
@@ -157,7 +150,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         assertEq(stock.balanceOf(address(recipient)), 0);
         assertEq(_inventory(), surplus);
         assertEq(underlying.balanceOf(address(exitReceiver)), 0);
-        _swap(true, true, 1e17);
+        _swap(true, 1e17);
         uint256 feesBefore = manager.protocolFeesAccrued(Currency.wrap(address(stock)));
         underlying.setBlockedRecipient(address(recipient));
         bytes32 before_ = _digest();
@@ -168,7 +161,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
     }
 
     function testMultipleWrappersShareQuotaAndCanonicalAdapter() public {
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         uint256 alreadyUsed = ledger.used(SECURITY, DAY);
         PermissionsAdapter w2 = _newWrapper();
         registry.registerPermissionedCurrency(PermissionedAdmission(address(w2), SECURITY, address(legalAdapter)), 1);
@@ -177,7 +170,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed);
         assertEq(registry.getTierPolicy(1).listedCount, 1);
         vm.prank(alice);
-        (uint256 paid,) = router.swapExactInput(
+        (uint256 paid,) = _submitSwap(
             SwapRequest(
                 second,
                 Currency.unwrap(second.currency0) == address(w2),
@@ -196,9 +189,9 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
             address(next), abi.encodeCall(BackedAutoFeeLegalShareAdapter.toLegalShares, (address(underlying), 1e16)), 2
         );
         vm.recordLogs();
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         vm.prank(alice);
-        router.swapExactInput(
+        _submitSwap(
             SwapRequest(
                 second,
                 Currency.unwrap(second.currency0) == address(w2),
@@ -249,7 +242,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
                 abi.encodePacked(Hooks.HookCallFailed.selector)
             )
         );
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(_digest(), before_);
         assertEq(router.msgSender(), address(0));
     }
@@ -261,13 +254,13 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         sbt.setHolder(address(registry), 1, true);
         bytes32 before_ = _digest();
         vm.expectRevert();
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(_digest(), before_);
         V1TestParticipantWallet wallet = new V1TestParticipantWallet(address(this));
         sbt.setHolder(address(wallet), 1, true);
         quote.mint(address(wallet), 1e20);
         wallet.approveToken(address(quote), address(router));
-        (, uint256 received) = wallet.swapExactInput(router, _request(false, true, 1e16));
+        (, uint256 received) = wallet.swapExactInput(router, swapAdapter, _request(false, 1e16));
         assertEq(underlying.balanceOf(address(wallet)), received);
         assertEq(stock.balanceOf(address(wallet)), 0);
         assertEq(underlying.balanceOf(address(exitReceiver)), 0);
@@ -278,9 +271,10 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         SwapRequest memory request;
         vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
         router.swapExactInputFromAdapterDirect(request, alice, alice);
+        request = _request(true, 1e16);
         vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
         vm.prank(alice);
-        router.swapExactInputFromAdapterDirect(_request(true, true, 1e16), alice, alice);
+        router.swapExactInputFromAdapterDirect(request, alice, alice);
         assertEq(_digest(), before_);
         assertEq(router.msgSender(), address(0));
     }

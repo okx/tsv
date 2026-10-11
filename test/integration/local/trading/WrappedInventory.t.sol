@@ -6,9 +6,10 @@ import {WrappedSwapFixture} from "../../../helpers/v1/WrappedSwapFixture.sol";
 import {V1SwapToken} from "../../../helpers/v1/WrappedSwapMocks.sol";
 
 contract TSVWrappedInventoryTest is WrappedSwapFixture {
-    function testFuzzPreexistingUnderlyingBalancesSurviveAllFourSwapPaths(uint128 pmAmount, uint128 routerAmount)
-        public
-    {
+    function testFuzzPreexistingUnderlyingBalancesSurviveBothExactInputDirections(
+        uint128 pmAmount,
+        uint128 routerAmount
+    ) public {
         pmAmount = uint128(bound(pmAmount, 1, 1e22));
         routerAmount = uint128(bound(routerAmount, 1, 1e22));
         address donor = makeAddr("uncredentialed-donor");
@@ -18,12 +19,12 @@ contract TSVWrappedInventoryTest is WrappedSwapFixture {
         underlying.transfer(address(router), routerAmount);
         vm.stopPrank();
         uint256 surplus = _inventory();
-        for (uint256 i; i < 4; ++i) {
-            bool stockInput = i < 2;
+        for (uint256 i; i < 2; ++i) {
+            bool stockInput = i == 0;
             uint256 uBefore = underlying.balanceOf(alice);
             uint256 qBefore = quote.balanceOf(alice);
             uint256 usedBefore = ledger.used(SECURITY, DAY);
-            (uint256 paid, uint256 received) = _swap(stockInput, i % 2 == 0, 1e16);
+            (uint256 paid, uint256 received) = _swap(stockInput, 1e16);
             assertEq(underlying.balanceOf(alice), stockInput ? uBefore - paid : uBefore + received);
             assertEq(quote.balanceOf(alice), stockInput ? qBefore + received : qBefore - paid);
             assertEq(ledger.used(SECURITY, DAY) - usedBefore, stockInput ? paid : received);
@@ -34,7 +35,7 @@ contract TSVWrappedInventoryTest is WrappedSwapFixture {
         underlying.transfer(address(manager), 1);
         underlying.transfer(address(router), 1);
         vm.stopPrank();
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         _assertUnderlyingBalances(uint256(pmAmount) + 1, uint256(routerAmount) + 1, surplus);
     }
 
@@ -50,11 +51,11 @@ contract TSVWrappedInventoryTest is WrappedSwapFixture {
         );
         bytes32 before_ = _digest();
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
-        _swap(stockInput, true, 1e16);
+        _swap(stockInput, 1e16);
         assertEq(_digest(), before_);
         assertEq(router.msgSender(), address(0));
         callbackToken.setCallback(address(0), bytes(""));
-        _swap(stockInput, true, 1e16);
+        _swap(stockInput, 1e16);
         _assertUnderlyingBalances(31, 43, 17);
     }
 
@@ -65,7 +66,7 @@ contract TSVWrappedInventoryTest is WrappedSwapFixture {
         (stockInput ? underlying : quote).setTransferMode(3);
         bytes32 before_ = _digest();
         vm.expectRevert(TSVSwapRouterV1.SettlementMismatch.selector);
-        _swap(stockInput, true, 1e16);
+        _swap(stockInput, 1e16);
         assertEq(_digest(), before_);
         assertEq(router.msgSender(), address(0));
     }

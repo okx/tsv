@@ -194,11 +194,11 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         require(msg.sender == address(underlying) || msg.sender == address(quote));
         assertEq(router.msgSender(), alice);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
-        router.swapExactInput(_request(true, true, 1e16));
+        _swap(true, 1e16);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
-        router.swapExactOutput(_request(false, false, 1e16));
+        _swap(false, 1e16);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
-        router.swapExactInputFromAdapterDirect(_request(true, true, 1e16), alice, alice);
+        router.swapExactInputFromAdapterDirect(_request(true, 1e16), alice, alice);
     }
 
     function _settlementToken(Currency currency) internal view returns (IERC20) {

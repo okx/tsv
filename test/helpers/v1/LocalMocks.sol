@@ -141,12 +141,12 @@ contract V1TestParticipantWallet {
     }
 
     /// @dev Runs an exact-input swap through the test participant wallet.
-    function swapExactInput(TSVSwapRouterV1 router, SwapRequest calldata request)
+    function swapExactInput(TSVSwapRouterV1 router, V1TestExternalAdapter adapter, SwapRequest calldata request)
         external
         returns (uint256 actualIn, uint256 actualOut)
     {
         require(msg.sender == admin);
-        return router.swapExactInput(request);
+        return adapter.swapExactInputDirect(router, request, address(this), address(this));
     }
 }
 
@@ -163,10 +163,7 @@ contract V1TestExternalAdapter {
         SwapRequest calldata request,
         address participant,
         address recipient
-    )
-        external
-        returns (uint256 actualIn, uint256 actualOut)
-    {
+    ) external returns (uint256 actualIn, uint256 actualOut) {
         return router.swapExactInputFromAdapterDirect(request, participant, recipient);
     }
 }

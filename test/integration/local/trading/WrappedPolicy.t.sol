@@ -38,29 +38,29 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
 
     function testUserIdentityIsAvailableFromFirstCredentialRead() public {
         vm.etch(address(sbt), address(new V1ContextCredential(router, alice)).code);
-        _swap(true, true, 1e16);
-        _swap(false, false, 1e16);
+        _swap(true, 1e16);
+        _swap(false, 1e16);
         assertEq(router.msgSender(), address(0));
     }
 
-    function testBothIdentitiesAuthorizeBothSwapModesUntilAllAreRevoked() public {
+    function testBothIdentitiesAuthorizeBothSwapDirectionsUntilAllAreRevoked() public {
         // Retail is issued in the fixture. Marketmaker alone must also authorize both swap directions.
-        _swap(true, true, 1e16);
-        _swap(false, false, 1e16);
+        _swap(true, 1e16);
+        _swap(false, 1e16);
         sbt.setHolder(alice, 2, true);
         sbt.setHolder(alice, 1, false);
-        _swap(true, false, 1e16);
-        _swap(false, true, 1e16);
+        _swap(true, 1e16);
+        _swap(false, 1e16);
         sbt.setHolder(alice, 1, true);
         sbt.setHolder(alice, 2, false);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         sbt.setHolder(alice, 1, false);
         sbt.setHolder(alice, 99, true);
         bytes32 before_ = _digest();
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
-        _swap(false, false, 1e16);
+        _swap(false, 1e16);
         assertEq(_digest(), before_);
     }
 
@@ -70,34 +70,34 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         assertTrue(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
         bytes32 before_ = _digest();
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
-        _swap(false, false, 1e16);
+        _swap(false, 1e16);
         assertEq(_digest(), before_);
         registry.setSbtConfig(2, PermissionFlags.SWAP_ALLOWED);
         sbt.setHolder(alice, 2, true);
-        _swap(true, true, 1e16);
-        _swap(false, false, 1e16);
+        _swap(true, 1e16);
+        _swap(false, 1e16);
         registry.setSbtConfig(2, PermissionFlags.NONE);
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED);
-        _swap(false, true, 1e16);
+        _swap(false, 1e16);
         assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
     }
 
     function testOnlyTradingPauseBlocksSwapsAndPreservesAccounting() public {
         registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.LP, keccak256("pause-lp"));
-        for (uint256 i; i < 4; ++i) {
-            _swap(i < 2, i % 2 == 0, 1e16);
+        for (uint256 i; i < 2; ++i) {
+            _swap(i == 0, 1e16);
         }
         assertGt(ledger.used(SECURITY, DAY), 0);
 
         registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.TRADE, keccak256("pause-trade"));
         bytes32 before_ = _digest();
-        for (uint256 i; i < 4; ++i) {
+        for (uint256 i; i < 2; ++i) {
             vm.expectRevert();
-            _swap(i < 2, i % 2 == 0, 1e16);
+            _swap(i == 0, 1e16);
         }
         assertEq(_digest(), before_);
     }
@@ -133,7 +133,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         }
         bytes32 before_ = _digest();
         vm.expectRevert();
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(_digest(), before_);
         assertEq(router.msgSender(), address(0));
     }
@@ -145,7 +145,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         vm.stopPrank();
         bytes32 before_ = _digest();
         vm.expectRevert();
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(_digest(), before_);
     }
 
@@ -153,11 +153,11 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         underlying.setBlockedRecipient(alice);
         bytes32 before_ = _digest();
         vm.expectRevert();
-        _swap(false, true, 1e16);
+        _swap(false, 1e16);
         assertEq(_digest(), before_);
         assertEq(underlying.balanceOf(address(exitReceiver)), 0);
         underlying.setBlockedRecipient(address(0));
-        _swap(false, true, 1e16);
+        _swap(false, 1e16);
         assertEq(underlying.balanceOf(address(exitReceiver)), 0);
     }
 
@@ -178,6 +178,6 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         router.upgradeToAndCall(address(next), bytes(""));
         assertEq(address(router.poolManager()), address(manager));
         assertEq(address(router.PERMISSIONS_ADAPTER_FACTORY()), address(factory));
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
     }
 }

@@ -25,7 +25,7 @@ import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/Pe
 import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
 import {V1MockIssuerShares} from "./MockIssuerTokens.sol";
-import {V1LocalSBT} from "./LocalMocks.sol";
+import {V1LocalSBT, V1TestExternalAdapter} from "./LocalMocks.sol";
 import {V1ConfigReceiver, V1IssuerAllowlistChecker} from "./PermissionedMocks.sol";
 import {V1SwapToken, V1WrappedLiquiditySeed} from "./WrappedSwapMocks.sol";
 
@@ -40,6 +40,7 @@ abstract contract WrappedSwapFixture is Test {
     TSVDataInboxV1 internal inbox;
     TSVHookV1 internal hook;
     TSVSwapRouterV1 internal router;
+    V1TestExternalAdapter internal swapAdapter;
     V1WrappedLiquiditySeed internal seed;
     PermissionsAdapterFactory internal factory;
     V1MockIssuerShares internal issuer;
@@ -79,6 +80,8 @@ abstract contract WrappedSwapFixture is Test {
                 abi.encodeCall(TSVSwapRouterV1.initialize, (address(manager), address(registry)))
             )
         );
+        swapAdapter = new V1TestExternalAdapter();
+        router.setAdapterAllowed(address(swapAdapter), true);
         seed = new V1WrappedLiquiditySeed(manager, registry);
         hook = TSVHookV1(address(uint160(0x3FFF)));
         vm.etch(address(hook), type(TSVERC1967Proxy).runtimeCode);
@@ -168,21 +171,29 @@ abstract contract WrappedSwapFixture is Test {
         seed.seed(result, lower, upper, 1e20);
     }
 
-    function _request(bool stockInput, bool exactInput, uint128 amount) internal view returns (SwapRequest memory) {
+    function _request(bool stockInput, uint128 amount) internal view returns (SwapRequest memory) {
         return SwapRequest(
             key,
             stockInput == (Currency.unwrap(key.currency0) == address(stock)),
             amount,
-            exactInput ? uint128(1) : uint128(1e22),
+            1,
             uint64(block.timestamp + 100),
             issuer.multiplier()
         );
     }
 
-    function _swap(bool stockInput, bool exactInput, uint128 amount) internal returns (uint256, uint256) {
-        vm.prank(alice);
-        if (exactInput) return router.swapExactInput(_request(stockInput, true, amount));
-        return router.swapExactOutput(_request(stockInput, false, amount));
+    function _swap(bool stockInput, uint128 amount) internal returns (uint256, uint256) {
+        // Keep request view calls inside the transaction observed by expectRevert.
+        return this.executeSwap(stockInput, amount);
+    }
+
+    function executeSwap(bool stockInput, uint128 amount) external returns (uint256, uint256) {
+        require(msg.sender == address(this));
+        return _submitSwap(_request(stockInput, amount));
+    }
+
+    function _submitSwap(SwapRequest memory request) internal returns (uint256, uint256) {
+        return swapAdapter.swapExactInputDirect(router, request, alice, alice);
     }
 
     function _inventory() internal view returns (uint256) {

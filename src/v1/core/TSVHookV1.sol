@@ -13,6 +13,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeab
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
+import {ITSVLPUnwindContext} from "tsv-v1/interfaces/ITSVLPUnwindContext.sol";
 
 /// @notice Upgradeable hook whose proxy address carries the V4 permission bits.
 contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
@@ -152,7 +153,7 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         return (IHooks.afterAddLiquidity.selector, BalanceDelta.wrap(0));
     }
 
-    /// @notice Applies the same pool admission and pause gates to ordinary removals and authorized unwinds.
+    /// @notice Authorized unwinds bypass LP admission; all removals remain subject to the global pause.
     /// @param sender Contract that initiated PoolManager.modifyLiquidity.
     /// @param key Full V4 pool key being modified.
     /// @param params Tick range, salt, and liquidity change requested by the manager.
@@ -166,8 +167,10 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
     ) external view override onlyPoolManager returns (bytes4) {
         bytes32 poolId = _checkLP(sender, key, hookData);
         if (params.liquidityDelta > 0) revert InvalidOperation();
-        // Unwind authorization never exempts a removal from protocol or pool LP gates.
-        if (registry.isPaused() || !registry.isLPAllowed(poolId)) revert InvalidPool();
+        if (registry.isPaused() || (!ITSVLPUnwindContext(lpManager).isUnwindActive() && !registry.isLPAllowed(poolId)))
+        {
+            revert InvalidPool();
+        }
         return IHooks.beforeRemoveLiquidity.selector;
     }
 
