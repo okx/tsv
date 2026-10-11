@@ -8,7 +8,7 @@ import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
-import {UnderlyingConfig, QuoteTokenConfig, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingRecord, QuoteTokenRecord, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
@@ -102,7 +102,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
     function testLedgerRejectsUnknownAndWrongTypeQuoteFromHookAndRollsBackCharge() public {
         address q = address(quote);
         vm.mockCall(
-            address(registry), abi.encodeCall(TSVRegistryV1.getQuoteToken, (q)), abi.encode(QuoteTokenConfig(6, false))
+            address(registry), abi.encodeCall(TSVRegistryV1.getQuoteToken, (q)), abi.encode(QuoteTokenRecord(6, false))
         );
         vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
         _callback(-1e18);
@@ -130,7 +130,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
     }
 
     function testLedgerRejectsWrongStockSecurityFromHook() public {
-        UnderlyingConfig memory config = registry.getUnderlying(address(stockToken));
+        UnderlyingRecord memory config = registry.getUnderlying(address(stockToken));
         config.securityId = keccak256("another-security");
         vm.mockCall(
             address(registry), abi.encodeCall(TSVRegistryV1.getUnderlying, (address(stockToken))), abi.encode(config)
@@ -155,7 +155,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         vm.mockCall(
             address(registry),
             abi.encodeCall(TSVRegistryV1.getQuoteToken, (address(quote))),
-            abi.encode(QuoteTokenConfig(6, false))
+            abi.encode(QuoteTokenRecord(6, false))
         );
         bool stock0 = Currency.unwrap(key.currency0) == address(stock);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);

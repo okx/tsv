@@ -40,28 +40,62 @@ enum MarketStatus { OPEN, HALTED }
 enum MarketAction { HALT, RESUME }
 enum PauseScope { GLOBAL, SECURITY, TOKEN, POOL }
 enum PauseMode { NONE, TRADE, LP, ALL } // ABI values: 0, 1, 2, 3
+enum PoolLifecycle { DELIST, LIST, PAUSE }
 enum LPOperationMode { OPEN, INCREASE, DECREASE, COLLECT, CLOSE, FORCE_EXIT }
 
-struct PermissionedCurrencyConfig {
-    address underlying;
-    address expectedOwner;
-}
-
-struct UnderlyingConfig {
+struct UnderlyingRecord {
     bytes32 securityId;
     address legalShareAdapter;
     uint8 rawDecimals;
 }
 
-struct QuoteTokenConfig {
+struct QuoteTokenRecord {
     uint8 rawDecimals;
     bool registered;
 }
 
-struct SecurityConfig {
+struct PermissionedAdmission {
+    address currency;
+    bytes32 securityId;
+    address legalShareAdapter;
+}
+
+struct TierPolicy {
+    uint16 tierBps;
+    uint32 maxListed;
+    uint32 listedCount;
+}
+
+struct SecurityRecord {
     bytes32 securityId;
     uint8 tierId;
     bool listed;
+    bytes32[] poolIds;
+    uint32 listedPoolCount;
+}
+
+struct PoolRecord {
+    PoolKey key;
+    bytes32 securityId;
+    uint8 tierId;
+    PoolLifecycle lifecycle;
+    uint256 tickCount;
+    uint256 poolSecurityIndex;
+}
+
+struct MarketStateRecord {
+    uint64 sequence;
+    PauseMode pauseMode;
+}
+
+struct EmergencyPauseRecord {
+    PauseScope scope;
+    bytes32 target;
+    PauseMode mode;
+    bytes32 reasonCode;
+    address openedBy;
+    uint64 openedAt;
+    bool active;
 }
 
 struct LPContext {
@@ -84,7 +118,7 @@ struct LPHookContext {
 }
 ```
 
-Registry 分别以 W、U、Q 为键保存上述资产配置。`PoolId` 键保存**完整 PoolKey 结构**、两侧已冻结的 `securityId` 和状态。`securityId` 为不可变底层证券 ID，不从 ticker 推导。多个 W 可以映射同一 U 和 `securityId` 并共享额度。登记池必须由一个股票 W 和一个报价 Q 组成。
+Registry 使用 `currencyUnderlying[w]` 记录 W -> U 准入索引，并分别以 U、Q、`securityId`、`PoolId` 为键保存 `UnderlyingRecord`、`QuoteTokenRecord`、`SecurityRecord`、`PoolRecord`。`PoolId` 键保存**完整 PoolKey 结构**、单一股票 `securityId`、tier、生命周期和 tick 计数。`securityId` 为不可变底层证券 ID，不从 ticker 推导。多个 W 可以映射同一 U 和 `securityId` 并共享额度。登记池必须由一个股票 W 和一个报价 Q 组成。
 
 **首次部署与后续升级：**V1 当前尚未在目标链部署，本次注册 ABI 精简在首次部署前完成；此前未部署的源码 ABI 不需要迁移兼容。首次部署后，六个代理的后续实现升级必须通过存储布局检查，不得删除或重排已部署的字段。V1 首次部署不迁移旧 wTSLAx 条目、LP 仓位或旧账本。
 

@@ -8,7 +8,7 @@
 - 优化 `registerPermissionedCurrency`，承接新证券首个 W 准入能力，避免保留两个股票准入入口。
 - 删除 `PermissionedCurrencyConfig` 和 `PermissionedAdmission.expectedOwner`，Registry 不再保存或校验 W 的 expected owner。
 - `_registerPermissionedCurrency` 不再依赖外部传入 rawDecimals 或 owner；需要固化的 underlying、rawDecimals 和 adapter 绑定关系都从对应合约读取后写入。
-- 使用独立 `currencyUnderlying[w]` 索引保存 permissioned stock W 到 canonical underlying U 的关系，`UnderlyingConfig` 继续按 U 保存证券级 canonical 配置。
+- 使用独立 `currencyUnderlying[w]` 索引保存 permissioned stock W 到 canonical underlying U 的关系，`UnderlyingRecord` 继续按 U 保存证券级 canonical 配置。
 - 保持现有 `registerPool(PoolKey calldata key)` 接口不变。
 - 注册 Pool 时由 Registry 内部推导股票 `securityId`，并固化该证券当前 `tierId`。
 - 增加 Pool 生命周期查询与更新、Pool Tick 数量检查入口，以及协议级全局 Pause 查询。
@@ -100,7 +100,7 @@ event PermissionedOwnerApprovalChanged(address indexed owner, bool approved);
 - W owner 变更不再需要通过 Registry 暂停后改写 expected owner；owner 合规性改由 W/issuer 自身治理或外部运维流程保证。
 - 准入校验不再读取或校验 W owner。
 - 准入校验仍应验证 W 是 Factory 已验证的 PermissionsAdapter、W 指向的 U 正确、W 允许 Router 和 Hook、U/legalShareAdapter/decimals 一致、首次库存检查通过。
-- rawDecimals 不作为 `PermissionedAdmission` 字段传入；Registry 从 W/U token 合约读取 decimals，并将通过校验的 canonical decimals 固化到 `UnderlyingConfig.rawDecimals`。
+- rawDecimals 不作为 `PermissionedAdmission` 字段传入；Registry 从 W/U token 合约读取 decimals，并将通过校验的 canonical decimals 固化到 `UnderlyingRecord.rawDecimals`。
 
 ### 2.4 Pool 注册接口
 
@@ -206,24 +206,24 @@ securities[admission.securityId] = SecurityConfig(admission.securityId, tierId, 
 mapping(address w => address underlying) private currencyUnderlying;
 ```
 
-`UnderlyingConfig` 继续按 U 保存 canonical 配置，不需要额外保存 `underlying` 字段，因为 mapping key 本身就是 U：
+`UnderlyingRecord` 继续按 U 保存 canonical 配置，不需要额外保存 `underlying` 字段，因为 mapping key 本身就是 U：
 
 ```solidity
 /// @notice canonical underlying U 的证券、精度和法律份额转换配置。
-struct UnderlyingConfig {
+struct UnderlyingRecord {
     bytes32 securityId;
     address legalShareAdapter;
     uint8 rawDecimals;
 }
 
-mapping(address underlying => UnderlyingConfig config) private underlyings;
+mapping(address underlying => UnderlyingRecord config) private underlyings;
 ```
 
 对应查询接口：
 
 ```solidity
 function getCurrencyUnderlying(address w) external view returns (address underlying);
-function getUnderlying(address u) external view returns (UnderlyingConfig memory);
+function getUnderlying(address u) external view returns (UnderlyingRecord memory);
 ```
 
 说明：
@@ -338,7 +338,7 @@ function registerPermissionedCurrency(PermissionedAdmission calldata admission, 
    - `wDecimals = IERC20Metadata(currency).decimals()`。
    - `uDecimals = IERC20Metadata(underlying).decimals()`。
    - 两者必须相等，且不得大于 18。
-   - `rawDecimals = uDecimals`，后续写入 `UnderlyingConfig.rawDecimals`。
+   - `rawDecimals = uDecimals`，后续写入 `UnderlyingRecord.rawDecimals`。
 6. 校验 legal-share adapter：
    - `admission.legalShareAdapter` 必须是合约。
    - 该合约必须支持 `IDirectLegalShareAdapter`。
@@ -357,7 +357,7 @@ function registerPermissionedCurrency(PermissionedAdmission calldata admission, 
    - W 合约持有的 U 余额必须大于 0。
    - PoolManager 对 W 的 protocol fee 必须为 0。
 10. 如果 U 首次出现，写入：
-    `underlyings[underlying] = UnderlyingConfig(admission.securityId, legalShareAdapter, rawDecimals)`，
+    `underlyings[underlying] = UnderlyingRecord(admission.securityId, legalShareAdapter, rawDecimals)`，
     并发出 `UnderlyingBound`。
 11. 如果 U 已存在，要求已有 `securityId/rawDecimals/legalShareAdapter` 与本次从合约读取和校验得到的值完全一致。
 12. 写入 `currencyUnderlying[currency] = underlying`，并将 W 追加到 `currenciesByUnderlying[underlying]`。

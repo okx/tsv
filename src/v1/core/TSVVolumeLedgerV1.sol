@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {UnderlyingConfig, PoolConfig} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingRecord, PoolRecord} from "tsv-v1/types/TSVTypes.sol";
 import {AdtvReport, QuotaReport, SplitFactorReport} from "tsv-v1/types/TSVReports.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
@@ -403,7 +403,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     {
         if (msg.sender != hook) revert UnauthorizedWriter();
         if (delta0 == 0 || delta1 == 0 || (delta0 < 0) == (delta1 < 0)) revert ZeroSwapAmount();
-        PoolConfig memory pool = registry.getPool(poolId);
+        PoolRecord memory pool = registry.getPool(poolId);
         uint32 day = currentTradeDay();
         address currency0 = Currency.unwrap(pool.key.currency0);
         address currency1 = Currency.unwrap(pool.key.currency1);
@@ -437,7 +437,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
             }
             return;
         }
-        UnderlyingConfig memory underlying = registry.getUnderlying(underlyingAddress);
+        UnderlyingRecord memory underlying = registry.getUnderlying(underlyingAddress);
         if (securityId == 0 || underlying.securityId != securityId || underlying.legalShareAdapter == address(0)) {
             revert InvalidLegalShareAmount();
         }

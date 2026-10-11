@@ -45,14 +45,14 @@ enum LPOperationMode {
 }
 
 /// @notice Canonical security, precision and legal-share conversion for an underlying (U).
-struct UnderlyingConfig {
+struct UnderlyingRecord {
     bytes32 securityId;
     address legalShareAdapter;
     uint8 rawDecimals;
 }
 
 /// @notice An independently registered original quote ERC-20 (Q).
-struct QuoteTokenConfig {
+struct QuoteTokenRecord {
     uint8 rawDecimals;
     /// @dev Explicit presence is required because rawDecimals may be zero.
     bool registered;
@@ -65,24 +65,70 @@ struct PermissionedAdmission {
     address legalShareAdapter;
 }
 
-/// @notice Registry state for one listed or delisted security.
-struct SecurityConfig {
+/// @notice Stores the listing limit and quota multiplier for a security tier.
+struct TierPolicy {
+    /// @notice ADTV hard-cap multiplier in basis points.
+    uint16 tierBps;
+    /// @notice Maximum number of securities that may be listed in this tier.
+    uint32 maxListed;
+    /// @notice Number of securities currently assigned to this tier.
+    uint32 listedCount;
+}
+
+/// @notice Aggregates one security's listing state and pool lifecycle counters.
+struct SecurityRecord {
     /// @notice Unique internal security identifier.
     bytes32 securityId;
     /// @notice Tier whose multiplier sets the security's hard daily volume cap.
     uint8 tierId;
     /// @notice Whether the security is currently listed for pool and report use.
     bool listed;
+    /// @notice Append-only pool ID list permanently associated with this security.
+    bytes32[] poolIds;
+    /// @notice Number of associated pools whose lifecycle is not DELIST.
+    uint32 listedPoolCount;
 }
 
-/// @notice Registered key and permanent stock security for a V4 pool.
-struct PoolConfig {
+/// @notice Stores one registered V4 pool's identity and lifecycle-owned state.
+struct PoolRecord {
     /// @notice Full V4 pool key.
     PoolKey key;
     /// @notice Single nonzero stock security assigned to this W/Q pool.
     bytes32 securityId;
     /// @notice Security tier captured when this pool was registered.
     uint8 tierId;
+    /// @notice Explicit lifecycle for this registered pool.
+    PoolLifecycle lifecycle;
+    /// @notice Current active tick/NFT count tracked for this registered pool.
+    uint256 tickCount;
+    /// @notice One-based index inside `SecurityRecord.poolIds`; zero means absent.
+    uint256 poolSecurityIndex;
+}
+
+/// @notice DataInbox-driven market state for one security.
+struct MarketStateRecord {
+    /// @notice Last accepted market-report sequence.
+    uint64 sequence;
+    /// @notice Current market pause mask.
+    PauseMode pauseMode;
+}
+
+/// @notice Records one emergency pause's reason, operator, timing and active state.
+struct EmergencyPauseRecord {
+    /// @notice Scope of the pause, such as one token, security, pool, or all pools.
+    PauseScope scope;
+    /// @notice Scope-specific target identifier; zero for a global pause.
+    bytes32 target;
+    /// @notice Trading, ordinary LP operations, or both blocked by this record.
+    PauseMode mode;
+    /// @notice Operational reason assigned to the pause.
+    bytes32 reasonCode;
+    /// @notice Account that opened the pause.
+    address openedBy;
+    /// @notice Timestamp when the pause was opened.
+    uint64 openedAt;
+    /// @notice Whether this pause currently blocks operations.
+    bool active;
 }
 
 /// @notice LP Manager state exposed to the Hook while one liquidity operation is in progress.
