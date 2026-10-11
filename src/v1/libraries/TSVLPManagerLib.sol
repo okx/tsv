@@ -31,8 +31,6 @@ library TSVLPManagerLib {
     using CustomRevert for *;
 
     ISubscriber private constant NO_SUBSCRIBER = ISubscriber(address(0));
-    bytes32 public constant WITHDRAW_CLAIM_ROLE = keccak256("WITHDRAW_CLAIM_ROLE");
-
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error Unauthorized();
     error LpUnWindable();
@@ -44,10 +42,8 @@ library TSVLPManagerLib {
     error PermissionedAdapterWithoutOwner();
     error NonContractCurrency();
     error PoolNotAllowed();
-    error AdminIsZero();
     error RegistryPaused();
-
-    event ClaimWithdrawn(Currency indexed currency, address indexed from, address indexed to, uint256 amount);
+    error UnAcceptableScenario();
 
     event CurrencyUnwound(
         uint256 indexed tokenId,
@@ -171,7 +167,7 @@ library TSVLPManagerLib {
         uint256 amount0 = p.poolManager.balanceOf(address(this), poolKey.currency0.toId());
         uint256 amount1 = p.poolManager.balanceOf(address(this), poolKey.currency1.toId());
 
-        // Deliver the real asset to the LP, then the admin; on any grief, hand over the 6909 claim instead.
+        // Deliver the real asset to the LP, then the adapter owner; revert the unwind if neither accepts it.
         _deliverCurrency(p, poolKey.currency0, amount0);
         _deliverCurrency(p, poolKey.currency1, amount1);
     }
@@ -199,12 +195,7 @@ library TSVLPManagerLib {
             emit CurrencyUnwound(tokenId, currency, admin, msg.sender, lp, amount, false);
             return;
         }
-        // Both rejected: hand over the 6909 claim (no token code runs). Admin for a permissioned currency (the LP
-        // is non-compliant), else the LP.
-        if (admin == address(0)) revert AdminIsZero();
-        address claimTo = admin == address(0) ? lp : admin;
-        p.poolManager.transfer(claimTo, currency.toId(), amount);
-        emit CurrencyUnwound(tokenId, currency, claimTo, msg.sender, lp, amount, true);
+        revert UnAcceptableScenario();
     }
 
     function tryDeliverAsset(
@@ -321,7 +312,6 @@ library TSVLPManagerLib {
         } else if (
             action != Actions.SETTLE && action != Actions.SETTLE_PAIR && action != Actions.CLOSE_CURRENCY
                 && action != Actions.CLEAR_OR_TAKE && action != Actions.WRAP && action != Actions.UNWRAP
-                && action != Actions.BURN_6909
         ) {
             revert UnsupportedAction(action);
         }
@@ -417,38 +407,6 @@ library TSVLPManagerLib {
         if (!verified) revert NoVerifiedAdapter();
         registry.registerPool(key);
         return poolManager.initialize(key, sqrtPriceX96);
-    }
-
-    function withdrawClaimByLp(IPoolManager poolManager, Currency currency, uint256 amount, address to) external {
-        address resolvedTo = _mapRecipient(to, msg.sender);
-        bytes memory actions = abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE));
-        bytes[] memory params = new bytes[](2);
-        params[0] = abi.encode(currency, msg.sender, amount);
-        params[1] = abi.encode(currency, resolvedTo, amount);
-        poolManager.unlock(abi.encode(actions, params));
-        emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
-    }
-
-    /// @dev Authorizes the adapter owner or a claim-withdrawal role holder; claims are redeemed only to the caller itself.
-    function withdrawClaim(
-        IPoolManager poolManager,
-        IPermissionsAdapterFactory factory,
-        ITSVPermissionedRegistry registry,
-        Currency currency,
-        uint256 amount,
-        address to
-    ) external {
-        if (msg.sender != _getOwner(factory, currency) && !registry.hasRole(WITHDRAW_CLAIM_ROLE, msg.sender)) {
-            revert Unauthorized();
-        }
-        address resolvedTo = _mapRecipient(to, msg.sender);
-        if (resolvedTo != msg.sender) revert Unauthorized();
-        bytes memory actions = abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE));
-        bytes[] memory params = new bytes[](2);
-        params[0] = abi.encode(currency, msg.sender, amount);
-        params[1] = abi.encode(currency, resolvedTo, amount);
-        _unlockWithAuthorizedCallback(poolManager, abi.encode(actions, params));
-        emit ClaimWithdrawn(currency, msg.sender, resolvedTo, amount);
     }
 
     function requireUnwindAdmin(IPermissionsAdapterFactory factory, Currency currency0, Currency currency1)
