@@ -26,6 +26,10 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
 
     /// @dev Bounded to keep a monthly report submission within block gas limits.
     uint256 public constant MAX_ADTV_BATCH_SIZE = 100;
+    uint8 private constant REPORT_KIND_MARKET_STATUS = 0;
+    uint8 private constant REPORT_KIND_ADTV = 1;
+    uint8 private constant REPORT_KIND_QUOTA = 2;
+    uint8 private constant REPORT_KIND_SPLIT_FACTOR = 3;
 
     TSVRegistryV1 public registry;
     TSVVolumeLedgerV1 public ledger;
@@ -55,8 +59,9 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     /// @notice Validates and records the next market-state report for a listed security.
     /// @param report Market action, reason code, source timestamps, ordering fields and report ID.
     function submitMarketStatus(MarketReport calldata report) external {
+        if (report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0) revert InvalidReport();
         _accept(
-            0,
+            REPORT_KIND_MARKET_STATUS,
             report.securityId,
             HALT_REPORTER_ROLE,
             report.sourceTimestamp,
@@ -64,7 +69,6 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
             report.sequence,
             report.reportId
         );
-        if (report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0) revert InvalidReport();
         registry.applyMarketStatus(report.securityId, report.action, report.mode, report.sequence, report.reportId);
     }
 
@@ -101,7 +105,7 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     /// @param report ADTV report being accepted.
     function _submitAdtv(AdtvReport calldata report) private {
         _accept(
-            1,
+            REPORT_KIND_ADTV,
             report.securityId,
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
@@ -116,7 +120,7 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     /// @param report Quota action, target day, and source metadata.
     function submitQuota(QuotaReport calldata report) external {
         _accept(
-            2,
+            REPORT_KIND_QUOTA,
             report.securityId,
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
@@ -131,7 +135,7 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     /// @param report Source-month-relative factor and the announcement's effective trade day.
     function submitSplitFactor(SplitFactorReport calldata report) external {
         _accept(
-            3,
+            REPORT_KIND_SPLIT_FACTOR,
             report.securityId,
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
