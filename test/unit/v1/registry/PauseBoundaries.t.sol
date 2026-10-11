@@ -1,110 +1,79 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 
 contract TSVOperationsPauseBoundariesTest is FoundationFixture {
-    function testInvalidPauseMetadataAndTargetsDoNotAllocateIdOrChangeGates() public {
+    function testInvalidEmergencyPauseMetadataAndNoopDoNotChangeGates() public {
         _grantPauseRoles();
-        for (uint8 fault; fault < 6; ++fault) {
-            PauseScope scope = PauseScope.GLOBAL;
-            bytes32 target;
-            PauseMode mode = PauseMode.ALL;
-            bytes32 reason = keccak256("incident");
-            if (fault == 0) reason = 0;
-            else if (fault == 1) target = SECURITY;
-            else if (fault == 2) scope = PauseScope.SECURITY;
-            else if (fault == 3) scope = PauseScope.TOKEN;
-            else if (fault == 4) scope = PauseScope.POOL;
-            else mode = PauseMode.NONE;
-            vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            registry.addEmergencyPause(scope, target, mode, reason);
-            assertEq(registry.nextPauseId(), 1);
-            assertEq(registry.activePauseCount(uint8(scope), target, uint8(mode)), 0);
-            _assertOperationGates(true, true);
-        }
-        (bool ok,) = address(registry)
-            .call(
-                abi.encodeWithSelector(
-                    TSVRegistryV1.addEmergencyPause.selector,
-                    uint8(4),
-                    bytes32(0),
-                    uint8(PauseMode.ALL),
-                    keccak256("incident")
-                )
-            );
-        assertFalse(ok);
-        assertEq(registry.nextPauseId(), 1);
-    }
+        bytes32 beforeState = _pauseState();
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setEmergencyPauseEnable(true, 0);
+        assertEq(_pauseState(), beforeState);
 
-    function testPauseAuditMetadataSurvivesClearAndIdsAreNeverReused() public {
-        _grantPauseRoles();
-        bytes32 reason = keccak256("incident");
-        uint64 opened = uint64(block.timestamp);
-        uint256 id = registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.LP, reason);
-        (
-            PauseScope scope,
-            bytes32 target,
-            PauseMode mode,
-            bytes32 savedReason,
-            address operator,
-            uint64 timestamp,
-            bool active
-        ) = registry.emergencyPauses(id);
-        assertEq(uint8(scope), uint8(PauseScope.SECURITY));
-        assertEq(target, SECURITY);
-        assertEq(uint8(mode), uint8(PauseMode.LP));
-        assertEq(savedReason, reason);
-        assertEq(operator, address(this));
-        assertEq(timestamp, opened);
-        assertTrue(active);
-        bytes32 beforeState = _pauseState(id);
-        uint256[3] memory invalid = [uint256(0), 999, id];
-        for (uint256 i; i < invalid.length; ++i) {
-            vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-            registry.clearEmergencyPause(invalid[i], i == 2 ? bytes32(0) : keccak256("clear"));
-            assertEq(_pauseState(id), beforeState);
-        }
-        vm.expectEmit(true, false, false, true, address(registry));
-        emit TSVRegistryV1.EmergencyPauseClosed(id, keccak256("resolved"));
-        registry.clearEmergencyPause(id, keccak256("resolved"));
-        (,,, savedReason, operator, timestamp, active) = registry.emergencyPauses(id);
-        assertFalse(active);
-        assertEq(savedReason, reason);
-        assertEq(operator, address(this));
-        assertEq(timestamp, opened);
-        assertEq(_pause(PauseScope.SECURITY, SECURITY, PauseMode.LP), id + 1);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.clearEmergencyPause(id, keccak256("old-record"));
-        assertEq(registry.activePauseCount(uint8(PauseScope.SECURITY), SECURITY, uint8(PauseMode.LP)), 1);
+        registry.setEmergencyPauseEnable(false, keccak256("already-disabled"));
+        assertEq(_pauseState(), beforeState);
+
+        _enableEmergencyPause();
+        beforeState = _pauseState();
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setEmergencyPauseEnable(false, 0);
+        assertEq(_pauseState(), beforeState);
+
+        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
+        registry.setEmergencyPauseEnable(true, keccak256("already-enabled"));
+        assertEq(_pauseState(), beforeState);
     }
 
-    function _pauseState(uint256 id) private view returns (bytes32) {
-        (
-            PauseScope scope,
-            bytes32 target,
-            PauseMode mode,
-            bytes32 reason,
-            address operator,
-            uint64 timestamp,
-            bool active
-        ) = registry.emergencyPauses(id);
-        return keccak256(
-            abi.encode(
-                scope,
-                target,
-                mode,
-                reason,
-                operator,
-                timestamp,
-                active,
-                registry.nextPauseId(),
-                registry.activePauseCount(uint8(scope), target, uint8(mode)),
-                registry.isTradable(poolId),
-                registry.isLPAllowed(poolId)
-            )
-        );
+    function testEmergencyPauseRoleBoundaries() public {
+        address pauser = makeAddr("pause-only");
+        address resumer = makeAddr("resume-only");
+        bytes32 pauseRole = registry.EMERGENCY_PAUSER_ROLE();
+        bytes32 resumeRole = registry.EMERGENCY_RESUMER_ROLE();
+        registry.grantRole(pauseRole, pauser);
+        registry.grantRole(resumeRole, resumer);
+
+        vm.expectRevert(_denied(resumer, pauseRole));
+        vm.prank(resumer);
+        registry.setEmergencyPauseEnable(true, keccak256("incident"));
+
+        vm.prank(pauser);
+        registry.setEmergencyPauseEnable(true, keccak256("incident"));
+        assertTrue(registry.emergencyPauseEnable());
+        _assertOperationGates(false, false);
+
+        vm.expectRevert(_denied(pauser, resumeRole));
+        vm.prank(pauser);
+        registry.setEmergencyPauseEnable(false, keccak256("resume"));
+
+        vm.prank(resumer);
+        registry.setEmergencyPauseEnable(false, keccak256("resume"));
+        assertFalse(registry.emergencyPauseEnable());
+        _assertOperationGates(true, true);
+    }
+
+    function testEmergencyPauseEventsCarryOperatorAndReason() public {
+        _grantPauseRoles();
+        bytes32 pauseReason = keccak256("incident");
+        bytes32 resumeReason = keccak256("resolved");
+
+        vm.expectEmit(false, true, false, true, address(registry));
+        emit TSVRegistryV1.EmergencyPauseChanged(true, address(this), pauseReason);
+        registry.setEmergencyPauseEnable(true, pauseReason);
+
+        vm.expectEmit(false, true, false, true, address(registry));
+        emit TSVRegistryV1.EmergencyPauseChanged(false, address(this), resumeReason);
+        registry.setEmergencyPauseEnable(false, resumeReason);
+    }
+
+    function _pauseState() private view returns (bytes32) {
+        return keccak256(abi.encode(registry.emergencyPauseEnable(), registry.isPaused(), registry.isTradable(poolId), registry.isLPAllowed(poolId)));
+    }
+
+    function _denied(address caller, bytes32 role) private pure returns (bytes memory) {
+        return abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, caller, role);
     }
 }

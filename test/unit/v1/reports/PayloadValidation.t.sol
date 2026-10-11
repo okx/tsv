@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {MarketAction, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -12,13 +12,13 @@ contract TSVOperationsPayloadTest is OperationsFixture {
     function testMarketFieldsRejectAndSameIdCanBeCorrected() public {
         for (uint8 fault; fault < 5; ++fault) {
             uint256 snapshot = vm.snapshotState();
-            MarketReport memory r = _market(MarketAction.HALT, 1, keccak256(abi.encode("market-field", fault)));
+            MarketReport memory r = _market(SecurityOperationType.HALT, 1, keccak256(abi.encode("market-field", fault)));
             bytes32 id = r.reportId;
             bytes4 expected = TSVDataInboxV1.InvalidReport.selector;
             if (fault == 0) {
                 r.securityId = 0;
             } else if (fault == 1) {
-                r.mode = PauseMode.NONE;
+                r.mode = SecurityPauseMode.NONE;
             } else if (fault == 2) {
                 r.reasonCode = 0;
             } else {
@@ -36,7 +36,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, uint32(MONTH), DAY, id), targetBefore);
             if (fault == 4) registry.relistSecurity(SECURITY);
-            r = _market(MarketAction.HALT, 1, id);
+            r = _market(SecurityOperationType.HALT, 1, id);
             inbox.submitMarketStatus(r);
             assertTrue(inbox.reportIdUsed(id));
             assertTrue(vm.revertToState(snapshot));

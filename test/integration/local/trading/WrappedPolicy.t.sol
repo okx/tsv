@@ -6,7 +6,8 @@ import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPo
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {MarketReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {PermissionedV4Router} from "tsv-v1/vendor/v4-router/hooks/permissionedPools/PermissionedV4Router.sol";
@@ -67,7 +68,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
     function testSwapRequiresSwapPermissionAndUpdatesApplyToExistingHolders() public {
         registry.setSbtConfig(1, PermissionFlags.LIQUIDITY_ALLOWED);
         assertTrue(registry.hasCredential(alice));
-        assertTrue(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
         bytes32 before_ = _digest();
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
         _swap(true, 1e16);
@@ -83,17 +84,17 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         _swap(true, 1e16);
         registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED);
         _swap(false, 1e16);
-        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
     }
 
     function testOnlyTradingPauseBlocksSwapsAndPreservesAccounting() public {
-        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.LP, keccak256("pause-lp"));
+        _submitSecurityMode(SecurityOperationType.HALT, SecurityPauseMode.LP, 1);
         for (uint256 i; i < 2; ++i) {
             _swap(i == 0, 1e16);
         }
         assertGt(ledger.used(SECURITY, DAY), 0);
 
-        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.TRADE, keccak256("pause-trade"));
+        _submitSecurityMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 2);
         bytes32 before_ = _digest();
         for (uint256 i; i < 2; ++i) {
             vm.expectRevert();
@@ -103,7 +104,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
     }
 
     function testFuzzPolicyRevocationRejectsBeforeTransfer(uint8 fault) public {
-        fault = uint8(bound(fault, 0, 10));
+        fault = uint8(bound(fault, 0, 8));
         if (fault == 0) {
             issuerChecker.setPermissions(alice, address(underlying), PermissionFlags.NONE);
         } else if (fault == 1) {
@@ -113,20 +114,12 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         } else if (fault == 3) {
             stock.updateSwappingEnabled(false);
         } else if (fault == 4) {
-            registry.addEmergencyPause(
-                PauseScope.TOKEN, bytes32(uint256(uint160(address(stock)))), PauseMode.ALL, keccak256("stop")
-            );
+            registry.setEmergencyPauseEnable(true, keccak256("stop"));
         } else if (fault == 5) {
-            registry.addEmergencyPause(
-                PauseScope.TOKEN, bytes32(uint256(uint160(address(quote)))), PauseMode.ALL, keccak256("stop")
-            );
+            _submitSecurityMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
         } else if (fault == 6) {
-            registry.addEmergencyPause(PauseScope.POOL, PoolId.unwrap(key.toId()), PauseMode.ALL, keccak256("stop"));
-        } else if (fault == 7) {
-            registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.TRADE, keccak256("stop"));
-        } else if (fault == 8) {
             sbt.setPaused(true);
-        } else if (fault == 9) {
+        } else if (fault == 7) {
             sbt.setFailReads(true, false);
         } else {
             issuer.setMultiplier(0, 1); // Positive raw must not produce zero legal shares.
@@ -136,6 +129,21 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         _swap(true, 1e16);
         assertEq(_digest(), before_);
         assertEq(router.msgSender(), address(0));
+    }
+
+    function _submitSecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence) private {
+        inbox.submitMarketStatus(
+            MarketReport(
+                SECURITY,
+                action,
+                mode,
+                keccak256("security-operation"),
+                uint64(block.timestamp - 1),
+                uint64(block.timestamp + 100),
+                sequence,
+                keccak256(abi.encode("security-operation", action, mode, sequence))
+            )
+        );
     }
 
     function testStockUserMustApproveRouterForUnderlying() public {

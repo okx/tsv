@@ -4,29 +4,27 @@ pragma solidity 0.8.26;
 import {PermissionFlag} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 
-/// @notice Market state derived from a known security's current pause mask.
-enum MarketStatus {
-    OPEN, // Market operations may proceed when all other gates pass.
+/// @notice Operation status derived from a known security's current pause mask.
+enum SecurityOperationStatus {
+    OPEN, // Security operations may proceed when all other gates pass.
     HALTED // Trading, ordinary LP actions, or both are paused.
 }
-/// @notice Allowed market pause transitions after admission defaults to open.
-enum MarketAction {
+/// @notice Allowed security operation transitions; newly registered securities default to open.
+enum SecurityOperationType {
     HALT, // Adds the selected trading and/or LP pause to a listed security.
-    RESUME // Removes the selected pause; the security is open once all market pauses clear.
+    RESUME // Removes the selected pause; the security is open once all operation pauses clear.
 }
-/// @notice Scope used to target an emergency pause record.
-enum PauseScope {
-    GLOBAL, // Applies to all TSV pools and assets.
-    SECURITY, // Applies to pools containing one security.
-    TOKEN, // Applies to pools containing one Currency.
-    POOL // Applies to one V4 pool ID.
-}
-/// @notice Operations affected by a pause; values also form the market pause bitmask.
-enum PauseMode {
-    NONE, // No market pause; invalid as the mode of a pause or resume request.
+/// @notice Operations affected by a security pause; values also form the operation pause bitmask.
+enum SecurityPauseMode {
+    NONE, // No operation pause; invalid as the mode of a pause or resume request.
     TRADE, // Blocks swaps only.
     LP, // Blocks all ordinary LP actions only.
     ALL // Blocks swaps and all ordinary LP actions.
+}
+/// @notice Operation type checked by Registry operation gates.
+enum SecurityOperationCheckType {
+    LP, // Ordinary LP operations.
+    TRADE // Swap operations.
 }
 /// @notice Explicit lifecycle of a registered TSV pool.
 enum PoolLifecycle {
@@ -58,8 +56,8 @@ struct QuoteTokenRecord {
     bool registered;
 }
 
-/// @notice Reviewed stock admission input; U and decimals are derived from trusted contracts.
-struct PermissionedAdmission {
+/// @notice Reviewed permissioned stock registration input; U and decimals are derived from trusted contracts.
+struct PermissionedRegisterParam {
     address currency;
     bytes32 securityId;
     address legalShareAdapter;
@@ -75,7 +73,15 @@ struct TierPolicyRecord {
     uint32 listedCount;
 }
 
-/// @notice Aggregates one security's listing state and pool lifecycle counters.
+/// @notice DataInbox-driven security operation state for one security.
+struct SecurityStateRecord {
+    /// @notice Last accepted market-report sequence.
+    uint64 sequence;
+    /// @notice Current security operation pause mask.
+    SecurityPauseMode pauseMode;
+}
+
+/// @notice Aggregates one security's listing state, pool counters, and operation state.
 struct SecurityRecord {
     /// @notice Unique internal security identifier.
     bytes32 securityId;
@@ -87,6 +93,8 @@ struct SecurityRecord {
     bytes32[] poolIds;
     /// @notice Number of associated pools whose lifecycle is not DELIST.
     uint32 listedPoolCount;
+    /// @notice DataInbox-driven operation state for this security.
+    SecurityStateRecord securityState;
 }
 
 /// @notice Stores one registered V4 pool's identity and lifecycle-owned state.
@@ -103,32 +111,6 @@ struct PoolRecord {
     uint256 tickCount;
     /// @notice One-based index inside `SecurityRecord.poolIds`; zero means absent.
     uint256 poolSecurityIndex;
-}
-
-/// @notice DataInbox-driven market state for one security.
-struct MarketStateRecord {
-    /// @notice Last accepted market-report sequence.
-    uint64 sequence;
-    /// @notice Current market pause mask.
-    PauseMode pauseMode;
-}
-
-/// @notice Records one emergency pause's reason, operator, timing and active state.
-struct EmergencyPauseRecord {
-    /// @notice Scope of the pause, such as one token, security, pool, or all pools.
-    PauseScope scope;
-    /// @notice Scope-specific target identifier; zero for a global pause.
-    bytes32 target;
-    /// @notice Trading, ordinary LP operations, or both blocked by this record.
-    PauseMode mode;
-    /// @notice Operational reason assigned to the pause.
-    bytes32 reasonCode;
-    /// @notice Account that opened the pause.
-    address openedBy;
-    /// @notice Timestamp when the pause was opened.
-    uint64 openedAt;
-    /// @notice Whether this pause currently blocks operations.
-    bool active;
 }
 
 /// @notice LP Manager state exposed to the Hook while one liquidity operation is in progress.

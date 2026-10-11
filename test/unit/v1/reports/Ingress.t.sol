@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {MarketAction, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -100,7 +100,7 @@ contract TSVOperationsIngressTest is OperationsFixture {
         bytes32 second = keccak256("second-report-security");
         _admitAdditionalSecurity(second);
         bytes32 id = keccak256("global-report-id");
-        MarketReport memory market = _market(MarketAction.HALT, 10, id);
+        MarketReport memory market = _market(SecurityOperationType.HALT, 10, id);
         inbox.submitMarketStatus(market);
         AdtvReport memory adtv = _adtv(second, 1000e18, 1, id);
         bytes32 beforeState = _reportState(second, uint32(MONTH), DAY, id);
@@ -132,7 +132,7 @@ contract TSVOperationsIngressTest is OperationsFixture {
         vm.expectRevert(TSVVolumeLedgerV1.UnauthorizedWriter.selector);
         ledger.acceptQuota(quota);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.applyMarketStatus(SECURITY, MarketAction.HALT, PauseMode.ALL, 1, keccak256("direct-market"));
+        registry.applySecurityStatus(SECURITY, SecurityOperationType.HALT, SecurityPauseMode.ALL, 1, keccak256("direct-market"));
         assertFalse(inbox.reportIdUsed(adtv.reportId));
         assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)), 0);
     }

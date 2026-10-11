@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {MarketAction, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {FoundationFixture} from "./FoundationFixture.sol";
@@ -23,8 +23,8 @@ abstract contract OperationsFixture is FoundationFixture {
     function _reportPayload(uint8 kind, ReportMetadata memory m) internal view returns (bytes memory) {
         if (kind == 0) {
             MarketReport memory market =
-                _market(m.sequence == 1 ? MarketAction.HALT : MarketAction.RESUME, m.sequence, m.id);
-            market.mode = PauseMode.TRADE;
+                _market(m.sequence == 1 ? SecurityOperationType.HALT : SecurityOperationType.RESUME, m.sequence, m.id);
+            market.mode = SecurityPauseMode.TRADE;
             market.sourceTimestamp = m.timestamp;
             market.submitDeadline = m.deadline;
 
@@ -46,7 +46,11 @@ abstract contract OperationsFixture is FoundationFixture {
 
     function _callInbox(bytes memory payload) internal {
         (bool ok, bytes memory result) = address(inbox).call(payload);
-        if (!ok) assembly ("memory-safe") { revert(add(result, 32), mload(result)) }
+        if (!ok) {
+            assembly ("memory-safe") {
+                revert(add(result, 32), mload(result))
+            }
+        }
     }
 
     function _reportState(bytes32 securityId, uint32 month, uint32 day, bytes32 candidateId)
@@ -68,8 +72,8 @@ abstract contract OperationsFixture is FoundationFixture {
                     )
                 ),
                 registry.getSecurity(securityId),
-                registry.marketPauseMode(securityId),
-                registry.marketSequence(securityId),
+                registry.getSecurityPauseMode(securityId),
+                registry.getSecuritySequence(securityId),
                 ledger.adtvOf(securityId, month),
                 ledger.quotaOf(securityId, day),
                 ledger.used(securityId, day)

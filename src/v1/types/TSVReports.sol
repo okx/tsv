@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {MarketAction, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
 
-/// @notice Source-backed market-state transition submitted through DataInbox.
+/// @notice Source-backed security operation transition submitted through DataInbox.
 struct MarketReport {
-    /// @notice Listed security affected by the market-state report.
+    /// @notice Listed security affected by the operation-state report.
     bytes32 securityId;
-    /// @notice Halt or resume action; admission defaults to open.
-    MarketAction action;
+    /// @notice Halt or resume action; newly registered securities default to open.
+    SecurityOperationType action;
     /// @notice Operations paused or resumed: TRADE, LP, or ALL.
-    PauseMode mode;
+    SecurityPauseMode mode;
     /// @notice Nonzero operational reason code included for audit.
     bytes32 reasonCode;
     /// @notice Time when the source produced this market information.

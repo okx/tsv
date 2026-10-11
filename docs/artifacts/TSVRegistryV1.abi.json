@@ -105,6 +105,19 @@
   },
   {
     "type": "function",
+    "name": "UPGRADE_ADMIN_ROLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "UPGRADE_INTERFACE_VERSION",
     "inputs": [],
     "outputs": [
@@ -131,27 +144,40 @@
   },
   {
     "type": "function",
-    "name": "activePauseCount",
-    "inputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
+    "name": "WITHDRAW_CLAIM_ROLE",
+    "inputs": [],
+    "outputs": [
       {
         "name": "",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "activePauseCount",
+    "inputs": [
+      {
+        "name": "scope",
+        "type": "uint8",
+        "internalType": "uint8"
       },
       {
-        "name": "",
+        "name": "target",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "mode",
         "type": "uint8",
         "internalType": "uint8"
       }
     ],
     "outputs": [
       {
-        "name": "",
+        "name": "count",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -194,46 +220,6 @@
   },
   {
     "type": "function",
-    "name": "admitPermissionedSecurity",
-    "inputs": [
-      {
-        "name": "tierId",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
-      {
-        "name": "admission",
-        "type": "tuple",
-        "internalType": "struct PermissionedAdmission",
-        "components": [
-          {
-            "name": "currency",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "securityId",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "expectedOwner",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "legalShareAdapter",
-            "type": "address",
-            "internalType": "address"
-          }
-        ]
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "applyMarketStatus",
     "inputs": [
       {
@@ -263,6 +249,30 @@
       }
     ],
     "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "batchUpdatePoolLifeCycle",
+    "inputs": [
+      {
+        "name": "poolIds",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
+      },
+      {
+        "name": "lifecycle",
+        "type": "uint8",
+        "internalType": "enum PoolLifecycle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "changedCount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -393,26 +403,7 @@
   },
   {
     "type": "function",
-    "name": "exitAdminOf",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getCurrency",
+    "name": "getCurrencyUnderlying",
     "inputs": [
       {
         "name": "w",
@@ -422,21 +413,9 @@
     ],
     "outputs": [
       {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct PermissionedCurrencyConfig",
-        "components": [
-          {
-            "name": "underlying",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "expectedOwner",
-            "type": "address",
-            "internalType": "address"
-          }
-        ]
+        "name": "underlying",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -455,7 +434,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct PoolConfig",
+        "internalType": "struct PoolRecord",
         "components": [
           {
             "name": "key",
@@ -490,16 +469,96 @@
             ]
           },
           {
-            "name": "securityId0",
+            "name": "securityId",
             "type": "bytes32",
             "internalType": "bytes32"
           },
           {
-            "name": "securityId1",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            "name": "tierId",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "lifecycle",
+            "type": "uint8",
+            "internalType": "enum PoolLifecycle"
+          },
+          {
+            "name": "tickCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "poolSecurityIndex",
+            "type": "uint256",
+            "internalType": "uint256"
           }
         ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPoolLifeCycle",
+    "inputs": [
+      {
+        "name": "key",
+        "type": "tuple",
+        "internalType": "struct PoolKey",
+        "components": [
+          {
+            "name": "currency0",
+            "type": "address",
+            "internalType": "Currency"
+          },
+          {
+            "name": "currency1",
+            "type": "address",
+            "internalType": "Currency"
+          },
+          {
+            "name": "fee",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "tickSpacing",
+            "type": "int24",
+            "internalType": "int24"
+          },
+          {
+            "name": "hooks",
+            "type": "address",
+            "internalType": "contract IHooks"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "lifecycle",
+        "type": "uint8",
+        "internalType": "enum PoolLifecycle"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPoolLifeCycle",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "lifecycle",
+        "type": "uint8",
+        "internalType": "enum PoolLifecycle"
       }
     ],
     "stateMutability": "view"
@@ -518,7 +577,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct QuoteTokenConfig",
+        "internalType": "struct QuoteTokenRecord",
         "components": [
           {
             "name": "rawDecimals",
@@ -568,7 +627,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct SecurityConfig",
+        "internalType": "struct SecurityRecord",
         "components": [
           {
             "name": "securityId",
@@ -584,6 +643,52 @@
             "name": "listed",
             "type": "bool",
             "internalType": "bool"
+          },
+          {
+            "name": "poolIds",
+            "type": "bytes32[]",
+            "internalType": "bytes32[]"
+          },
+          {
+            "name": "listedPoolCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTierPolicy",
+    "inputs": [
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct TierPolicyRecord",
+        "components": [
+          {
+            "name": "tierBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxListed",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "listedCount",
+            "type": "uint32",
+            "internalType": "uint32"
           }
         ]
       }
@@ -604,7 +709,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct UnderlyingConfig",
+        "internalType": "struct UnderlyingRecord",
         "components": [
           {
             "name": "securityId",
@@ -622,19 +727,6 @@
             "internalType": "uint8"
           }
         ]
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "governanceAnchor",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract TSVGovernanceAnchor"
       }
     ],
     "stateMutability": "view"
@@ -742,7 +834,7 @@
     "name": "initialize",
     "inputs": [
       {
-        "name": "anchor",
+        "name": "admin",
         "type": "address",
         "internalType": "address"
       }
@@ -814,14 +906,8 @@
   },
   {
     "type": "function",
-    "name": "isPermissionedOwnerApproved",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "name": "isPaused",
+    "inputs": [],
     "outputs": [
       {
         "name": "",
@@ -852,6 +938,25 @@
   },
   {
     "type": "function",
+    "name": "listPoolCountBySecurity",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "count",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "lpManager",
     "inputs": [],
     "outputs": [
@@ -868,14 +973,14 @@
     "name": "marketPauseMode",
     "inputs": [
       {
-        "name": "",
+        "name": "securityId",
         "type": "bytes32",
         "internalType": "bytes32"
       }
     ],
     "outputs": [
       {
-        "name": "",
+        "name": "mode",
         "type": "uint8",
         "internalType": "enum PauseMode"
       }
@@ -887,14 +992,14 @@
     "name": "marketSequence",
     "inputs": [
       {
-        "name": "",
+        "name": "securityId",
         "type": "bytes32",
         "internalType": "bytes32"
       }
     ],
     "outputs": [
       {
-        "name": "",
+        "name": "sequence",
         "type": "uint64",
         "internalType": "uint64"
       }
@@ -941,7 +1046,7 @@
       {
         "name": "",
         "type": "address",
-        "internalType": "contract ISmartWalletSbtV1"
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -1006,6 +1111,44 @@
   },
   {
     "type": "function",
+    "name": "poolLifecycle",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "lifecycle",
+        "type": "uint8",
+        "internalType": "enum PoolLifecycle"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "poolTickCount",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "count",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "proxiableUUID",
     "inputs": [],
     "outputs": [
@@ -1037,16 +1180,16 @@
             "internalType": "bytes32"
           },
           {
-            "name": "expectedOwner",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
             "name": "legalShareAdapter",
             "type": "address",
             "internalType": "address"
           }
         ]
+      },
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "internalType": "uint8"
       }
     ],
     "outputs": [],
@@ -1134,7 +1277,7 @@
         "internalType": "bytes32"
       },
       {
-        "name": "account",
+        "name": "callerConfirmation",
         "type": "address",
         "internalType": "address"
       }
@@ -1217,42 +1360,6 @@
   },
   {
     "type": "function",
-    "name": "setExitAdmin",
-    "inputs": [
-      {
-        "name": "u",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "newAdmin",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setPermissionedOwnerApproval",
-    "inputs": [
-      {
-        "name": "owner",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "approved",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "setSbtConfig",
     "inputs": [
       {
@@ -1331,56 +1438,77 @@
   },
   {
     "type": "function",
-    "name": "tierPolicy",
+    "name": "updatePoolLifeCycle",
     "inputs": [
       {
-        "name": "tierId",
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "lifecycle",
         "type": "uint8",
-        "internalType": "uint8"
+        "internalType": "enum PoolLifecycle"
       }
     ],
     "outputs": [
       {
         "name": "",
-        "type": "tuple",
-        "internalType": "struct TSVRegistryV1.TierPolicy",
-        "components": [
-          {
-            "name": "tierBps",
-            "type": "uint16",
-            "internalType": "uint16"
-          },
-          {
-            "name": "maxListed",
-            "type": "uint32",
-            "internalType": "uint32"
-          },
-          {
-            "name": "listedCount",
-            "type": "uint32",
-            "internalType": "uint32"
-          }
-        ]
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "updatePermissionedExpectedOwner",
+    "name": "updatePoolTickCount",
     "inputs": [
       {
-        "name": "w",
-        "type": "address",
-        "internalType": "address"
+        "name": "key",
+        "type": "tuple",
+        "internalType": "struct PoolKey",
+        "components": [
+          {
+            "name": "currency0",
+            "type": "address",
+            "internalType": "Currency"
+          },
+          {
+            "name": "currency1",
+            "type": "address",
+            "internalType": "Currency"
+          },
+          {
+            "name": "fee",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "tickSpacing",
+            "type": "int24",
+            "internalType": "int24"
+          },
+          {
+            "name": "hooks",
+            "type": "address",
+            "internalType": "contract IHooks"
+          }
+        ]
       },
       {
-        "name": "newOwner",
-        "type": "address",
-        "internalType": "address"
+        "name": "delta",
+        "type": "int256",
+        "internalType": "int256"
       }
     ],
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -1502,31 +1630,6 @@
   },
   {
     "type": "event",
-    "name": "ExitAdminUpdated",
-    "inputs": [
-      {
-        "name": "underlying",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "oldAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      },
-      {
-        "name": "newAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "Initialized",
     "inputs": [
       {
@@ -1540,7 +1643,7 @@
   },
   {
     "type": "event",
-    "name": "MarketStatusChanged",
+    "name": "SecurityStatusChanged",
     "inputs": [
       {
         "name": "securityId",
@@ -1614,44 +1717,62 @@
   },
   {
     "type": "event",
-    "name": "PermissionedExpectedOwnerChanged",
+    "name": "PoolLifecycleChanged",
     "inputs": [
       {
-        "name": "currency",
-        "type": "address",
+        "name": "poolId",
+        "type": "bytes32",
         "indexed": true,
-        "internalType": "address"
+        "internalType": "bytes32"
       },
       {
-        "name": "oldOwner",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
       },
       {
-        "name": "newOwner",
-        "type": "address",
+        "name": "oldLifecycle",
+        "type": "uint8",
         "indexed": false,
-        "internalType": "address"
+        "internalType": "enum PoolLifecycle"
+      },
+      {
+        "name": "newLifecycle",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum PoolLifecycle"
       }
     ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "PermissionedOwnerApprovalChanged",
+    "name": "PoolRegistered",
     "inputs": [
       {
-        "name": "owner",
-        "type": "address",
+        "name": "poolId",
+        "type": "bytes32",
         "indexed": true,
-        "internalType": "address"
+        "internalType": "bytes32"
       },
       {
-        "name": "approved",
-        "type": "bool",
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tierId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "lifecycle",
+        "type": "uint8",
         "indexed": false,
-        "internalType": "bool"
+        "internalType": "enum PoolLifecycle"
       }
     ],
     "anonymous": false
@@ -2031,11 +2152,6 @@
   },
   {
     "type": "error",
-    "name": "ProtectedRole",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "SbtNotConfigured",
     "inputs": []
   },
@@ -2081,10 +2197,5 @@
         "internalType": "address"
       }
     ]
-  },
-  {
-    "type": "error",
-    "name": "UpgradeFrozen",
-    "inputs": []
   }
 ]

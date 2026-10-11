@@ -185,7 +185,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         activeParticipant = participant;
         activeRecipient = recipient;
         activeInputCurrency = Currency.unwrap(request.zeroForOne ? request.key.currency0 : request.key.currency1);
-        if (participant == address(0) || !registry.isAllowed(PermissionFlags.SWAP_ALLOWED, participant)) {
+        if (participant == address(0) || !registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, participant)) {
             revert Unauthorized();
         }
         address inputCurrency = activeInputCurrency;

@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {MarketReport, AdtvReport, QuotaReport, SplitFactorReport} from "tsv-v1/types/TSVReports.sol";
-import {PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -11,7 +11,8 @@ import {ReportValidationLib} from "tsv-v1/libraries/ReportValidationLib.sol";
 
 /// @notice Validates signed-off market and volume reports before forwarding them to TSV state contracts.
 /// @dev DataInbox owns the ingress layer: reporter roles, replay protection, sequence ordering and freshness
-///      checks. Registry owns market pause state. VolumeLedger owns ADTV, quota, split-factor and volume-limit
+///      checks. Registry owns security operation pause state. VolumeLedger owns ADTV, quota, split-factor and
+///      volume-limit
 ///      state. DataInbox reads roles from Registry instead of duplicating AccessControl, and Ledger accept
 ///      functions only allow DataInbox to write so callers cannot bypass ingress validation.
 contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
@@ -69,15 +70,17 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
         ledger = TSVVolumeLedgerV1(ledger_);
     }
 
-    /// @notice Validates and records the next market-state report for a listed security.
+    /// @notice Validates and records the next security operation report for a listed security.
     /// @dev Flow: cheap payload checks, _accept with REPORT_KIND_MARKET_STATUS and HALT_REPORTER_ROLE, then
-    ///      Registry.applyMarketStatus. Registry still checks that msg.sender is DataInbox, the security is
-    ///      listed, the market sequence advances, and the pause mode actually changes. Market reports therefore
-    ///      have two ordering guards: DataInbox lastSequence[market][securityId] and Registry market state
+    ///      Registry.applySecurityStatus. Registry still checks that msg.sender is DataInbox, the security is
+    ///      listed, the report sequence advances, and the pause mode actually changes. Market reports therefore
+    ///      have two ordering guards: DataInbox lastSequence[market][securityId] and Registry security state
     ///      sequence.
     /// @param report Market action, reason code, source timestamps, ordering fields and report ID.
     function submitMarketStatus(MarketReport calldata report) external {
-        if (report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0) revert InvalidReport();
+        if (report.securityId == 0 || report.mode == SecurityPauseMode.NONE || report.reasonCode == 0) {
+            revert InvalidReport();
+        }
         _accept(
             REPORT_KIND_MARKET_STATUS,
             report.securityId,
@@ -87,7 +90,7 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
             report.sequence,
             report.reportId
         );
-        registry.applyMarketStatus(report.securityId, report.action, report.mode, report.sequence, report.reportId);
+        registry.applySecurityStatus(report.securityId, report.action, report.mode, report.sequence, report.reportId);
     }
 
     /// @notice Validates and accepts one monthly ADTV report.

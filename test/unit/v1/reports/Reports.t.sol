@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {MarketStatus, MarketAction, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityOperationStatus, SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -91,35 +91,37 @@ contract TSVReportsTest is FoundationFixture {
 
     /// @dev Verifies market reports do not require a heartbeat and cannot be replayed.
     function testMarketReportDoesNotNeedHeartbeatAndReplayFails() public {
-        _submitMarket(MarketAction.HALT, 1, keccak256("market-1"));
+        _submitMarket(SecurityOperationType.HALT, 1, keccak256("market-1"));
         vm.warp(block.timestamp + 30 days);
-        assertEq(uint8(registry.marketStatus(SECURITY)), uint8(MarketStatus.HALTED));
-        MarketReport memory report = _market(MarketAction.RESUME, 2, keccak256("market-2"));
+        assertEq(uint8(registry.getSecurityStatus(SECURITY)), uint8(SecurityOperationStatus.HALTED));
+        MarketReport memory report = _market(SecurityOperationType.RESUME, 2, keccak256("market-2"));
         report.submitDeadline = uint64(block.timestamp + 1);
         inbox.submitMarketStatus(report);
         vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
         inbox.submitMarketStatus(report);
-        assertEq(uint8(registry.marketStatus(SECURITY)), uint8(MarketStatus.OPEN));
+        assertEq(uint8(registry.getSecurityStatus(SECURITY)), uint8(SecurityOperationStatus.OPEN));
     }
 
     /// @dev Verifies report submission requires a caller with the direct reporter role.
     function testReportsRequireDirectRoleCaller() public {
-        MarketReport memory report = _market(MarketAction.RESUME, 2, keccak256("unauthorized"));
+        MarketReport memory report = _market(SecurityOperationType.RESUME, 2, keccak256("unauthorized"));
         vm.prank(makeAddr("unregistered-reporter"));
         vm.expectRevert(TSVDataInboxV1.UnauthorizedReporter.selector);
         inbox.submitMarketStatus(report);
     }
 
     function testMarketReportsRejectNoneNoopsAndInvalidActionsAtomically() public {
-        _assertMarketPause(PauseMode.NONE, true, true);
-        _rejectMarketMode(MarketAction.RESUME, PauseMode.ALL, 1, TSVRegistryV1.InvalidStatus.selector);
-        _rejectMarketMode(MarketAction.HALT, PauseMode.NONE, 1, TSVDataInboxV1.InvalidReport.selector);
-        _rejectMarketMode(MarketAction.RESUME, PauseMode.NONE, 1, TSVDataInboxV1.InvalidReport.selector);
-        _submitMarketMode(MarketAction.HALT, PauseMode.TRADE, 1);
-        _rejectMarketMode(MarketAction.HALT, PauseMode.TRADE, 2, TSVRegistryV1.InvalidStatus.selector);
-        _rejectMarketMode(MarketAction.RESUME, PauseMode.LP, 2, TSVRegistryV1.InvalidStatus.selector);
-        _assertMarketPause(PauseMode.TRADE, false, true);
-        MarketReport memory report = _market(MarketAction.HALT, 2, keccak256("invalid-action"));
+        _assertMarketPause(SecurityPauseMode.NONE, true, true);
+        _rejectMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 1, TSVRegistryV1.InvalidStatus.selector);
+        _rejectMarketMode(SecurityOperationType.HALT, SecurityPauseMode.NONE, 1, TSVDataInboxV1.InvalidReport.selector);
+        _rejectMarketMode(
+            SecurityOperationType.RESUME, SecurityPauseMode.NONE, 1, TSVDataInboxV1.InvalidReport.selector
+        );
+        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
+        _rejectMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 2, TSVRegistryV1.InvalidStatus.selector);
+        _rejectMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.LP, 2, TSVRegistryV1.InvalidStatus.selector);
+        _assertMarketPause(SecurityPauseMode.TRADE, false, true);
+        MarketReport memory report = _market(SecurityOperationType.HALT, 2, keccak256("invalid-action"));
         bytes memory payload = abi.encodeCall(TSVDataInboxV1.submitMarketStatus, (report));
         // The action is the second ABI word after the selector. Values outside the new enum must revert.
         assembly ("memory-safe") {
@@ -129,7 +131,7 @@ contract TSVReportsTest is FoundationFixture {
         assertFalse(success);
         assertFalse(inbox.reportIdUsed(report.reportId));
         assertEq(inbox.lastSequence(0, SECURITY), 1);
-        _submitMarketMode(MarketAction.RESUME, PauseMode.TRADE, 2);
-        _assertMarketPause(PauseMode.NONE, true, true);
+        _submitMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.TRADE, 2);
+        _assertMarketPause(SecurityPauseMode.NONE, true, true);
     }
 }

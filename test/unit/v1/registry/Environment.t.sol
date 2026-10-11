@@ -80,7 +80,7 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
         r.bindComponents(address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt));
         r.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
         identitySbt.setCredential(address(this), 7, true);
-        assertFalse(r.isAllowed(PermissionFlags.SWAP_ALLOWED, address(this)));
+        assertFalse(r.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, address(this)));
         assertTrue(r.hasCredential(address(this)));
     }
 

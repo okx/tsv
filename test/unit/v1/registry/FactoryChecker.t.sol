@@ -82,16 +82,16 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         assertTrue(stock.isAllowed(user, PermissionFlags.SWAP_ALLOWED));
         OperationsSbt credential = identitySbt;
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
-        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, user));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, user));
         credential.setCredential(user, 7, true);
-        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, user));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, user));
         issuerChecker.setPermissions(user, address(stockToken), PermissionFlags.LIQUIDITY_ALLOWED);
         assertFalse(stock.isAllowed(user, PermissionFlags.SWAP_ALLOWED));
-        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, user));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, user));
         assertEq(PermissionFlag.unwrap(registry.permissionsOf(user)), bytes2(uint16(3)));
         issuerChecker.setPermissions(user, address(stockToken), PermissionFlags.SWAP_ALLOWED);
         credential.setPaused(true);
-        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, user));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, user));
         assertTrue(stock.isAllowed(user, PermissionFlags.SWAP_ALLOWED));
         credential.setFailVerify(true);
         assertTrue(stock.isAllowed(user, PermissionFlags.SWAP_ALLOWED));
@@ -114,17 +114,17 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         uint16[4] memory invalidFlags = [uint16(0), 3, 4, type(uint16).max];
         for (uint256 i; i < invalidFlags.length; ++i) {
             vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            registry.isAllowed(PermissionFlag.wrap(bytes2(invalidFlags[i])), address(this));
+            registry.isSbtAllowed(PermissionFlag.wrap(bytes2(invalidFlags[i])), address(this));
         }
         OperationsSbt credential = identitySbt;
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
         credential.setCredential(address(this), 7, true);
         issuerChecker.setFailReads(true);
-        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, address(this)));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, address(this)));
         vm.expectRevert("issuer checker unavailable");
         stock.isAllowed(address(this), PermissionFlags.SWAP_ALLOWED);
         credential.setCredential(address(this), 7, false);
-        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, address(this)));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, address(this)));
     }
 
     function testFuzzIssuerAndTSVPermissionsAreIndependent(uint8 issuerMask, uint8 tsvMask, bool held, bool paused)
@@ -141,7 +141,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         assertEq(uint16(PermissionFlag.unwrap(registry.permissionsOf(user))), held && !paused ? tsvMask : 0);
         assertEq(stock.isAllowed(user, PermissionFlags.SWAP_ALLOWED), issuerMask & 1 != 0);
         assertEq(stock.isAllowed(user, PermissionFlags.LIQUIDITY_ALLOWED), issuerMask & 2 != 0);
-        assertEq(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, user), held && !paused && tsvMask & 1 != 0);
-        assertEq(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, user), held && !paused && tsvMask & 2 != 0);
+        assertEq(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, user), held && !paused && tsvMask & 1 != 0);
+        assertEq(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, user), held && !paused && tsvMask & 2 != 0);
     }
 }

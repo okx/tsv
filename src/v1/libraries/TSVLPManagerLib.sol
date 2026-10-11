@@ -324,7 +324,7 @@ library TSVLPManagerLib {
     }
 
     function _requireLiquidityPermission(ITSVPermissionedRegistry registry, address account) private view {
-        if (!registry.isAllowed(RegistryPermissionFlags.LIQUIDITY_ALLOWED, account)) revert Unauthorized();
+        if (!registry.isSbtAllowed(RegistryPermissionFlags.LIQUIDITY_ALLOWED, account)) revert Unauthorized();
     }
 
     /// @dev Identical validation order and errors to PermissionedPositionManager._validateLiquidityCurrency.
