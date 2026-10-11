@@ -14,7 +14,7 @@ Foundry 的上下文 remapping 将该子模块的 `@interfaces` 和 `@libraries`
 
 真实 Adapter 构造参数为 `(tsvRouter, authSigner)`。`MoreInfo` 编码为 `(PoolKey key, uint64 expiry, address[] allowedCallers, uint256 nonce, bytes authSig)`。后端签名绑定 Adapter、池、expiry、允许的调用合约、单次 nonce 及 chainId，签名为 64 字节 EIP-2098 格式。测试使用固定的测试专用签名 key，不配置生产签名密钥。
 
-`sellBase` 卖 currency0，`sellQuote` 卖 currency1。签名和 TSV 请求的 PoolKey 为 W/Q；Adapter 通过 Router 的 `settlementCurrency` 解析实际收付币种，W 映射为 U，Q 保持 Q。输入金额为 Adapter 的当前输入币余额，既有输入币余额也参与兑换；仅本次新增输出转发给 `to`。部分成交的剩余输入退给 refund marker 中的地址。兑换后清除 TSV Router allowance。
+`sellBase` 卖 currency0，`sellQuote` 卖 currency1。签名和 TSV 请求的 PoolKey 为 W/Q；Adapter 可通过 Router 的 `settlementCurrency` 查询 W→U、Q→Q 映射。Router 当前仅开放 `swapExactInputFromAdapterDirect`：participant 必须持有输入币并批准 Router，Router 直接拉取输入且向指定 recipient 发送输出。Adapter 自身余额不再作为 Swap 输入，部分成交会整体回滚。因此本文固定提交中的旧 Adapter 调用模式与当前 Router ABI 不兼容，需迁移到直接结算入口，并调整外部 DEX 路由的输入转移方式后才能恢复集成。
 
 身份来自倒数第 64 字节的 caller marker，退款地址来自最后 32 字节的 ORIGIN_PAYER；必须有规范 ABI calldata 加恰好两个 marker。旧夹具从 refund marker 提取 SBT 身份的行为已删除。
 
@@ -36,7 +36,7 @@ FOUNDRY_PROFILE=local forge test --match-path 'test/integration/local/trading/*.
 
 ## Wrapped 模式验证记录（2026-10-08）
 
-本地交易目录 42 项通过，0 失败、0 跳过；其中现有 TSVAdapter 的 11 项用例使用真实 W/Q 池、U/Q 收付，覆盖双向兑换、退款、用户身份、白名单、授权清理、签名与 Router 三个入口的重入拒绝。XLayer 用例仍延期，未计入本次通过数。
+本地交易目录 42 项通过，0 失败、0 跳过；此为移除普通 Adapter 结算模式前的历史记录。其中现有 TSVAdapter 的 11 项用例使用真实 W/Q 池、U/Q 收付。XLayer 用例仍延期，未计入本次通过数。
 
 ## 历史 DIRECT 模式验证记录
 

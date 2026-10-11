@@ -14,13 +14,13 @@
 用户 / AA
   → 外部 DexRouter
   → 外部 TSV Adapter
-  → TSVSwapRouterV1.swapExactInputFromAdapter
+  → TSVSwapRouterV1.swapExactInputFromAdapterDirect
   → V4 PoolManager / TSV Hook
   → TSV Adapter
   → 外部 DexRouter 指定的 hop 收款地址
 ```
 
-外部 DexRouter 继续使用现有 `IAdapter.sellBase` / `sellQuote` 调用约定。它在调用 Adapter 时先把本 hop 的输入币转到 `assetTo`，再把 hop 收款地址 `to` 传入 Adapter。为让 Adapter 知道本 hop 的确切转入量，DexRouter 还需在内部 Adapter 调用尾部附加该数值。Adapter 将 TSV Router 收到的本次输出转给 `to`，从而保留 DexRouter 的中间跳转与 ToToken commission 流程。
+外部 DexRouter 继续使用现有 `IAdapter.sellBase` / `sellQuote` 调用约定，但 TSV Router 唯一入口从 participant 拉取本 hop 输入，并将输出直接发送给 Adapter 指定的 `to`。因此 participant 必须持有输入 Token 并提前授权 TSV Router；Adapter 余额不作为输入来源。对于输入由 DexRouter 或 Adapter 持有的中间跳，不能使用此入口；路由集成必须确保输入仍可由 participant 支出。
 
 ## TSV Router 接口
 
@@ -35,9 +35,9 @@ Adapter 入口复用 `SwapRequest`，字段顺序如下：
 | `deadline` | `uint64` | 请求过期时间 |
 | `expectedMultiplier` | `uint256` | 报价时从 Registry 所登记股票侧 Adapter 读取并保留的 Multiplier |
 
-Adapter 调用 `swapExactInputFromAdapter(request, participant)`。Router 仅接受 `setAdapterAllowed(adapter, true)` 已授权的调用地址；该函数及撤销操作 `setAdapterAllowed(adapter, false)` 仅 Governor 可调用。Router 对 `participant` 执行 SBT 资格检查，对池执行现有交易状态检查，并从 Adapter 拉取输入、把输出及任何正 delta 交给 Adapter。Adapter 调用时，`amountSpecified` 传本 hop 实际输入量，`limitAmount` 传最小输出量。价格边界由 Router 根据方向设置为 V4 的全范围边界。
+Adapter 调用 `swapExactInputFromAdapterDirect(request, participant, recipient)`。Router 仅接受 `setAdapterAllowed(adapter, true)` 已授权的调用地址；该函数及撤销操作 `setAdapterAllowed(adapter, false)` 仅 Governor 可调用。Router 对 `participant` 执行 SBT 资格检查，从 participant 拉取 `amountSpecified` 输入，并把 Swap 输出直接交给 `recipient`。输入必须全额成交且达到 `limitAmount`；部分成交时整笔交易回滚，不需要 Adapter 退款。价格边界由 Router 根据方向设置为 V4 的全范围边界。
 
-三个 Swap 入口共用同一个 `SwapRequest`。直连 exact-in 使用 `amountSpecified` 表示输入量、`limitAmount` 表示最小输出；直连 exact-out 则分别表示目标输出和最大输入。调用方需按上述字段顺序编码匹配的 ABI tuple；所有入口均不接收 `sqrtPriceLimitX96`。
+Adapter Swap 入口只支持 exact-in：`amountSpecified` 表示输入量，`limitAmount` 表示最小输出。Router 不提供普通 Adapter 出资模式、用户直调或 exact-output 入口。调用方需按上述字段顺序编码匹配的 ABI tuple；入口不接收 `sqrtPriceLimitX96`。
 
 ## 外部 Adapter 仓库工作
 
@@ -46,7 +46,7 @@ Adapter 调用 `swapExactInputFromAdapter(request, participant)`。Router 仅接
 1. 实现现有 `IAdapter.sellBase` 和 `sellQuote`，分别映射到对应的 TSV 交易方向；只支持 exact-input。
 2. 仅允许配置的外部 DexRouter 调用 Adapter。解析 DexRouter 附加在 calldata 尾部的 caller marker，并将 marker 中的原始调用者作为 `participant` 传入 TSV Router。
 3. 构造共享 `SwapRequest` 时保留报价阶段取得的股票侧 `expectedMultiplier`，不能在执行阶段用刚读取的当前值替换它。该值对应 Registry 所登记的股票侧 Adapter，不使用报价币的 Multiplier。输入金额与最小输出分别写入 `amountSpecified` 和 `limitAmount`；不得从 Adapter 总余额推断输入量，也不得让请求用既有余额补足本 hop 金额；拒绝零金额及超出 TSV 支持范围的金额。
-4. 为 `amountIn` 临时批准 TSV Router 拉取输入，调用后清除未用 allowance。根据 Router 返回的 `actualIn`，把 `amountIn - actualIn` 的未成交输入退回 `ORIGIN_PAYER` 尾字段中的退款地址。记录调用前 Adapter 的输出币余额，仅将本次 TSV Swap 新增的输出余额转给 `to`，不要转走 Adapter 既有余额。
+4. 确保 participant 已授权 TSV Router 支出本 hop 输入；Adapter 不为 Router 设置输入 allowance，也不承担输入退款。Router 将成交输出直接送往 `to`，Adapter 不暂存或转发输出。
 5. 按部署链配置 TSV Router 地址、DexRouter 地址及 TSV 池参数，并登记/发布 Adapter 的链上地址和所需路由元数据。
 
 身份字段必须使用 `DEX_ROUTER_CALLER_MARKER`，不可使用 `ORIGIN_PAYER` 作为 SBT 身份。当前外部 DexRouter 的 `CommonLib.exeAdapter` 把原始调用者写入 caller marker；`ORIGIN_PAYER` 写入的是 `refundTo`，在特定路由模式下可以与原始调用者不同。尾部扩展后布局为 `ABI calldata || amountIn || DEX_ROUTER_CALLER_MARKER+caller || ORIGIN_PAYER+refundTo`，因此 Adapter 分别从 calldata 的 `-96`、`-64`、`-32` 字节读取三个字段。Adapter 还必须限制直接调用来源为配置的 DexRouter，避免任意调用者伪造尾部字段。
@@ -59,14 +59,14 @@ Adapter 调用 `swapExactInputFromAdapter(request, participant)`。Router 仅接
 - 在 ABI 编码的 Adapter calldata 与两个既有尾字段之间追加 32 字节 `amountIn`。保持最后 64 字节仍为原 caller marker 和 `ORIGIN_PAYER`，使旧 Adapter 继续按原偏移读取。
 - 在路由配置与构造工具中识别 TSV Adapter，并生成其 `moreInfo` 数据；`amountIn` 从链上实际 hop 转账量生成，不从 `moreInfo` 接受。
 - 保留 `CommonLib.exeAdapter` 附加的原 64 字节尾部字段；不要把退款地址 marker 当作用户 SBT 身份。
-- 确保 hop 的输入资产被转到 TSV Adapter，且 Adapter 收到的 `to` 是该 hop 的目标地址。末跳可继续按现有逻辑收至 commission 中转地址或最终接收地址；中间跳则收回 DexRouter。
+- 确保 hop 输入仍由 `participant` 持有且已授权 TSV Router 支出；不得先把输入转到 Adapter/DexRouter。Adapter 传入的 `recipient` 应是该 hop 目标地址。若外部 DexRouter 固定先把输入转给 Adapter 或中间 hop 由 DexRouter 持有，则该路由与当前直接结算入口不兼容，必须调整路由资金来源。
 - 在 `moreInfo` 中提供最小输出、deadline 与完整池参数；确认 `sellBase` / `sellQuote` 与 Adapter 解码的交易方向一致。
 
 除非外部 Router 的部署或路由配置另有准入要求，Adapter 与 TSV Router 的授权分别由其自身配置完成：外部 Adapter 限定可信 DexRouter 调用来源，TSV Governor 将该 Adapter 地址加入 TSV Router 白名单。
 
 ## 部署与运行要求
 
-1. 部署 TSV Router 实现升级，并确认代理 ABI 包含 `swapExactInputFromAdapter` 与 `setAdapterAllowed`。
+1. 部署 TSV Router 实现升级，并确认代理 ABI 包含 `swapExactInputFromAdapterDirect` 与 `setAdapterAllowed`。
 2. 部署外部 TSV Adapter，配置对应外部 DexRouter 与 TSV Router。
 3. 由 TSV Governor 调用 `setAdapterAllowed(adapter, true)`；撤销时调用 `setAdapterAllowed(adapter, false)`。
 4. 在外部路由配置中启用该 Adapter 后，先确认调用用户、Adapter、输入结算、输出转发及 commission 收款地址与预期一致，再开放交易。

@@ -69,7 +69,7 @@ registry.setSbtConfig(retailTokenId, PermissionFlags.SWAP_ALLOWED);
 
 `PermissionedValidationLib` 只承载 Registry 的资产准入校验，包括 Factory/W 身份、元数据、法律股数接口、wrapper/Hook 和首次库存。库通过 delegatecall 执行，`address(this)` 为 Registry 代理；Registry 保留映射、角色、状态写入、事件和 SBT 身份权限。已移除 `_environment()` 地址打包及 `Environment` 结构；库读取 Registry 的现有 getter，绑定入口仅保留依赖地址、F 的 PM 和 SBT ABI 检查，已删除 `validateEnvironment` 及组件交叉引用检查。U 级 exitAdmin 校验已删除。
 
-Router 不再链接该库，也不再生成或比较运行时策略快照。执行时的 Hook、swappingEnabled 和用户权限检查复用 `PermissionedV4Router`；精确转账与库存检查保留在内部 `TSVPermissionedSettlementLib`。Registry 的 `permissionedValidationLibrary()` 返回实际链接地址，更换须随实现升级交付。
+Router 不再链接该库，也不再生成或比较运行时策略快照。执行时的 Hook、swappingEnabled 和用户权限检查复用 `PermissionedV4Router`；SafeERC20 转账由内部 `TSVPermissionedSettlementLib` 提供。Router 依赖准入审查保证 U/Q 精确转账语义，以及 Factory 验证的 W 实现保证抵押与供应量一致；Swap 不读取库存快照。Registry 的 `permissionedValidationLibrary()` 返回实际链接地址，更换须随实现升级交付。
 
 部署前先部署并核验库，将链接地址提供给 Forge：
 
@@ -84,21 +84,26 @@ forge script script/DeployCoreV1.s.sol:DeployCoreV1 --libraries "src/v1/librarie
 
 `TSVSwapRouterV1` 继承本地兼容版 `PermissionedV4Router` 与既有治理父类。实现构造参数为 `(PoolManager, PermissionsAdapterFactory)`，两者固定在实现字节码中，构造时核验 F 的 PM；`initialize(anchor, pm, registry)` 验证 PM 与 Registry 的 Anchor。Router 不保存 Ledger、不读取交易日、不另发成交事件，额度记账与 `SwapAccounted` 由 Hook/Ledger 完成。升级候选必须保留相同 PM/F，并延续本批新存储布局。
 
-`swapExactInput(request)`、`swapExactOutput(request)` 与白名单入口 `swapExactInputFromAdapter(request, participant)` 可执行交易。`SwapRequest` 字段为 `(key, zeroForOne, amountSpecified, limitAmount, deadline, expectedMultiplier)`，key 中股票地址是 W、报价地址是 Q；amountSpecified/limitAmount 使用对应腿的 raw 单位。`expectedMultiplier` 是报价时读取的股票侧快照，Hook 在 Swap 前后核对；报价币 multiplier 不参与比较。用户直接调用并授权 Router 支出 U 或 Q，股票输出直接交付 U。支持 U→Q、Q→U 各自 exact-in/exact-out 四条路径。
+交易只能通过白名单 Adapter 入口 `swapExactInputFromAdapterDirect(request, participant, recipient)` 发起。Router 从 participant 直接取得输入并向 recipient 交付输出，不再提供 Adapter 自身出资结算的普通模式或用户直调入口。`SwapRequest` 字段为 `(key, zeroForOne, amountSpecified, limitAmount, deadline, expectedMultiplier)`，key 中股票地址是 W、报价地址是 Q；amountSpecified/limitAmount 使用对应腿的 raw 单位。`expectedMultiplier` 是报价时读取的股票侧快照，Hook 在 Swap 前后核对；报价币 multiplier 不参与比较。入口为 exact-in，支持 U→Q、Q→U。
 
 - Router 固定构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个动作，并将 `abi.encode(expectedMultiplier)` 放入 Swap `hookData`；没有公开 action dispatcher、多跳、native 或库存兜底。
 - `msgSender()` 从入口首次资格读取开始返回真实用户，空闲时依据 V4 锁返回零。真实用户、实际输入和实际输出每次交易重新赋值，不再使用 `_clearContext` 或结束时 delete。回调直接复用 V4 `SafeCallback` 的 onlyPoolManager 门禁；固定的真实 PM 将 unlock 数据原样回调一次，不再保存 payload 哈希或消费标记。
 - Router 复用 V4 Periphery 的 `ReentrancyLock`，通过 EIP-1153 临时存储保存发起者地址作为锁；交易入口和交易期间的升级尝试以 `ContractLocked()` 拒绝重入。目标链须支持 EIP-1153，运行时检查统一读取临时锁。
-- 股票输入：精确检查付款方 U 减少与 W 合约 U 增加，再由原版 W mint 相同数量到 PM。仅一次 PM sync/pay/settle；债务结清由 PM.unlock 自身保证，不再额外比较 settle 返回值。
-- 股票输出：PM take 原版 W，自动 burn/unwrap 并发送 U 给结算方；只检查 W 持有的 U 减少和结算方 U 增加。Q 输出使用相同的双侧检查，发送方为 PM。实际输入在 SETTLE_ALL 中记录，实际输出在 TAKE_ALL 中记录，无需预存输出币种或重复比较 credit。
-- 原版 W 自身保证 PM W = W totalSupply、其他地址不持有 W，Router 不再重复读取这些 W 余额。保留整笔交易的一组库存检查：collateral ≥ supply；PM/Router 可以已有 U，但对应 U 余额必须保持不变；验证保证金余量 E = collateral − supply 保持不变。入金和出金不再各自重复读取整套库存。
-- exact-in 按真实成交量支付，可部分成交，须满足最小输出；exact-out 输出必须严格等于指定量且输入不超过上限。两腿最终 PM delta 为零。
+- 股票输入：participant U 转入 W 后，由原版 W mint 相同数量到 PM。仅一次 PM sync/pay/settle；债务结清由 PM.unlock 自身保证，不再逐笔读取 U 的转账前后余额或额外比较 settle 返回值。
+- 股票输出：PM take 原版 W，自动 burn/unwrap 并发送 U 给结算方；Q 输出由 PM 直接发送。Router 依赖准入审查保证两种 Token 的精确转账语义。实际输入在 SETTLE_ALL 中记录，实际输出在 TAKE_ALL 中记录，无需预存输出币种或重复比较 credit。
+- 原版 W 自身保证 PM W = W totalSupply、其他地址不持有 W；Router 不读取 W collateral、totalSupply 或 PM/Router U 余额做逐笔库存检查。准入审查负责确认 U/W 的资产与转账行为，PoolManager unlock 负责本笔 W/Q 债务结清。
+- Swap 仅开放白名单 Adapter 发起的直接结算 exact-in；输入必须全额成交，且满足最小输出。两腿最终 PM delta 为零。
+- 请求与真实用户的 TSV SBT 资格在入口校验。入口固定使用 Registry 配置的 TSV Hook，池准入、证券上市和暂停检查交给该 Hook，不再在 Router 重复调用 isTradable 或检查报价币状态。股票支付/取款复用父类的 swappingEnabled 与 W.isAllowed；Factory/W 的永久 U 绑定已在准入时验证，支付时不再重复比较。owner、exitAdmin、元数据等准入配置不再做整笔交易的快照一致性检查。
+- 股票输入：participant U 转入 W 后，由原版 W mint 相同数量到 PM。仅一次 PM sync/pay/settle；债务结清由 PM.unlock 自身保证，不再逐笔读取 U 的转账前后余额或额外比较 settle 返回值。
+- 股票输出：PM take 原版 W，自动 burn/unwrap 并发送 U 给结算方；Q 输出由 PM 直接发送。Router 依赖准入审查保证两种 Token 的精确转账语义。实际输入在 SETTLE_ALL 中记录，实际输出在 TAKE_ALL 中记录，无需预存输出币种或重复比较 credit。
+- 原版 W 自身保证 PM W = W totalSupply、其他地址不持有 W；Router 不读取 W collateral、totalSupply 或 PM/Router U 余额做逐笔库存检查。准入审查负责确认 U/W 的资产与转账行为，PoolManager unlock 负责本笔 W/Q 债务结清。
+- Swap 仅开放白名单 Adapter 发起的直接结算 exact-in；输入必须全额成交，且满足最小输出。两腿最终 PM delta 为零。
 - 请求与真实用户的 TSV SBT 资格在入口校验。入口固定使用 Registry 配置的 TSV Hook，池准入、证券上市和暂停检查交给该 Hook，不再在 Router 重复调用 isTradable 或检查报价币状态。股票支付/取款复用父类的 swappingEnabled 与 W.isAllowed；Factory/W 的永久 U 绑定已在准入时验证，支付时不再重复比较。owner、元数据等准入配置不再做整笔交易的快照一致性检查。
 - Hook 按真实股票腿 gross input / net output 计量一次，使用 U 的 canonical 法律股数换算。同 U 的多个 W/池共享 securityId 额度。Router 不另收结算费用；原版静态 LP fee、协议费仍由 PM 处理。
 
-聚合器沿用 main 的 Adapter 白名单与真实用户、结算方分离。Governor 通过 `setAdapterAllowed` 授权，并保留 `AdapterAuthorizationUpdated` 配置事件；Router 的两个成交事件已删除。`participant` 来自 Adapter 验证过的 DEX caller marker，父类 `msgSender()` 返回该用户，V4 锁中的发起者 Adapter 负责付款和收款。`settlementCurrency(W)` 返回 U、`settlementCurrency(Q)` 返回 Q；现有 TSVAdapter 仅将两处收付币种读取改为该映射，签名与 V4 请求中的 PoolKey 仍为 W/Q，输出交付和部分成交退款沿用 main 逻辑。
+聚合器沿用 Router 白名单与真实用户身份检查。Governor 通过 `setAdapterAllowed` 授权，并保留 `AdapterAuthorizationUpdated` 配置事件；`participant` 来自 Adapter 验证过的 DEX caller marker，父类 `msgSender()` 返回该用户。Router 从 participant 拉取输入并直接向 Adapter 指定的 recipient 交付输出；participant 必须批准 Router 支出 U/Q，输入不全额成交时整笔回滚，不存在 Adapter 付款或部分成交退款路径。`settlementCurrency(W)` 返回 U、`settlementCurrency(Q)` 返回 Q，V4 请求中的 PoolKey 仍为 W/Q。
 
-2026-10-07 review 经确认修正文档中的绝对零 U 余额条件：普通持有人向 PM/Router 转入少量 U，或同一 PM 托管其他池的 U，不应阻断本协议交易与 W 准入。Router 在进入 unlock 前将 U 余额基线保存在本次调用的内存中，并在 unlock 返回后核对；股票支付与取款分别检查实际 U 转账两端的精确变化。没有清扫 PM 资产的权限。
+2026-10-07 review 经确认修正文档中的绝对零 U 余额条件：普通持有人向 PM/Router 转入少量 U，或同一 PM 托管其他池的 U，不应阻断本协议交易与 W 准入。Swap 不读取或修改 PM/Router 既有 U 余额；Router 不做逐笔 U/W 库存快照，精确转账与 W 抵押关系依赖准入代码审查及 Factory 验证的 W 实现。没有清扫 PM 资产的权限。
 
 ## 本地验收与交付边界
 
@@ -106,7 +111,7 @@ Registry 测试使用固定上游原版 F/W 和真实 PM。新 Wrapped Swap fixt
 
 成功交易、资金守恒、回调门禁与重入测试均经过真实 PM 和原版 W。已删除替换或冒充 PM 后篡改回调、重复回调、伪造 settle 返回值的测试。转账税、少付及资产回调由 U/Q 行为替身模拟，验证精确结算与回滚；Hook 消费者单元测试注入 delta，不计作真实资金结算。
 
-历史 DIRECT/LP/DEX 的 27 个 `.sol.deferred` 文件保留，未计入当前通过数量，清单见 `test/DEFERRED_PERMISSIONED.md`。新套件覆盖四条交易路径、18/6 精度、非 1:1 法律计股、验证保证金、共享额度、部分成交、协议费提取、双侧转账故障、身份、V4 重入锁及不可变升级身份；DexAdapter 本地测试已迁移到真实 W/Q fixture，覆盖 U/Q 双向收付、签名重放拒绝、退款与 Adapter 锁。
+历史 DIRECT/LP/DEX 的 27 个 `.sol.deferred` 文件保留，未计入当前通过数量，清单见 `test/DEFERRED_PERMISSIONED.md`。新套件覆盖 U/Q 双向 exact-in、18/6 精度、非 1:1 法律计股、验证保证金、共享额度、完整成交约束、协议费提取、双侧转账故障、身份、V4 重入锁及不可变升级身份；Adapter 集成测试需迁移到唯一的直接结算入口。
 
 ```sh
 forge test -vv

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {SwapRequest, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -20,12 +20,17 @@ import {
     IPermissionsAdapterFactory
 } from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
-/// @notice One-pool W/Q swaps. Users pay and receive U for stocks and original Q for quotes.
+/// @notice One-pool exact-input W/Q swaps submitted by approved adapters.
 contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router, ReentrancyLock {
+    using PoolIdLibrary for PoolKey;
+
     error UnauthorizedUpgrade();
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error InvalidRequest();
     error InvalidPool();
+    error PoolDelisted();
+    error PoolNotTradable();
+    error RegistryPaused();
     error Expired();
     error SlippageExceeded();
     error SettlementMismatch();
@@ -39,10 +44,17 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     TSVRegistryV1 public registry;
     mapping(address adapter => bool allowed) public isAdapterAllowed;
 
-    // Every swap overwrites this context; the V4 lock determines whether it is active.
+    // Swap context shared with PoolManager callbacks during unlock.
+    /// @dev Original user identity exposed to W permission checks while the V4 lock is active.
     address private activeParticipant;
+    /// @dev Actual SETTLE_ALL debt; returned after unlock and checked against the requested input.
     uint256 private activeAmountIn;
+    /// @dev Actual TAKE_ALL credit, returned after unlock.
     uint256 private activeAmountOut;
+    /// @dev Adapter-selected output destination; TAKE_ALL otherwise defaults to the participant.
+    address private activeRecipient;
+    /// @dev Expected input PoolKey currency; checked against the currency settled by PoolManager.
+    address private activeInputCurrency;
 
     event AdapterAuthorizationUpdated(address indexed adapter, bool allowed);
 
@@ -79,33 +91,17 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         emit AdapterAuthorizationUpdated(adapter, allowed);
     }
 
-    // User and approved-adapter swap entry points.
-    /// @notice Exact input may fill partially; only realized input is paid.
-    function swapExactInput(SwapRequest calldata request)
-        external
-        isNotLocked
-        returns (uint256 actualIn, uint256 actualOut)
-    {
-        return _swap(request, true, msg.sender);
-    }
-
-    /// @notice Exact output must fill exactly the requested amount.
-    function swapExactOutput(SwapRequest calldata request)
-        external
-        isNotLocked
-        returns (uint256 actualIn, uint256 actualOut)
-    {
-        return _swap(request, false, msg.sender);
-    }
-
-    /// @notice Checks the authenticated DEX user; the approved Adapter pays and receives U/Q.
-    function swapExactInputFromAdapter(SwapRequest calldata request, address participant)
-        external
-        isNotLocked
-        returns (uint256 actualIn, uint256 actualOut)
-    {
-        if (!isAdapterAllowed[msg.sender]) revert AdapterNotAllowed();
-        return _swap(request, true, participant);
+    // Approved-adapter direct-settlement entry point.
+    /// @notice Adapter path that settles directly from the participant and delivers output to `recipient`.
+    /// @dev The participant must approve this router for the input token. Before the PoolManager swap,
+    ///      U is transferred directly from the participant into W, or Q into this router. The input is
+    ///      then settled from that prefunded balance, and output is taken directly to `recipient`.
+    function swapExactInputFromAdapterDirect(
+        SwapRequest calldata request,
+        address participant,
+        address recipient
+    ) external isNotLocked returns (uint256 actualIn, uint256 actualOut) {
+        return _swap(request, participant, recipient);
     }
 
     // Router views.
@@ -124,16 +120,29 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     /// @dev SETTLE_ALL supplies the actual input debt; TAKE_ALL supplies the actual output credit.
     function _settle(Currency currency, address, uint256 amount) internal override {
         activeAmountIn = amount;
+        address currencyAddress = Currency.unwrap(currency);
+        if (currencyAddress != activeInputCurrency) revert SettlementMismatch();
         poolManager.sync(currency);
-        // The V4 locker is the payer (user or Adapter); msgSender() remains the credential subject.
-        // Parent _pay enforces swappingEnabled and isAllowed before transferring and wrapping.
-        _pay(currency, _getLocker(), amount);
+        address underlying = registry.getCurrencyUnderlying(currencyAddress);
+        if (underlying == address(0)) {
+            TSVPermissionedSettlementLib.transferFromSelf(currencyAddress, address(poolManager), amount);
+        } else {
+            if (PERMISSIONS_ADAPTER_FACTORY.verifiedPermissionsAdapterOf(currencyAddress) != underlying) {
+                revert InvalidAdapter();
+            }
+            IPermissionsAdapter permissionsAdapter = IPermissionsAdapter(currencyAddress);
+            if (!permissionsAdapter.swappingEnabled()) revert SwappingDisabled();
+            if (!permissionsAdapter.isAllowed(msgSender(), PermissionFlags.SWAP_ALLOWED)) revert Unauthorized();
+            permissionsAdapter.wrapToPoolManager(amount);
+        }
         // PoolManager.unlock itself requires every currency delta to be settled.
         poolManager.settle();
     }
 
     function _payStandard(Currency currency, address payer, uint256 amount) internal override {
-        TSVPermissionedSettlementLib.transferExact(Currency.unwrap(currency), payer, address(poolManager), amount);
+        TSVPermissionedSettlementLib.transferFromPayer(
+            Currency.unwrap(currency), payer, address(poolManager), amount
+        );
     }
 
     function _payPermissionedFromPayer(
@@ -146,63 +155,53 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     }
 
     function _take(Currency currency, address, uint256 amount) internal override {
-        address currencyAddress = Currency.unwrap(currency);
         if (activeAmountIn == 0 || amount == 0) revert SlippageExceeded();
         activeAmountOut = amount;
-        address recipient = _getLocker();
-        address underlying = registry.getCurrencyUnderlying(currencyAddress);
-        IERC20 settlementToken = IERC20(underlying == address(0) ? currencyAddress : underlying);
-        // Q leaves PM directly; W burns on take and releases U from the W contract.
-        address transferSource = underlying == address(0) ? address(poolManager) : currencyAddress;
-        uint256 sourceBalanceBefore = settlementToken.balanceOf(transferSource);
-        uint256 recipientBalanceBefore = settlementToken.balanceOf(recipient);
-        super._take(currency, recipient, amount);
-        TSVPermissionedSettlementLib.assertDecrease(
-            sourceBalanceBefore, settlementToken.balanceOf(transferSource), amount
-        );
-        TSVPermissionedSettlementLib.assertIncrease(
-            recipientBalanceBefore, settlementToken.balanceOf(recipient), amount
-        );
+        super._take(currency, activeRecipient, amount);
     }
 
     // Private swap execution and request helpers.
-    function _swap(SwapRequest memory request, bool exactInput, address participant)
+    /// @param request Pool key, direction, amount, slippage limit, deadline, and expected multiplier.
+    /// @param participant Identity checked for swap permission and reported to the permissioned token.
+    /// @param recipient Address that receives the swap output.
+    /// @dev Input is transferred from participant into W or this router before unlocking PoolManager;
+    ///      it is settled from that balance and must fill completely.
+    function _swap(
+        SwapRequest memory request,
+        address participant,
+        address recipient
+    )
         private
         returns (uint256 actualIn, uint256 actualOut)
     {
+        // The global emergency pause has highest priority over request and pool validation.
+        if (registry.isPaused()) revert RegistryPaused();
+        if (!isAdapterAllowed[msg.sender]) revert AdapterNotAllowed();
+        if (recipient == address(0)) revert InvalidRequest();
         _checkRequest(request);
-        // The configured TSV Hook enforces pool admission, asset status and trading pauses.
         if (address(request.key.hooks) != registry.hook()) revert InvalidPool();
+        if (registry.getPoolLifeCycle(request.key) == PoolLifecycle.DELIST) revert PoolDelisted();
+        if (!registry.isTradable(PoolId.unwrap(request.key.toId()))) revert PoolNotTradable();
         activeParticipant = participant;
-        (address stockCurrency, address underlying) = _stockAsset(request.key);
+        activeRecipient = recipient;
+        activeInputCurrency = Currency.unwrap(request.zeroForOne ? request.key.currency0 : request.key.currency1);
         if (participant == address(0) || !registry.isAllowed(PermissionFlags.SWAP_ALLOWED, participant)) {
             revert Unauthorized();
         }
-        bytes memory payload = _payload(request, exactInput);
-        TSVPermissionedSettlementLib.StockInventory memory inventoryBefore =
-            TSVPermissionedSettlementLib.stockInventory(stockCurrency, underlying, address(poolManager));
+        address inputCurrency = activeInputCurrency;
+        address inputUnderlying = registry.getCurrencyUnderlying(inputCurrency);
+        address inputToken = inputUnderlying == address(0) ? inputCurrency : inputUnderlying;
+        address inputRecipient = inputUnderlying == address(0) ? address(this) : inputCurrency;
+        TSVPermissionedSettlementLib.transferFromPayer(
+            inputToken, participant, inputRecipient, request.amountSpecified
+        );
+        bytes memory payload = _payload(request);
         // PoolManager forwards payload unchanged; SafeCallback restricts callbacks to that immutable PM.
         poolManager.unlock(payload);
         actualIn = activeAmountIn;
         actualOut = activeAmountOut;
-        // V4 actions enforce input/output limits; TSV additionally requires exact output equality.
-        if (!exactInput && actualOut != request.amountSpecified) revert SlippageExceeded();
-        // Memory survives unlock and covers U changes on either the stock or quote transfer path.
-        TSVPermissionedSettlementLib.StockInventory memory inventoryAfter =
-            TSVPermissionedSettlementLib.stockInventory(stockCurrency, underlying, address(poolManager));
-        TSVPermissionedSettlementLib.assertUnderlyingUnchanged(inventoryBefore, inventoryAfter);
-        if (inventoryBefore.collateral - inventoryBefore.supply != inventoryAfter.collateral - inventoryAfter.supply) {
-            revert SettlementMismatch();
-        }
-    }
-
-    function _stockAsset(PoolKey memory key) private view returns (address stockCurrency, address underlying) {
-        stockCurrency = Currency.unwrap(key.currency0);
-        underlying = registry.getCurrencyUnderlying(stockCurrency);
-        if (underlying == address(0)) {
-            stockCurrency = Currency.unwrap(key.currency1);
-            underlying = registry.getCurrencyUnderlying(stockCurrency);
-        }
+        if (actualIn != request.amountSpecified) revert SlippageExceeded();
+        // V4 exact-input action enforces the input and minimum-output limits.
     }
 
     function _checkRequest(SwapRequest memory request) private view {
@@ -213,29 +212,21 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         ) revert InvalidRequest();
     }
 
-    function _payload(SwapRequest memory request, bool exactInput) private pure returns (bytes memory) {
+    function _payload(SwapRequest memory request) private pure returns (bytes memory) {
         bytes[] memory params = new bytes[](3);
         bytes memory hookData = abi.encode(request.expectedMultiplier);
         Currency input = request.zeroForOne ? request.key.currency0 : request.key.currency1;
         Currency output = request.zeroForOne ? request.key.currency1 : request.key.currency0;
-        if (exactInput) {
-            params[0] = abi.encode(
-                IV4Router.ExactInputSingleParams(
-                    request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, hookData
-                )
-            );
-        } else {
-            params[0] = abi.encode(
-                IV4Router.ExactOutputSingleParams(
-                    request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, hookData
-                )
-            );
-        }
-        params[1] = abi.encode(input, exactInput ? request.amountSpecified : request.limitAmount);
-        params[2] = abi.encode(output, exactInput ? request.limitAmount : request.amountSpecified);
+        params[0] = abi.encode(
+            IV4Router.ExactInputSingleParams(
+                request.key, request.zeroForOne, request.amountSpecified, request.limitAmount, 0, hookData
+            )
+        );
+        params[1] = abi.encode(input, request.amountSpecified);
+        params[2] = abi.encode(output, request.limitAmount);
         return abi.encode(
             abi.encodePacked(
-                uint8(exactInput ? Actions.SWAP_EXACT_IN_SINGLE : Actions.SWAP_EXACT_OUT_SINGLE),
+                uint8(Actions.SWAP_EXACT_IN_SINGLE),
                 uint8(Actions.SETTLE_ALL),
                 uint8(Actions.TAKE_ALL)
             ),

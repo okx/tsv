@@ -146,47 +146,43 @@ Q 不绑定股数 Adapter；股票要求 `securityId != 0`、证券已上市、A
 
 ## 4. 当前资产结算
 
-PoolKey 使用 W/Q，用户与 Adapter 收付 U/Q。Router 通过 `TSVPermissionedSettlementLib` 检查精确转账；股票输入 U 转入 W 后包装到 PM，股票输出由 W burn/unwrap 交付 U，Q 原币转账。白名单 Adapter 入口只提供 exact-in，Router 从 Adapter 拉取输入并将输出返给 Adapter；Adapter 在调用前批准实际输入币 U 或 Q 的 Router allowance，并只向外部 DexRouter 的 hop `to` 转发本次新增输出。
+PoolKey 使用 W/Q，用户与最终收款方收付 U/Q。Router 通过 `SafeERC20` 执行转账，并依赖准入时对 U/Q 转账语义的代码审查；股票输入 U 转入 W 后包装到 PM，股票输出由 W burn/unwrap 交付 U，Q 原币转账。唯一白名单 Adapter 入口提供 exact-in：Router 从 participant 拉取完整输入，输出直接发送给 Adapter 指定的 recipient；participant 需批准 Router 支出 U 或 Q。
 
-新 Swap 和 LP 操作都直接结算池内 Currency，不经过包装或赎回 Adapter。每笔入金同时核对付款人准确减少、PoolManager 准确增加及 `settle()` 返回值；出金同时核对 PoolManager 准确减少与最终收款人准确增加，任何发送方额外扣费、接收方少收、rebase 或异常返回都回滚。本地故障币回归覆盖发送方额外扣费；固定依赖与目标网络验收仍见[安全评审 F-05](./reviews/SECURITY_REVIEW_2026-09-30.md)。
+新 Swap 和 LP 操作都直接结算池内 Currency，不经过包装或赎回 Adapter。Wrapped Swap 的 U/Q 精确转账语义由准入时的代码审查保证；V4 `sync/settle` 与 `unlock` 验证本笔 PoolManager delta 清零。带转账税、少收或动态改写余额的 Token 不满足准入条件；其审查依据包括实现版本、升级权限及可配置行为。
 
 ## 5. Swap ABI、调用约束与 Hook
 
-**本节结构体与下列步骤描述当前代码。**Router 提供用户直连 exact-in/exact-out，以及外部白名单 Adapter 代用户发起的 exact-in。两条路径都按一个 PoolKey 的 raw 金额执行。
+**本节结构体与下列步骤描述当前代码。**Router 只接受白名单 Adapter 发起的 exact-in，并按一个 PoolKey 的 raw 金额执行；用户不能直接调用 Swap 入口。
 
 ```solidity
 struct SwapRequest {
     PoolKey key;
     bool zeroForOne;
-    uint128 amountSpecified;   // V4 输入/输出 Currency 的原始单位；须 <= int128.max
-    uint128 limitAmount;       // exact-in 为最小输出；exact-out 为最大输入
+    uint128 amountSpecified;   // exact-in 输入 Currency 的 raw 数量；须 <= int128.max
+    uint128 limitAmount;       // 最小输出量
     uint64 deadline;
     uint256 expectedMultiplier; // 报价时观察到的股票侧 multiplier
 }
 
-function swapExactInput(SwapRequest calldata request)
-    external returns (uint256 actualIn, uint256 actualOut);
-function swapExactOutput(SwapRequest calldata request)
-    external returns (uint256 actualIn, uint256 actualOut);
-
-function swapExactInputFromAdapter(SwapRequest calldata request, address participant)
-    external returns (uint256 actualIn, uint256 actualOut);
+function swapExactInputFromAdapterDirect(
+    SwapRequest calldata request, address participant, address recipient
+) external returns (uint256 actualIn, uint256 actualOut);
 function setAdapterAllowed(address adapter, bool allowed) external; // only Governor
 ```
 
-用户直连入口由函数本身决定 exact-in 或 exact-out 模式；participant、payer 和 recipient 均为 `msg.sender`。Adapter 入口复用同一个 `SwapRequest`，只允许 `isAdapterAllowed[msg.sender]` 为真的调用方，Router 对 `participant` 检查 SBT 资格，但从 Adapter 拉取输入并把输出交给 Adapter；Adapter 再按外部 DexRouter 传入的 hop 收款地址转发输出。三个入口都不接受调用方指定价格边界；Router 按 `zeroForOne` 设置 V4 全范围边界。Adapter 入口的身份可信度依赖已审查并加入白名单的 Adapter 正确解析外部 DexRouter caller marker；不要把 `ORIGIN_PAYER` 退款地址当成 SBT 身份。Adapter exact-input 的 `amountSpecified` 须来自 DexRouter 追加的实际 hop 转账量，不能从 `moreInfo` 或 Adapter 总余额猜测。用户直连入口仍不接受第三方代提交或用户签名，也不提供应用层请求 nonce。
+唯一的 Adapter 入口只允许 `isAdapterAllowed[msg.sender]` 为真的调用方。Router 从 participant 拉取输入，并将输出发送到 Adapter 指定的 recipient；不支持 Adapter 自身出资。Router 先检查全局暂停，再检查池生命周期、`isTradable`、participant 的 SBT 资格。入口不接受调用方指定价格边界；Router 按 `zeroForOne` 设置 V4 全范围边界。Adapter 入口的身份可信度依赖已审查并加入白名单的 Adapter 正确解析外部 DexRouter caller marker；不要把 `ORIGIN_PAYER` 退款地址当成 SBT 身份。`amountSpecified` 须来自 DexRouter 附加的实际 hop 输入量，不能从 `moreInfo` 或 Adapter 总余额猜测。
 
 `amountSpecified > 0` 且不超过 `int128.max`；`limitAmount > 0`；deadline 未过。准入池最多一侧为股票，两种池内 Currency 的普通滑点由 `limitAmount` 约束。
 
-Adapter exact-input 请求中的 `amountSpecified` 和 `limitAmount` 分别表示输入量与最小输出量，同样使用池内 Currency 的 raw 单位，二者均须大于零，且 `amountSpecified <= int128.max`；`deadline` 不得早于当前区块时间。完整字段和 ABI tuple 见[外部接入说明](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md)。
+Adapter exact-input 请求中的 `amountSpecified` 和 `limitAmount` 分别表示输入量与最小输出量，同样使用池内 Currency 的 raw 单位，二者均须大于零，且 `amountSpecified <= int128.max`；`deadline` 不得早于当前区块时间。输入必须全额成交，否则整笔交易回滚。完整字段和 ABI tuple 见[外部接入说明](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md)。
 
 执行顺序固定如下：
 
-1. Router 使用 V4 `ReentrancyLock`。用户直连时检查 `msg.sender` 的 SBT swap 权限；Adapter 入口先检查调用 Adapter 白名单，再检查 Adapter 传入的 participant。入口检查金额、deadline 和配置的 TSV Hook；完整 PoolKey、池准入、资产状态与交易暂停由 Hook 的 `beforeSwap` 检查。Router 按 `zeroForOne` 为所有入口设置 V4 全范围价格边界。
-2. Router 构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个 V4 动作，调用 `PoolManager.unlock(payload)`。PoolManager 原样回调 payload，父类 `SafeCallback` 限制 onlyPoolManager，V4 父类解码并执行动作；不保存 payload 哈希或回调消费标记。Swap 的 `hookData` 为 `abi.encode(expectedMultiplier)`。真实用户通过 `msgSender()` 提供给父类权限检查，V4 锁保存的入口调用方负责付款和收款：直连是用户，聚合器路径是 Adapter。
+1. Router 使用 V4 `ReentrancyLock`。Adapter 入口先检查调用 Adapter 白名单，再检查全局暂停、请求金额/deadline、Hook、DELIST 生命周期、`isTradable` 和 participant 的 SBT swap 权限。Router 按 `zeroForOne` 设置 V4 全范围价格边界。
+2. Router 构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个 V4 动作，调用 `PoolManager.unlock(payload)`。PoolManager 原样回调 payload，父类 `SafeCallback` 限制 onlyPoolManager，V4 父类解码并执行动作；不保存 payload 哈希或回调消费标记。Swap 的 `hookData` 为 `abi.encode(expectedMultiplier)`。真实用户通过 `msgSender()` 提供给父类权限检查；V4 锁保存的入口调用方负责付款和收款，直接结算模式的输出收款方由 Adapter 指定。
 3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，业务回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、32 字节 Multiplier 快照、池可交易；`afterSwap` 在计账前再次核对相同快照。Hook 根据 Registry 找到唯一股票侧，读取该侧适配器的 Multiplier，不读取报价币的 Multiplier。初始化与强制退出保留池已登记检查，普通 LP 使用 `isLPAllowed` 门禁。LP 回调预留相同 `abi.encode(expectedMultiplier)` 格式；当前 LP Manager 可继续传空数据，后续集成可传快照启用校验。SBT 资格由 Router 在进入 unlock 前检查。Hook 不为 Swap 保存状态，也不读取 Router 活跃上下文。`afterSwap` 接收 PoolManager 原样转发的参数，从实际 `BalanceDelta` 获取两侧 raw 成交量，将股票 W 映射到 U 后调用 Registry 绑定的 Adapter `toLegalShares(U,rawAmount)`，再将 shares 与真实 delta 交由 Ledger 原子记账；配对币使用零 shares 且不调用股数 Adapter。Adapter 的 U 绑定由 Registry 在准入和替换时验证。资产类型、证券身份、Adapter 地址配置和非零 shares 由 Ledger 统一校验，Ledger 不重复执行 Adapter 换算。Hook 返回零 delta 与零费率覆盖。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
-4. V4 动作检查 exact-in 的实际输入上限和最低输出、exact-out 的最高输入和足额输出；Router 再要求两腿成交量非零及 exact-out 严格相等。SETTLE_ALL 记录实际输入，TAKE_ALL 记录实际输出。股票腿实际收付 U，报价腿实际收付 Q，两侧均核对发送方恰扣、接收方恰增；PM.unlock 自身保证债务结清，不再比较 settle 返回值。原版 W 负责 mint-to-PM 和 burn/unwrap，Router 不重复读取 W 持币余额。
-5. unlock 返回后 Router 核对整笔交易的历史 U 余额与抵押余量，返回实际输入和输出。Router 不保存 Ledger、不读取交易日、不另发成交事件。三项上下文字段每次重新赋值，msgSender() 在 V4 锁释放后返回零，无需清理函数或 delete。
+4. V4 exact-in 动作检查实际输入上限和最低输出；Router 要求两腿成交量非零。直接结算模式还要求输入全额成交。SETTLE_ALL 记录实际输入，TAKE_ALL 记录实际输出。股票腿实际收付 U，报价腿实际收付 Q；Router 依赖准入时的精确转账语义检查，PM.unlock 保证 PoolManager 债务结清。原版 W 负责 mint-to-PM 和 burn/unwrap，Router 不重复读取 W 持币余额。
+5. unlock 返回后 Router 返回实际输入和输出，不读取 U/W/PM 库存快照。Router 不保存 Ledger、不读取交易日、不另发成交事件。三项上下文字段每次重新赋值，msgSender() 在 V4 锁释放后返回零，无需清理函数或 delete。
 
 成交记录使用 PoolManager 的 `Swap` 和 Ledger 的 `SwapAccounted`；Router 不重复发出成交事件，也不依赖 Ledger。Governor 修改 Adapter 白名单时仍发出 `AdapterAuthorizationUpdated`。Hook/Ledger 的 `SwapAccounted` 对每个股票腿分别记录 `securityId,poolCurrency,underlying,inputSide,rawAmount,legalSharesWad`。`poolCurrency` 为池内 W（indexed），`underlying` 为对应 U；`rawAmount` 仍为 W 的实际 delta 绝对值，`legalSharesWad` 为 U canonical Adapter 换算的法律股数。交易哈希与 logIndex 由索引器取链上 receipt，不写进合约事件。
 
@@ -414,7 +410,7 @@ RecoveryCancelled(bytes32 indexed id)
 | TSLAx `wrappedShares = 3e18`、`currentMultiplier = 0.9e18` | 按源码整数公式 `floor(3e18 * 0.9e18 / 1e18) = 2.7e18` 技术股数；在发行方/法务批准映射前资产不得准入 |
 | 两枚股票 Currency 申请登记同一池 | `registerPool` 回滚，不留下池记录；相同与不同 `securityId` 均拒绝 |
 | exact input 因价格边界只成交一部分，且输出仍达到下限 | 只拉取实际输入、只按实际两腿 delta 记账；满足所有用户边界才成功 |
-| exact output 未完整达到指定输出 | 整笔回滚，不允许部分交付 |
+| exact-in 未消耗完 participant 预转入的指定输入 | 整笔回滚 |
 | wTSLAx 或配对币向用户、原 LP owner 精确转账失败 | V4 仓位/成交、另一侧交付、额度及 Receipt 全部回滚，仓位保持可重试；本部署不执行 TSLAx 包装或赎回 |
 | HALT 状态一整月未变化 | 无心跳要求；在下一次有效 RESUME 或紧急暂停前保持 HALTED |
 | ADTV 数值不变但进入新适用月份；新计量日没有配额覆盖报告 | 必须有新适用月份 ADTV；新日无配额时使用硬上限，不因缺配额报告拒绝 Swap |

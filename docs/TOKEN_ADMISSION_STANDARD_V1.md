@@ -25,7 +25,7 @@
 ## 2. 池内 Currency 的必过条件
 
 1. **raw 余额稳定。**费率、拆股、反射分配、自动扣费、强制没收或地址差异化余额不能在无明确转账时改写 `balanceOf(PoolManager)`。发行方也不能无授权地改写 PoolManager 持仓。一次余额读取不足以证明该性质；须审查实际实现、权限和升级机制。
-2. **双侧精确转账。**`transfer/transferFrom(from,to,x)` 成功且 `from != to` 时，发送者 raw 恰减少 `x`，接收者 raw 恰增加 `x`；不得发送方额外扣税、接收方少收或静默成功。Router/LP Manager 的入池和出池路径均核对发送方、PoolManager 和最终接收方的余额差，`settle()` 返回值也须等于应付 raw。任一不符整笔回滚。标准测试与本地故障币已覆盖发送方额外扣费；真实发行方 Token 仍需逐实例准入验证。
+2. **双侧精确转账。**`transfer/transferFrom(from,to,x)` 成功且 `from != to` 时，发送者 raw 恰减少 `x`，接收者 raw 恰增加 `x`；不得发送方额外扣税、接收方少收或静默成功。该属性在准入时通过审查 Token 实际实现及其可变更权限确认；Router 的 Wrapped Swap 依赖此准入保证，不在每笔转账前后重复读取余额。SafeERC20 仍负责处理失败调用，PoolManager delta/unlock 仍负责验证本笔债务结清。Proxy、管理员或可配置参数若能改变转账语义，须在准入结论中明确限制并在变更前暂停、复审。
 3. **接口与版本可审查。**地址有代码，实际 `decimals()` 与配置一致且 `poolDecimals <= 18`；所用 ERC-20 方法可调用，失败可识别。记录代理 runtime、实际实现、管理员、暂停/制裁权限及变化方式。代理 runtime codehash 不等于实现版本证明。
 4. **完整 LP 交付。**同一 Currency 必须可用于 Swap 双方向和 LP 全生命周期，强退只把该 Currency 交付原 owner。发行方拒转时按方案 A 整笔回滚，保留原仓位与 Receipt；准入演练不能保证未来发行方永不拒转。
 

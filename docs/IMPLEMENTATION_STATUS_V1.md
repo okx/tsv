@@ -2,11 +2,11 @@
 
 ## 当前 Wrapped 交付状态（2026-10-07）
 
-Registry 与单池 Wrapped Swap 已编码；Router 支持 U↔Q 四条 exact-in/exact-out 路径，原版 W/PM 结算、一次回调绑定、精确双侧转账、surplus 不变、严格 exact-out 和不可变 PM/F 升级检查均已落地。白名单 Adapter 使用已验证的真实用户身份，负责 U/Q 收付。`PermissionedValidationLib` 无存储，仅供 Registry 资产准入校验使用；资金与上下文留在 Router。
+Registry 与单池 Wrapped Swap 已编码；Router 当前只开放白名单 Adapter 发起的 U↔Q 直接结算 exact-in。Router 在 PoolManager 解锁前从 participant 拉取输入，直接向指定 recipient 交付输出，并要求输入全额成交。原版 W/PM 结算、一次回调绑定、准入期精确转账代码审查和不可变 PM/F 升级检查均已落地；Swap 不做 U/W 库存快照。`PermissionedValidationLib` 无存储，仅供 Registry 资产准入校验使用；资金与上下文留在 Router。
 
 当前验收记录、代码尺寸、库链接、ABI/layout 见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)。生产 Wrapped LP 源码尚未迁移；测试 seed 不属于生产制品。manifest readiness 保持 false，真实发行方/生产 SBT/目标链及流动性证据另行验收。
 
-review 已修正 PM/Router 绝对零 U 余额带来的交易和准入阻断：Swap 保留本次调用的余额基线并校验局部及整笔交易余额不变；Registry 只核对新 W 自身库存。既有 U 不能覆盖少付，未新增代理存储槽。
+review 已修正 PM/Router 绝对零 U 余额带来的交易和准入阻断：PM/Router 的既有 U 余额不影响 Swap；Router 不做逐笔库存快照。U/Q 精确转账及 W 抵押关系依赖准入时期的代码审查与 Factory 验证的 W 实现，未新增代理存储槽。
 
 ## 历史实现记录
 
