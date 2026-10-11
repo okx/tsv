@@ -120,15 +120,49 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         lp.ownerOf(tokenId);
     }
 
-    function testIssuerUnwindFallsBackToAdminThenClaim() public {
+    function testIssuerUnwindQuoteDeliveryFailureRollsBackAdminDelivery() public {
         manager.setRejected(owner, true);
+        vm.expectRevert(TSVLPManagerLib.UnAcceptableScenario.selector);
         lp.unwindPosition(tokenId, 0, 0, "");
-        assertEq(manager.delivered(address(this), Currency.unwrap(key.currency0)), 1);
-        assertEq(manager.balanceOf(owner, uint160(Currency.unwrap(key.currency1))), 1);
-        tokenId = lp.seed(owner, key);
+        assertEq(lp.ownerOf(tokenId), owner);
+        assertEq(manager.delivered(address(this), Currency.unwrap(key.currency0)), 0);
+        assertEq(manager.balanceOf(owner, uint160(Currency.unwrap(key.currency1))), 0);
+        assertEq(manager.balanceOf(address(lp), uint160(Currency.unwrap(key.currency0))), 0);
+        assertEq(manager.balanceOf(address(lp), uint160(Currency.unwrap(key.currency1))), 0);
+    }
+
+    function testIssuerUnwindBothRecipientsRejectRollsBackBurn() public {
+        manager.setRejected(owner, true);
         manager.setRejected(address(this), true);
+        vm.expectRevert(TSVLPManagerLib.UnAcceptableScenario.selector);
         lp.unwindPosition(tokenId, 0, 0, "");
-        assertEq(manager.balanceOf(address(this), uint160(Currency.unwrap(key.currency0))), 1);
+        assertEq(lp.ownerOf(tokenId), owner);
+        assertEq(manager.balanceOf(address(this), uint160(Currency.unwrap(key.currency0))), 0);
+        assertEq(manager.balanceOf(address(lp), uint160(Currency.unwrap(key.currency0))), 0);
+    }
+
+    function testInheritedClaimWithdrawalIsForbidden() public {
+        uint256 id = uint160(Currency.unwrap(key.currency0));
+        manager.seedClaim(address(this), id, 9);
+        vm.expectRevert(TSVLPManagerV1.WithdrawClaimForbidden.selector);
+        lp.withdrawClaim(key.currency0, 9, address(this));
+        assertEq(manager.balanceOf(address(this), id), 9);
+        assertEq(manager.delivered(address(this), Currency.unwrap(key.currency0)), 0);
+    }
+
+    function testNormalActionsCannotRedeemClaims() public {
+        uint256 id = uint160(Currency.unwrap(key.currency1));
+        manager.seedClaim(owner, id, 9);
+        bytes[] memory params = new bytes[](2);
+        params[0] = abi.encode(key.currency1, owner, uint256(9));
+        params[1] = abi.encode(key.currency1, owner, uint256(9));
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(TSVLPManagerLib.UnsupportedAction.selector, Actions.BURN_6909));
+        lp.modifyLiquidities(
+            abi.encode(abi.encodePacked(uint8(Actions.BURN_6909), uint8(Actions.TAKE)), params), block.timestamp
+        );
+        assertEq(manager.balanceOf(owner, id), 9);
+        assertEq(manager.delivered(owner, Currency.unwrap(key.currency1)), 0);
     }
 
     function testOkxUnwindIsDirectAndDeliveryFailureRollsBackBurn() public {
@@ -172,25 +206,12 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         lp.modifyLiquidities(abi.encode(abi.encodePacked(uint8(Actions.MINT_6909)), params), block.timestamp);
     }
 
-    function testClaimWithdrawalResolvesCallerSentinel() public {
-        uint256 id = uint160(Currency.unwrap(key.currency1));
-        manager.seedClaim(owner, id, 9);
-        vm.prank(owner);
-        lp.withdrawClaimByLp(key.currency1, 9, address(1));
-        assertEq(manager.balanceOf(owner, id), 0);
-        assertEq(manager.delivered(owner, Currency.unwrap(key.currency1)), 9);
-    }
-
     function testRegistryPausePrecedesLinkedOperations() public {
         vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(true));
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.unwindPositionByOkx(tokenId, 0, 0, "");
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.subscribe(tokenId, address(sub), "");
-        vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
-        lp.withdrawClaim(key.currency1, 1, owner);
-        vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
-        lp.withdrawClaimByLp(key.currency1, 1, owner);
         bytes[] memory calls = new bytes[](0);
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.multicall(calls);

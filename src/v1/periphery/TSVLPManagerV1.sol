@@ -54,17 +54,16 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     error PoolTickCountUpdateFailed();
     error IncompatibleImplementation();
     error InvalidApproveProxy();
+    error WithdrawClaimForbidden();
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
     bytes32 public constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
     bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
-    bytes32 public constant WITHDRAW_CLAIM_ROLE = keccak256("WITHDRAW_CLAIM_ROLE");
 
     /// @dev Action bitset for authorized exit callbacks; BURN_POSITION has separate NFT accounting below.
     uint256 private constant EXIT_SETTLEMENT_ACTIONS = (uint256(1) << Actions.TAKE_PAIR)
-        | (uint256(1) << Actions.MINT_6909) | (uint256(1) << Actions.UNWIND_WITH_FALLBACK)
-        | (uint256(1) << Actions.BURN_6909) | (uint256(1) << Actions.TAKE);
+        | (uint256(1) << Actions.MINT_6909) | (uint256(1) << Actions.UNWIND_WITH_FALLBACK);
 
     /// @notice Shared approval proxy; users approve its TokenApprove, not this LP Manager.
     ITokenApproveProxy public immutable TOKEN_APPROVE_PROXY;
@@ -216,19 +215,9 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         PositionManager.modifyLiquiditiesWithoutUnlock(actions, params);
     }
 
-    /// @notice Allows a verified adapter's owner or a claim-withdrawal role holder to redeem its own claims to itself without TSV SBT permission.
-    function withdrawClaim(Currency currency, uint256 amount, address to)
-        public
-        override
-        whenRegistryNotPaused
-        isNotLocked
-    {
-        TSVLPManagerLib.withdrawClaim(poolManager, PERMISSIONS_ADAPTER_FACTORY, registry, currency, amount, to);
-    }
-
-    /// @notice Redeems the caller's claims with TSV liquidity permission checks on caller and recipient.
-    function withdrawClaimByLp(Currency currency, uint256 amount, address to) public whenRegistryNotPaused isNotLocked {
-        TSVLPManagerLib.withdrawClaimByLp(poolManager, currency, amount, to);
+    /// @notice Disables the inherited claim-withdrawal entry point.
+    function withdrawClaim(Currency, uint256, address) public override whenRegistryNotPaused isNotLocked {
+        revert WithdrawClaimForbidden();
     }
 
     function approve(address spender, uint256 tokenId) public override whenRegistryNotPaused {
@@ -386,7 +375,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     }
 
     /// @dev Explicit recipients are checked after resolving sentinels. CLOSE_CURRENCY and CLEAR_OR_TAKE
-    ///      always pay the already checked executor. The parent additionally checks BURN_6909 claim ownership.
+    ///      always pay the already checked executor.
     function _handleSettlementAction(uint256 action, bytes calldata params) private {
         TSVLPManagerLib.checkSettlementAction(registry, action, params, msgSender());
         PermissionedPositionManager._handleAction(action, params);
