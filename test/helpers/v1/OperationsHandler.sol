@@ -35,7 +35,6 @@ contract OperationsHandler is OperationsFixture {
     Factor[][4] private modelFactors;
     mapping(bytes32 => bool) private modelIds;
     bytes32[] private attemptedIds;
-    uint64[4] private modelSequence;
     uint64[4] private modelSourceTime;
     bytes32 private lastAcceptedId;
     uint256 private attempt;
@@ -61,7 +60,7 @@ contract OperationsHandler is OperationsFixture {
         uint32 month = _month(monthIndex);
         if (fault == 7) month = 202613;
         bool expected = _validMetadata(1, m) && value != 0 && month != 202613;
-        AdtvReport memory report = AdtvReport(SECURITY, month, value, m.timestamp, m.deadline, m.sequence, m.id);
+        AdtvReport memory report = AdtvReport(SECURITY, month, value, m.timestamp, m.deadline, m.id);
         (bool ok,) = address(inbox).call(abi.encodeCall(inbox.submitAdtv, (report)));
         assertEq(ok, expected, "ADTV acceptance differs from model");
         _finishReport(1, m, ok);
@@ -81,7 +80,7 @@ contract OperationsHandler is OperationsFixture {
             action == 2 ? prior.active && value == 0 : action == 1 && value != 0 && hardCap != 0 && value <= hardCap;
         bool expected = _validMetadata(2, m) && businessValid;
         QuotaReport memory report =
-            QuotaReport(SECURITY, _date(dayIndex), action, value, m.timestamp, m.deadline, m.sequence, m.id);
+            QuotaReport(SECURITY, _date(dayIndex), action, value, m.timestamp, m.deadline, m.id);
         (bool ok,) = address(inbox).call(abi.encodeCall(inbox.submitQuota, (report)));
         assertEq(ok, expected, "quota acceptance differs from model");
         _finishReport(2, m, ok);
@@ -150,7 +149,6 @@ contract OperationsHandler is OperationsFixture {
             denominator,
             m.timestamp,
             m.deadline,
-            m.sequence,
             m.id
         );
         (bool ok,) = address(inbox).call(abi.encodeCall(inbox.submitSplitFactor, (report)));
@@ -228,7 +226,6 @@ contract OperationsHandler is OperationsFixture {
     function assertReportModel() external view {
         assertEq(registry.hasRole(inbox.VOLUME_ORACLE_ROLE(), address(this)), volumeRole);
         for (uint8 kind = 1; kind <= 3; ++kind) {
-            assertEq(inbox.lastSequence(kind, SECURITY), modelSequence[kind]);
             assertEq(inbox.lastSourceTimestamp(kind, SECURITY), modelSourceTime[kind]);
         }
         for (uint8 i; i < 4; ++i) {
@@ -267,11 +264,10 @@ contract OperationsHandler is OperationsFixture {
         m = ReportMetadata(
             uint64(modelTime),
             uint64(modelTime + 100),
-            modelSequence[kind] + 1,
             keccak256(abi.encode("model-report", ++attempt))
         );
         if (fault == 1) m.id = 0;
-        else if (fault == 2) m.sequence = modelSequence[kind];
+        else if (fault == 2) m.id = lastAcceptedId;
         else if (fault == 3) m.timestamp = uint64(modelTime + 1);
         else if (fault == 4) m.deadline = uint64(modelTime - 1);
         else if (fault == 5) m.timestamp = modelSourceTime[kind] == 0 ? uint64(0) : modelSourceTime[kind] - 1;
@@ -280,13 +276,12 @@ contract OperationsHandler is OperationsFixture {
     }
 
     function _validMetadata(uint8 kind, ReportMetadata memory m) private view returns (bool) {
-        return volumeRole && m.id != 0 && !modelIds[m.id] && m.sequence > modelSequence[kind]
-            && m.timestamp >= modelSourceTime[kind] && m.timestamp <= modelTime && m.deadline >= modelTime;
+        return volumeRole && m.id != 0 && !modelIds[m.id] && m.timestamp >= modelSourceTime[kind]
+            && m.timestamp <= modelTime && m.deadline >= modelTime;
     }
 
     function _finishReport(uint8 kind, ReportMetadata memory m, bool ok) private {
         if (ok) {
-            modelSequence[kind] = m.sequence;
             modelSourceTime[kind] = m.timestamp;
             modelIds[m.id] = true;
             lastAcceptedId = m.id;

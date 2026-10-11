@@ -52,15 +52,15 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
     function testDelistingStopsSwapsAndRelistingUsesHistoricalPool() public {
         _swap(true, 1e16);
         bytes32 id = PoolId.unwrap(key.toId());
-        registry.updatePoolLifeCycle(id, PoolLifecycle.DELIST);
-        registry.delistSecurity(SECURITY);
+        registry.updatePoolLifeCycle(id, PoolLifecycle.DELIST, bytes32("TEST"));
+        registry.delistSecurity(SECURITY, bytes32("TEST"));
         bytes32 before_ = _digest();
         vm.expectRevert();
         _swap(false, 1e16);
         assertEq(_digest(), before_);
         assertTrue(registry.isKnownPool(id));
-        registry.relistSecurity(SECURITY);
-        registry.updatePoolLifeCycle(id, PoolLifecycle.LIST);
+        registry.relistSecurity(SECURITY, bytes32("TEST"));
+        registry.updatePoolLifeCycle(id, PoolLifecycle.LIST, bytes32("TEST"));
         _swap(false, 1e16);
     }
 

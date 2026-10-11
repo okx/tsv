@@ -49,15 +49,15 @@ V4 的 `sync/settle/take` 和 Hook delta 都使用 Currency 的 raw 单位。改
 
 新日独立累计，旧日 `usedWad`、历史成交、LP 仓位和 raw 余额不重算。可选 quota 是目标日单位下的**绝对上限**，不会再乘系数；上限仍取调整后硬上限与覆盖值的较小者。排期时应复核已有未来 quota，按需更正或清除。
 
-额度排期与成交计股是两项独立行为：Hook 仍逐笔调用获准的实时 LegalShareAdapter。若 Token 提前或推迟更新，额度切换时间仍由计量日决定，实际换算仍遵从来源。系统不新增通用 Token 单位归一化或 `unitEpoch`，不根据 multiplier 自动识别拆股，也不会提前修改外部 Token。对日内法律单位突变、来源含义不确定或多个 Token 单位不一致，运营须暂停受影响证券/Token，确认计量口径再恢复。同一法律单位内的正常计股率变化可继续使用实时转换。
+额度排期与成交计股是两项独立行为：Hook 仍逐笔调用当时获准的实时 LegalShareAdapter。若 Token 提前或推迟更新，额度切换时间仍由计量日决定，实际换算仍遵从来源。系统不新增通用 Token 单位归一化或 `unitEpoch`，不根据 multiplier 自动识别拆股，也不会提前修改外部 Token。单位或来源含义不确定时，运营可暂停交易以控制风险；暂停不是更换 Adapter 的合约前置条件。计量尺度变化会即时反映到后续成交，并可能改变当日用量与限额判断。
 
 ### 4.1 排期与发行方变更的运营步骤
 
 1. 保存拆/并股公告与法律/市场依据，确定 `securityId`、未来 `effectiveTradeDayId`、目标日开始 UTC 和适用 `sourceMonth`。若治理改排未来日切起点，重新核对公告与 `dayStartUTC`。
-2. 确认来源月 ADTV 基准单位，计算绝对累计分子/分母，检查目标日 quota；通过 `VOLUME_ORACLE_ROLE` 提交带递增版本/序号、唯一 ID 的 SET 报告。允许先排系数再上报 ADTV，缺 ADTV 时 Swap 仍被拒绝。
-3. 生效前可更正/取消**最后一个待生效检查点**。取消也消耗版本/序号，不复用报告 ID；修改更早项时先依次取消后面的待生效项。生效后不可修改历史。查询未来日系数用于预检查，不表示当前日已经生效。
+2. 确认来源月 ADTV 基准单位，计算绝对累计分子/分母，检查目标日 quota；通过 `VOLUME_ORACLE_ROLE` 提交带唯一 `reportId` 的 SET 报告。运营服务须按证券和报告类别串行提交、持久化 ID 与来源时间；交易重试复用原 ID。允许先排系数再上报 ADTV，缺 ADTV 时 Swap 仍被拒绝。
+3. 生效前可更正/取消**最后一个待生效检查点**。每次更正或取消都使用新 `reportId`；修改更早项时先依次取消后面的待生效项。生效后不可修改历史。查询未来日系数用于预检查，不表示当前日已经生效。
 4. 在日开始前后核对 `currentTradeDay`、`splitFactorOf`、`remaining`、报告事件和来源单位；额度自动切换，不等待 Token 更新或人工激活。保存 Token 提前/推迟更新证据，单独判断是否允许继续按实时 Adapter 成交。
-5. 来源单位或映射异常时使用现有暂停入口。更换活跃 Currency 的 Adapter 仍须 `GLOBAL/TOKEN` 紧急记录共同覆盖交易和 LP；`SECURITY/POOL` 单独不能满足替换门槛。`SYMBOL_ADMIN_ROLE` 更换 Adapter，审查依据在链下归档，并在新计量日及口径一致后恢复。raw 池余额随事件发生变化的 Token 不符合第 2 节，额度系数不能补救其结算能力。
+5. `SYMBOL_ADMIN_ROLE` 可随时更换活跃 Currency 的 Adapter；新 Adapter 通过接口和 U 绑定校验后立即用于后续 Swap。历史 used 不迁移，若新旧换算尺度不同，同一计量日内会累计两种尺度的结果，并可能改变当日限额判断。`splitFactor` 只调整目标计量日的 ADTV 硬上限；quota 是目标日单位下的独立绝对上限，须按需单独上报。raw 池余额随事件发生变化的 Token 不符合第 2 节，额度系数不能补救其结算能力。
 6. 新来源月 ADTV 已使用月末股数单位时，不重复排上月事件；需要更正来源数据时保留该月基准和递增版本。历史用量不清零，强退继续按原池 Currency 交付原 owner。
 
 链下审计记录至少包含：
@@ -70,9 +70,9 @@ V4 的 `sync/settle/take` 和 Hook delta 都使用 Currency 的 raw 单位。改
 | `effectiveTradeDayId`、`dayStartUTC`、分子/分母 | 链上排期日、对应 UTC 开始时间与绝对累计比例 |
 | 公告时间、法律/市场生效时间 | 公告与计量日选择依据 |
 | Adapter 地址、更换事件、发行方参数事件/快照 | 实际成交换算来源与 Token 更新时间，区别于额度切换时间 |
-| 报告 ID/版本/序号、交易记录、来源材料 | SET/更正/CANCEL 及可选暂停/恢复的可追溯依据 |
+| 报告 ID、来源时间、交易记录、来源材料 | SET/更正/CANCEL 及可选暂停/恢复的可追溯依据 |
 
-`SplitFactorReport` 的准确 ABI、事件和版本范围见[编码规格 §7 D-37](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。公告、审批、数据单位及 Token 监控的其余证据保存在链下。功能范围限于拆股/并股的额度系数；分红、配股、并购、换股、分拆、赎回、退市和一般代理升级不自动产生系数。
+`SplitFactorReport` 的准确 ABI 和事件见[编码规格 §7 D-37](./CODING_SPEC_V1.md#7-角色报告计量日和额度)。公告、审批、数据单位及 Token 监控的其余证据保存在链下。功能范围限于拆股/并股的额度系数；分红、配股、并购、换股、分拆、赎回、退市和一般代理升级不自动产生系数。
 
 ## 5. 注册、持续准入与当前迁移
 
@@ -106,6 +106,6 @@ V1 不在 Swap/LP 中调用 `TSLAx.transferSharesFrom`、`wTSLAx.mint` 或 `wTSL
 legalSharesWad = floor(rawAmount × uiMultiplier / 10^decimals)
 ```
 
-V4 价格、滑点边界、Swap/LP 参数和余额均继续使用 raw 数量；multiplier 只通过 Adapter 进入成交额度换算。运行时转换结果反映 Token 在 `afterSwap` 调用时生效的参数；如果它改变法律股数单位，则按第 4.1 节核对额度排期和单位，必要时暂停处理。准入真实 ERC-8056 Token 还须独立核对接口/权限/代理、raw 稳定、双侧精确转账、multiplier 生效规则、有界 gas、法律单位和对应 ADTV/quota。
+V4 价格、滑点边界、Swap/LP 参数和余额均继续使用 raw 数量；multiplier 只通过 Adapter 进入成交额度换算。运行时转换结果反映 Token 在 `afterSwap` 调用时生效的参数；法律股数计量尺度变化会即时影响后续 `usedWad` 和限额判断，不迁移当日或历史用量。准入真实 ERC-8056 Token 还须独立核对接口/权限/代理、raw 稳定、双侧精确转账、multiplier 生效规则、有界 gas、法律单位和对应 ADTV/quota。
 
 当前本地 Hook 集成测试使用 `ERC8056DirectLegalShareAdapter` 和暴露 mock `uiMultiplier()` 的测试 Token；相关 Hook 流程见 [`WrappedSwap.t.sol`](../test/integration/local/trading/WrappedSwap.t.sol)。本地测试覆盖不能替代真实 Token 的逐实例准入。

@@ -14,20 +14,20 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         uint16[3] memory badBps = [uint16(0), 10001, type(uint16).max];
         for (uint256 i; i < badBps.length; ++i) {
             vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            registry.setTierPolicy(1, badBps[i], 10);
+            registry.setTierPolicy(1, badBps[i], 10, bytes32("TEST"));
             assertEq(keccak256(abi.encode(registry.getTierPolicy(1))), beforeState);
         }
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setTierPolicy(0, 25, 10);
+        registry.setTierPolicy(0, 25, 10, bytes32("TEST"));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setTierPolicy(1, 25, 0);
+        registry.setTierPolicy(1, 25, 0, bytes32("TEST"));
         vm.expectEmit(true, false, false, true, address(registry));
-        emit TSVRegistryV1.TierPolicyChanged(1, 1, 1);
-        registry.setTierPolicy(1, 1, 1);
-        registry.setTierPolicy(1, 10000, 1);
+        emit TSVRegistryV1.TierPolicyChanged(1, 1, 1, bytes32("TEST"));
+        registry.setTierPolicy(1, 1, 1, bytes32("TEST"));
+        registry.setTierPolicy(1, 10000, 1, bytes32("TEST"));
         assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertEq(registry.getTierPolicy(1).tierBps, 10000);
-        registry.setTierPolicy(2, 25, 0);
+        registry.setTierPolicy(2, 25, 0, bytes32("TEST"));
         assertEq(registry.getTierPolicy(2).maxListed, 0);
     }
 
@@ -47,12 +47,12 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         vm.expectRevert(TSVRegistryV1.SbtNotConfigured.selector);
         unbound.hasIdentity(owner, 7);
         vm.expectRevert(TSVRegistryV1.SbtNotConfigured.selector);
-        unbound.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        unbound.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         assertFalse(registry.hasCredential(owner));
         assertEq(PermissionFlag.unwrap(registry.permissionsOf(owner)), PermissionFlag.unwrap(PermissionFlags.NONE));
         OperationsSbt credential = identitySbt;
         credential.setCredential(owner, 7, true);
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         assertTrue(registry.hasCredential(owner));
         assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
@@ -62,7 +62,7 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         credential.setPaused(false);
-        registry.setSbtConfig(7, PermissionFlags.NONE);
+        registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
         assertTrue(registry.hasCredential(owner));
         assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
@@ -72,14 +72,14 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         OperationsSbt good = identitySbt;
         good.setFailVerify(true);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         assertEq(address(registry.participantSbt()), address(good));
         assertEq(registry.sbtTokenIds().length, 0);
         good.setFailVerify(false);
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         good.setFailVerify(true);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(7, PermissionFlags.NONE);
+        registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
         _assertConfig(7, true, true);
         assertEq(address(registry.participantSbt()), address(good));
         assertEq(registry.sbtTokenIds().length, 1);
@@ -91,32 +91,34 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         for (uint256 i; i < malformed.length; ++i) {
             vm.mockCall(address(credential), abi.encodeWithSelector(ISmartWalletSbtV1.verify.selector), malformed[i]);
             vm.expectRevert();
-            registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+            registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
             assertEq(address(registry.participantSbt()), address(credential));
             assertEq(registry.sbtTokenIds().length, 0);
             vm.clearMockedCalls();
         }
         vm.expectEmit(true, true, false, true, address(registry));
-        emit TSVRegistryV1.SbtConfigChanged(address(credential), 7, PermissionFlags.SWAP_ALLOWED);
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        emit TSVRegistryV1.SbtConfigChanged(address(credential), 7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         credential.setPaused(true);
         vm.expectEmit(true, true, false, true, address(registry));
-        emit TSVRegistryV1.SbtConfigChanged(address(credential), 7, PermissionFlags.LIQUIDITY_ALLOWED);
-        registry.setSbtConfig(7, PermissionFlags.LIQUIDITY_ALLOWED);
+        emit TSVRegistryV1.SbtConfigChanged(
+            address(credential), 7, PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST")
+        );
+        registry.setSbtConfig(7, PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         _assertConfig(7, false, true);
         assertEq(registry.sbtTokenIds().length, 1);
     }
 
     function testAdditionalIdentityValidationAndReadFailuresDoNotMeanRevocation() public {
         OperationsSbt credential = identitySbt;
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         bytes memory makerConfigCall = abi.encodeCall(ISmartWalletSbtV1.verify, (address(registry), 8));
         vm.mockCallRevert(address(credential), makerConfigCall, "marketmaker unavailable");
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         assertEq(registry.sbtTokenIds().length, 1);
         vm.clearMockedCalls();
-        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         address owner = makeAddr("holder");
         credential.setCredential(owner, 7, true);
         for (uint256 id = 7; id <= 8; ++id) {
@@ -134,8 +136,8 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.hasIdentity(owner, 7);
         OperationsSbt credential = identitySbt;
-        registry.setSbtConfig(7, PermissionFlags.NONE);
-        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
+        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         credential.setCredential(owner, 7, true);
         credential.setCredential(owner, 99, true);
         credential.setPaused(true);
@@ -150,19 +152,19 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
     function testPermissionUpdatesApplyToHoldersWithoutRevokingIdentityOrDuplicatingIds() public {
         address owner = makeAddr("holder");
         OperationsSbt credential = identitySbt;
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
-        registry.setSbtConfig(8, PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
+        registry.setSbtConfig(8, PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         credential.setCredential(owner, 7, true);
         credential.setCredential(owner, 8, true);
         assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
-        registry.setSbtConfig(7, PermissionFlags.NONE);
+        registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
         assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
-        registry.setSbtConfig(8, PermissionFlags.NONE);
+        registry.setSbtConfig(8, PermissionFlags.NONE, bytes32("TEST"));
         assertTrue(registry.hasCredential(owner));
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         uint256[] memory ids = registry.sbtTokenIds();
@@ -174,11 +176,11 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
     function testUnknownPermissionBitsRejectWithoutRegisteringOrChangingIdentity() public {
         OperationsSbt credential = identitySbt;
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(7, PermissionFlags.ALL_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.ALL_ALLOWED, bytes32("TEST"));
         assertEq(registry.sbtTokenIds().length, 0);
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(7, PermissionFlag.wrap(0x0004));
+        registry.setSbtConfig(7, PermissionFlag.wrap(0x0004), bytes32("TEST"));
         _assertConfig(7, true, false);
     }
 
@@ -188,8 +190,8 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         holders &= 3;
         address owner = makeAddr("holder");
         OperationsSbt credential = identitySbt;
-        registry.setSbtConfig(0, PermissionFlag.wrap(bytes2(uint16(first))));
-        registry.setSbtConfig(8, PermissionFlag.wrap(bytes2(uint16(second))));
+        registry.setSbtConfig(0, PermissionFlag.wrap(bytes2(uint16(first))), bytes32("TEST"));
+        registry.setSbtConfig(8, PermissionFlag.wrap(bytes2(uint16(second))), bytes32("TEST"));
         credential.setCredential(owner, 0, holders & 1 != 0);
         credential.setCredential(owner, 8, holders & 2 != 0);
         credential.setPaused(paused);
@@ -211,14 +213,14 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         V1MockToken token = new V1MockToken("new-quote", 6);
         vm.mockCall(address(token), abi.encodeWithSelector(V1MockToken.decimals.selector), abi.encode(uint8(19)));
         vm.expectRevert(TSVRegistryV1.PermissionedMetadataMismatch.selector);
-        registry.registerQuoteToken(address(token));
+        registry.registerQuoteToken(address(token), bytes32("TEST"));
         assertFalse(registry.getQuoteToken(address(token)).registered);
         vm.clearMockedCalls();
         vm.mockCallRevert(address(token), abi.encodeWithSelector(V1MockToken.decimals.selector), "metadata unavailable");
         vm.expectRevert(TSVRegistryV1.PermissionedMetadataMismatch.selector);
-        registry.registerQuoteToken(address(token));
+        registry.registerQuoteToken(address(token), bytes32("TEST"));
         vm.clearMockedCalls();
-        registry.registerQuoteToken(address(token));
+        registry.registerQuoteToken(address(token), bytes32("TEST"));
         assertEq(registry.getQuoteToken(address(token)).rawDecimals, 6);
     }
 }

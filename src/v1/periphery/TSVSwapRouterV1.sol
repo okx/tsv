@@ -84,8 +84,17 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         _;
     }
 
+    modifier whenRegistryNotPaused() {
+        if (registry.isPaused()) revert RegistryPaused();
+        _;
+    }
+
     /// @notice Authorizes or revokes a contract adapter that can submit swaps for a participant.
-    function setAdapterAllowed(address adapter, bool allowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setAdapterAllowed(address adapter, bool allowed)
+        external
+        whenRegistryNotPaused
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         if (adapter == address(0) || (allowed && adapter.code.length == 0)) revert InvalidAdapter();
         isAdapterAllowed[adapter] = allowed;
         emit AdapterAuthorizationUpdated(adapter, allowed);
@@ -100,8 +109,20 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         SwapRequest calldata request,
         address participant,
         address recipient
-    ) external isNotLocked returns (uint256 actualIn, uint256 actualOut) {
-        return _swap(request, participant, recipient);
+    ) external whenRegistryNotPaused isNotLocked returns (uint256 actualIn, uint256 actualOut) {
+        return _swap(request, participant, participant, recipient);
+    }
+
+    /// @notice Executes an exact-input swap using an allowlisted contract's prefunded input.
+    /// @dev The participant remains the SBT and issuer-permission subject; the caller contract pays and receives
+    ///      settlement tokens so DEX adapters can custody their own hop input and forward the hop output.
+    function swapExactInputFromContract(SwapRequest calldata request, address participant)
+        external
+        whenRegistryNotPaused
+        isNotLocked
+        returns (uint256 actualIn, uint256 actualOut)
+    {
+        return _swap(request, msg.sender, participant, msg.sender);
     }
 
     // Router views.
@@ -162,20 +183,20 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
 
     // Private swap execution and request helpers.
     /// @param request Pool key, direction, amount, slippage limit, deadline, and expected multiplier.
+    /// @param payer Address supplying the settlement-token input.
     /// @param participant Identity checked for swap permission and reported to the permissioned token.
     /// @param recipient Address that receives the swap output.
-    /// @dev Input is transferred from participant into W or this router before unlocking PoolManager;
-    ///      it is settled from that balance and must fill completely.
+    /// @dev Input is transferred from payer into W or this router before unlocking PoolManager;
+    ///      it is settled from that prefunded balance and must fill completely.
     function _swap(
         SwapRequest memory request,
+        address payer,
         address participant,
         address recipient
     )
         private
         returns (uint256 actualIn, uint256 actualOut)
     {
-        // The global emergency pause has highest priority over request and pool validation.
-        if (registry.isPaused()) revert RegistryPaused();
         if (!isAdapterAllowed[msg.sender]) revert AdapterNotAllowed();
         if (recipient == address(0)) revert InvalidRequest();
         _checkRequest(request);
@@ -193,7 +214,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         address inputToken = inputUnderlying == address(0) ? inputCurrency : inputUnderlying;
         address inputRecipient = inputUnderlying == address(0) ? address(this) : inputCurrency;
         TSVPermissionedSettlementLib.transferFromPayer(
-            inputToken, participant, inputRecipient, request.amountSpecified
+            inputToken, payer, inputRecipient, request.amountSpecified
         );
         bytes memory payload = _payload(request);
         // PoolManager forwards payload unchanged; SafeCallback restricts callbacks to that immutable PM.

@@ -102,8 +102,8 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
         for (uint8 fault; fault < 7; ++fault) {
             SplitFactorReport memory report = _factor(20261003, 3, 1, 2, keccak256(abi.encode("factor-ingress", fault)));
             if (fault == 0) report.reportId = 0;
-            else if (fault == 1) report.sequence = 0;
-            else if (fault == 2) report.sequence = 1;
+            else if (fault == 1) report.sourceTimestamp = uint64(block.timestamp - 1);
+            else if (fault == 2) report.reportId = ledger.splitFactorCheckpoint(SECURITY, uint32(MONTH), 0).reportId;
             else if (fault == 3) report.sourceTimestamp = uint64(block.timestamp - 1);
             else if (fault == 4) report.sourceTimestamp = uint64(block.timestamp + 1);
             else if (fault == 5) report.submitDeadline = uint64(block.timestamp - 1);
@@ -119,17 +119,15 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
         }
     }
 
-    function testSplitReportIdsAreGlobalButSequenceScopesRemainIndependent() public {
+    function testReportIdsAreGlobalAndSourceTimestampsAreScopedByReportKind() public {
         _submitAdtv(1000e18);
         SplitFactorReport memory report = _factor(20261002, 2, 1, 1, keccak256("adtv"));
         vm.expectRevert(ReportValidationLib.InvalidReport.selector);
         inbox.submitSplitFactor(report);
-        assertEq(inbox.lastSequence(3, SECURITY), 0);
         report.reportId = keccak256("distinct-factor-id");
-        report.sequence = 7; // Gaps are permitted, but source ordering is independent from ADTV.
         inbox.submitSplitFactor(report);
-        assertEq(inbox.lastSequence(1, SECURITY), 1);
-        assertEq(inbox.lastSequence(3, SECURITY), 7);
+        assertEq(inbox.lastSourceTimestamp(1, SECURITY), uint64(block.timestamp - 1));
+        assertEq(inbox.lastSourceTimestamp(3, SECURITY), uint64(block.timestamp));
     }
 
     function testSourceTimeAndSubmissionDeadlineCannotSelectAnIntradayActivationTime() public {
@@ -193,7 +191,7 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
 
         inbox.submitAdtv(_adtv(SECURITY, type(uint256).max / 2, 2, keccak256("safe-large-basis")));
         inbox.submitSplitFactor(report); // Reuse the rejected report ID after fixing the basis.
-        registry.setTierPolicy(1, 10000, 10);
+        registry.setTierPolicy(1, 10000, 10, bytes32("TEST"));
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, type(uint256).max - 1);
 
@@ -241,7 +239,7 @@ contract TSVSplitFactorBoundariesTest is SplitFactorFixture {
         n = uint64(bound(n, 1, type(uint64).max));
         d = uint64(bound(d, 1, type(uint64).max));
         bps = uint16(bound(bps, 1, 10000));
-        registry.setTierPolicy(1, bps, 10);
+        registry.setTierPolicy(1, bps, 10, bytes32("TEST"));
         _submitAdtv(value);
         _setFactor(20261002, n, d, 1);
         // This oracle uses ordinary integer multiplication in a proven < 238-bit input range.

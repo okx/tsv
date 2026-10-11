@@ -86,5 +86,5 @@ DEX Adapter 需获 Governor 白名单授权；Router 检查 Adapter 验证的真
 - 资产停用使用 TOKEN 暂停，单池停用使用 POOL 暂停；模式为 TRADE、LP 或 ALL。暂停/恢复分别由 EMERGENCY_PAUSER/RESUMER 执行，清除 TOKEN 暂停会复核已登记资产配置。证券下架无需逐池操作，重新上市后未被暂停覆盖的历史池自动恢复。
 - owner 轮换先通过 TOKEN、SECURITY 或 GLOBAL 范围暂停该 W 的交易和 LP，由新 owner 实际接受 ownership 并获 Governor 批准，再调用 `updatePermissionedExpectedOwner`，最后恢复暂停。
 - Registry 不再维护 `setExitAdmin/exitAdminOf`；用户输出受发行方限制时整笔交易回滚。
-- canonical 计股口径更新使用 `replaceUnderlyingLegalShareAdapter(U,newAdapter)`，要求整个证券同时覆盖 TRADE 与 LP 暂停；仅暂停某个 W 不足。同 U 的全部 W 立即使用新口径，历史 used 不清零。
+- `SYMBOL_ADMIN_ROLE` 可随时调用 `replaceUnderlyingLegalShareAdapter(U,newAdapter)`；同 U 的全部 W 随后立即使用新 Adapter，历史 used 不清零。若新旧 Adapter 换算尺度不同，当日用量会按各自结果累计，并可能改变当日限额判断。拆并股的 ADTV 调整由目标日 `splitFactor` 单独处理，quota 仍按目标日单位独立上报。
 - 按月提交 ADTV，必要时更新 quota、排期拆并股系数；持续监控 issuer 拒转、SBT、W 权限/库存、适用额度、生产 LP 流动性及 PM 费用。资产停用使用现有暂停入口，历史额度和准入记录不清零。

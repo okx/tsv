@@ -67,7 +67,7 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         ERC8056DirectLegalShareAdapter next =
             new ERC8056DirectLegalShareAdapter(address(stockToken));
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next), bytes32("TEST"));
         _submitMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 2);
         vm.expectCall(
             address(next), abi.encodeCall(IDirectLegalShareAdapter.toLegalShares, (address(stockToken), 1e18))

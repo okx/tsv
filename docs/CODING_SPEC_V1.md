@@ -82,8 +82,7 @@ struct PoolRecord {
     uint256 poolSecurityIndex;
 }
 
-struct MarketStateRecord {
-    uint64 sequence;
+struct SecurityStateView {
     PauseMode pauseMode;
 }
 
@@ -126,13 +125,13 @@ Q 不绑定股数 Adapter；股票要求 `securityId != 0`、证券已上市、A
 
 ## 4. 当前资产结算
 
-PoolKey 使用 W/Q，用户与最终收款方收付 U/Q。Router 通过 `SafeERC20` 执行转账，并依赖准入时对 U/Q 转账语义的代码审查；股票输入 U 转入 W 后包装到 PM，股票输出由 W burn/unwrap 交付 U，Q 原币转账。唯一白名单 Adapter 入口提供 exact-in：Router 从 participant 拉取完整输入，输出直接发送给 Adapter 指定的 recipient；participant 需批准 Router 支出 U 或 Q。
+PoolKey 使用 W/Q，外部资金边界使用 U/Q。Router 通过 `SafeERC20` 执行转账，并依赖准入时对 U/Q 转账语义的代码审查；股票输入 U 转入 W 后包装到 PM，股票输出由 W burn/unwrap 交付 U，Q 原币转账。两个白名单 Adapter exact-in 入口分别从 participant 或调用 Adapter 拉取完整输入；输出分别交给显式 `recipient` 或调用 Adapter。
 
-新 Swap 和 LP 操作都直接结算池内 Currency，不经过包装或赎回 Adapter。Wrapped Swap 的 U/Q 精确转账语义由准入时的代码审查保证；V4 `sync/settle` 与 `unlock` 验证本笔 PoolManager delta 清零。带转账税、少收或动态改写余额的 Token 不满足准入条件；其审查依据包括实现版本、升级权限及可配置行为。
+Swap 的池内 Currency 为 W/Q，外部输入输出为 U/Q；原版 W 负责输入包装和输出 burn/unwrap，Q 原币结算。独立的用户侧包装/赎回入口不属于 Swap ABI。U/Q 精确转账语义由准入时的代码审查保证；V4 `sync/settle` 与 `unlock` 验证本笔 PoolManager delta 清零。带转账税、少收或动态改写余额的 Token 不满足准入条件；其审查依据包括实现版本、升级权限及可配置行为。
 
 ## 5. Swap ABI、调用约束与 Hook
 
-**本节结构体与下列步骤描述当前代码。**Router 只接受白名单 Adapter 发起的 exact-in，并按一个 PoolKey 的 raw 金额执行；用户不能直接调用 Swap 入口。
+**本节结构体与下列步骤描述当前代码。**Router 保留 participant 直付和白名单 Adapter 代付两种 exact-in 入口，并按一个 PoolKey 的 raw 金额执行；普通用户不能直接调用 Swap 入口。
 
 ```solidity
 struct SwapRequest {
@@ -141,25 +140,30 @@ struct SwapRequest {
     uint128 amountSpecified;   // exact-in 输入 Currency 的 raw 数量；须 <= int128.max
     uint128 limitAmount;       // 最小输出量
     uint64 deadline;
-    uint256 expectedMultiplier; // 报价时观察到的股票侧 multiplier
+    uint256 expectedMultiplier; // Hook 校验的股票侧快照；TSVAdapter 调用前读取 canonical Adapter 当前值
 }
 
 function swapExactInputFromAdapterDirect(
     SwapRequest calldata request, address participant, address recipient
 ) external returns (uint256 actualIn, uint256 actualOut);
-function setAdapterAllowed(address adapter, bool allowed) external; // only Governor
+function swapExactInputFromContract(
+    SwapRequest calldata request, address participant
+) external returns (uint256 actualIn, uint256 actualOut); // msg.sender pays and receives
+function setAdapterAllowed(address adapter, bool allowed) external; // Registry DEFAULT_ADMIN_ROLE
 ```
 
-唯一的 Adapter 入口只允许 `isAdapterAllowed[msg.sender]` 为真的调用方。Router 从 participant 拉取输入，并将输出发送到 Adapter 指定的 recipient；不支持 Adapter 自身出资。Router 先检查全局暂停，再检查池生命周期、`isTradable`、participant 的 SBT 资格。入口不接受调用方指定价格边界；Router 按 `zeroForOne` 设置 V4 全范围边界。Adapter 入口的身份可信度依赖已审查并加入白名单的 Adapter 正确解析外部 DexRouter caller marker；不要把 `ORIGIN_PAYER` 退款地址当成 SBT 身份。`amountSpecified` 须来自 DexRouter 附加的实际 hop 输入量，不能从 `moreInfo` 或 Adapter 总余额猜测。
+`swapExactInputFromAdapterDirect` 从 participant 拉取输入并发给 `recipient`；`swapExactInputFromContract` 仅允许 `isAdapterAllowed[msg.sender]` 的调用方，从该 Adapter 拉取预存输入并把输出返给调用 Adapter。两个入口都以 `participant` 检查 SBT 和发行方权限；普通用户不能直接调用。Router 先检查全局暂停，再检查请求、池生命周期、`isTradable` 和 participant 资格。入口不接受调用方指定价格边界；Router 按 `zeroForOne` 设置 V4 全范围边界。Adapter 代付入口依赖白名单 Adapter 正确解析外部 DexRouter caller marker；不要把 `ORIGIN_PAYER` 退款地址当成 SBT 身份。
 
 `amountSpecified > 0` 且不超过 `int128.max`；`limitAmount > 0`；deadline 未过。准入池最多一侧为股票，两种池内 Currency 的普通滑点由 `limitAmount` 约束。
 
 Adapter exact-input 请求中的 `amountSpecified` 和 `limitAmount` 分别表示输入量与最小输出量，同样使用池内 Currency 的 raw 单位，二者均须大于零，且 `amountSpecified <= int128.max`；`deadline` 不得早于当前区块时间。输入必须全额成交，否则整笔交易回滚。完整字段和 ABI tuple 见[外部接入说明](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md)。
 
+Adapter 代付入口的 `amountSpecified` 必须等于预存且获准支出的本跳输入；Router 从 Adapter 拉取该数量并要求全额成交。participant 直付入口由 participant 提供同额输入。两种入口都要求 `limitAmount > 0`、deadline 未过。
+
 执行顺序固定如下：
 
 1. Router 使用 V4 `ReentrancyLock`。Adapter 入口先检查调用 Adapter 白名单，再检查全局暂停、请求金额/deadline、Hook、DELIST 生命周期、`isTradable` 和 participant 的 SBT swap 权限。Router 按 `zeroForOne` 设置 V4 全范围价格边界。
-2. Router 构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个 V4 动作，调用 `PoolManager.unlock(payload)`。PoolManager 原样回调 payload，父类 `SafeCallback` 限制 onlyPoolManager，V4 父类解码并执行动作；不保存 payload 哈希或回调消费标记。Swap 的 `hookData` 为 `abi.encode(expectedMultiplier)`。真实用户通过 `msgSender()` 提供给父类权限检查；V4 锁保存的入口调用方负责付款和收款，直接结算模式的输出收款方由 Adapter 指定。
+2. Router 构造单池 SWAP、SETTLE_ALL、TAKE_ALL 三个 V4 动作，调用 `PoolManager.unlock(payload)`。PoolManager 原样回调 payload，父类 `SafeCallback` 限制 onlyPoolManager，V4 父类解码并执行动作；不保存 payload 哈希或回调消费标记。Swap 的 `hookData` 为 `abi.encode(expectedMultiplier)`。真实用户通过 `msgSender()` 提供给父类权限检查；直付入口由 participant 付款，合约代付入口由 Adapter 付款并收取输出。
 3. Hook 的 V4 回调 ABI 严格使用本地 `IHooks.sol` 原签名，业务回调只接受 PoolManager。`beforeSwap` 要求 `sender == Router`、32 字节 Multiplier 快照、池可交易；`afterSwap` 在计账前再次核对相同快照。Hook 根据 Registry 找到唯一股票侧，读取该侧适配器的 Multiplier，不读取报价币的 Multiplier。初始化与强制退出保留池已登记检查，普通 LP 使用 `isLPAllowed` 门禁。LP 回调预留相同 `abi.encode(expectedMultiplier)` 格式；当前 LP Manager 可继续传空数据，后续集成可传快照启用校验。SBT 资格由 Router 在进入 unlock 前检查。Hook 不为 Swap 保存状态，也不读取 Router 活跃上下文。`afterSwap` 接收 PoolManager 原样转发的参数，从实际 `BalanceDelta` 获取两侧 raw 成交量，将股票 W 映射到 U 后调用 Registry 绑定的 Adapter `toLegalShares(U,rawAmount)`，再将 shares 与真实 delta 交由 Ledger 原子记账；配对币使用零 shares 且不调用股数 Adapter。Adapter 的 U 绑定由 Registry 在准入和替换时验证。资产类型、证券身份、Adapter 地址配置和非零 shares 由 Ledger 统一校验，Ledger 不重复执行 Adapter 换算。Hook 返回零 delta 与零费率覆盖。其他人直接调用 PoolManager 的 swap/modify/initialize/donate 全部被 Hook 拒绝。
 4. V4 exact-in 动作检查实际输入上限和最低输出；Router 要求两腿成交量非零。直接结算模式还要求输入全额成交。SETTLE_ALL 记录实际输入，TAKE_ALL 记录实际输出。股票腿实际收付 U，报价腿实际收付 Q；Router 依赖准入时的精确转账语义检查，PM.unlock 保证 PoolManager 债务结清。原版 W 负责 mint-to-PM 和 burn/unwrap，Router 不重复读取 W 持币余额。
 5. unlock 返回后 Router 返回实际输入和输出，不读取 U/W/PM 库存快照。Router 不保存 Ledger、不读取交易日、不另发成交事件。三项上下文字段每次重新赋值，msgSender() 在 V4 锁释放后返回零，无需清理函数或 delete。
@@ -194,17 +198,17 @@ Position ID 的唯一性范围是单个 LP Manager 代理，跨链或跨代理�
 
 ## 7. 角色报告、计量日和额度
 
-**当前规则：**旧 SIP 日历、`TradeDayReport`、窗口追加/替换和逐日必填 quota 均不属于当前 ABI，仅在历史评审资料中保留。当前 DataInbox 接受 `MarketReport`、单条 `AdtvReport`、批量 `AdtvReport[]`、带 `action` 的 `QuotaReport` 和 `SplitFactorReport`；报告不使用 EIP-712、签名或任意 relayer 代提，`msg.sender` 必须直接持有对应的 `HALT_REPORTER_ROLE` 或 `VOLUME_ORACLE_ROLE`。`sequence`、`reportId`、`sourceTimestamp` 和 `submitDeadline` 仍用于顺序、去重、来源审计和提交时限，不是签名机制。Swap 由 participant 直接调用 Router。当前计量日由 VolumeLedger 根据 UTC 起点自动计算，不需要提交日历，也不需要心跳交易。
+**当前规则：**旧 SIP 日历、`TradeDayReport`、窗口追加/替换和逐日必填 quota 均不属于当前 ABI，仅在历史评审资料中保留。当前 DataInbox 接受 `MarketReport`、单条 `AdtvReport`、批量 `AdtvReport[]`、带 `action` 的 `QuotaReport` 和 `SplitFactorReport`；报告不使用 EIP-712、签名或任意 relayer 代提，`msg.sender` 必须直接持有对应的 `HALT_REPORTER_ROLE` 或 `VOLUME_ORACLE_ROLE`。报告使用唯一 `reportId` 做去重，使用 `sourceTimestamp` 校验来源时间不倒退；运营端按类别和证券串行提交，失败重试复用原 `reportId`。Swap 由 participant 直接调用 Router。当前计量日由 VolumeLedger 根据 UTC 起点自动计算，不需要提交日历，也不需要心跳交易。
 
-月度 ADTV 使用 `submitAdtvBatch(AdtvReport[] reports)` 批量入口。一个批次内所有报告必须属于同一 `sourceMonth`，`securityId` 必须按严格递增顺序排列且不得重复，批次长度为 `1..MAX_ADTV_BATCH_SIZE`（当前为 100），且整批由当前 `msg.sender` 以 `VOLUME_ORACLE_ROLE` 直接提交。批次采用全有或全无语义：任一报告无效，整笔交易回滚，不留下已接受的 ADTV、序号或 reportId。75 个证券的月度 ADTV 可由一笔批量交易提交；单条 `submitAdtv` 继续用于补发和纠错。批量提交不改变单报告的序号、来源时间或截止时间规则。
+月度 ADTV 使用 `submitAdtvBatch(AdtvReport[] reports)` 批量入口。一个批次内所有报告必须属于同一 `sourceMonth`，`securityId` 必须按严格递增顺序排列且不得重复，批次长度为 `1..MAX_ADTV_BATCH_SIZE`（当前为 100），且整批由当前 `msg.sender` 以 `VOLUME_ORACLE_ROLE` 直接提交。批次采用全有或全无语义：任一报告无效，整笔交易回滚，不留下已接受的 ADTV 或 reportId。75 个证券的月度 ADTV 可由一笔批量交易提交；单条 `submitAdtv` 继续用于补发和纠错。更正使用新 reportId，来源时间不得早于同类、同证券的已接受报告。
 
 **D-33：日配额是可选整日覆盖；当前 `src/v1/` 已实现以下规则。**当前 ABI 使用 `action` 字段；`VOLUME_ORACLE_ROLE` 地址直接提交：
 
 1. 对每个 `(securityId,tradeDayId)` 只保存 `uint256 quotaWad`，零表示没有覆盖或已清除覆盖；ADTV 另存为 `(securityId,sourceMonth)` 对应的正数，零表示缺失。`adtvOf`、`quotaOf` 只返回金额；报告来源由接受事件中的 reportId 查询，Inbox 保留全局 `reportIdUsed` 去重。新 TSV 计量日默认没有覆盖，不继承前一日状态。
-2. `QuotaReport` 增加 `uint8 action`，只允许 `SET=1` 或 `CLEAR=2`。Solidity 字段顺序为 `bytes32 securityId,uint32 tradeDayId,uint8 action,uint256 quotaWad,uint64 sourceTimestamp,uint64 submitDeadline,uint64 sequence,bytes32 reportId`；没有 `signer` 字段或签名参数。`SET` 要求证券已登记、该日所需 ADTV 已存在、`0 < quotaWad <=` 提交时的硬上限；`CLEAR` 要求原覆盖值非零且报告 `quotaWad == 0`。两者都要求报告 ID 唯一、报告来源序号递增，发出包含 action、值、reportId 的事件。三类计量报告不含 version，也不再要求按月份或日期严格加一；更新顺序统一由 Inbox 的 `(kind,securityId)` sequence 管理，跨期不重置。不能把零配额当作暂停；暂停仍走 §8。
+2. `QuotaReport` 增加 `uint8 action`，只允许 `SET=1` 或 `CLEAR=2`。Solidity 字段顺序为 `bytes32 securityId,uint32 tradeDayId,uint8 action,uint256 quotaWad,uint64 sourceTimestamp,uint64 submitDeadline,bytes32 reportId`；没有 `signer` 字段或签名参数。`SET` 要求证券已登记、该日所需 ADTV 已存在、`0 < quotaWad <=` 提交时的硬上限；`CLEAR` 要求原覆盖值非零且报告 `quotaWad == 0`。两者都要求报告 ID 全局唯一，发出包含 action、值、reportId 的事件。更新由运营端按类别和证券串行提交，来源时间不倒退；不能把零配额当作暂停，暂停仍走 §8。
 3. 每次 Swap 必须有按 D-34 自动算出的当前计量日、适用 ADTV、有效股票资产和已初始化且未暂停交易的市场状态。`hardCapWad == 0` 时拒绝；当日 `quotaWad == 0` 时 `effectiveCapWad=hardCapWad`，否则 `effectiveCapWad=min(hardCapWad,quotaWad)`。要求 `usedWad[securityId][tradeDayId] + legalSharesWad <= effectiveCapWad`；`remaining` 在无覆盖但 ADTV 有效时返回有效及 `max(0,hardCapWad-usedWad)`。同日 SET/CLEAR 从成功提交交易之后影响后续 Swap，不修改已计成交或已用量；低于已用量时后续 Swap 失败。
 4. 硬上限为 `floor(adtvWad × tierBps × numerator / (10000 × denominator))`，系数见 D-37，整条公式仅向下取整一次。ADTV/Tier/系数变化后重新计算并取 `min`，既有覆盖不能超过新硬上限；上调硬上限不会自动解除较低覆盖。quota 是目标计量日单位下的绝对值，不随拆股系数再乘一次；运营应在排期时复核，按需 SET/CLEAR。
-5. 本版 `DataInbox` 完全移除报告签名机制。项目未部署，直接使用当前报告 ABI、角色运营脚本、索引器和 Ledger，不保留旧接口或布局预留。D-34 同版移除日历报告依赖。
+5. 本版 `DataInbox` 完全移除报告签名机制和报告 sequence 字段。项目未部署，报告 ABI、角色运营脚本和索引器统一使用 `reportId` 去重与来源时间校验；代理存储保留不再读写的旧 sequence 槽位以维持布局。D-34 同版移除日历报告依赖。
 
 **D-34：每个日期都是独立 TSV 计量日，日切点按未来排期更新；当前 `src/v1/` 已实现以下规则。**
 
@@ -243,7 +247,6 @@ struct SplitFactorReport {
     uint128 denominator;
     uint64 sourceTimestamp;
     uint64 submitDeadline;
-    uint64 sequence;
     bytes32 reportId;
 }
 // DataInbox: VOLUME_ORACLE_ROLE directly submits; kind = 3.
@@ -258,7 +261,7 @@ struct SplitFactorCheckpoint { uint32 effectiveTradeDayId; uint128 numerator; ui
 
 1. `effectiveTradeDayId` 为合法 `YYYYMMDD` 且必须严格晚于当前计量日；可以选择任意未来日，无法设置当天、历史日或日内时刻。`sourceMonth` 必须等于目标日的前一自然月。生效时刻为 `dayStartUTC(effectiveTradeDayId)`，不是固定 UTC 午夜。日切排期改变后，系数仍随同一日 ID 开始；更改未来 offset 时须复核公告时间。来源时间/提交截止时间只约束提交，不决定生效。
 2. 因子是**相对该来源月 ADTV 单位的绝对累计系数**，不是相对前一检查点的增量。例如先一拆二、再一拆三，同月报告 `2/1`、`6/1`；不是 `2/1`、`3/1`。SET=1 时分子/分母非零，合约原样保存精确比例，不做约分。按目标日递增追加，只有最后一个尚未开始的检查点可同日更正；要修改更早待生效项，先依次取消后面的待生效项。CANCEL=2 只取消最后一项、指定同一日且两比例字段为零；生效后不得更正/取消。历史保留，查询按来源月二分选择目标日最近检查点，每月最多 31 项。
-3. `sequence` 在 `(kind=3,securityId)` 内递增，换月不重置；取消也消耗序号，不再保存或检查来源月 version。沿用 DataInbox 全局 reportId 唯一、来源时间不倒退及 freshness/deadline 校验；失败整笔回滚，不占用 ID/序号。
+3. 同一证券的拆并股报告由运营端串行提交；更正或取消使用新 `reportId`。沿用 DataInbox 全局 reportId 唯一、来源时间不倒退及 freshness/deadline 校验；失败整笔回滚，不占用 ID。
 4. 报告服务须固定来源月 ADTV 的基准单位为该月结束时的股数单位；同月数据更正保持这一基准，不能再把已排期的比例乘入 ADTV。换用新来源月时，已体现在该月基准中的事件不再排期，默认系数恢复 `1/1`。例如九月 ADTV=1000、Tier=25bps，十月一拆二后日限额=5；十月 ADTV=2000 已使用月末新单位，十一月默认系数 1，限额仍为5。无法确认基准单位时不得盲目提交。
 5. 可以先排期再上报 ADTV，但缺 ADTV 仍阻止 Swap。SET 及 ADTV 更正验证已存每个因子在 Tier=10000bps 时可表示，避免未来 Tier 上调产生算术溢出；超范围拒绝且状态回滚。Tier/ADTV 的正常更正仍参与实时硬上限。
 6. 切换发生在新计量日，新日用量独立累计，历史 `usedWad`、ADTV、LP 仓位不改写。可选 quota 继续是目标日绝对上限。系数功能控制额度生效时间，不替代来源 Token/Adapter 的实时成交计股、不修改外部 Token、不自动识别其法律单位；这一边界和异常暂停流程见准入标准 §4。
@@ -272,9 +275,9 @@ struct SplitFactorCheckpoint { uint32 effectiveTradeDayId; uint128 numerator; ui
 
 紧急暂停记录以递增 `recordId` 为主键，保存 `scope,target,mode,reasonCode,openedBy,openedAt,active`；`GLOBAL/SECURITY/TOKEN/POOL` 目标分别是零、securityId、Token 地址、PoolId。`EMERGENCY_PAUSER` 新增记录，`EMERGENCY_RESUMER` 关闭指定仍活跃记录；`activePauseCount(scope,target,mode)` 返回该精确模式的活跃记录数。交易检查 TRADE 或 ALL，LP 检查 LP 或 ALL；命中的记录叠加生效，关闭一条不会关闭其他记录或解除市场暂停。
 
-`MarketReport` 在 `action` 后新增 `PauseMode mode`，DataInbox 调用 `applyMarketStatus(securityId,action,mode,sequence,reportId)`。新证券准入后默认 NONE/OPEN，不再提交首次开市报告。MarketAction 仅 HALT=0、RESUME=1；首份报告可直接 HALT。HALT 按位叠加指定模式，RESUME 只清除指定模式；不产生状态变化的报告回滚，报告序号和去重状态也回滚。`marketPauseMode(securityId)` 保存当前模式，`marketStatus(securityId)` 从该模式推导，任一位暂停时市场为 HALTED，全部恢复时为 OPEN；未知证券查询回滚，下架证券仍由 listed 门禁阻断，重新上市不清除暂停或报告序号。不再保存重复的市场状态映射。例如 TRADE → HALT LP → ALL → RESUME TRADE → LP → RESUME LP → NONE/OPEN。模式改变时即使市场仍为 HALTED，也发出带旧/新模式的 MarketStatusChanged。暂停不会因报告年龄自动恢复。
+`MarketReport` 在 `action` 后新增 `PauseMode mode`，DataInbox 调用 `applySecurityStatus(securityId,action,mode,reportId)`。新证券准入后默认 NONE/OPEN，不再提交首次开市报告。MarketAction 仅 HALT=0、RESUME=1；首份报告可直接 HALT。HALT 按位叠加指定模式，RESUME 只清除指定模式；不产生状态变化的报告回滚，reportId 不会被占用。`getSecurityPauseMode(securityId)` 保存当前模式，`getSecurityStatus(securityId)` 从该模式推导，任一位暂停时市场为 HALTED，全部恢复时为 OPEN；未知证券查询回滚，下架证券仍由 listed 门禁阻断，重新上市不清除暂停状态。例如 TRADE → HALT LP → ALL → RESUME TRADE → LP → RESUME LP → NONE/OPEN。模式改变时即使市场仍为 HALTED，也发出带旧/新模式的 SecurityStatusChanged。暂停不会因报告年龄自动恢复。
 
-缺适用 ADTV 会阻止 Swap，日切自动发生，quota 可选。证券下架、TOKEN/POOL 等范围的对应操作暂停和 SBT 暂停阻止普通操作。建池仅看准入及证券上市，允许在运行期暂停时初始化。更换 U canonical Adapter 要求整个证券的交易和 LP 均暂停。授权强退保留历史池身份并绕过普通运营门禁，发行方转账限制仍生效。
+缺适用 ADTV 会阻止 Swap，日切自动发生，quota 可选。证券下架、TOKEN/POOL 等范围的对应操作暂停和 SBT 暂停阻止普通操作。建池仅看准入及证券上市，允许在运行期暂停时初始化。更换 U 的 LegalShareAdapter 不要求暂停；新 Adapter 立即用于后续 Swap，既有用量不迁移，尺度变化可改变当日限额判断。授权强退保留历史池身份并绕过普通运营门禁，发行方转账限制仍生效。
 
 本次按首次部署更新 ABI：准入、Token/Market 状态、暂停、市场报告、事件和计数查询均使用新接口；本版删除待审及市场未初始化状态，不提供旧接口重载或历史状态迁移。
 
@@ -334,7 +337,7 @@ TierPolicyChanged(uint8 indexed tierId,uint16 tierBps,uint32 maxListed)
 ComponentsBound(address indexed hook,address indexed lpManager,address indexed dataInbox,address factory,address poolManager,address sbt)
 TokenRegistered(address indexed poolCurrency,bytes32 indexed securityId)
 UnderlyingLegalShareAdapterChanged(address indexed underlying,address oldAdapter,address newAdapter)
-MarketStatusChanged(bytes32 indexed securityId,uint8 oldStatus,uint8 newStatus,uint8 oldPauseMode,uint8 newPauseMode,uint64 sequence,bytes32 indexed reportId)
+SecurityStatusChanged(bytes32 indexed securityId,uint8 oldStatus,uint8 newStatus,uint8 oldPauseMode,uint8 newPauseMode,bytes32 indexed reportId)
 AdtvAccepted(bytes32 indexed securityId,uint32 indexed sourceMonth,uint256 adtvWad,bytes32 indexed reportId)
 QuotaAccepted(bytes32 indexed securityId,uint32 indexed tradeDayId,uint8 action,uint256 quotaWad,bytes32 indexed reportId)
 DayStartScheduled(uint32 indexed effectiveDayId,uint32 indexed transitionDayId,uint32 oldOffsetSeconds,uint32 newOffsetSeconds,uint64 effectiveStartUTC,address indexed operator)
@@ -390,22 +393,22 @@ RecoveryCancelled(bytes32 indexed id)
 | 合约 | 外部入口 | 调用者及主要约束 |
 | --- | --- | --- |
 | Registry | `admitPermissionedSecurity(uint8 tierId,PermissionedAdmission admission)`、`relistSecurity(bytes32)`、`setSecurityTier(bytes32,uint8)`、`delistSecurity(bytes32)`、`setTierPolicy(uint8,uint16,uint32)` | 前四项 SYMBOL_ADMIN，Tier 政策仅 Governor；Tier 名额按上市证券计数；下架无需逐池停用 |
-| Registry | `registerPermissionedCurrency(PermissionedAdmission)`、`registerQuoteToken(address)`、`updatePermissionedExpectedOwner(address,address)`、`replaceUnderlyingLegalShareAdapter(address,address)` | SYMBOL_ADMIN；owner 轮换需该 W 的交易和 LP 均暂停；Adapter 更新需证券范围暂停 |
+| Registry | `registerPermissionedCurrency(PermissionedAdmission)`、`registerQuoteToken(address)`、`updatePermissionedExpectedOwner(address,address)`、`replaceUnderlyingLegalShareAdapter(address,address)` | SYMBOL_ADMIN；owner 轮换需该 W 的交易和 LP 均暂停；Adapter 更新无暂停前置条件，替换立即用于后续 Swap |
 | Registry | `bindComponents(address hook,address lpManager,address dataInbox,address factory,address sbt)` | Governor 仅可首次绑定；五个地址均须有代码，SBT ABI 可读、F 返回的 PM 有代码。部署初始化入口，不可替换已绑定组件 |
 | Registry | `registerPool(PoolKey)` | 仅绑定 LP Manager，必须与 PM.initialize 在同一外部交易成功 |
 | Registry | `addEmergencyPause(PauseScope scope,bytes32 target,PauseMode mode,bytes32 reasonCode)`、`clearEmergencyPause(uint256 recordId,bytes32 reasonCode)` | 分别仅 `EMERGENCY_PAUSER` 与 `EMERGENCY_RESUMER`；mode 必须为 TRADE/LP/ALL；按 scope/target/mode 逐条更新活跃计数 |
 | Registry | `setSbtConfig(uint256 tokenId,PermissionFlag permissions)`、`isAllowed(PermissionFlag permission,address account)`、`permissionsOf(address owner)`、`hasCredential(address owner)`、`hasIdentity(address owner,uint256 tokenId)`、`participantSbt()`、`sbtTokenIds()`、`sbtIdentityConfig(tokenId)` | SBT 身份配置仅 Governor；地址在组件绑定时固定并校验 `paused()`/`verify()` ABI，身份配置校验该 tokenId 的 `verify()` 读取；每个 tokenId 独立配置并可更新 swap/LP 权限；所有用户按所持身份权限并集分别检查操作准入；组件未绑定时回滚 `SbtNotConfigured()`，读取失败时调用回滚 |
 | Registry | `getCurrency(address)`、`getUnderlying(address)`、`getQuoteToken(address)`、`getPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`marketPauseMode(bytes32 securityId)`、`activePauseCount(uint8 scope,bytes32 target,uint8 mode)`、`isKnownPool(bytes32 poolId)` | 只读；isTradable/isLPAllowed 分别判断交易/普通 LP；activePauseCount 返回精确 mode 的记录数；`isKnownPool` 对停用历史池仍为真，供强退 |
-| DataInbox | `submitMarketStatus(MarketReport)`、`submitAdtv(AdtvReport)`、`submitAdtvBatch(AdtvReport[])`、`submitQuota(QuotaReport)`、`submitSplitFactor(SplitFactorReport)` | `msg.sender` 必须直接持有对应角色；批量 ADTV 同月、securityId 严格递增、最多 100 条且整批原子提交；不接受报告签名或任意 relayer 代提；序号、reportId 和期间规则按 §7；状态分别写 Registry/VolumeLedger 的仅 DataInbox 入口 |
+| DataInbox | `submitMarketStatus(MarketReport)`、`submitAdtv(AdtvReport)`、`submitAdtvBatch(AdtvReport[])`、`submitQuota(QuotaReport)`、`submitSplitFactor(SplitFactorReport)` | `msg.sender` 必须直接持有对应角色；批量 ADTV 同月、securityId 严格递增、最多 100 条且整批原子提交；不接受报告签名或任意 relayer 代提；reportId 去重、来源时间和期间规则按 §7；状态分别写 Registry/VolumeLedger 的仅 DataInbox 入口 |
 | VolumeLedger | `recordSwap(bytes32 poolId,int128 delta0,int128 delta1,uint256 legalShares0,uint256 legalShares1)` | 仅固定 Hook 代理；从 Registry 重读资产身份，检查 shares 与资产配置一致后双侧额度原子检查/增加 |
 | VolumeLedger | `bindWriters(address hook,address dataInbox)` | Governor 仅可首次绑定；两个地址均须有代码。部署初始化入口，不可替换已绑定写入者 |
 | VolumeLedger | `scheduleDayStart(uint32 newOffsetSeconds,uint32 effectiveDayId)`、`cancelPendingDayStart()` | 仅 Governor；未来边界排期、单次偏差上限与过渡日锁定按 §7 |
 | VolumeLedger | `adtvOf(bytes32,uint32)`、`quotaOf(bytes32,uint32)`、`currentTradeDay()`、`dayStartUTC(uint32 dayId)`、`dayStartCheckpointCount()`、`dayStartCheckpoint(uint256 index)`、`initialDayStartOffsetSeconds()`、`splitFactorOf(bytes32,uint32)`、`splitFactorCheckpointCount(bytes32,uint32)`、`splitFactorCheckpoint(bytes32,uint32,uint256)`、`remaining(bytes32 securityId,uint32 tradeDayId)`、`used(bytes32 securityId,uint32 tradeDayId)` | 只读；`currentTradeDay` 返回 uint32 日 ID；`adtvOf(bytes32,uint32)`、`quotaOf(bytes32,uint32)` 返回 uint256 金额；ADTV 缺失或硬上限为零时 `remaining` 返回无效标志 |
 | Hook | V4 `IHooks` 的十个回调均由 `0x3FFF` 地址位启用 | 回调仅 PoolManager；四种返回 delta 当前均为零；donate 回调回滚；`beforeSwap` 校验 Router sender、股票侧 Multiplier 快照和可交易状态，`afterSwap` 重核快照后从实际 delta 换算股数并调用 Ledger |
-| Router | §5 两个 Swap 入口、PoolManager `unlockCallback` | Swap 仅 participant 直接调用；资格与池校验在 unlock 前完成，非重入锁约束单笔 Swap 与解锁回调；不保存或暴露 Swap 活跃上下文 |
+| Router | §5 两个 Swap 入口、PoolManager `unlockCallback` | participant 直付或白名单 Adapter 代付；资格与池校验在 unlock 前完成，非重入锁约束单笔 Swap 与解锁回调；不保存或暴露 Swap 活跃上下文 |
 | LP Manager | §6 七个 LP/建池入口、ERC-721 `ownerOf/balanceOf/tokenURI/supportsInterface` | 建池仅 POOL_CREATOR；普通 LP 仅原 owner；强退两类专职角色；Receipt 的 mint/burn 仅由 LP 生命周期内部执行；所有转移和 approve 系列入口回滚；`tokenURI` 对有效 Receipt 返回空字符串 |
 | GovernanceAnchor | §9 的批量升级、冻结/解冻/即时升级、身份恢复 | caller、目标、提案 epoch、freezeId 和恢复/升级上下文按 §9 |
 
 `MarketReport/AdtvReport/QuotaReport/SplitFactorReport` 的 Solidity 字段类型和顺序逐项等于 `src/v1/types/TSVReports.sol`，不额外嵌套、重排或使用 `string` 代替 `bytes32`；报告结构不含 `signer` 字段，也没有签名参数；`QuotaReport.action` 为 `uint8`。TradeDayReport 只属于历史资料，当前接口不再接受该类型。当前 getter 对未知主键返回 Solidity 默认结构；调用方必须检查 `registered`、`underlying`、PoolKey、`securityId` 等存在性字段；ADTV 零值表示缺失，quota 零值表示无覆盖。`Tier` 的规范存储为 `tierBps uint16`、`maxListed uint32`、`listedCount uint32`，Governor 修改 `tierBps/maxListed` 要求 `1 <= tierBps <= 10000` 且新 `maxListed >= listedCount`，变更对未来 Swap 立即生效而不清除历史额度。
 
-`UnderlyingLegalShareAdapterChanged` 只在证券范围同时暂停交易和 LP，且新 Adapter 声明支持直接换算接口并绑定对应 U 时发出。
+`UnderlyingLegalShareAdapterChanged` 在新 Adapter 声明支持直接换算接口并绑定对应 U、且调用者具有 `SYMBOL_ADMIN_ROLE` 时发出；调用不要求暂停，新 Adapter 随即用于后续 Swap。

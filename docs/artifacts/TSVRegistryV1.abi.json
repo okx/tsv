@@ -157,70 +157,7 @@
   },
   {
     "type": "function",
-    "name": "activePauseCount",
-    "inputs": [
-      {
-        "name": "scope",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
-      {
-        "name": "target",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "mode",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "count",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "addEmergencyPause",
-    "inputs": [
-      {
-        "name": "scope",
-        "type": "uint8",
-        "internalType": "enum PauseScope"
-      },
-      {
-        "name": "target",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "mode",
-        "type": "uint8",
-        "internalType": "enum PauseMode"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "recordId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "applyMarketStatus",
+    "name": "applySecurityStatus",
     "inputs": [
       {
         "name": "securityId",
@@ -230,17 +167,12 @@
       {
         "name": "action",
         "type": "uint8",
-        "internalType": "enum MarketAction"
+        "internalType": "enum SecurityOperationType"
       },
       {
         "name": "mode",
         "type": "uint8",
-        "internalType": "enum PauseMode"
-      },
-      {
-        "name": "sequence",
-        "type": "uint64",
-        "internalType": "uint64"
+        "internalType": "enum SecurityPauseMode"
       },
       {
         "name": "reportId",
@@ -264,6 +196,11 @@
         "name": "lifecycle",
         "type": "uint8",
         "internalType": "enum PoolLifecycle"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [
@@ -310,24 +247,6 @@
   },
   {
     "type": "function",
-    "name": "clearEmergencyPause",
-    "inputs": [
-      {
-        "name": "recordId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "dataInbox",
     "inputs": [],
     "outputs": [
@@ -347,6 +266,11 @@
         "name": "securityId",
         "type": "bytes32",
         "internalType": "bytes32"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -354,47 +278,29 @@
   },
   {
     "type": "function",
-    "name": "emergencyPauses",
+    "name": "disableQuoteToken",
     "inputs": [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "scope",
-        "type": "uint8",
-        "internalType": "enum PauseScope"
-      },
-      {
-        "name": "target",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "mode",
-        "type": "uint8",
-        "internalType": "enum PauseMode"
+        "name": "quote",
+        "type": "address",
+        "internalType": "address"
       },
       {
         "name": "reasonCode",
         "type": "bytes32",
         "internalType": "bytes32"
-      },
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "emergencyPauseEnable",
+    "inputs": [],
+    "outputs": [
       {
-        "name": "openedBy",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "openedAt",
-        "type": "uint64",
-        "internalType": "uint64"
-      },
-      {
-        "name": "active",
+        "name": "",
         "type": "bool",
         "internalType": "bool"
       }
@@ -416,6 +322,25 @@
         "name": "underlying",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getListPoolCountBySecurity",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "count",
+        "type": "uint32",
+        "internalType": "uint32"
       }
     ],
     "stateMutability": "view"
@@ -565,6 +490,25 @@
   },
   {
     "type": "function",
+    "name": "getPoolTickCount",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "count",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getQuoteToken",
     "inputs": [
       {
@@ -625,9 +569,9 @@
     ],
     "outputs": [
       {
-        "name": "",
+        "name": "record",
         "type": "tuple",
-        "internalType": "struct SecurityRecord",
+        "internalType": "struct SecurityRecordView",
         "components": [
           {
             "name": "securityId",
@@ -653,8 +597,58 @@
             "name": "listedPoolCount",
             "type": "uint32",
             "internalType": "uint32"
+          },
+          {
+            "name": "securityState",
+            "type": "tuple",
+            "internalType": "struct SecurityStateView",
+            "components": [
+              {
+                "name": "pauseMode",
+                "type": "uint8",
+                "internalType": "enum SecurityPauseMode"
+              }
+            ]
           }
         ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSecurityPauseMode",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "mode",
+        "type": "uint8",
+        "internalType": "enum SecurityPauseMode"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSecurityStatus",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum SecurityOperationStatus"
       }
     ],
     "stateMutability": "view"
@@ -844,30 +838,6 @@
   },
   {
     "type": "function",
-    "name": "isAllowed",
-    "inputs": [
-      {
-        "name": "permission",
-        "type": "bytes2",
-        "internalType": "PermissionFlag"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "isKnownPool",
     "inputs": [
       {
@@ -919,6 +889,30 @@
   },
   {
     "type": "function",
+    "name": "isSbtAllowed",
+    "inputs": [
+      {
+        "name": "permission",
+        "type": "bytes2",
+        "internalType": "PermissionFlag"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "isTradable",
     "inputs": [
       {
@@ -938,25 +932,6 @@
   },
   {
     "type": "function",
-    "name": "listPoolCountBySecurity",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "count",
-        "type": "uint32",
-        "internalType": "uint32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "lpManager",
     "inputs": [],
     "outputs": [
@@ -964,76 +939,6 @@
         "name": "",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "marketPauseMode",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "mode",
-        "type": "uint8",
-        "internalType": "enum PauseMode"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "marketSequence",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "sequence",
-        "type": "uint64",
-        "internalType": "uint64"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "marketStatus",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "enum MarketStatus"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "nextPauseId",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -1111,44 +1016,6 @@
   },
   {
     "type": "function",
-    "name": "poolLifecycle",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "lifecycle",
-        "type": "uint8",
-        "internalType": "enum PoolLifecycle"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "poolTickCount",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "count",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "proxiableUUID",
     "inputs": [],
     "outputs": [
@@ -1165,9 +1032,9 @@
     "name": "registerPermissionedCurrency",
     "inputs": [
       {
-        "name": "admission",
+        "name": "registerParam",
         "type": "tuple",
-        "internalType": "struct PermissionedAdmission",
+        "internalType": "struct PermissionedRegisterParam",
         "components": [
           {
             "name": "currency",
@@ -1190,6 +1057,11 @@
         "name": "tierId",
         "type": "uint8",
         "internalType": "uint8"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -1249,6 +1121,11 @@
         "name": "quote",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -1260,6 +1137,11 @@
     "inputs": [
       {
         "name": "securityId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "reasonCode",
         "type": "bytes32",
         "internalType": "bytes32"
       }
@@ -1298,6 +1180,11 @@
         "name": "newAdapter",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -1360,6 +1247,24 @@
   },
   {
     "type": "function",
+    "name": "setEmergencyPauseEnable",
+    "inputs": [
+      {
+        "name": "enabled",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setSbtConfig",
     "inputs": [
       {
@@ -1371,6 +1276,11 @@
         "name": "permissions",
         "type": "bytes2",
         "internalType": "PermissionFlag"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -1389,6 +1299,11 @@
         "name": "tierId",
         "type": "uint8",
         "internalType": "uint8"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -1412,6 +1327,11 @@
         "name": "maxListed",
         "type": "uint32",
         "internalType": "uint32"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -1449,6 +1369,11 @@
         "name": "lifecycle",
         "type": "uint8",
         "internalType": "enum PoolLifecycle"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [
@@ -1574,50 +1499,19 @@
   },
   {
     "type": "event",
-    "name": "EmergencyPauseClosed",
+    "name": "EmergencyPauseChanged",
     "inputs": [
       {
-        "name": "recordId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
+        "name": "enabled",
+        "type": "bool",
         "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "EmergencyPauseOpened",
-    "inputs": [
+        "internalType": "bool"
+      },
       {
-        "name": "recordId",
-        "type": "uint256",
+        "name": "operator",
+        "type": "address",
         "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "scope",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "target",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "mode",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
+        "internalType": "address"
       },
       {
         "name": "reasonCode",
@@ -1643,55 +1537,6 @@
   },
   {
     "type": "event",
-    "name": "SecurityStatusChanged",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "oldStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "newStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "oldPauseMode",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "newPauseMode",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "sequence",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
-      },
-      {
-        "name": "reportId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "PermissionedCurrencyRegistered",
     "inputs": [
       {
@@ -1710,6 +1555,12 @@
         "name": "securityId",
         "type": "bytes32",
         "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
         "internalType": "bytes32"
       }
     ],
@@ -1742,6 +1593,12 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "enum PoolLifecycle"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -1792,6 +1649,12 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -1892,6 +1755,12 @@
         "type": "bytes2",
         "indexed": false,
         "internalType": "PermissionFlag"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -1904,6 +1773,12 @@
         "name": "securityId",
         "type": "bytes32",
         "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
         "internalType": "bytes32"
       }
     ],
@@ -1924,6 +1799,55 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SecurityStatusChanged",
+    "inputs": [
+      {
+        "name": "securityId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "oldStatus",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "newStatus",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "oldPauseMode",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "newPauseMode",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "reportId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -1949,6 +1873,12 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -1974,6 +1904,12 @@
         "type": "uint32",
         "indexed": false,
         "internalType": "uint32"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -2005,6 +1941,12 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -2030,6 +1972,12 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -2147,11 +2095,6 @@
   },
   {
     "type": "error",
-    "name": "PermissionedPolicyMismatch",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "SbtNotConfigured",
     "inputs": []
   },
@@ -2197,5 +2140,24 @@
         "internalType": "address"
       }
     ]
+  },
+  {
+    "type": "event",
+    "name": "QuoteTokenDisabled",
+    "inputs": [
+      {
+        "name": "quote",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
   }
 ]

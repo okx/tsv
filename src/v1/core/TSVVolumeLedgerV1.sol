@@ -13,7 +13,7 @@ import {TradeDayLib} from "tsv-v1/libraries/TradeDayLib.sol";
 /// @notice Aggregates per-security volume by UTC trade day across every pool of this TSV venue.
 /// @dev VolumeLedger owns volume-cap state and accounting, but it does not own admission or report ordering.
 ///      Registry supplies roles, security tier policy, pool metadata, quote-token registration and W/U binding.
-///      DataInbox is the only report writer for ADTV, quota and split-factor reports after replay and sequence
+///      DataInbox is the only report writer for ADTV, quota and split-factor reports after replay and timestamp
 ///      checks. Hook is the only swap writer and calls recordSwap after PoolManager produces final deltas.
 contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     error UnauthorizedUpgrade();

@@ -66,7 +66,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
     }
 
     function testSwapRequiresSwapPermissionAndUpdatesApplyToExistingHolders() public {
-        registry.setSbtConfig(1, PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(1, PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         assertTrue(registry.hasCredential(alice));
         assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
         bytes32 before_ = _digest();
@@ -75,14 +75,14 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
         _swap(false, 1e16);
         assertEq(_digest(), before_);
-        registry.setSbtConfig(2, PermissionFlags.SWAP_ALLOWED);
+        registry.setSbtConfig(2, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         sbt.setHolder(alice, 2, true);
         _swap(true, 1e16);
         _swap(false, 1e16);
-        registry.setSbtConfig(2, PermissionFlags.NONE);
+        registry.setSbtConfig(2, PermissionFlags.NONE, bytes32("TEST"));
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
         _swap(true, 1e16);
-        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED);
+        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         _swap(false, 1e16);
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, alice));
     }
@@ -131,7 +131,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         assertEq(router.msgSender(), address(0));
     }
 
-    function _submitSecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence) private {
+    function _submitSecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 label) private {
         inbox.submitMarketStatus(
             MarketReport(
                 SECURITY,
@@ -140,8 +140,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
                 keccak256("security-operation"),
                 uint64(block.timestamp - 1),
                 uint64(block.timestamp + 100),
-                sequence,
-                keccak256(abi.encode("security-operation", action, mode, sequence))
+                keccak256(abi.encode("security-operation", action, mode, label))
             )
         );
     }

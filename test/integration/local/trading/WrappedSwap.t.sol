@@ -169,7 +169,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         _swap(true, 1e16);
         uint256 alreadyUsed = ledger.used(SECURITY, DAY);
         PermissionsAdapter w2 = _newWrapper();
-        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(w2), SECURITY, address(legalAdapter)), 1);
+        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(w2), SECURITY, address(legalAdapter)), 1, bytes32("TEST"));
         PoolKey memory second = _seedPool(w2, 500);
         w2.updateSwappingEnabled(true);
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed);
@@ -188,7 +188,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed + paid);
         _submitWrappedSecurityMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         ERC8056DirectLegalShareAdapter next = new ERC8056DirectLegalShareAdapter(address(underlying));
-        registry.replaceUnderlyingLegalShareAdapter(address(underlying), address(next));
+        registry.replaceUnderlyingLegalShareAdapter(address(underlying), address(next), bytes32("TEST"));
         _submitWrappedSecurityMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 2);
         vm.expectCall(
             address(next), abi.encodeCall(ERC8056DirectLegalShareAdapter.toLegalShares, (address(underlying), 1e16)), 2
@@ -233,7 +233,6 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
                 1,
                 uint64(block.timestamp - 1),
                 uint64(block.timestamp + 100),
-                1,
                 keccak256("quota-report")
             )
         );

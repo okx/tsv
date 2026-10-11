@@ -10,7 +10,7 @@ import {
     PermissionedRegisterParam,
     TierPolicyRecord,
     PoolRecord,
-    SecurityRecord,
+    SecurityRecordView,
     PoolLifecycle,
     SecurityOperationStatus,
     SecurityPauseMode
@@ -48,7 +48,7 @@ interface ITSVPermissionedRegistry {
     /// @notice Returns the stored listing and tier for a security.
     /// @param id Security identifier to query.
     /// @return Stored security record; unknown IDs return a default record.
-    function getSecurity(bytes32 id) external view returns (SecurityRecord memory);
+    function getSecurity(bytes32 id) external view returns (SecurityRecordView memory);
 
     /// @notice Returns the quota and listing-cap policy currently configured for a tier.
     /// @param tierId Tier identifier to query.
@@ -88,14 +88,18 @@ interface ITSVPermissionedRegistry {
     /// @notice Updates one registered pool's lifecycle.
     /// @param poolId Raw Uniswap V4 pool ID whose lifecycle changes.
     /// @param lifecycle New lifecycle to set.
+    /// @param reasonCode Nonzero operational reason code for the lifecycle change.
     /// @return Whether storage changed.
-    function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle) external returns (bool);
+    function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle, bytes32 reasonCode)
+        external
+        returns (bool);
 
     /// @notice Updates many registered pools to the same lifecycle.
     /// @param poolIds Pool IDs whose lifecycle should be updated.
     /// @param lifecycle New lifecycle to apply to every pool.
+    /// @param reasonCode Nonzero operational reason code for the lifecycle changes.
     /// @return changedCount Number of pools whose stored lifecycle changed.
-    function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle)
+    function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle, bytes32 reasonCode)
         external
         returns (uint256 changedCount);
 
@@ -168,17 +172,13 @@ interface ITSVPermissionedRegistry {
     /// @notice Registers one identity or updates its swap/LP permissions.
     /// @param tokenId Identity token ID to register or update.
     /// @param permissions TSV operation flags assigned to the identity.
-    function setSbtConfig(uint256 tokenId, PermissionFlag permissions) external;
+    /// @param reasonCode Nonzero operational reason code for the configuration change.
+    function setSbtConfig(uint256 tokenId, PermissionFlag permissions, bytes32 reasonCode) external;
 
     /// @notice Returns the derived operation status for a security.
     /// @param id Security identifier to query.
     /// @return Derived operation status from the security pause mode.
     function getSecurityStatus(bytes32 id) external view returns (SecurityOperationStatus);
-
-    /// @notice Returns the last accepted market-report sequence for a security.
-    /// @param id Security identifier to query.
-    /// @return Last accepted market-report sequence number.
-    function getSecuritySequence(bytes32 id) external view returns (uint64);
 
     /// @notice Returns the current operation pause mode for a security.
     /// @param id Security identifier to query.
@@ -188,20 +188,28 @@ interface ITSVPermissionedRegistry {
     /// @notice Lists a new security with its first stock W, or adds a W to an existing listed security.
     /// @param registerParam Permissioned stock registration payload for the W/U/security binding.
     /// @param tierId Tier to assign to a newly listed security, or the existing security tier for additional W.
-    function registerPermissionedCurrency(PermissionedRegisterParam calldata registerParam, uint8 tierId) external;
+    /// @param reasonCode Nonzero operational reason code for the registration.
+    function registerPermissionedCurrency(
+        PermissionedRegisterParam calldata registerParam,
+        uint8 tierId,
+        bytes32 reasonCode
+    ) external;
 
     /// @notice Registers an original quote ERC-20.
     /// @param q Quote token address to register.
-    function registerQuoteToken(address q) external;
+    /// @param reasonCode Nonzero operational reason code for registering the quote token.
+    function registerQuoteToken(address q, bytes32 reasonCode) external;
 
     /// @notice Disables a registered quote token while preserving stored metadata.
     /// @param quote Quote token address to disable.
-    function disableQuoteToken(address quote) external;
+    /// @param reasonCode Nonzero operational reason code for disabling the quote token.
+    function disableQuoteToken(address quote, bytes32 reasonCode) external;
 
-    /// @notice Replaces the canonical legal-share adapter for an underlying.
+    /// @notice Replaces the legal-share adapter for an underlying; the new adapter applies to subsequent swaps immediately.
     /// @param u Canonical underlying whose legal-share adapter is replaced.
     /// @param newAdapter New legal-share adapter for `u`.
-    function replaceUnderlyingLegalShareAdapter(address u, address newAdapter) external;
+    /// @param reasonCode Nonzero operational reason code for replacing the adapter.
+    function replaceUnderlyingLegalShareAdapter(address u, address newAdapter, bytes32 reasonCode) external;
 
     /// @notice Binds Registry dependencies once, after all components are deployed.
     /// @param hook TSV Hook authorized for pool callbacks.

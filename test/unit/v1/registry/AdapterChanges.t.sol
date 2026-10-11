@@ -9,32 +9,39 @@ import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegal
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 
 contract TSVOperationsAdapterChangesTest is OperationsFixture {
-    function testSecurityPauseReplacementChangesAdapterAndPreservesUsed() public {
+    function testReplacementWithoutPauseChangesAdapterAndPreservesUsed() public {
         _submitAdtv(1000e18);
         _charge(1e18);
-        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         for (uint256 i; i < 2; ++i) {
             ERC8056DirectLegalShareAdapter replacement =
                 new ERC8056DirectLegalShareAdapter(address(stockToken));
             address old = registry.getUnderlying(address(stockToken)).legalShareAdapter;
             vm.expectEmit(true, false, false, true, address(registry));
-            emit TSVRegistryV1.UnderlyingLegalShareAdapterChanged(address(stockToken), old, address(replacement));
-            registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
+            emit TSVRegistryV1.UnderlyingLegalShareAdapterChanged(
+                address(stockToken), old, address(replacement), bytes32("TEST")
+            );
+            registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement), bytes32("TEST"));
             assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(replacement));
             assertEq(ledger.used(SECURITY, DAY), 1e18);
         }
     }
 
-    function testTradeOrLpOnlyPauseAreInsufficient() public {
+    function testReplacementIsAllowedWithAnySecurityPauseMode() public {
         ERC8056DirectLegalShareAdapter replacement =
             new ERC8056DirectLegalShareAdapter(address(stockToken));
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement), bytes32("TEST"));
+        assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(replacement));
+
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
+        ERC8056DirectLegalShareAdapter tradePausedReplacement =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(tradePausedReplacement), bytes32("TEST"));
+
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.LP, 2);
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
+        ERC8056DirectLegalShareAdapter allPausedReplacement =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(allPausedReplacement), bytes32("TEST"));
+        assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(allPausedReplacement));
     }
 
     function testReplacementRejectsInvalidIdentityInterfaceAndCurrency() public {
@@ -70,10 +77,10 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
             }
             bytes32 beforeState = keccak256(abi.encode(registry.getUnderlying(address(stockToken))));
             vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-            registry.replaceUnderlyingLegalShareAdapter(currency, adapter);
+            registry.replaceUnderlyingLegalShareAdapter(currency, adapter, bytes32("TEST"));
             assertEq(keccak256(abi.encode(registry.getUnderlying(address(stockToken)))), beforeState);
             vm.clearMockedCalls();
         }
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(good));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(good), bytes32("TEST"));
     }
 }

@@ -38,8 +38,8 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
         assertTrue(address(r) != r.permissionsAdapterFactory());
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         r.bindComponents(address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt));
-        r.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
-        r.setSbtConfig(7, PermissionFlags.LIQUIDITY_ALLOWED);
+        r.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
+        r.setSbtConfig(7, PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         assertEq(address(r.participantSbt()), address(identitySbt));
     }
 
@@ -78,7 +78,7 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
         }
         identitySbt.setPaused(true);
         r.bindComponents(address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt));
-        r.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        r.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         identitySbt.setCredential(address(this), 7, true);
         assertFalse(r.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, address(this)));
         assertTrue(r.hasCredential(address(this)));
@@ -111,6 +111,6 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
         r.bindComponents(address(h), address(lp), address(inbox), address(permissionsFactory), address(identitySbt));
         vm.expectRevert(errorData);
         vm.prank(stranger);
-        registry.setTierPolicy(2, 10, 1);
+        registry.setTierPolicy(2, 10, 1, bytes32("TEST"));
     }
 }

@@ -195,7 +195,7 @@ LP 的 `POOL_CREATOR_ROLE` 和 `FORCE_EXIT_ADMIN_ROLE` 必须在 Registry 上授
 
 1. 完成链下审查后，由 `SYMBOL_ADMIN` 调用 `admitPermissionedSecurity`，原子登记证券、Tier、首个 W 及 U 的规范股数 Adapter；市场默认 OPEN，资产没有独立状态枚举。证据未齐不得准入。
 2. 报价币 Q 使用 `registerQuoteToken`；已有上市证券新增 W 使用 `registerPermissionedCurrency`，同一 U 共享规范配置。
-3. 由 `VOLUME_ORACLE` 提交当前适用月份 ADTV；quota 仅在需要覆盖某计量日硬上限时提交。拆/并股按公告提前提交 SplitFactor，默认系数1无需报告；仅可选择未来计量日开始。报告服务须固定 ADTV 来源月月末单位、kind=3 独立序号和最新待生效项版本，复核绝对 quota 及未来日切起点。无需首次开市报告。
+3. 由 `VOLUME_ORACLE` 提交当前适用月份 ADTV；quota 仅在需要覆盖某计量日硬上限时提交。拆/并股按公告提前提交 SplitFactor，默认系数1无需报告；仅可选择未来计量日开始。报告服务须固定 ADTV 来源月月末单位，按证券和报告类别串行提交，持久化 reportId/sourceTimestamp，并复核绝对 quota 及未来日切起点。无需首次开市报告。
 4. 由 `POOL_CREATOR` 调用 `LPManager.initializePool`。Registry.registerPool 和 PM.initialize 必须在同一交易完成，失败连同注册回滚；建池和 ADTV 可按任意顺序执行。
 5. 核对 PoolKey、PoolId、Hook 地址、初始价格及状态，写入 manifest；LP 可在 ADTV 前提供流动性，首笔股票 Swap 前必须有有效 ADTV。
 
@@ -206,7 +206,7 @@ LP 的 `POOL_CREATOR_ROLE` 和 `FORCE_EXIT_ADMIN_ROLE` 必须在 Registry 上授
 - 六个业务代理和一个固定治理合约的地址及绑定关系。
 - Hook 地址权限位、实现地址和初始化事件。
 - SBT 配置、角色授予、W/U/Q 准入配置和证券 listed 标志。
-- 准入后默认 OPEN、marketSequence=0；ADTV、可选 quota、SplitFactor 排期/取消及后续 HALT/RESUME 的 reportId 和 sequence；新 Ledger/Inbox ABI 与索引器同时发布，已有实例升级核对追加布局并建议原子批量升级二者。
+- 准入后默认 OPEN；ADTV、可选 quota、SplitFactor 排期/取消及后续 HALT/RESUME 均使用全局唯一 reportId 和来源时间校验；新 Ledger/Inbox ABI 与索引器同时发布，已有实例升级核对存储布局并建议原子批量升级二者。
 - 四种紧急暂停范围及 TRADE/LP/ALL 模式、市场 HALT 叠加与 RESUME 部分恢复；索引器读取新事件模式字段、marketPauseMode 和三参数 activePauseCount。
 - 使用本版准入、证券上市及暂停/MarketReport ABI 首次部署，不作为旧合约存储的原地迁移实现。
 - 至少一个普通 ERC-20 报价资产和一个 Backed-compatible 股票资产及 Adapter 的登记结果。

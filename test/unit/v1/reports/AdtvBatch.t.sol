@@ -27,7 +27,6 @@ contract TSVOperationsAdtvBatchTest is OperationsFixture {
         reports[0] = _adtv(SECURITY, 500e18, 2, keccak256("one-correction"));
         inbox.submitAdtvBatch(reports);
         assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)), 500e18);
-        assertEq(inbox.lastSequence(1, SECURITY), 2);
     }
 
     function testMaximumBatchLastFailureRollsBackAllReportsThenRetrySucceeds() public {
@@ -38,7 +37,6 @@ contract TSVOperationsAdtvBatchTest is OperationsFixture {
         inbox.submitAdtvBatch(reports);
         for (uint256 i; i < reports.length; ++i) {
             assertFalse(inbox.reportIdUsed(reports[i].reportId));
-            assertEq(inbox.lastSequence(1, reports[i].securityId), 0);
             assertEq(inbox.lastSourceTimestamp(1, reports[i].securityId), 0);
             assertEq(ledger.adtvOf(reports[i].securityId, uint32(MONTH)), 0);
         }
@@ -46,7 +44,6 @@ contract TSVOperationsAdtvBatchTest is OperationsFixture {
         inbox.submitAdtvBatch(reports);
         for (uint256 i; i < reports.length; ++i) {
             assertTrue(inbox.reportIdUsed(reports[i].reportId));
-            assertEq(inbox.lastSequence(1, reports[i].securityId), 1);
             assertEq(inbox.lastSourceTimestamp(1, reports[i].securityId), reports[i].sourceTimestamp);
             assertEq(ledger.adtvOf(reports[i].securityId, uint32(MONTH)), reports[i].adtvWad);
         }
@@ -100,7 +97,7 @@ contract TSVOperationsAdtvBatchTest is OperationsFixture {
     }
 
     function _batch(uint256 size) private returns (AdtvReport[] memory reports) {
-        registry.setTierPolicy(1, 25, uint32(size + 1));
+        registry.setTierPolicy(1, 25, uint32(size + 1), bytes32("TEST"));
         reports = new AdtvReport[](size);
         for (uint256 i; i < size; ++i) {
             bytes32 security = bytes32(i + 1);

@@ -17,8 +17,6 @@ struct MarketReport {
     uint64 sourceTimestamp;
     /// @notice Latest timestamp at which DataInbox may accept the report.
     uint64 submitDeadline;
-    /// @notice Increasing sequence for this security's market reports.
-    uint64 sequence;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
 }
@@ -35,8 +33,6 @@ struct AdtvReport {
     uint64 sourceTimestamp;
     /// @notice Latest timestamp at which DataInbox may accept the report.
     uint64 submitDeadline;
-    /// @notice Increasing sequence for this security's ADTV reports.
-    uint64 sequence;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
 }
@@ -55,8 +51,6 @@ struct QuotaReport {
     uint64 sourceTimestamp;
     /// @notice Latest timestamp at which DataInbox may accept the report.
     uint64 submitDeadline;
-    /// @notice Increasing sequence for this security's quota reports.
-    uint64 sequence;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
 }
@@ -79,8 +73,6 @@ struct SplitFactorReport {
     uint64 sourceTimestamp;
     /// @notice Latest timestamp at which DataInbox may accept the report.
     uint64 submitDeadline;
-    /// @notice Increasing sequence for this security's split-factor report stream.
-    uint64 sequence;
     /// @notice Globally unique nonzero report identifier.
     bytes32 reportId;
 }

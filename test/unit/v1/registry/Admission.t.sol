@@ -18,7 +18,7 @@ contract TSVAdmissionTest is FoundationFixture {
     function testAdmissionAtomicallyListsAndBindsUniqueUnderlying() public {
         bytes32 securityId = keccak256("new-security");
         PermissionedRegisterParam memory a = _newStockConfig(securityId);
-        registry.registerPermissionedCurrency(a, 1);
+        registry.registerPermissionedCurrency(a, 1, bytes32("TEST"));
         address underlying = registry.getCurrencyUnderlying(a.currency);
         assertTrue(underlying != address(0));
         assertEq(registry.getUnderlying(underlying).securityId, securityId);
@@ -35,7 +35,7 @@ contract TSVAdmissionTest is FoundationFixture {
         u.mintTestShares(donor, 1);
         vm.prank(donor);
         u.transfer(address(manager), 1);
-        registry.registerPermissionedCurrency(a, 1);
+        registry.registerPermissionedCurrency(a, 1, bytes32("TEST"));
         assertTrue(registry.getCurrencyUnderlying(a.currency) != address(0));
         assertEq(u.balanceOf(address(manager)), 1);
         assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
@@ -49,7 +49,7 @@ contract TSVAdmissionTest is FoundationFixture {
         vm.prank(donor);
         stockToken.transfer(address(manager), 1);
         PermissionedRegisterParam memory a = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(a, 1);
+        registry.registerPermissionedCurrency(a, 1, bytes32("TEST"));
         assertTrue(registry.getCurrencyUnderlying(a.currency) != address(0));
         assertEq(stockToken.balanceOf(address(manager)), 1);
         assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
@@ -67,7 +67,7 @@ contract TSVAdmissionTest is FoundationFixture {
         else if (fault == 2) a.legalShareAdapter = address(stockAdapter);
         else vm.mockCall(u, abi.encodeWithSignature("decimals()"), abi.encode(uint8(19)));
         vm.expectRevert();
-        registry.registerPermissionedCurrency(a, 1);
+        registry.registerPermissionedCurrency(a, 1, bytes32("TEST"));
         assertEq(registry.getSecurity(securityId).securityId, 0);
         assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertEq(registry.getCurrencyUnderlying(w), address(0));
@@ -80,7 +80,7 @@ contract TSVAdmissionTest is FoundationFixture {
         vm.prank(address(permissionedRouterFixture));
         stock.wrapToPoolManager(100);
         PermissionedRegisterParam memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
-        registry.registerPermissionedCurrency(second, 1);
+        registry.registerPermissionedCurrency(second, 1, bytes32("TEST"));
         assertEq(registry.getCurrencyUnderlying(second.currency), address(stockToken));
         assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
         assertEq(stock.totalSupply(), 100);
@@ -89,7 +89,7 @@ contract TSVAdmissionTest is FoundationFixture {
         second.securityId = keccak256("different-security");
         second.currency = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter)).currency;
         vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
-        registry.registerPermissionedCurrency(second, 1);
+        registry.registerPermissionedCurrency(second, 1, bytes32("TEST"));
         assertEq(registry.getSecurity(second.securityId).securityId, 0);
     }
 
@@ -97,24 +97,24 @@ contract TSVAdmissionTest is FoundationFixture {
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         ERC8056DirectLegalShareAdapter next =
             new ERC8056DirectLegalShareAdapter(address(stockToken));
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next), bytes32("TEST"));
         PermissionedRegisterParam memory second = _prepareCurrency(address(stockToken), SECURITY, address(next));
-        registry.registerPermissionedCurrency(second, 1);
+        registry.registerPermissionedCurrency(second, 1, bytes32("TEST"));
         PermissionedRegisterParam memory wrong = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
-        registry.registerPermissionedCurrency(wrong, 1);
+        registry.registerPermissionedCurrency(wrong, 1, bytes32("TEST"));
     }
 
     function testQuoteZeroDecimalsAndTypeIsolation() public {
         V1MockToken zero = new V1MockToken("zero-quote", 0);
-        registry.registerQuoteToken(address(zero));
+        registry.registerQuoteToken(address(zero), bytes32("TEST"));
         assertEq(registry.getQuoteToken(address(zero)).rawDecimals, 0);
         assertTrue(registry.getQuoteToken(address(zero)).registered);
         address[5] memory bad =
             [address(stock), address(stockToken), address(manager), address(registry), address(permissionsFactory)];
         for (uint256 i; i < bad.length; ++i) {
             vm.expectRevert(abi.encodeWithSelector(TSVRegistryV1.UnsupportedAsset.selector, bad[i]));
-            registry.registerQuoteToken(bad[i]);
+            registry.registerQuoteToken(bad[i], bytes32("TEST"));
         }
         // Even a created but unverified W is not a quote.
         address unverified = permissionsFactory.createPermissionsAdapter(
@@ -122,16 +122,16 @@ contract TSVAdmissionTest is FoundationFixture {
         );
         assertEq(permissionsFactory.verifiedPermissionsAdapterOf(unverified), address(0));
         vm.expectRevert(abi.encodeWithSelector(TSVRegistryV1.UnsupportedAsset.selector, unverified));
-        registry.registerQuoteToken(unverified);
+        registry.registerQuoteToken(unverified, bytes32("TEST"));
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.registerQuoteToken(address(zero));
+        registry.registerQuoteToken(address(zero), bytes32("TEST"));
     }
 
     function testPoolOnlyAcceptsOneStockAndOneQuote() public {
         PermissionedRegisterParam memory second = _newStockConfig(SECURITY);
-        registry.registerPermissionedCurrency(second, 1);
+        registry.registerPermissionedCurrency(second, 1, bytes32("TEST"));
         V1MockToken otherQuote = new V1MockToken("Q2", 6);
-        registry.registerQuoteToken(address(otherQuote));
+        registry.registerQuoteToken(address(otherQuote), bytes32("TEST"));
         address[3] memory a = [address(stock), address(quote), address(stockToken)];
         address[3] memory b = [second.currency, address(otherQuote), address(quote)];
         for (uint256 i; i < a.length; ++i) {

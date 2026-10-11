@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityOperationType, SecurityPauseMode, SecurityOperationStatus} from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {FoundationFixture} from "./FoundationFixture.sol";
@@ -12,18 +12,19 @@ abstract contract OperationsFixture is FoundationFixture {
     struct ReportMetadata {
         uint64 timestamp;
         uint64 deadline;
-        uint64 sequence;
         bytes32 id;
     }
 
-    function _metadata(uint64 sequence, bytes32 id) internal view returns (ReportMetadata memory) {
-        return ReportMetadata(uint64(block.timestamp), uint64(block.timestamp + 100), sequence, id);
+    function _metadata(uint64, bytes32 id) internal view returns (ReportMetadata memory) {
+        return ReportMetadata(uint64(block.timestamp), uint64(block.timestamp + 100), id);
     }
 
     function _reportPayload(uint8 kind, ReportMetadata memory m) internal view returns (bytes memory) {
         if (kind == 0) {
-            MarketReport memory market =
-                _market(m.sequence == 1 ? SecurityOperationType.HALT : SecurityOperationType.RESUME, m.sequence, m.id);
+            SecurityOperationType action = registry.getSecurityStatus(SECURITY) == SecurityOperationStatus.OPEN
+                ? SecurityOperationType.HALT
+                : SecurityOperationType.RESUME;
+            MarketReport memory market = _market(action, 0, m.id);
             market.mode = SecurityPauseMode.TRADE;
             market.sourceTimestamp = m.timestamp;
             market.submitDeadline = m.deadline;
@@ -31,13 +32,13 @@ abstract contract OperationsFixture is FoundationFixture {
             return abi.encodeCall(TSVDataInboxV1.submitMarketStatus, (market));
         }
         if (kind == 1) {
-            AdtvReport memory adtv = _adtv(SECURITY, 1000e18, m.sequence, m.id);
+            AdtvReport memory adtv = _adtv(SECURITY, 1000e18, 0, m.id);
             adtv.sourceTimestamp = m.timestamp;
             adtv.submitDeadline = m.deadline;
 
             return abi.encodeCall(TSVDataInboxV1.submitAdtv, (adtv));
         }
-        QuotaReport memory quota = _quota(2e18, 1, m.sequence, m.id);
+        QuotaReport memory quota = _quota(2e18, 1, 0, m.id);
         quota.sourceTimestamp = m.timestamp;
         quota.submitDeadline = m.deadline;
 
@@ -62,18 +63,14 @@ abstract contract OperationsFixture is FoundationFixture {
             abi.encode(
                 keccak256(
                     abi.encode(
-                        inbox.lastSequence(0, securityId),
                         inbox.lastSourceTimestamp(0, securityId),
-                        inbox.lastSequence(1, securityId),
                         inbox.lastSourceTimestamp(1, securityId),
-                        inbox.lastSequence(2, securityId),
                         inbox.lastSourceTimestamp(2, securityId),
                         inbox.reportIdUsed(candidateId)
                     )
                 ),
                 registry.getSecurity(securityId),
                 registry.getSecurityPauseMode(securityId),
-                registry.getSecuritySequence(securityId),
                 ledger.adtvOf(securityId, month),
                 ledger.quotaOf(securityId, day),
                 ledger.used(securityId, day)

@@ -63,7 +63,6 @@ contract TSVReportsTest is FoundationFixture {
         QuotaReport memory clearReport = _quota(0, 2, 2, keccak256("quota-clear"));
         inbox.submitQuota(clearReport);
         assertEq(ledger.quotaOf(SECURITY, DAY), 0);
-        assertEq(inbox.lastSequence(2, SECURITY), 2);
         (valid, left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 2.5e18);
@@ -86,7 +85,6 @@ contract TSVReportsTest is FoundationFixture {
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
         inbox.submitQuota(report);
         assertFalse(inbox.reportIdUsed(report.reportId));
-        assertEq(inbox.lastSequence(2, SECURITY), 0);
     }
 
     /// @dev Verifies market reports do not require a heartbeat and cannot be replayed.
@@ -130,7 +128,6 @@ contract TSVReportsTest is FoundationFixture {
         (bool success,) = address(inbox).call(payload);
         assertFalse(success);
         assertFalse(inbox.reportIdUsed(report.reportId));
-        assertEq(inbox.lastSequence(0, SECURITY), 1);
         _submitMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.TRADE, 2);
         _assertMarketPause(SecurityPauseMode.NONE, true, true);
     }

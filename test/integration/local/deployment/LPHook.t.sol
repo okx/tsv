@@ -103,14 +103,14 @@ contract LPHookTest is Test {
         hook.initialize(address(manager), address(registry), address(this), address(this), address(lp));
         sbt = new V1LocalSBT();
         registry.bindComponents(address(hook), address(lp), address(this), address(factory), address(sbt));
-        registry.setSbtConfig(1, PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(1, PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         sbt.setHolder(alice, 1, true);
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
         registry.grantRole(lp.POOL_CREATOR_ROLE(), address(this));
         registry.grantRole(lp.FORCE_EXIT_ADMIN_ROLE(), address(this));
-        registry.setTierPolicy(1, 10_000, 10);
+        registry.setTierPolicy(1, 10_000, 10, bytes32("TEST"));
         issuer = new V1MockIssuerShares();
         underlying = new V1SwapToken("LP_STOCK", 18, address(issuer));
         quote = new V1SwapToken("LP_QUOTE", 18, address(0));
@@ -126,8 +126,8 @@ contract LPHookTest is Test {
         stock.updateAllowedWrapper(address(lp), true);
         stock.updateAllowedHook(IHooks(address(hook)), true);
         ERC8056DirectLegalShareAdapter legal = new ERC8056DirectLegalShareAdapter(address(underlying));
-        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(stock), SECURITY, address(legal)), 1);
-        registry.registerQuoteToken(address(quote));
+        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(stock), SECURITY, address(legal)), 1, bytes32("TEST"));
+        registry.registerQuoteToken(address(quote), bytes32("TEST"));
         (address a, address b) =
             address(stock) < address(quote) ? (address(stock), address(quote)) : (address(quote), address(stock));
         key = PoolKey(Currency.wrap(a), Currency.wrap(b), 3000, 60, IHooks(address(hook)));
@@ -188,13 +188,12 @@ contract LPHookTest is Test {
         checker.setPermissions(alice, address(underlying), PermissionFlag.wrap(0x0004));
     }
 
-    function _submitSecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence) private {
+    function _submitSecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 label) private {
         registry.applySecurityStatus(
             SECURITY,
             action,
             mode,
-            sequence,
-            keccak256(abi.encode("lp-hook-security-mode", action, mode, sequence))
+            keccak256(abi.encode("lp-hook-security-mode", action, mode, label))
         );
     }
 
@@ -220,7 +219,7 @@ contract LPHookTest is Test {
     }
 
     function testLPAndUnwindFollowRegistryGateForLifecyclePause() public {
-        registry.updatePoolLifeCycle(PoolId.unwrap(key.toId()), PoolLifecycle.PAUSE);
+        registry.updatePoolLifeCycle(PoolId.unwrap(key.toId()), PoolLifecycle.PAUSE, bytes32("TEST"));
         assertTrue(registry.isLPAllowed(PoolId.unwrap(key.toId())));
         uint256 tokenId = _mint("");
         uint256 second = _mint("");
@@ -229,7 +228,7 @@ contract LPHookTest is Test {
         lp.unwindPositionByOkx(tokenId, 0, 0, "");
         lp.unwindPosition(second, 0, 0, "");
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);
-        registry.updatePoolLifeCycle(PoolId.unwrap(key.toId()), PoolLifecycle.DELIST);
+        registry.updatePoolLifeCycle(PoolId.unwrap(key.toId()), PoolLifecycle.DELIST, bytes32("TEST"));
         sbt.setHolder(alice, 1, true);
         checker.setPermissions(alice, address(underlying), PermissionFlags.LIQUIDITY_ALLOWED);
         vm.expectRevert(TSVLPManagerLib.PoolNotAllowed.selector);
@@ -298,7 +297,7 @@ contract LPHookTest is Test {
         lp.unwindPosition(tokenId, 0, 0, "");
         assertEq(lp.ownerOf(tokenId), alice);
         _submitSecurityMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 2);
-        registry.updatePoolLifeCycle(PoolId.unwrap(key.toId()), PoolLifecycle.PAUSE);
+        registry.updatePoolLifeCycle(PoolId.unwrap(key.toId()), PoolLifecycle.PAUSE, bytes32("TEST"));
         assertTrue(registry.isLPAllowed(PoolId.unwrap(key.toId())));
         lp.unwindPositionByOkx(tokenId, 0, 0, "");
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);

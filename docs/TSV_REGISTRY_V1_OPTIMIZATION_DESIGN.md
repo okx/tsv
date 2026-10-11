@@ -1,5 +1,7 @@
 # TSVRegistryV1 优化方案：Security 聚合操作状态与全局 Emergency Pause
 
+> 历史设计稿。2026-10-12 起，当前报告 ABI 已移除 reporter `sequence` 字段及 Registry 序号检查；本稿中的序号相关设计不再作为当前行为依据。以[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度)为准。
+
 ## 1. 目标
 
 本文描述一组只针对 `TSVRegistryV1` 领域模型和接口的优化方案，不包含代码实现。
@@ -229,18 +231,7 @@ _isSecurityOperationAllowed(securityId, checkType)
 
 ## 7. replaceUnderlyingLegalShareAdapter 的处理建议
 
-当前 `replaceUnderlyingLegalShareAdapter` 依赖 `_securityPausedForReplacement(securityId, TRADE)` 和 `_securityPausedForReplacement(securityId, LP)`，等价于要求替换前相关操作已暂停。
-
-删除 scoped emergency pause 后，建议改为以下条件之一：
-
-1. `emergencyPauseEnable == true`；或
-2. `securities[securityId].securityState.pauseMode == SecurityPauseMode.ALL`。
-
-理由：
-
-- legal-share adapter 替换会影响交易计股口径，不能只暂停 TRADE 或只暂停 LP；
-- scoped SECURITY emergency pause 被删除后，证券级完整暂停只能由 operation pause 的 `ALL` 表达；
-- 全局 emergency pause 可作为事故处置时的替代通道。
+当前决策：`replaceUnderlyingLegalShareAdapter` 不要求暂停，可由 `SYMBOL_ADMIN_ROLE` 随时调用；新 Adapter 通过接口及 U 绑定校验后立即用于后续 Swap。历史 `usedWad` 不迁移。若新旧 Adapter 的换算尺度不同，当日累计用量及限额判断会即时体现该变化，这是接受的计量行为。拆并股的 ADTV 硬上限通过目标日 `splitFactor` 调整，Quota 仍作为目标日绝对额度独立上报。
 
 ## 8. _registerPermissionedCurrency 准入校验调整
 

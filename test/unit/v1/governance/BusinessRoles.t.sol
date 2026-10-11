@@ -15,9 +15,9 @@ contract TSVBusinessRolesTest is FoundationFixture {
         vm.expectRevert(
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0))
         );
-        registry.setTierPolicy(2, 25, 1);
+        registry.setTierPolicy(2, 25, 1, bytes32("TEST"));
         vm.prank(next);
-        registry.setTierPolicy(2, 25, 1);
+        registry.setTierPolicy(2, 25, 1, bytes32("TEST"));
     }
 
     function testDefaultAdminCanBeRevokedAndRenounced() public {
@@ -82,11 +82,11 @@ contract TSVBusinessRolesTest is FoundationFixture {
         vm.expectRevert(denied);
         registry.revokeRole(role, council);
         vm.expectRevert(denied);
-        registry.setTierPolicy(2, 25, 1);
+        registry.setTierPolicy(2, 25, 1, bytes32("TEST"));
         vm.startPrank(next);
         registry.grantRole(role, guardian);
         registry.revokeRole(role, council);
-        registry.setTierPolicy(2, 25, 1);
+        registry.setTierPolicy(2, 25, 1, bytes32("TEST"));
         vm.stopPrank();
         assertTrue(registry.hasRole(role, guardian));
         assertFalse(registry.hasRole(role, council));
