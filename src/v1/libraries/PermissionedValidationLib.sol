@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {Currency} from "v4-core/types/Currency.sol";
-import {IERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {UnderlyingRecord, QuoteTokenRecord} from "tsv-v1/types/TSVTypes.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
@@ -42,17 +39,6 @@ library PermissionedValidationLib {
     error PermissionedMetadataMismatch();
     error PermissionedPolicyMismatch();
     error UnsupportedAsset(address currency);
-
-    /// @notice First-admission W inventory only; unrelated PM U balances do not affect admission.
-    /// @dev Recovery from a pause deliberately does not invoke this check.
-    function validateInitialInventory(address pm, address w, address u) external view {
-        if (
-            _staticWord(w, IERC20.totalSupply.selector, 0, 4) != 0
-                || _staticWord(w, IERC20.balanceOf.selector, uint160(pm), 36) != 0
-                || _staticWord(u, IERC20.balanceOf.selector, uint160(w), 36) == 0
-                || IPoolManager(pm).protocolFeesAccrued(Currency.wrap(w)) != 0
-        ) revert InvalidPermissionedConfig();
-    }
 
     function validateLegalShareAdapter(address adapter, address currency) external view {
         _validateLegalShareAdapter(adapter, currency);

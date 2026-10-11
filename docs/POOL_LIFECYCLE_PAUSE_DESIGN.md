@@ -586,7 +586,7 @@ lpAllowed =
 - `ITSVPermissionedRegistry`：删除 `updatePermissionedExpectedOwner`、`setPermissionedOwnerApproval` 和 `isPermissionedOwnerApproved`。
 - `TSVRegistryV1`：删除 `admitPermissionedSecurity` 实现，删除 expected owner 状态和更新逻辑，改造 `registerPermissionedCurrency`、`registerPool`、`updatePoolLifeCycle`、`batchUpdatePoolLifeCycle` 和 `delistSecurity`。
 - `TSVTypes.sol`：删除 `PermissionedCurrencyConfig`，删除 `PermissionedAdmission.expectedOwner`，增加 `PoolLifecycle`，并按最终结构调整 `PoolConfig`。
-- `PermissionedValidationLib`：移除基于 expected owner 的 `validateOwner/validatePolicy` 状态校验；保留 W/U/Factory/Hook/Router/legalShareAdapter/decimals/库存等准入校验。
+- `PermissionedValidationLib`：移除基于 expected owner 的 `validateOwner/validatePolicy` 状态校验；保留 W/U/Factory/Hook/Router/legalShareAdapter/decimals 等准入校验，首次库存校验不再保留。
 - `TSVHookV1`、`TSVSwapRouterV1`、`TSVVolumeLedgerV1` 和测试 mock：把 `registry.getCurrency(w).underlying` 改为 `registry.getCurrencyUnderlying(w)`。
 - 测试 fixture：原来调用 `admitPermissionedSecurity` 的路径改为 `registerPermissionedCurrency(admission, tierId)`。
 - LP Manager 或建池调用方：继续调用 `registerPool(key)`，不需要传入 tier。

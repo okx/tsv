@@ -158,19 +158,10 @@ struct SwapRequest {
 
 | LP 用户入口 | 参数 | 含义 |
 | --- | --- | --- |
-| `openPosition(PoolKey key, int24 tickLower, int24 tickUpper, uint128 liquidity, LPBounds bounds) returns (uint256 positionId)` | 池键、价格区间下/上 tick、增加的 liquidity、两侧结算边界和 deadline | 开新仓位并铸造 Receipt；tick 必须按池的 `tickSpacing` 对齐，并返回新仓位 ID。 |
-| `increaseLiquidity(uint256 positionId, uint128 liquidity, LPBounds bounds)` | 仓位 ID、增加的 liquidity、结算边界 | 仓位 owner 增加流动性。 |
-| `decreaseLiquidity(uint256 positionId, uint128 liquidity, LPBounds bounds)` | 仓位 ID、减少的 liquidity、结算边界 | 仓位 owner 部分撤出；不能一次减到零，全部退出使用 close。 |
-| `collectFees(uint256 positionId, LPBounds bounds)` | 仓位 ID、结算边界 | 领取该仓位已产生的费用；无费用时回滚。 |
-| `closePosition(uint256 positionId, LPBounds bounds)` | 仓位 ID、结算边界 | 撤出全部流动性、结算资产并销毁 Receipt。 |
-
-`LPBounds` 定义在 [TSVTypes.sol](../src/v1/types/TSVTypes.sol)，是 LP 入口共用的结算边界：
-
-| `LPBounds` 字段 | 含义 |
-| --- | --- |
-| `maxPoolIn0` / `maxPoolIn1` | currency0/1 从 owner 扣取的 raw 数量上限。 |
-| `minPoolOut0` / `minPoolOut1` | currency0/1 返还给 owner 的 raw 数量下限。 |
-| `deadline` | Unix 秒时间戳；过期的普通 LP 请求会回滚。 |
+| `modifyLiquidities(bytes unlockData, uint256 deadline)` | Upstream V4 position-manager actions 与参数编码、deadline | 普通 LP 增减仓、建仓、关仓等操作沿用 permissioned position manager 的 action payload；TSV 在入口和回调中叠加 Registry pause、SBT、W adapter 和 pool lifecycle 门禁。 |
+| `modifyLiquiditiesWithoutUnlock(bytes actions, bytes[] params)` | 已解锁场景下的 upstream actions 与参数 | 兼容 upstream position-manager 的无 unlock 操作路径，同样受 Registry pause 门禁约束。 |
+| `unwindPosition(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes hookData)` | 仓位 NFT、两侧最小返还和可选 hookData | 授权 unwind admin 直接 unwind 仓位，资产直接交付 LP。 |
+| `unwindPositionByOkx(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes hookData)` | 仓位 NFT、两侧最小返还和可选 hookData | FORCE_EXIT_ADMIN 路径，燃烧仓位并将本金和费用直接返还 LP。 |
 
 LP 需要向 LP Manager 授权输入 Token；LP Manager 从仓位 owner 拉取投入资产，并将取回资产直接发回原 owner。
 
@@ -186,7 +177,7 @@ Receipt 是 LP 仓位凭证，不可转让；普通 LP 操作检查用户 SBT �
 
 ### 2.6 交易系统直接查询与 Receipt ABI
 
-以下是用户或前端可直接查询的接口。带“协议上下文”的方法只供 Hook/其他 TSV 合约在活跃调用期间读取，不作为用户操作入口。
+以下是用户或前端可直接查询的接口。
 
 | 合约 | 直接查询入口 | 含义 |
 | --- | --- | --- |
@@ -194,7 +185,6 @@ Receipt 是 LP 仓位凭证，不可转让；普通 LP 操作检查用户 SBT �
 | LPManager | `getPosition(uint256 positionId) returns (Position memory)` | 读取仓位 owner、PoolKey、ticks、salt、流动性和 active 状态。 |
 | LPManager | `ownerOf(uint256 tokenId)`、`balanceOf(address owner)`、`tokenURI(uint256 tokenId)`、`name()`、`symbol()`、`getApproved(uint256 tokenId)`、`isApprovedForAll(address owner, address operator)`、`supportsInterface(bytes4 interfaceId)` | ERC-721 Receipt 标准查询；`tokenURI` 对有效 Receipt 返回空字符串；Receipt 不可转让，approve 查询通常为零/false。 |
 | LPManager | `poolManager()`、`registry()`、`nextPositionId()` | 查询绑定的 PoolManager、Registry 和下一个仓位编号。 |
-| LPManager（协议上下文） | `activeLPContext()` | 仅在 LP Manager 的活跃 PoolManager 操作上下文中返回 Hook 所需字段，供 Hook 核对，不是普通用户读取入口。 |
 
 Receipt 的 `approve(address,uint256)`、`setApprovalForAll(address,bool)`、`transferFrom(address,address,uint256)`、`safeTransferFrom(address,address,uint256)` 和 `safeTransferFrom(address,address,uint256,bytes)` 均可在 ABI 层调用，但会回滚 `NonTransferable()`；它们不是可成功执行的业务操作。
 
