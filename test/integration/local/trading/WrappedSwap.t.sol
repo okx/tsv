@@ -15,7 +15,7 @@ import {QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {V1ConfigReceiver} from "../../../helpers/v1/PermissionedMocks.sol";
 import {V1TestParticipantWallet} from "../../../helpers/v1/LocalMocks.sol";
 import {WrappedSwapFixture} from "../../../helpers/v1/WrappedSwapFixture.sol";
@@ -182,11 +182,11 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         );
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed + paid);
         registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.ALL, keccak256("replace"));
-        BackedAutoFeeLegalShareAdapter next = new BackedAutoFeeLegalShareAdapter(address(issuer), address(underlying));
+        ERC8056DirectLegalShareAdapter next = new ERC8056DirectLegalShareAdapter(address(underlying));
         registry.replaceUnderlyingLegalShareAdapter(address(underlying), address(next));
         registry.clearEmergencyPause(1, keccak256("done"));
         vm.expectCall(
-            address(next), abi.encodeCall(BackedAutoFeeLegalShareAdapter.toLegalShares, (address(underlying), 1e16)), 2
+            address(next), abi.encodeCall(ERC8056DirectLegalShareAdapter.toLegalShares, (address(underlying), 1e16)), 2
         );
         vm.recordLogs();
         _swap(true, 1e16);

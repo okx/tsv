@@ -6,7 +6,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {PermissionedAdmission, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
 import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
 import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
@@ -99,8 +99,8 @@ contract TSVAdmissionTest is FoundationFixture {
     function testNewWrapperUsesCurrentCanonicalAdapter() public {
         _grantPauseRoles();
         _pause(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
-        BackedAutoFeeLegalShareAdapter next =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        ERC8056DirectLegalShareAdapter next =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next));
         PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(next));
         registry.registerPermissionedCurrency(second, 1);

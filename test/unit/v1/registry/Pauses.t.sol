@@ -12,7 +12,7 @@ import {
 } from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 
 /// @dev TSVPausesTest scenarios; inherited fixtures contain no test functions.
@@ -51,8 +51,8 @@ contract TSVPausesTest is FoundationFixture {
 
     /// @dev Verifies legal-share adapter replacement requires a security-wide pause.
     function testLegalAdapterReplacementRequiresSecurityPause() public {
-        BackedAutoFeeLegalShareAdapter replacement =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        ERC8056DirectLegalShareAdapter replacement =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
@@ -261,8 +261,8 @@ contract TSVPausesTest is FoundationFixture {
     function testAdapterReplacementRejectsSingleModePauseAndAllowsCombinedCoverage() public {
         _grantPauseRoles();
         uint256 trade = _pause(PauseScope.GLOBAL, 0, PauseMode.TRADE);
-        BackedAutoFeeLegalShareAdapter replacement =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        ERC8056DirectLegalShareAdapter replacement =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
         registry.clearEmergencyPause(trade, keccak256("resume"));
