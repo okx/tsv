@@ -32,16 +32,6 @@ enum PoolLifecycle {
     LIST, // Ordinary swaps and ordinary LP operations may continue through later gates.
     PAUSE // Ordinary LP operations may continue through later gates; swaps are blocked.
 }
-/// @notice Operation mode bound to an LP Manager callback context.
-enum LPOperationMode {
-    OPEN, // Adds the initial positive liquidity to a new position.
-    INCREASE, // Adds liquidity to an existing position.
-    DECREASE, // Removes part of existing liquidity.
-    COLLECT, // Collects accrued fees without changing liquidity.
-    CLOSE, // Removes all liquidity at the owner's request.
-    FORCE_EXIT // Removes all liquidity through the authorized forced-exit path.
-}
-
 /// @notice Canonical security, precision and legal-share conversion for an underlying (U).
 struct UnderlyingRecord {
     bytes32 securityId;
@@ -113,40 +103,6 @@ struct PoolRecord {
     uint256 poolSecurityIndex;
 }
 
-/// @notice LP Manager state exposed to the Hook while one liquidity operation is in progress.
-struct LPContext {
-    /// @notice Pool identifier derived from the position's V4 key.
-    bytes32 poolId;
-    /// @notice TSV position identifier.
-    uint256 positionId;
-    /// @notice Lower tick boundary of the position.
-    int24 tickLower;
-    /// @notice Upper tick boundary of the position.
-    int24 tickUpper;
-    /// @notice Operation being performed on this position.
-    LPOperationMode mode;
-    /// @notice Unique V4 salt assigned to the position.
-    bytes32 salt;
-    /// @notice Signed liquidity change expected in the PoolManager callback.
-    int256 liquidityDelta;
-}
-
-/// @notice Reduced LP operation context returned to the Hook for callback validation.
-struct LPHookContext {
-    /// @notice Pool identifier derived from the position's V4 key.
-    bytes32 poolId;
-    /// @notice Lower tick boundary of the position.
-    int24 tickLower;
-    /// @notice Upper tick boundary of the position.
-    int24 tickUpper;
-    /// @notice Operation being performed on this position.
-    LPOperationMode mode;
-    /// @notice Unique V4 salt assigned to the position.
-    bytes32 salt;
-    /// @notice Signed liquidity change expected in the PoolManager callback.
-    int256 liquidityDelta;
-}
-
 /// @notice One-pool exact-input request for permissioned-stock/original-quote swaps.
 /// @dev W raw equals U raw; approved DEX Adapters exchange U for the stock leg.
 /// @dev The Router derives a full-range V4 price limit from `zeroForOne`.
@@ -164,20 +120,6 @@ struct SwapRequest {
     /// @notice Multiplier observed when the user or Adapter quoted this swap.
     /// @dev Must equal the stock adapter's currentMultiplier value; zero is invalid.
     uint256 expectedMultiplier;
-}
-
-/// @notice Raw-unit settlement limits and deadline for an LP operation.
-struct LPBounds {
-    /// @notice Maximum currency0 amount the owner may be charged.
-    uint256 maxPoolIn0;
-    /// @notice Maximum currency1 amount the owner may be charged.
-    uint256 maxPoolIn1;
-    /// @notice Minimum currency0 amount that must be returned to the owner.
-    uint256 minPoolOut0;
-    /// @notice Minimum currency1 amount that must be returned to the owner.
-    uint256 minPoolOut1;
-    /// @notice Latest timestamp at which the LP operation may execute.
-    uint64 deadline;
 }
 
 /// @notice A recognized SBT identity and the operations it currently authorizes.

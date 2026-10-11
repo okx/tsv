@@ -8,7 +8,6 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
-import {LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVPermissionedSettlementLib} from "tsv-v1/libraries/TSVPermissionedSettlementLib.sol";
 
@@ -104,14 +103,23 @@ contract V1SwapToken is ERC20 {
     }
 }
 
-/// @dev Test-only seed component. Exercises actual Hook admission/context and real W/PM settlement.
+/// @dev Test-only seed component. Exercises actual Hook admission and real W/PM settlement.
 ///      Its W wrapper authorization and liquidity entry are not production LP deliverables.
 contract V1WrappedLiquiditySeed {
     using PoolIdLibrary for PoolKey;
+
+    struct SeedContext {
+        bytes32 poolId;
+        int24 tickLower;
+        int24 tickUpper;
+        bytes32 salt;
+        int256 liquidityDelta;
+    }
+
     IPoolManager public immutable poolManager;
     TSVRegistryV1 public immutable registry;
     address public immutable admin;
-    LPHookContext private context;
+    SeedContext private context;
 
     constructor(IPoolManager pm, TSVRegistryV1 r) {
         poolManager = pm;
@@ -127,20 +135,9 @@ contract V1WrappedLiquiditySeed {
 
     function seed(PoolKey calldata key, int24 lower, int24 upper, uint128 liquidity) external {
         require(msg.sender == admin);
-        context = LPHookContext(
-            PoolId.unwrap(key.toId()),
-            lower,
-            upper,
-            LPOperationMode.OPEN,
-            bytes32(uint256(1)),
-            int256(uint256(liquidity))
-        );
+        context = SeedContext(PoolId.unwrap(key.toId()), lower, upper, bytes32(uint256(1)), int256(uint256(liquidity)));
         poolManager.unlock(abi.encode(key));
         delete context;
-    }
-
-    function activeLPContext() external view returns (LPHookContext memory) {
-        return context;
     }
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {

@@ -95,10 +95,8 @@ contract TSVHookInitializationTest is Test {
         vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isLPAllowed, (poolId)), abi.encode(true));
     }
 
-    function testOrdinaryLPDoesNotRequireLegacyContextOrManagerSbt() public {
+    function testOrdinaryLPOnlyRequiresTrustedManagerAndRegistryPool() public {
         _allowLP();
-        // This manager has no legacy context or credential. User policy is enforced at its entry points.
-        vm.mockCallRevert(lpManager, abi.encodeWithSignature("activeLPContext()"), "unexpected context read");
         IPoolManager.ModifyLiquidityParams memory params =
             IPoolManager.ModifyLiquidityParams(-60, 60, 1, bytes32(uint256(7)));
         vm.startPrank(manager);
