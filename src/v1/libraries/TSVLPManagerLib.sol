@@ -24,11 +24,6 @@ import {CustomRevert} from "../vendor/permissionedPools/base/Notifier.sol";
 import {ITokenApproveProxy} from "../interfaces/ITokenApproveProxy.sol";
 import {PoolId} from "lib/v4-periphery/lib/v4-core/src/types/PoolId.sol";
 
-/// @dev The manager's existing Registry getter remains callable while an unwind holds the operation lock.
-interface ILPManagerRegistry {
-    function registry() external view returns (ITSVPermissionedRegistry);
-}
-
 /// @notice Linked copies of TSV LP and inherited periphery routines, executed in the manager's context.
 /// @dev Holds no persistent state. Callback authorization uses the manager's existing transient slot.
 library TSVLPManagerLib {
@@ -48,6 +43,8 @@ library TSVLPManagerLib {
     error NoVerifiedAdapter();
     error NonContractCurrency();
     error PoolNotAllowed();
+    error AdminIsZero();
+    error RegistryPaused();
 
     event ClaimWithdrawn(Currency indexed currency, address indexed from, address indexed to, uint256 amount);
 
@@ -61,6 +58,7 @@ library TSVLPManagerLib {
         bool asClaim
     );
 
+    /// @dev Pending callback hash, 1 during an authorized position burn, or 0 when inactive.
     bytes32 private constant UNWIND_CALLBACK_SLOT = bytes32(uint256(keccak256("tsv.lpmanager.unwind.callback")) - 1);
 
     struct UnwindParams {
@@ -78,6 +76,10 @@ library TSVLPManagerLib {
 
     function requireRole(ITSVPermissionedRegistry registry, bytes32 role) external view {
         if (!registry.hasRole(role, msg.sender)) revert AccessControlUnauthorizedAccount(msg.sender, role);
+    }
+
+    function requireRegistryNotPaused(ITSVPermissionedRegistry registry) external view {
+        if (registry.isPaused()) revert RegistryPaused();
     }
 
     /// @dev Original TSV exit body; state mappings and immutable dependencies are explicit parameters.
@@ -118,7 +120,6 @@ library TSVLPManagerLib {
         bytes[] memory params = new bytes[](2);
         params[0] = abi.encode(tokenId, amount0Min, amount1Min, hookData);
         params[1] = abi.encode(poolKey.currency0, poolKey.currency1, lp);
-        _requireUnwindPoolAllowed(p);
         _unlockWithAuthorizedCallback(p.poolManager, abi.encode(actions, params));
     }
 
@@ -162,7 +163,6 @@ library TSVLPManagerLib {
         params[0] = abi.encode(tokenId, amount0Min, amount1Min, hookData);
         params[1] = abi.encode(poolKey.currency0);
         params[2] = abi.encode(poolKey.currency1);
-        _requireUnwindPoolAllowed(p);
         _unlockWithAuthorizedCallback(p.poolManager, abi.encode(actions, params));
 
         // Reads the full 6909 balance, not a burn delta: the burn output plus any stray MINT_6909 claims
@@ -173,13 +173,6 @@ library TSVLPManagerLib {
         // Deliver the real asset to the LP, then the admin; on any grief, hand over the 6909 claim instead.
         _deliverCurrency(p, poolKey.currency0, amount0);
         _deliverCurrency(p, poolKey.currency1, amount1);
-    }
-
-    /// @dev Empty-position burns skip liquidity hooks, so every unwind must also pass the pool gate here.
-    function _requireUnwindPoolAllowed(UnwindParams memory p) private view {
-        // Linked-library delegatecall keeps address(this) equal to the LP Manager proxy.
-        ITSVPermissionedRegistry registry = ILPManagerRegistry(address(this)).registry();
-        if (!registry.isLPAllowed(PoolId.unwrap(p.poolKey.toId()))) revert PoolNotAllowed();
     }
 
     function _unlockWithAuthorizedCallback(IPoolManager poolManager, bytes memory data) private {
@@ -207,6 +200,7 @@ library TSVLPManagerLib {
         }
         // Both rejected: hand over the 6909 claim (no token code runs). Admin for a permissioned currency (the LP
         // is non-compliant), else the LP.
+        if (admin == address(0)) revert AdminIsZero();
         address claimTo = admin == address(0) ? lp : admin;
         p.poolManager.transfer(claimTo, currency.toId(), amount);
         emit CurrencyUnwound(tokenId, currency, claimTo, msg.sender, lp, amount, true);

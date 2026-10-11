@@ -50,56 +50,46 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
     }
 
     function testDelistingStopsSwapsAndRelistingUsesHistoricalPool() public {
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         bytes32 id = PoolId.unwrap(key.toId());
         registry.updatePoolLifeCycle(id, PoolLifecycle.DELIST);
         registry.delistSecurity(SECURITY);
         bytes32 before_ = _digest();
         vm.expectRevert();
-        _swap(false, true, 1e16);
+        _swap(false, 1e16);
         assertEq(_digest(), before_);
         assertTrue(registry.isKnownPool(id));
         registry.relistSecurity(SECURITY);
         registry.updatePoolLifeCycle(id, PoolLifecycle.LIST);
-        _swap(false, true, 1e16);
+        _swap(false, 1e16);
     }
 
-    function testExactInputCanFillPartiallyAndOnlyChargesRealizedInput() public {
-        uint256 before_ = underlying.balanceOf(alice);
-        (uint256 paid, uint256 received) = _swap(true, true, 1e22);
-        assertGt(paid, 0);
-        assertLt(paid, 1e22);
-        assertGt(received, 0);
-        assertEq(before_ - underlying.balanceOf(alice), paid);
-        assertEq(ledger.used(SECURITY, DAY), paid);
-        assertEq(_inventory(), 17);
-    }
-
-    function testExactOutputMustFillAndMaximumInputAndMinimumOutputApply() public {
+    function testExactInputPartialFillRollsBackPoolAndFunds() public {
         bytes32 before_ = _digest();
-        SwapRequest memory request = _request(false, false, 1e22);
+        vm.expectRevert(TSVSwapRouterV1.SlippageExceeded.selector);
+        _swap(true, 1e22);
+        assertEq(_digest(), before_);
+    }
+
+    function testExactInputMustFillAndMinimumOutputApplies() public {
+        bytes32 before_ = _digest();
+        SwapRequest memory request = _request(false, 1e22);
         vm.expectRevert();
         vm.prank(alice);
-        router.swapExactOutput(request);
+        _submitSwap(request);
         assertEq(_digest(), before_);
-        request = _request(false, false, 1e16);
-        request.limitAmount = 1;
-        vm.expectRevert();
-        vm.prank(alice);
-        router.swapExactOutput(request);
-        assertEq(_digest(), before_);
-        request = _request(true, true, 1e16);
+        request = _request(true, 1e16);
         request.limitAmount = 1e22;
         vm.expectRevert();
         vm.prank(alice);
-        router.swapExactInput(request);
+        _submitSwap(request);
         assertEq(_digest(), before_);
-        _swap(false, false, 1e16);
+        _swap(false, 1e16);
     }
 
     function testFuzzMalformedRequestDoesNotTouchPoolOrFunds(uint8 fault) public {
         fault = uint8(bound(fault, 0, 8));
-        SwapRequest memory request = _request(true, true, 1e16);
+        SwapRequest memory request = _request(true, 1e16);
         if (fault == 0) request.amountSpecified = 0;
         else if (fault == 1) request.amountSpecified = uint128(type(int128).max) + 1;
         else if (fault == 2) request.limitAmount = 0;
@@ -112,14 +102,14 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
         bytes32 before_ = _digest();
         vm.expectRevert();
         vm.prank(alice);
-        router.swapExactInput(request);
+        _submitSwap(request);
         assertEq(_digest(), before_);
     }
 
     function testCallbackRequiresPoolManager() public {
         vm.expectRevert(ImmutableState.NotPoolManager.selector);
         router.unlockCallback(bytes(""));
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         vm.expectRevert(ImmutableState.NotPoolManager.selector);
         router.unlockCallback(bytes(""));
     }
@@ -127,19 +117,19 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
     function testUserReentryDuringPaymentRejects() public {
         underlying.setCallback(address(this), abi.encodeCall(this.assertCallbackIsolation, ()));
         quote.setCallback(address(this), abi.encodeCall(this.assertCallbackIsolation, ()));
-        for (uint256 i; i < 4; ++i) {
-            _swap(i < 2, i % 2 == 0, 1e16);
+        for (uint256 i; i < 2; ++i) {
+            _swap(i == 0, 1e16);
             assertEq(router.msgSender(), address(0));
         }
     }
 
     function testRevertedEntryReleasesLockForNextSwap() public {
-        SwapRequest memory request = _request(true, true, 0);
+        SwapRequest memory request = _request(true, 0);
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
         vm.prank(alice);
-        router.swapExactInput(request);
+        _submitSwap(request);
         assertEq(router.msgSender(), address(0));
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(router.msgSender(), address(0));
     }
 
@@ -148,13 +138,13 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
         TSVERC1967Proxy proxy = TSVERC1967Proxy(payable(address(router)));
         address oldImplementation = proxy.tsvImplementation();
         underlying.setCallback(address(this), abi.encodeCall(this.assertUpgradeIsolation, ()));
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
         assertEq(proxy.tsvImplementation(), oldImplementation);
         assertEq(router.msgSender(), address(0));
         underlying.setCallback(address(0), bytes(""));
         router.upgradeToAndCall(nextRouterImplementation, bytes(""));
         assertEq(proxy.tsvImplementation(), nextRouterImplementation);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
     }
 
     function assertUpgradeIsolation() external {
@@ -168,9 +158,9 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
         require(msg.sender == address(underlying) || msg.sender == address(quote));
         assertEq(router.msgSender(), alice);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
-        router.swapExactInput(_request(true, true, 1e16));
+        _swap(true, 1e16);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
-        router.swapExactOutput(_request(false, false, 1e16));
+        _swap(false, 1e16);
         vm.expectRevert(ImmutableState.NotPoolManager.selector);
         router.unlockCallback(bytes(""));
     }
@@ -178,7 +168,7 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
     function testSyncAndSettleOccurOnceForStockPayment() public {
         vm.expectCall(address(manager), abi.encodeCall(IPoolManager.sync, (Currency.wrap(address(stock)))), 1);
         vm.expectCall(address(manager), abi.encodeCall(IPoolManager.settle, ()), 1);
-        _swap(true, true, 1e16);
+        _swap(true, 1e16);
     }
 }
 
@@ -199,17 +189,16 @@ contract TSVWrappedPrecisionTest is WrappedSwapFixture {
         return (_center(pool) - 600, _center(pool) + 600);
     }
 
-    function testMixedDecimalsBothDirectionsExactModesKeepRawAndLegalSharesSeparate() public {
+    function testMixedDecimalsBothDirectionsExactInputKeepRawAndLegalSharesSeparate() public {
         issuer.setMultiplier(2e18, 1);
-        for (uint256 i; i < 4; ++i) {
-            bool stockInput = i < 2;
-            bool exactInput = i % 2 == 0;
-            uint128 amount = stockInput == exactInput ? uint128(1e18) : uint128(1e6);
+        for (uint256 i; i < 2; ++i) {
+            bool stockInput = i == 0;
+            uint128 amount = stockInput ? uint128(1e18) : uint128(1e6);
             uint256 uBefore = underlying.balanceOf(alice);
             uint256 qBefore = quote.balanceOf(alice);
             uint256 usedBefore = ledger.used(SECURITY, DAY);
-            (uint256 paid, uint256 received) = _swap(stockInput, exactInput, amount);
-            if (!exactInput) assertEq(received, amount);
+            (uint256 paid, uint256 received) = _swap(stockInput, amount);
+            assertEq(paid, amount);
             assertEq(underlying.balanceOf(alice), stockInput ? uBefore - paid : uBefore + received);
             assertEq(quote.balanceOf(alice), stockInput ? qBefore + received : qBefore - paid);
             assertEq(ledger.used(SECURITY, DAY) - usedBefore, 2 * (stockInput ? paid : received));

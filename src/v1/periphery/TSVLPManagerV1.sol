@@ -326,7 +326,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
 
     /// @dev Normal callbacks retain the upstream action ABI. An unwind callback must match the exact data
     ///      committed by an authorized entry point, and its authorization is consumed before executing actions.
-    function _unlockCallback(bytes calldata data) internal override returns (bytes memory) {
+    function _unlockCallback(bytes calldata data) internal override returns (bytes memory result) {
         bytes32 expected = TSVLPManagerLib.authorizedCallbackHash();
         if (expected == bytes32(0)) return BaseActionsRouter._unlockCallback(data);
         if (keccak256(data) != expected) revert Unauthorized();
@@ -336,18 +336,27 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         if (actions.length != params.length) revert InputLengthMismatch();
         for (uint256 i; i < actions.length; ++i) {
             uint256 action = uint8(actions[i]);
+            bytes calldata actionParams = params[i];
             if (action == Actions.BURN_POSITION) {
-                uint256 tokenId = abi.decode(params[i], (uint256));
+                (uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData) =
+                    actionParams.decodeBurnParams();
                 (PoolKey memory poolKey,) = getPoolAndPositionInfo(tokenId);
-                PermissionedPositionManager._handleAction(action, params[i]);
+                // The committed hash is already consumed; mark only this burn as an active unwind.
+                TSVLPManagerLib.authorizeCallback(bytes32(uint256(1)));
+                _burn(tokenId, amount0Min, amount1Min, hookData);
+                TSVLPManagerLib.authorizeCallback(bytes32(0));
                 _updatePoolTickCount(poolKey, -1);
             } else if ((EXIT_SETTLEMENT_ACTIONS & (uint256(1) << action)) != 0) {
-                PermissionedPositionManager._handleAction(action, params[i]);
+                PermissionedPositionManager._handleAction(action, actionParams);
             } else {
                 revert UnsupportedAction(action);
             }
         }
-        return "";
+    }
+
+    /// @notice True only while an authorized unwind burns its position, for the Hook's LP admission bypass.
+    function isUnwindActive() external view returns (bool) {
+        return TSVLPManagerLib.authorizedCallbackHash() == bytes32(uint256(1));
     }
 
     /// @dev Only ordinary actions reach this dispatcher; forced exits execute through their authorized callback.
@@ -393,7 +402,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     }
 
     function _requireRegistryNotPaused() private view {
-        if (registry.isPaused()) revert RegistryPaused();
+        TSVLPManagerLib.requireRegistryNotPaused(registry);
     }
 
     /// @dev Delegatecall preserves the manager as payer/caller and the original action executor.

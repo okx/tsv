@@ -155,7 +155,7 @@ contract V1WrappedLiquiditySeed {
         poolManager.sync(c);
         address u = registry.getCurrencyUnderlying(Currency.unwrap(c));
         if (u == address(0)) {
-            TSVPermissionedSettlementLib.transferExact(Currency.unwrap(c), admin, address(poolManager), amount);
+            TSVPermissionedSettlementLib.transferFromPayer(Currency.unwrap(c), admin, address(poolManager), amount);
         } else {
             TSVPermissionedSettlementLib.payStock(Currency.unwrap(c), u, admin, amount);
         }
