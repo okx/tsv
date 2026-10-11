@@ -8,6 +8,7 @@ import {
     UnderlyingRecord,
     QuoteTokenRecord,
     PermissionedAdmission,
+    TierPolicyRecord,
     PoolRecord,
     SecurityRecord,
     PoolLifecycle
@@ -46,6 +47,11 @@ interface ITSVPermissionedRegistry {
     /// @param id Security identifier to query.
     /// @return Stored security record; unknown IDs return a default record.
     function getSecurity(bytes32 id) external view returns (SecurityRecord memory);
+
+    /// @notice Returns the quota and listing-cap policy currently configured for a tier.
+    /// @param tierId Tier identifier to query.
+    /// @return Stored tier policy record; unknown tiers return a default record.
+    function getTierPolicy(uint8 tierId) external view returns (TierPolicyRecord memory);
 
     /// @notice Returns whether a registered pool permits swaps after all Registry gates.
     /// @param id Raw Uniswap V4 pool ID to check.

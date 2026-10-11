@@ -11,6 +11,10 @@ import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TradeDayLib} from "tsv-v1/libraries/TradeDayLib.sol";
 
 /// @notice Aggregates per-security volume by UTC trade day across every pool of this TSV venue.
+/// @dev VolumeLedger owns volume-cap state and accounting, but it does not own admission or report ordering.
+///      Registry supplies roles, security tier policy, pool metadata, quote-token registration and W/U binding.
+///      DataInbox is the only report writer for ADTV, quota and split-factor reports after replay and sequence
+///      checks. Hook is the only swap writer and calls recordSwap after PoolManager produces final deltas.
 contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     error UnauthorizedUpgrade();
 
@@ -35,12 +39,18 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     /// @dev Reverts when the operation would exceed the remaining legal-share quota.
     error QuotaExceeded(bytes32 securityId, uint32 tradeDayId);
 
+    /// @notice Quota report action that writes an explicit daily cap override.
     uint8 public constant QUOTA_SET = 1;
+    /// @notice Quota report action that removes an active daily cap override.
     uint8 public constant QUOTA_CLEAR = 2;
+    /// @notice Split-factor report action that schedules or corrects a future checkpoint.
     uint8 public constant SPLIT_FACTOR_SET = 1;
+    /// @notice Split-factor report action that cancels the latest pending checkpoint.
     uint8 public constant SPLIT_FACTOR_CANCEL = 2;
     uint32 private constant SECONDS_PER_DAY = 86_400;
     uint32 private constant MAX_DAY_START_SHIFT = 14_400;
+    uint256 private constant BASIS_POINTS = 10_000;
+    uint256 private constant LEGAL_SHARE_ACCOUNTING_LOT_WAD = 1;
 
     /// @dev Stores a future or historical trade-day boundary transition checkpoint.
     struct DayStartCheckpoint {
@@ -58,15 +68,25 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
         bytes32 reportId;
     }
 
+    /// @notice Registry used for roles, securities, tiers, pools and currency metadata.
     TSVRegistryV1 public registry;
+    /// @notice Hook authorized to record completed swap deltas.
     address public hook;
+    /// @notice DataInbox authorized to write source-backed reports.
     address public dataInbox;
+    /// @notice Starting UTC seconds-after-midnight offset for TSV trade days.
     uint32 public initialDayStartOffsetSeconds;
 
+    /// @dev Monthly unadjusted share-basis ADTV by security and source month; source month is encoded as YYYYMM.
+    ///      Values must already be converted to legal-share WAD, but must not be split-adjusted or notional.
     mapping(bytes32 => mapping(uint32 => uint256)) private adtv;
+    /// @dev Optional absolute daily quota override by security and trade day; zero means no override.
     mapping(bytes32 => mapping(uint32 => uint256)) private quotas;
+    /// @dev Consumed legal-share volume by security and trade day; never reset by report corrections.
     mapping(bytes32 => mapping(uint32 => uint256)) private usedWad;
+    /// @dev Append-only day-start schedule, except the latest pending checkpoint may be cancelled.
     DayStartCheckpoint[] private dayStartCheckpoints;
+    /// @dev Source-month-scoped split-factor checkpoints; only the latest pending checkpoint may be changed.
     mapping(bytes32 => mapping(uint32 => SplitFactorCheckpoint[])) private splitFactorCheckpoints;
 
     /// @notice Emitted when the authorized report writer contracts were bound to the Ledger.
@@ -132,6 +152,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Binds the Registry for permissions and sets the starting UTC day boundary.
+    /// @dev The initial day boundary is immutable after initialization. Later changes must be scheduled as
+    ///      checkpoints so historical day calculations remain reproducible.
     /// @param registry_ Registry that supplies security tiers and pool configuration.
     /// @param dayStartOffsetSeconds Seconds after UTC midnight at which a trade day begins.
     function initialize(address registry_, uint32 dayStartOffsetSeconds) external initializer {
@@ -141,6 +163,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Binds the only contracts permitted to record swaps and submit reports.
+    /// @dev This is a one-time component binding. After it succeeds, reports must flow through DataInbox and
+    ///      completed swaps must flow through Hook.
     /// @param hook_ Hook authorized to record completed swaps.
     /// @param dataInbox_ DataInbox authorized to write ADTV, quota and split-factor reports.
     function bindWriters(address hook_, address dataInbox_) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -164,6 +188,13 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Stores a listed security's monthly ADTV report after Inbox ordering checks.
+    /// @dev Flow: onlyDataInbox, validate listed security/month/nonzero ADTV, verify the new ADTV remains
+    ///      computable with already stored split factors, then replace the monthly ADTV value. A later ADTV
+    ///      correction changes future hard-cap calculations but does not reset already consumed daily usage.
+    ///      The report value is expected to be the previous-full-month ADTV in source-month share units, converted
+    ///      to legal-share WAD. If an upstream source already split-adjusts this ADTV, or reports notional volume
+    ///      instead of share volume, split-factor accounting would be double-applied and that source must not be
+    ///      submitted through this entry point without a separate policy flag.
     /// @param report Validated ADTV report forwarded by DataInbox.
     function acceptAdtv(AdtvReport calldata report) external onlyDataInbox {
         if (
@@ -180,6 +211,9 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Sets or clears a per-security, per-trade-day quota override.
+    /// @dev Flow: onlyDataInbox, require listed security, then branch by action. SET requires an existing hard
+    ///      cap, a nonzero override and quotaWad <= hardCap. CLEAR requires an active override and quotaWad == 0.
+    ///      The override is absolute for that trade day; it is not multiplied by split factors again.
     /// @param report Validated quota report forwarded by DataInbox.
     function acceptQuota(QuotaReport calldata report) external onlyDataInbox {
         if (report.securityId == 0 || !registry.getSecurity(report.securityId).listed) revert InvalidReport();
@@ -198,6 +232,9 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
 
     /// @notice Accepts a source-month-relative split factor for a future trade-day start.
     /// @dev Factors are absolute, not multiplied by the previous checkpoint. No activation transaction is needed.
+    ///      Flow: onlyDataInbox, validate listed security/source month/future effective day, then either schedule
+    ///      or correct the latest pending checkpoint with SPLIT_FACTOR_SET, or remove the latest pending checkpoint
+    ///      with SPLIT_FACTOR_CANCEL. Historical checkpoints and intermediate pending checkpoints are immutable.
     /// @param report Schedule/update or cancellation instruction validated by the DataInbox.
     function acceptSplitFactor(SplitFactorReport calldata report) external onlyDataInbox {
         if (
@@ -214,9 +251,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
             if (report.numerator == 0 || report.denominator == 0) revert InvalidReport();
             uint256 value = adtv[report.securityId][report.sourceMonth];
             if (value != 0) Math.mulDiv(value, report.numerator, report.denominator);
-            SplitFactorCheckpoint memory next = SplitFactorCheckpoint(
-                report.effectiveTradeDayId, report.numerator, report.denominator, report.reportId
-            );
+            SplitFactorCheckpoint memory next =
+                SplitFactorCheckpoint(report.effectiveTradeDayId, report.numerator, report.denominator, report.reportId);
             if (count != 0 && factors[count - 1].effectiveTradeDayId >= report.effectiveTradeDayId) {
                 // Only the latest pending checkpoint can be corrected; historical and intermediate entries are fixed.
                 if (factors[count - 1].effectiveTradeDayId != report.effectiveTradeDayId) revert InvalidReport();
@@ -249,6 +285,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
 
     /// @notice Returns the factor applicable to a security and trade day, defaulting to 1/1.
     /// @dev Source-month scoping prevents old actions from being reapplied to a new month's ADTV basis.
+    ///      The checkpoint list is ordered by effectiveTradeDayId, so lookup is a binary search for the latest
+    ///      checkpoint whose effective day is not after the queried trade day.
     function splitFactorOf(bytes32 securityId, uint32 tradeDayId)
         public
         view
@@ -283,6 +321,9 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Schedules a bounded UTC day-start change without rewriting an active transition day.
+    /// @dev Flow: admin only, validate offset/date, require the previous pending checkpoint to have passed or be
+    ///      absent, require monotonically increasing effective days, cap the shift size, and require the transition
+    ///      day to be unopened under the old schedule. This preserves historical trade-day assignment.
     /// @param newOffsetSeconds New offset from UTC midnight, less than one day.
     /// @param effectiveDayId First trade-day ID that uses the new offset.
     function scheduleDayStart(uint32 newOffsetSeconds, uint32 effectiveDayId) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -313,6 +354,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Cancels a scheduled day-start change before its transition day begins.
+    /// @dev Only the latest pending checkpoint can be cancelled. Once its transition day has started, the schedule
+    ///      is treated as historical and must remain stable for accounting and audit queries.
     function cancelPendingDayStart() external onlyRole(DEFAULT_ADMIN_ROLE) {
         uint256 count = dayStartCheckpoints.length;
         if (count == 0) revert InvalidPeriod();
@@ -344,6 +387,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Computes the current trade day using UTC and the effective day-start offset.
+    /// @dev Calculates the UTC calendar day first, then compares block.timestamp against the effective offset for
+    ///      that day. If the local trade-day start has not arrived, accounting belongs to the previous YYYYMMDD.
     /// @return tradeDayId Current day identifier in YYYYMMDD form.
     function currentTradeDay() public view returns (uint32 tradeDayId) {
         uint256 ordinal = block.timestamp / SECONDS_PER_DAY;
@@ -378,6 +423,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Returns the remaining effective volume cap, or marks it invalid when ADTV is missing.
+    /// @dev Flow: compute the ADTV/tier/split-factor hard cap, apply an optional daily quota override, then
+    ///      subtract already consumed legal-share volume. Missing ADTV returns valid=false instead of reverting.
     /// @param securityId Listed security whose remaining cap is queried.
     /// @param tradeDayId Trade-day identifier in YYYYMMDD form.
     /// @return valid Whether the hard cap can be computed from an accepted ADTV report.
@@ -393,6 +440,9 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     /// @notice Records actual swap deltas and consumes the applicable cap for each security leg.
     /// @dev Only the Hook may call this; any invalid leg or cap breach reverts the enclosing swap.
     /// @dev Pool admission and trading pauses are checked by Hook.beforeSwap.
+    /// @dev Flow: validate the two PoolManager deltas form one swap, load PoolRecord from Registry, resolve the
+    ///      current trade day, map each pool currency to either the pool security or zero for quote tokens, then
+    ///      account both legs. Quote legs must carry zero legalSharesWad; stock legs consume cap in legal-share WAD.
     /// @param poolId Active pool in which the swap occurred.
     /// @param delta0 Actual signed PoolManager delta for currency0.
     /// @param delta1 Actual signed PoolManager delta for currency1.
@@ -411,11 +461,15 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
         _recordLeg(poolId, _legSecurityId(pool.securityId, currency1), currency1, delta1, legalShares1, day);
     }
 
+    /// @dev Returns the pool security only for permissioned stock currencies; quote tokens have no security leg.
     function _legSecurityId(bytes32 poolSecurityId, address currency) private view returns (bytes32) {
         return registry.getCurrencyUnderlying(currency) == address(0) ? bytes32(0) : poolSecurityId;
     }
 
     /// @dev Validates and accounts one pool leg using its canonical legal-share conversion.
+    ///      Quote-token legs are validated as registered quote tokens and return without consuming quota. Stock
+    ///      legs must resolve to an underlying whose security matches the pool, have a nonzero legalSharesWad, and
+    ///      then call _consume before emitting the audit event.
     /// @param poolId Pool that produced the actual swap delta.
     /// @param securityId Security assigned to this Currency, or zero for a non-stock token.
     /// @param currency Pool Currency associated with the delta.
@@ -448,6 +502,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @dev Adds a charge only when an ADTV-derived hard cap and effective quota permit it.
+    ///      Missing ADTV fails closed with MissingReport. Otherwise the new cumulative usage must fit within the
+    ///      lower of the hard cap and any active daily override.
     /// @param securityId Security being charged.
     /// @param day Trade-day identifier receiving the charge.
     /// @param charge Legal-share volume to add in WAD.
@@ -460,6 +516,8 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @dev Applies an active daily quota override without allowing it to exceed the hard cap.
+    ///      acceptQuota enforces quotaWad <= hardCap at write time; Math.min keeps reads robust across later ADTV,
+    ///      tier or split-factor corrections that may lower the hard cap.
     /// @param securityId Security whose override is read.
     /// @param day Trade-day identifier whose override is read.
     /// @param hardCap ADTV and Tier-derived maximum for the day.
@@ -469,21 +527,50 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
         return quotaWad == 0 ? hardCap : Math.min(hardCap, quotaWad);
     }
 
-    /// @dev Computes ADTV × Tier × the source-month-relative factor with one final floor rounding.
+    /// @dev Computes floorToLot(previousFullMonth ADTV shares × splitFactor × tierBps / 10000).
+    ///      The source month is the full calendar month immediately before the trade day. ADTV is stored in that
+    ///      source month's unadjusted share basis and splitFactor translates it to the target trade day's share
+    ///      basis. A zero return means no accepted ADTV exists, the bps/factor result floors to zero, or no explicit
+    ///      fallback policy exists; swap accounting then fails closed and remaining() reports invalid.
     /// @param securityId Security whose ADTV and Tier policy are used.
     /// @param day Trade-day identifier in YYYYMMDD form.
     /// @return Cap in legal-share WAD, or zero when the required ADTV is missing.
     function _hardCap(bytes32 securityId, uint32 day) private view returns (uint256) {
-        uint32 sourceMonth = TradeDayLib.previousMonth(day);
-        uint256 monthlyAdtv = adtv[securityId][sourceMonth];
-        if (monthlyAdtv == 0) return 0;
+        uint32 sourceMonth = _sourceMonthFor(day);
+        uint256 monthlyAdtvSharesWad = adtv[securityId][sourceMonth];
+        if (monthlyAdtvSharesWad == 0) return 0;
+
         uint8 tierId = registry.getSecurity(securityId).tierId;
-        uint16 bps = registry.tierPolicy(tierId).tierBps;
+        uint16 bps = registry.getTierPolicy(tierId).tierBps;
+        uint256 adjustedAdtvSharesWad = _splitAdjustedAdtvShares(securityId, day, monthlyAdtvSharesWad);
+        return _floorToLot(Math.mulDiv(adjustedAdtvSharesWad, bps, BASIS_POINTS));
+    }
+
+    /// @dev Returns the previous full calendar month that supplies the ADTV basis for `day`.
+    ///      This intentionally does not fall back to partial current-month data.
+    function _sourceMonthFor(uint32 day) private pure returns (uint32) {
+        return TradeDayLib.previousMonth(day);
+    }
+
+    /// @dev Converts source-month ADTV share units to target-day share units using the applicable absolute factor.
+    function _splitAdjustedAdtvShares(bytes32 securityId, uint32 day, uint256 monthlyAdtvSharesWad)
+        private
+        view
+        returns (uint256)
+    {
         (uint128 numerator, uint128 denominator) = splitFactorOf(securityId, day);
-        return Math.mulDiv(monthlyAdtv, uint256(bps) * numerator, 10_000 * uint256(denominator));
+        return Math.mulDiv(monthlyAdtvSharesWad, numerator, denominator);
+    }
+
+    /// @dev Floors a cap to the configured accounting lot. Current storage has no exchange-level lot-size policy,
+    ///      so the active lot is the smallest legal-share WAD accounting unit. A future lot-size field should replace
+    ///      this helper without changing the hard-cap call site.
+    function _floorToLot(uint256 value) private pure returns (uint256) {
+        return value / LEGAL_SHARE_ACCOUNTING_LOT_WAD * LEGAL_SHARE_ACCOUNTING_LOT_WAD;
     }
 
     /// @dev Converts a trade-day identifier and its applicable offset into a UTC timestamp.
+    ///      Invalid calendar dates are rejected by TradeDayLib.dateToOrdinal.
     /// @param dayId Trade-day identifier in YYYYMMDD form.
     /// @return Timestamp at the beginning of the trade day.
     function _dayStartUTC(uint32 dayId) private view returns (uint64) {
@@ -492,6 +579,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @dev Binary-searches checkpoints and returns the latest offset effective on `dayId`.
+    ///      If no checkpoint applies, the immutable initial offset is used.
     /// @param dayId Trade-day identifier in YYYYMMDD form.
     /// @return offsetSeconds UTC seconds after midnight used for that day.
     function _offsetFor(uint32 dayId) private view returns (uint32) {

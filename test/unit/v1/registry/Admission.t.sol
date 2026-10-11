@@ -24,7 +24,7 @@ contract TSVAdmissionTest is FoundationFixture {
         assertEq(registry.getUnderlying(underlying).securityId, securityId);
         assertEq(registry.getUnderlying(underlying).rawDecimals, 18);
         assertTrue(registry.getSecurity(securityId).listed);
-        assertEq(registry.tierPolicy(1).listedCount, 2);
+        assertEq(registry.getTierPolicy(1).listedCount, 2);
     }
 
     function testFirstAdmissionPreservesExistingPoolManagerUnderlying() public {
@@ -40,7 +40,7 @@ contract TSVAdmissionTest is FoundationFixture {
         assertEq(u.balanceOf(address(manager)), 1);
         assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
         assertEq(PermissionsAdapter(a.currency).balanceOf(address(manager)), 0);
-        assertEq(registry.tierPolicy(1).listedCount, 2);
+        assertEq(registry.getTierPolicy(1).listedCount, 2);
     }
 
     function testAdditionalWrapperPreservesExistingPoolManagerUnderlying() public {
@@ -53,7 +53,7 @@ contract TSVAdmissionTest is FoundationFixture {
         assertTrue(registry.getCurrencyUnderlying(a.currency) != address(0));
         assertEq(stockToken.balanceOf(address(manager)), 1);
         assertEq(PermissionsAdapter(a.currency).totalSupply(), 0);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
     }
 
     function testFuzzAdmissionFailureRollsBackSecurityTierAndAsset(uint8 fault) public {
@@ -72,7 +72,7 @@ contract TSVAdmissionTest is FoundationFixture {
         vm.expectRevert();
         registry.registerPermissionedCurrency(a, 1);
         assertEq(registry.getSecurity(securityId).securityId, 0);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertEq(registry.getCurrencyUnderlying(w), address(0));
         assertEq(registry.getUnderlying(u).securityId, 0);
     }
@@ -87,7 +87,7 @@ contract TSVAdmissionTest is FoundationFixture {
         assertEq(registry.getCurrencyUnderlying(second.currency), address(stockToken));
         assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
         assertEq(stock.totalSupply(), 100);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(stockAdapter));
         second.securityId = keccak256("different-security");
         second.currency = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter)).currency;

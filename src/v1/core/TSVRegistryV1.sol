@@ -9,7 +9,7 @@ import {
     UnderlyingRecord,
     QuoteTokenRecord,
     PermissionedAdmission,
-    TierPolicy,
+    TierPolicyRecord,
     SecurityRecord,
     PoolRecord,
     MarketStateRecord,
@@ -92,7 +92,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @dev Security records keyed by TSV security ID.
     mapping(bytes32 => SecurityRecord) private securities;
     /// @dev Listing-cap policies keyed by nonzero tier ID.
-    mapping(uint8 => TierPolicy) private tiers;
+    mapping(uint8 => TierPolicyRecord) private tiers;
 
     // W/U/Q admission and configuration. Each W references its shared U record.
     /// @dev Canonical underlying U keyed by permissioned stock adapter W; zero means W is unknown.
@@ -340,7 +340,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param tierBps Volume multiplier in basis points, from 1 through 10,000.
     /// @param maxListed Maximum number of securities that may be listed in this tier.
     function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        TierPolicy storage tier = tiers[tierId];
+        TierPolicyRecord storage tier = tiers[tierId];
         if (tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount) {
             revert InvalidConfig();
         }
@@ -352,7 +352,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Returns the quota and listing-cap policy currently configured for `tierId`.
     /// @param tierId Tier identifier to query.
     /// @return Tier policy containing multiplier, capacity, and current listing count.
-    function tierPolicy(uint8 tierId) external view returns (TierPolicy memory) {
+    function getTierPolicy(uint8 tierId) external view returns (TierPolicyRecord memory) {
         return tiers[tierId];
     }
 
@@ -738,7 +738,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @dev Checks the tier is configured and below capacity, then reserves one listing slot.
     /// @param tierId Tier whose listing slot is reserved.
     function _takeTierSlot(uint8 tierId) private {
-        TierPolicy storage tier = tiers[tierId];
+        TierPolicyRecord storage tier = tiers[tierId];
         if (tier.tierBps == 0 || tier.listedCount >= tier.maxListed) revert InvalidConfig();
         tier.listedCount++;
     }

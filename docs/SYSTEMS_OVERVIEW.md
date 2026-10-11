@@ -484,7 +484,7 @@ function forceExit(
 
 | 合约 | 直接查询入口 | 返回/用途 |
 | --- | --- | --- |
-| Registry | `getSecurity(bytes32 securityId)`、`getToken(address currency)`、`getPool(bytes32 poolId)`、`tierPolicy(uint8 tierId)` | 读取证券、Token、池和 Tier 配置结构。 |
+| Registry | `getSecurity(bytes32 securityId)`、`getToken(address currency)`、`getPool(bytes32 poolId)`、`getTierPolicy(uint8 tierId)` | 读取证券、Token、池和 Tier 配置结构。 |
 | Registry | `marketStatus(bytes32 securityId)`、`marketPauseMode(bytes32 securityId)`、`isKnownPool(bytes32 poolId)`、`isTradable(bytes32 poolId)`、`isLPAllowed(bytes32 poolId)`、`hasCredential(address owner)` | 市场状态从暂停模式推导为 OPEN/HALTED，未知证券的 marketStatus 查询回滚；池是否登记/允许交易/允许普通 LP，SBT 是否持有；操作资格通过 `isAllowed(permission,account)` 独立查询，并考虑 SBT 全局暂停。isTradable 不检查 ADTV、额度或流动性。 |
 | Registry | `marketSequence(bytes32 securityId)`、`emergencyPauses(uint256 recordId)`、`activePauseCount(uint8 scope, bytes32 target, uint8 mode)` | 读取市场报告序号、暂停记录及指定范围/目标/精确模式的活动暂停数量；证券活跃池计数通过 `getSecurity` 返回，不再单独维护币种级计数。ALL 记录计入 mode=3，不重复计入 mode=1/2。 |
 | Registry | `hook()`、`lpManager()`、`dataInbox()`、`nextPauseId()`、`participantSbt()`、`sbtTokenIds()`、`sbtIdentityConfig(tokenId)` | 读取绑定地址、下一暂停记录编号和当前 SBT 配置。 |
