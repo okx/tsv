@@ -139,6 +139,20 @@ contract TSVAdmissionTest is FoundationFixture {
         registry.registerQuoteToken(address(zero));
     }
 
+    function testDisableQuoteTokenPreservesMetadataAndRejectsMissingQuote() public {
+        V1MockToken extraQuote = new V1MockToken("disabled-quote", 8);
+        registry.registerQuoteToken(address(extraQuote));
+        assertEq(registry.getQuoteToken(address(extraQuote)).rawDecimals, 8);
+        assertTrue(registry.getQuoteToken(address(extraQuote)).registered);
+
+        registry.disableQuoteToken(address(extraQuote));
+
+        assertEq(registry.getQuoteToken(address(extraQuote)).rawDecimals, 8);
+        assertFalse(registry.getQuoteToken(address(extraQuote)).registered);
+        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
+        registry.disableQuoteToken(address(extraQuote));
+    }
+
     function testPoolOnlyAcceptsOneStockAndOneQuote() public {
         PermissionedRegisterParam memory second = _newStockConfig(SECURITY);
         registry.registerPermissionedCurrency(second, 1);

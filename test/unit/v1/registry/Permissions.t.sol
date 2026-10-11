@@ -14,7 +14,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         bytes32 role = registry.SYMBOL_ADMIN_ROLE();
         address operator = makeAddr("symbol-operator");
         PermissionedRegisterParam memory config = _newStockConfig(keccak256("new-security"));
-        bytes[] memory calls = new bytes[](7);
+        bytes[] memory calls = new bytes[](8);
         calls[0] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config, 1));
         calls[1] = abi.encodeCall(TSVRegistryV1.updatePoolLifeCycle, (poolId, PoolLifecycle.PAUSE));
         calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
@@ -24,6 +24,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
             TSVRegistryV1.replaceUnderlyingLegalShareAdapter, (address(stockToken), address(stockAdapter))
         );
         calls[6] = abi.encodeCall(TSVRegistryV1.registerQuoteToken, (address(quote)));
+        calls[7] = abi.encodeCall(TSVRegistryV1.disableQuoteToken, (address(quote)));
         bytes32 beforeState = _state();
         _denyCalls(calls, operator, role);
         assertEq(_state(), beforeState);

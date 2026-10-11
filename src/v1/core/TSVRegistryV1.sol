@@ -412,6 +412,14 @@ contract TSVRegistryV1 is TSVGoverned {
         emit QuoteTokenRegistered(quote, rawDecimals);
     }
 
+    /// @notice Disables a registered quote token while preserving its stored metadata for audit reads.
+    /// @param quote Quote token address to disable.
+    function disableQuoteToken(address quote) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        QuoteTokenRecord storage config = quoteTokens[quote];
+        if (!config.registered) revert InvalidStatus();
+        config.registered = false;
+    }
+
     /// @notice Replaces the canonical U converter while emergency pause or security ALL pause protects operations.
     /// @param u Canonical underlying whose legal-share adapter is replaced.
     /// @param newAdapter New legal-share adapter for `u`.
