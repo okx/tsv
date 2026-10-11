@@ -25,7 +25,7 @@ review 已修正 PM/Router 绝对零 U 余额带来的交易和准入阻断：PM
 | ID / 状态 | 当前实现 | 尚缺事项或限制 |
 | --- | --- | --- |
 | GAP-01 **已编码（本地）** | Registry、Router 和 LP Manager 只直接结算唯一池内 Currency；旧 TSLAx→wTSLAx 用户结算组合不在当前 ABI | 真实 wTSLAx 实例及法律计股依据仍待准入；本部署无旧仓位迁移，验收见 A05/A06 |
-| GAP-02 **已编码（本地行为 mock）** | 唯一 `BackedAutoFeeLegalShareAdapter` 已接入 Hook；实际股票腿在 `afterSwap` 直接调用来源 Token `getUnderlyingAmountByShares(rawShares)`，本地 V4 集成覆盖两方向 Swap 与 LP | 本地来源/Wrapped mock 不构成真实发行方证据；真实代理、转换方法语义和法律计量仍须逐实例审查，验收见 A01/A04 |
+| GAP-02 **已编码（本地行为 mock）** | `ERC8056DirectLegalShareAdapter` 已接入 Hook；本地股票 Currency mock 通过 `uiMultiplier()` 提供动态 multiplier，本地 V4 集成覆盖两方向 Swap 与 LP | 本地 mock 不构成真实发行方证据；wTSLAx 的 `getUnderlyingAmountByShares` 尚未接入当前 Adapter，需确认接口兼容性、法律计量和逐实例准入，验收见 A01/A04 |
 | GAP-03 **部分实现** | 直接换算接口已取代 RateSnapshot、rateId 与反向 raw 换算；Hook 在 `afterSwap` 换算，Ledger 校验正/零 shares 与 Registry 元数据后记账；Adapter 可受控替换 | 成交事件记录实际计股量，不记录实时发行方参数；链上没有 unitEpoch，也不能拦截未预告的法律股数单位变化。拆并股额度已按 D-37 支持未来日独立系数；实际成交仍实时 Adapter 计股。来源法律单位异常时须暂停并在口径一致的新日恢复；无足够预告期的资产不得准入。流程见[准入标准 §4](./TOKEN_ADMISSION_STANDARD_V1.md#4-公司行动与数据单位) |
 | GAP-04 **已编码** | DataInbox 接受角色地址直写的 Market、ADTV、可选 Quota 和未来日 SplitFactor；支持 quota SET/CLEAR、版本顺序和硬上限 | 生产报告服务、索引器与角色操作留证仍须准备；规则见[编码规格 `7](./CODING_SPEC_V1.md#7-角色报告计量日和额度) |
 | GAP-05 **已编码** | VolumeLedger 按 UTC 与可配置起点自动生成计量日；支持未来排期、偏移边界、过渡日锁定和取消待生效配置 | 生产报告服务与索引器须采用同一日切规则；部署与验收见[部署清单](./DEPLOYMENT_CHECKLIST_V1.md)及 D04/D05/P03 |

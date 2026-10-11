@@ -25,7 +25,7 @@ import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {PermissionedAdmission, PoolLifecycle, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolId, PoolIdLibrary} from "lib/v4-periphery/lib/v4-core/src/types/PoolId.sol";
@@ -120,7 +120,7 @@ contract LPHookTest is Test {
         stock.updateAllowedWrapper(address(this), true);
         stock.updateAllowedWrapper(address(lp), true);
         stock.updateAllowedHook(IHooks(address(hook)), true);
-        BackedAutoFeeLegalShareAdapter legal = new BackedAutoFeeLegalShareAdapter(address(issuer), address(underlying));
+        ERC8056DirectLegalShareAdapter legal = new ERC8056DirectLegalShareAdapter(address(underlying));
         registry.registerPermissionedCurrency(PermissionedAdmission(address(stock), SECURITY, address(legal)), 1);
         registry.registerQuoteToken(address(quote));
         (address a, address b) =

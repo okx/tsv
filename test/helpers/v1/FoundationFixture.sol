@@ -25,7 +25,7 @@ import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {V1MockIssuerShares, V1MockIssuerWrapped} from "./MockIssuerTokens.sol";
 import {V1MockToken} from "./FoundationMocks.sol";
 import {OperationsSbt} from "./OperationsMocks.sol";
@@ -51,7 +51,7 @@ abstract contract FoundationFixture is Test {
     V1IssuerAllowlistChecker internal issuerChecker;
     OperationsSbt internal identitySbt;
     V1MockToken internal quote;
-    BackedAutoFeeLegalShareAdapter internal stockAdapter;
+    ERC8056DirectLegalShareAdapter internal stockAdapter;
     PoolKey internal key;
     bytes32 internal poolId;
 
@@ -102,7 +102,7 @@ abstract contract FoundationFixture is Test {
         stockUnderlying = new V1MockIssuerShares();
         stockToken = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1MockToken("QUOTE6", 6);
-        stockAdapter = new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        stockAdapter = new ERC8056DirectLegalShareAdapter(address(stockToken));
         PermissionedAdmission memory admission = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         stock = PermissionsAdapter(admission.currency);
         registry.registerPermissionedCurrency(admission, 1);
@@ -193,7 +193,7 @@ abstract contract FoundationFixture is Test {
     function _newStockConfig(bytes32 securityId) internal returns (PermissionedAdmission memory) {
         V1MockIssuerShares underlying = new V1MockIssuerShares();
         V1MockIssuerWrapped token = new V1MockIssuerWrapped(underlying);
-        BackedAutoFeeLegalShareAdapter adapter = new BackedAutoFeeLegalShareAdapter(address(underlying), address(token));
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
         return _prepareCurrency(address(token), securityId, address(adapter));
     }
 

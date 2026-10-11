@@ -19,7 +19,7 @@
 - V1 每次 Swap **只经过一个 V4 PoolKey**；不提供多跳、批量 Swap、原生币、动态 LP fee、Hook fee、ERC-6909 用户余额或直接以可变余额 AutoFee 原币入池。每个成功的 PoolManager `swap` 恰有一个 Hook 成交记账过程。
 - 所有池使用同一个 TSV Hook、Registry、VolumeLedger、DataInbox、Router 和 LP Manager 六个业务代理。Registry 保存统一的 SBT 地址及按 tokenId 配置的 swap/LP 权限；LP Manager 同时提供不可转让 Receipt ERC-721。官方 PoolManager 不由 TSV 升级。Hook 的 `BEFORE_DONATE` 回调拒绝捐赠。
 - Hook 代理地址低 14 位固定为 `0x3FFF`：预留 V4 的 10 个回调位和 4 个返回 delta 位，避免已建池因 `PoolKey.hooks` 地址不可改而失去后续扩展能力。**V1 行为仍不使用自定义结算**：`beforeSwap` 返回零 `BeforeSwapDelta`，`afterSwap` 返回零 `int128`，`afterAddLiquidity/afterRemoveLiquidity` 返回零 `BalanceDelta`；`beforeDonate/afterDonate` 均回滚，禁止捐赠。其余回调按本文现行门禁执行。部署脚本须以本地 `Hooks.sol` 常量重新计算并断言代理地址位型。
-- Router 的 W/U/Q 结算使用 `TSVPermissionedSettlementLib`；LP Manager 的历史直接 ERC-20 结算使用 `TSVDirectSettlementLib`；当前唯一股数 Adapter `BackedAutoFeeLegalShareAdapter` 直接调用发行方换算方法；Ledger 日期换算与 DataInbox 报告通用校验分别使用 `TradeDayLib` 和 `ReportValidationLib`。这些都是内部 Solidity 库，不引入新的代理地址。
+- Router 的 W/U/Q 结算使用 `TSVPermissionedSettlementLib`；LP Manager 的历史直接 ERC-20 结算使用 `TSVDirectSettlementLib`；当前 ERC-8056 股数 Adapter `ERC8056DirectLegalShareAdapter` 读取池内 Currency 的 `uiMultiplier()`；Ledger 日期换算与 DataInbox 报告通用校验分别使用 `TradeDayLib` 和 `ReportValidationLib`。这些都是内部 Solidity 库，不引入新的代理地址。
 - 预留返回 delta 权限只赋予地址能力，不授权 V1 升级立即返回非零值。未来启用非零 delta 前，必须同版重设计 Router/LP Manager 的最终 `callerDelta` 结算、Hook/Ledger 的监管成交数量口径、Hook 自身欠款清算、请求边界、事件及回滚不变量，并完成独立审查与升级回归。当前 `afterSwap` 参数是 Hook 返回值影响 PoolManager 最终 caller delta **之前**的 Swap delta；直接沿用现有股数公式会错计。非零 delta 不能靠单独升级 Hook 启用。静态 LP fee、单池 Swap 和禁用 donate 的 V1 限制保持不变。
 - `poolCurrency` 是 PoolKey 中的 ERC-20，也是用户直接支付/收到的资产及 Registry 主键；当前 ABI 不定义独立用户 Token 或结算 Adapter 路径。TSV 不发行 Wrapped。
 - 股数账本单位 `legalSharesWad` 为 `1e18` 表示 1 股；金额字段除明确标注外均是相应 ERC-20 的**原始整数单位**。当前 `tradeDayId` 是按自动 UTC 日切计算的周期开始日 `YYYYMMDD`；不再使用 SIP 日历。链上时间为 Unix 秒。
@@ -128,7 +128,7 @@ Q 不绑定股数 Adapter；股票要求 `securityId != 0`、证券已上市、A
 
 准入只发登记事件，证券同时发 SecurityListed。W 根据 underlying 判断已注册；Q 使用 registered 标记，支持 0 decimals。停用与恢复统一使用 TOKEN/POOL 暂停，清除 TOKEN 暂停前复核已登记资产配置，失败时暂停保持。证券下架直接阻止对应池的普通操作，历史准入记录保留供查询和强退；重新上市后未暂停的历史池自动恢复。
 
-**当前实现的替换入口：**当前 ABI 没有结算 Adapter 替换入口。更换法定股数 Adapter 仍要求暂停，历史成交不重算。现有 Backed Adapter 每次转换都调用发行方 `getUnderlyingAmountByShares(rawShares)`，因此发行方方法所采用的实时 multiplier 会直接体现在该笔成交的计股结果中。Token 代理实现、制裁权限或关键规则变化时先停用，再复核恢复。
+**当前实现的替换入口：**当前 ABI 没有结算 Adapter 替换入口。更换法定股数 Adapter 仍要求暂停，历史成交不重算。当前 ERC-8056 Adapter 每次转换都读取池内 Currency 的 `uiMultiplier()`，因此实时 multiplier 会直接体现在该笔成交的计股结果中。Token 代理实现、制裁权限或关键规则变化时先停用，再复核恢复。
 
 ### 2.1 资产实例说明
 
@@ -138,7 +138,7 @@ Q 不绑定股数 Adapter；股票要求 `securityId != 0`、证券已上市、A
 
 `IDirectLegalShareAdapter` 提供 `poolCurrency()`、`currentMultiplier(currency)` 和 `toLegalShares(currency,rawAmount)`。所有股票 Adapter 都返回其换算使用的当前 multiplier；固定比例 Adapter 返回固定值。Swap 请求携带报价时的 `expectedMultiplier`；Hook 在 `beforeSwap` 和 `afterSwap` 分别与 Registry 所登记股票侧适配器的链上值比较，变化时整笔交易回滚。报价币即使也暴露 Multiplier 接口，也不参与比较；Registry 要求池中恰好有一侧是登记股票。Registry 注册/替换时通过 ERC-165 验证 Adapter 接口声明，并检查 Adapter 绑定的 Currency；Hook 在 `afterSwap` 取得真实股票腿 delta 后，调用 `toLegalShares`，再把换算结果和两个真实 delta 一起传给 Ledger。Ledger 只接受固定 Hook 写入，检查非股票侧为零、股票侧换算结果非零、Registry 中证券和 Adapter 元数据匹配，再执行当日额度记账。对正 raw 成交，换算结果为零、外部换算调用 revert 或结果溢出时，整笔交易回滚。Registry 对 Adapter 的转换逻辑不做形式化验证；Adapter 代码、来源 Token 的方法、法律计量定义和 gas 必须在准入审核中确认。
 
-**当前实现：**`BackedAutoFeeLegalShareAdapter` 绑定发行方来源 Token 与池内 Wrapped Currency；构造时要求 Wrapped `asset()` 等于来源 Token，双方 `decimals() == 18`。`currentMultiplier` 读取发行方 `getCurrentMultiplier()`，`toLegalShares` 调用 `getUnderlyingAmountByShares(rawShares)`。`ERC8056DirectLegalShareAdapter` 的两个方法读取同一 Token 的 `uiMultiplier()`。因此 Router 输入快照与 Adapter 实际换算使用同一来源值。wTSLAx 场景中的源码实现为 `floor(wrappedShares × currentMultiplier / 1e18)`，但股数口径是否得到发行方与法务认可仍是生产准入条件。零 raw 输入返回零，正 raw 若来源方法返回零则回滚。新增固定比例 Adapter 时，`currentMultiplier` 返回配置比例。
+**当前实现：**`ERC8056DirectLegalShareAdapter` 绑定池内 Currency，读取该 Token 的 `uiMultiplier()` 和 `decimals()`；`currentMultiplier` 返回实时 multiplier，`toLegalShares` 按 `floor(rawAmount × uiMultiplier / 10^decimals)` 换算。Router 输入快照与成交换算读取同一 multiplier 来源。该实现要求 Token 自身提供兼容的 multiplier 接口；目前没有调用发行方 `getUnderlyingAmountByShares(rawShares)` 的 Adapter，因此 wTSLAx 只有在接口语义与法律计量均经确认后才能准入。零 raw 输入返回零，正 raw 若 multiplier 或换算结果为零则回滚。新增固定比例 Adapter 时，`currentMultiplier` 返回配置比例。
 
 前端展示用户当前持有股数时，仍须按发行方批准的**账户权益**规则读取与计算。当前接口不提供从 legal shares 反算 raw Token 数量的函数；前端报价与 `SwapRequest`/`LPBounds` 继续使用 raw 数量。拆并股额度按 §7 D-37 的独立系数在未来计量日开始时切换；实际成交仍按 Adapter 实时换算。发行方单位不确定或日内突变时，按[准入标准的公司行动流程](./TOKEN_ADMISSION_STANDARD_V1.md)暂停受影响资产，不能把新旧法律单位混入同一日累计量。
 
