@@ -1,6 +1,6 @@
 # TSV V1 合约测试规格
 
-版本：1.10，2026-10-04。交易、运营、治理流程和入口总览见[三系统总览](./SYSTEMS_OVERVIEW.md)。本文是[当前编码规格](./CODING_SPEC_V1.md)的验收清单；代币准入按[新版准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)执行。表内用例表示**应实现的目标测试**，当前已执行的本地结果见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。本地 Hook 集成测试以 Backed 行为 mock 作为股票 Currency，并通过唯一的 `BackedAutoFeeLegalShareAdapter` 调用来源 Token 的实时转换方法；普通 `V1LocalERC20` 作为报价币、故障币和普通 ERC-20 兼容性夹具。`ERC8056DirectLegalShareAdapter` 有独立计股单元测试，当前真实 V4 默认夹具仍使用 Backed 股票行为 mock。目标新操作只直接收付池内 Currency。
+版本：1.10，2026-10-04。交易、运营、治理流程和入口总览见[三系统总览](./SYSTEMS_OVERVIEW.md)。本文是[当前编码规格](./CODING_SPEC_V1.md)的验收清单；代币准入按[新版准入标准](./TOKEN_ADMISSION_STANDARD_V1.md)执行。表内用例表示**应实现的目标测试**，当前已执行的本地结果见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。本地 Hook 集成测试使用实现 `uiMultiplier()` 的股票行为 mock，并接入 `ERC8056DirectLegalShareAdapter`；普通 `V1LocalERC20` 作为报价币、故障币和普通 ERC-20 兼容性夹具。ERC-8056 Adapter 另有独立单元测试。生产发行方资产仍须单独验证 multiplier 接口和法律计量。目标新操作只直接收付池内 Currency。
 
 跨领域的剩余工作、依赖及完成条件见[测试缺口统一清单](./TEST_GAPS_V1.md)；不以规范表格或覆盖率百分比推定已验收。
 
@@ -14,13 +14,13 @@
 
 | 层级 | 用途 | 必须交付的证据 |
 | --- | --- | --- |
-| U：单元与确定性向量 | 校验 Backed Adapter 直接换算、状态机、Router 授权、边界、权限 | Foundry 用例；每个表内 ID 有通过/失败记录 |
-| I：本地协议集成 | 使用真实 V4 PoolManager 和本地 SBT/Backed 行为 mock；测试完整原子路径 | 调用 trace、关键事件、交易前后状态快照 |
+| U：单元与确定性向量 | 校验 ERC-8056 Adapter 换算、状态机、Router 授权、边界、权限 | Foundry 用例；每个表内 ID 有通过/失败记录 |
+| I：本地协议集成 | 使用真实 V4 PoolManager、本地 SBT 和实现 `uiMultiplier()` 的股票行为 mock；测试完整原子路径 | 调用 trace、关键事件、交易前后状态快照 |
 | F：固定区块 X Layer fork | 核对官方 PoolManager 和实际 TSLAx/wTSLAx 代理、代码哈希、ABI、只读状态及受控地址的交易路径 | 固定 block、chainId、合约地址/codehash、运行结果；不广播主网交易 |
 | P：fuzz/invariant | 随机交易序列、整数边界、升级/暂停/日切交错 | seed、最小复现输入、`fail_on_revert` 策略与不变量结果 |
-| G：gas/部署 | 最坏 `getUnderlyingAmountByShares` 调用、单股票腿计量、双侧资产结算、强退、Hook 代理地址 | 给出所用编译器/优化参数、区块 gas limit、实际 gas 与余量 |
+| G：gas/部署 | 最坏 `uiMultiplier()` 调用、单股票腿计量、双侧资产结算、强退、Hook 代理地址 | 给出所用编译器/优化参数、区块 gas limit、实际 gas 与余量 |
 
-`F` 层固定区块和 RPC 由测试清单提供，不把实时链状态当成稳定断言。测试必须校验 `chainId == 196`、官方 PoolManager 的地址/codehash、TSLAx/wTSLAx 的代理地址、运行代码哈希与可核验的实现/ABI；任何一项不符即让该组测试**失败**，不得自动改为 mock 或跳过。实际代理与本地 Backed 源码不一致时，记为准入阻断项并保持资产未准入。底层转账场景只使用测试控制的地址或本地发行方实例；不能控制的真实发行方状态只做只读核验并如实标注未覆盖路径。
+`F` 层固定区块和 RPC 由测试清单提供，不把实时链状态当成稳定断言。测试必须校验 `chainId == 196`、官方 PoolManager 的地址/codehash、TSLAx/wTSLAx 的代理地址、运行代码哈希与可核验的实现/ABI；任何一项不符即让该组测试**失败**，不得自动改为 mock 或跳过。实际代理不兼容 `uiMultiplier()` 时，记为准入阻断项并保持资产未准入。底层转账场景只使用测试控制的地址或本地发行方实例；不能控制的真实发行方状态只做只读核验并如实标注未覆盖路径。
 
 V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分别构建。跨版本集成测试通过薄接口调用各自产物；不得仅因一个集成 profile 能用 `0.8.29` 重编译 TSV，就把它当作生产 `0.8.26` 字节码的验证。测试清单保存三份外部源码 commit、OZ 版本、TSV 实现/代理 codehash 和 CREATE2 salt。
 
@@ -30,8 +30,8 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 | fixture | 固定值或要求 |
 | --- | --- |
-| `BackedAutoFeeLegalShareAdapter` + `V1MockIssuerShares` / `V1MockIssuerWrapped` | 当前本地股票适配路径；Adapter 直接调用来源 Token `getUnderlyingAmountByShares`，测试 mock 不能代替真实 wTSLAx 准入 |
-| `ERC8056TestToken`（`STDx`） | ERC-8056 raw/UI multiplier 行为夹具；当前未配备股数 Adapter，不用于 Hook 股票腿 |
+| `ERC8056DirectLegalShareAdapter` + `V1MockIssuerWrapped` / `V1SwapToken` | 当前 direct-adapter Hook 测试路径；mock 的 `uiMultiplier()` 读取 mock issuer multiplier，不能代替真实发行方准入 |
+| `ERC8056TestToken`（`STDx`） | ERC-8056 raw/UI multiplier 行为夹具；用于 Adapter 独立单测，不代表真实证券权益或生产准入 |
 | `V1LocalERC20`（`QUOTE`） | 普通报价币与转账故障夹具，`securityId == 0` |
 | `QUOTE6` | 可选的 6 decimals 报价币，用于非 18 位金额边界 |
 | `TSLAx/wTSLAx` | 生产目标场景；准入假设与限制见[准入标准 §6](./TOKEN_ADMISSION_STANDARD_V1.md#6-tesla-实例tslax-与-wtslax)；外部实例仍须单独验证 |
@@ -63,13 +63,13 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
-| A01 U/I | 用 Backed 行为 mock 的 wTSLAx Currency 和唯一生产 Adapter 接入 Hook；另用普通 ERC-20 或错误/错绑 Adapter 配置尝试登记；来源 multiplier 变化后交换两方向 | Hook 对每条股票 delta 调用来源 Token 转换方法并按当次返回值计股；错误配置回滚且新资产保持未登记；PoolManager raw 份额不自行变化，用户始终收付 wTSLAx |
+| A01 U/I | 用暴露 `uiMultiplier()` 的 Currency 和 `ERC8056DirectLegalShareAdapter` 接入 Hook；另用普通 ERC-20 或错误/错绑 Adapter 配置尝试登记；multiplier 变化后交换两方向 | Hook 对每条股票 delta 按当次 multiplier 换算计股；不兼容的 wTSLAx 配置、错误配置或错绑 Adapter 回滚且资产保持未登记；PoolManager raw 份额不自行变化 |
 | A02 U/I | 公告指定未来计量日拆股/并股，Token 提前或推迟更新；异常来源单位需人工暂停/跨日恢复 | 额度按 D-37 的独立系数在日开始自动切换；实际成交仍实时 Adapter 换算；不修改旧 quota/ADTV/历史 used。单位异常暂停流程另验证；不声称合约自动识别或阻止发行方日内变更。 |
 | A03 I | 模拟发送方扣 `x + fee`、接收方正好收到 `x` 的 Token，分别走 Swap 和 LP 的 PoolManager 入金/出金及强退 | 每条路径均因发送方 raw 差额不等于 `x` 而全回滚；用户余额、PoolManager、仓位、Receipt、used 恢复为 `S_pre` |
 | A04 U/I | 仅 UI getter 存在但未绑定经审核的直接换算 Adapter；Adapter 返回零、currency 不匹配或 ERC-165 不符；`balanceOf(PoolManager)` 会 Rebase | 不兼容股票 Token 不得批准或 Swap；正 raw 换算结果为零、来源方法 revert 时整笔回滚；准入不能仅凭函数名或单次余额读取 |
 | A05 U/I | 在 wTSLAx 股票池直接买入/卖出，覆盖 exact-in/out 与价格边界部分成交；使用未登记或不同的 PoolKey 发起 Swap | 只收付已登记的池内 Currency wTSLAx，按每笔实际 V4 wTSLAx delta 记一次 Tesla 额度；池键不匹配或未知时回滚；当前交易路径不执行包装或赎回 |
 | A06 I | LP 直接以 wTSLAx 开仓、加仓、领费、部分减仓、关闭和强退；wTSLAx 拒转或发送方额外扣费 | 每步只按实际 raw Currency delta 收付；退出向原 owner 交付 wTSLAx；失败方案 A 全回滚；LP 操作不增加 `usedWad` |
-| A07 U/I | 发行方 multiplier 改变、来源换算方法失效或 Token 被停用；用户仍持有 wTSLAx | 交易时调用来源方法并按当次返回值计股；方法失效/Token 停用时新 Swap 拒绝，不沿用缓存比例；既有仓位强退按独立门禁处理，不自动改成 TSLAx |
+| A07 U/I | 股票 Currency 的 multiplier 改变、`uiMultiplier()` 读取失败或 Token 被停用 | 交易时按 Adapter 读取的当次 multiplier 计股；读取失败/Token 停用时新 Swap 拒绝，不沿用缓存比例；既有仓位强退按独立门禁处理 |
 | A08 I | 目标部署从无旧 TSLAx 结算仓位直接启用 wTSLAx 直结；尝试调用旧 TSLAx 结算入口 | 新部署只允许 wTSLAx 直结；旧包装/赎回入口不存在或回滚；不生成旧仓位兼容状态 |
 | A09 U/I | `bindComponents` 的 SBT 指向无 `paused()` 或 `verify()` 的合约、零地址或无代码地址；`setSbtConfig` 的实际 ID 读取失败 | 绑定失败时全部组件保持未绑定；身份配置失败时权限与 ID 列表保持不变；组件未绑定的 Registry 资格读取回滚 `SbtNotConfigured()` |
 
@@ -104,16 +104,16 @@ SBT 增补验收：按 tokenId 独立配置 swap-only、LP-only、双权限及�
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
 | S01 U/I | wTSLAx mock 来源方法初始 multiplier=`1e18`，输入 `2e18` raw shares；`QUOTE` 输出 | 该标的 `used` 增 `2e18`；quote 不产生 `SwapAccounted`；将来源 multiplier 改为 `2e18` 后，等量 raw 输入的 `used` 增量为 `4e18` |
-| S02 U/I | `wTSLAx` 输入 `3e18` shares，来源 Token `getUnderlyingAmountByShares` 返回 `2.7e18` | 技术股数 `2.7e18`；Adapter 返回值及事件值与独立计算一致，不生成 rateId/快照 |
+| S02 U/I | 股票 Currency 输入 `3e18` raw，`uiMultiplier()` 返回 `0.9e18` | 技术股数 `2.7e18`；Adapter 返回值及事件值与独立计算一致，不生成 rateId/快照 |
 | S03 U/I | 在股票／非股票池分别让股票作输入且存在 LP/协议费、股票作输出 | 输入按实际 V4 caller delta 的**含费总支出**计，输出按净收到计；每笔只记一条股票腿，不能按 `amountSpecified` 或用户预估数记账 |
 | S04 I | exact input 完全成交；价格边界仅部分成交且仍达到 minOut；部分成交低于 minOut | 前两者只按实际 delta 直接收付 Currency 和计股；最后者全回滚 |
 | S05 I | 直接结算 Adapter exact-in 的股票输入和 quote 输入完整成交、价格边界导致输入未完全消耗 | 仅完整消耗指定输入时成功；股票输入按含费实际输入、quote 输入按净收到股票的法定股数增加 `used`；部分成交整笔回滚；Router 无成交事件或 int128 事件转换 |
 | S06 U/I | 未持证 Adapter、非白名单 Adapter、参数越界、deadline 过期；EOA/AA 尝试直接调用 Router | 未持证及非白名单 Adapter 拒绝；用户直调 Swap selector 不存在；同一请求在后续独立调用中按新 Swap 校验，不做应用层 nonce 去重 |
 | S07 I | 非 PoolManager 直接调用 Router.unlockCallback；非 Router 直接通过 PoolManager.swap；Router 收到不可交易池；Hook 收到不匹配的 PoolKey；Swap 回调期间重入 Router；直接调用 Hook 或尝试非 Swap 的 modify/donate | 全部拒绝；一次成功 Router Swap 恰一次记账；Swap 不依赖或清理活跃上下文 |
-| S08 U/I | Backed 来源换算对正 raw 返回零、来源方法 revert、极大 raw 返回溢出/异常值 | Hook 调用失败或返回零时整笔回滚；正成交不以零股计入额度 |
+| S08 U/I | `uiMultiplier()` 对正 raw 返回零、调用 revert，或极大 raw 返回溢出/异常值 | Hook 调用失败或返回零时整笔回滚；正成交不以零股计入额度 |
 | S09 I | `afterSwap` 调用 Adapter 时来源换算方法 revert 或返回零 | 整笔 Swap 回滚；没有旧快照、Ledger 复核或 Router 结算后的二次复验 |
 | S10 I | 普通 ERC-20 fee-on-transfer、rebasing、无返回值/返回 false、静默少转；wTSLAx 发送方额外扣费 | 有效标准返回值且双方 raw 差额精确才可通过；金额不等即回滚，不留下池欠款 |
-| S11 I | 用户持有 wTSLAx，但 issuer multiplier 在报价后变化；分别测试 raw 滑点通过/失败 | 成功交易以 `afterSwap` 实际 delta 调用来源换算方法并按当时返回值计股；raw 限额按请求执行；前端股数预估不作为链上边界 |
+| S11 I | 用户持有股票 Currency，但 multiplier 在报价后变化；分别测试 raw 滑点通过/失败 | 成功交易以 `afterSwap` 实际 delta 和当时的 `uiMultiplier()` 计股；raw 限额按请求执行；前端股数预估不作为链上边界 |
 | S12 I | Router/LP Manager 非法回调、错 LP callback context/request hash/poolCurrency/owner/recipient、重入及故意遗留本次 wTSLAx 余额 | 全部拒绝或回滚；成功时 LP 活跃上下文与请求哈希清空；Router/LP Manager 不留本笔资产 |
 
 ### 3.4 LP、Receipt、暂停和强退
@@ -166,7 +166,7 @@ SBT 增补验收：按 tokenId 独立配置 swap-only、LP-only、双权限及�
 | --- | --- | --- |
 | X-V4 | `lib/v4-core` 的 PoolManager/Hook 类型；固定 fork 官方 PoolManager | `initialize` Hook 两回调、`modifyLiquidity` 的 callerDelta 含本金与费用、零 liquidity 领费限制、`swap` 的 afterSwap delta 与手续费、`sync/settle/take` 清算和 `donate` 拒绝；直连绕过尝试失败 |
 | X-SBT | `lib/soul-bound-token-1155` SmartWalletSbt 实际编译产物/代理 | `verify` 只反映持有余额，`paused()` 独立生效；撤证、停用、AA 钱包 ERC-1155 接收分别测试 |
-| X-BACKED | `BackedAutoFeeLegalShareAdapter`、本地来源/Wrapped 行为 mock，再核对 fork 真实代理 | `getUnderlyingAmountByShares(rawShares)` 在转换调用时的返回值、底层 multiplier 变化、wTSLAx raw 稳定和双侧精确转账、发行方托管及 Wrapper 外部赎回限制；目标 TSV 新交易不调用 `transferSharesFrom/mint/redeem` |
+| X-BACKED | 本地来源/Wrapped 行为 mock及 fork 真实代理（只读） | 核对 `getUnderlyingAmountByShares(rawShares)`、底层 multiplier、wTSLAx raw 稳定和双侧精确转账、发行方托管及 Wrapper 外部赎回限制；当前 Adapter 不调用该发行方转换方法，wTSLAx 路径须先完成兼容 Adapter 与准入审查；TSV 新交易不调用 `transferSharesFrom/mint/redeem` |
 
 X-BACKED 必须覆盖 multiplier=`1e18`、低于 `1e18`、会跨一个费率周期、正 raw 返回零显示量的边界；包含账户已有余额时的 floor 差额。对实际代理只读查 `getUnderlyingAmountByShares()`、`asset()`、`decimals()`、`getCurrentMultiplier()`、`sharesOf()`、代码哈希与可核验管理员/制裁列表；写路径只有测试地址和发行方允许的受控环境才能执行。真实代理未完成写路径验证，生产报告必须将其列为未通过门禁，不能用本地实例通过替代。
 

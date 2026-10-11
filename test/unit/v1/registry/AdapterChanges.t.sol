@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {UnderlyingRecord, SecurityPauseMode, SecurityOperationType} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingRecord, PauseScope, PauseMode, MarketAction} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 
 contract TSVOperationsAdapterChangesTest is OperationsFixture {
     function testSecurityPauseReplacementChangesAdapterAndPreservesUsed() public {
         _submitAdtv(1000e18);
         _charge(1e18);
-        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
+        _submitMarketMode(MarketAction.HALT, PauseMode.ALL, 1);
         for (uint256 i; i < 2; ++i) {
-            BackedAutoFeeLegalShareAdapter replacement =
-                new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+            ERC8056DirectLegalShareAdapter replacement =
+                new ERC8056DirectLegalShareAdapter(address(stockToken));
             address old = registry.getUnderlying(address(stockToken)).legalShareAdapter;
             vm.expectEmit(true, false, false, true, address(registry));
             emit TSVRegistryV1.UnderlyingLegalShareAdapterChanged(address(stockToken), old, address(replacement));
@@ -25,23 +25,25 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
         }
     }
 
-    function testSingleOperationPauseIsInsufficientForReplacement() public {
-        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
-        BackedAutoFeeLegalShareAdapter replacement =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+    function testPoolAndSingleWTokenPauseAreInsufficient() public {
+        _grantPauseRoles();
+        _pause(PauseScope.POOL, poolId, PauseMode.ALL);
+        _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
+        ERC8056DirectLegalShareAdapter replacement =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
-        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.LP, 2);
+        _pause(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
     }
 
     function testReplacementRejectsInvalidIdentityInterfaceAndCurrency() public {
         _grantPauseRoles();
-        _enableEmergencyPause();
-        BackedAutoFeeLegalShareAdapter good =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
-        BackedAutoFeeLegalShareAdapter wrongCurrency =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        _pause(PauseScope.GLOBAL, 0, PauseMode.ALL);
+        ERC8056DirectLegalShareAdapter good =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
+        ERC8056DirectLegalShareAdapter wrongCurrency =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
         for (uint8 fault; fault < 6; ++fault) {
             address currency = address(stockToken);
             address adapter = address(good);

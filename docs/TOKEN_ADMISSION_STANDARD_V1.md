@@ -2,7 +2,7 @@
 
 > **2026-10-07 Wrapped Swap 更新：** Registry 与单池 Wrapped Swap 已实现，用户收付 U/Q，池内结算 W/Q。当前 ABI、库链接与验收边界见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)，当前运营步骤见 [W/U/Q 开通流程](./OPENING_A_STOCK_MARKET_V1.md)。下文旧 DIRECT、TokenConfig/getToken、DEX 与 LP 成功路径属于历史版本；生产 Wrapped LP 及真实资产/目标链验收仍待交付，历史测试数量不代表当前覆盖。
 
-状态：**Backed AutoFee 直算路径已接入本地 Hook 集成测试；真实发行方 wTSLAx 生产证据仍待完成**，2026-10-02。系统流程与交易/运营/治理边界见[三系统总览](./SYSTEMS_OVERVIEW.md)。V1 每个池内 Currency **只允许直接 ERC-20 结算**：Swap 和 LP 用户支付、接收的 Token 与 `PoolKey` 中该侧 Currency 是同一个地址。TSLAx 是 xStock 系列中的一个实例；其发行方 Wrapped `wTSLAx` 可按本标准审查为池内股票 Currency，TSLAx 原币不进入 TSV 的 Swap/LP 入口。代码目前只提供 `BackedAutoFeeLegalShareAdapter`；它和本地 Backed 行为 mock 不等同于已获准的真实发行方资产。当前没有通用固定比例或 ERC-8056 股数 Adapter。具体生产差异见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
+状态：**ERC-8056 direct multiplier Adapter 已实现并接入本地 Hook 测试；真实发行方资产及 wTSLAx 生产证据仍待完成**，2026-10-11。系统流程与交易/运营/治理边界见[三系统总览](./SYSTEMS_OVERVIEW.md)。V1 每个池内 Currency **只允许直接 ERC-20 结算**：Swap 和 LP 用户支付、接收的 Token 与 `PoolKey` 中该侧 Currency 是同一个地址。TSLAx 是 xStock 系列中的一个实例；其发行方 Wrapped `wTSLAx` 可按本标准审查为池内股票 Currency，TSLAx 原币不进入 TSV 的 Swap/LP 入口。当前代码提供读取池内 Currency `uiMultiplier()` 的 ERC-8056 Adapter；它不调用发行方 `getUnderlyingAmountByShares`，本地行为 mock 不等同于已获准的真实发行方资产。具体生产差异见[实现与缺口清单](./IMPLEMENTATION_STATUS_V1.md)。
 
 ## 1. 两项独立准入判断
 
@@ -15,8 +15,8 @@
 | --- | --- | --- | --- |
 | 普通非股票 ERC-20 | 该 ERC-20 地址 | 无 | 经 raw 稳定与精确转账审查后作为配对币 |
 | 固定比例股票 ERC-20 | 该 ERC-20 地址 | 当前无通用实现；须另行审核并部署实现 `IDirectLegalShareAdapter` 的 Adapter | 还需发行方/法务批准逐笔股数公式 |
-| raw 稳定的 UI Multiplier 股票 | 该 ERC-20 地址 | 当前无 ERC-8056 股数 Adapter | Token 的 multiplier 接口本身不构成可用的股数换算实现或生产准入依据 |
-| 发行方 `wTSLAx` | wTSLAx / wTSLAx | `BackedAutoFeeLegalShareAdapter` 调用来源 Token 的 `getUnderlyingAmountByShares(rawShares)` | 生产目标是用户直接收付 wTSLAx，按批准的发行方权益公式对实际 V4 delta 计股；真实代理和法律证据仍待准入 |
+| raw 稳定的 UI Multiplier 股票 | 该 ERC-20 地址 | `ERC8056DirectLegalShareAdapter` 读取 `uiMultiplier()` 并按 raw 单位换算 | multiplier 与逐笔股数公式仍须发行方/法务批准，Token 接口本身不构成生产准入依据 |
+| 发行方 `wTSLAx` | wTSLAx / wTSLAx | 当前无兼容实现；现有 Adapter 直接读取池内 Currency 的 `uiMultiplier()` | 只有确认该接口和法律公式一致，或提供经审核的兼容 Adapter 后，才能按实际 V4 delta 计股；真实代理和法律证据仍待准入 |
 | TSLAx 可变余额原币 | 不适用 | 不适用 | 不直接入池；用户如需持有 TSLAx，可在 TSV 之外使用发行方自己的包装/赎回流程 |
 | Rebase 原币，无合格稳定 Wrapped | 不适用 | 不适用 | V1 不准入 |
 
@@ -94,18 +94,18 @@ TSLAx 是 xStock 系列中的 Tesla 实例。本节只限定 Tesla，不把其�
 
 V1 不在 Swap/LP 中调用 `TSLAx.transferSharesFrom`、`wTSLAx.mint` 或 `wTSLAx.redeem`。目标 Registry 以 wTSLAx 地址作为唯一 `poolCurrency` 并绑定已审的 LegalShareAdapter；池另一侧必须是已批准的非股票 Currency。用户若要将 TSLAx 包装为 wTSLAx，或将退出所得 wTSLAx 赎回为 TSLAx，均在 TSV 之外完成。
 
-`BackedAutoFeeLegalShareAdapter` 绑定 TSLAx 来源合约和 wTSLAx 池内 Currency；构造时核验 Wrapped `asset()` 绑定和两侧 `decimals() == 18`。Hook 在 `afterSwap` 传入实际 wTSLAx shares 数量，Adapter 调用 TSLAx 的 `getUnderlyingAmountByShares(shares)` 并直接将返回值作为 `legalSharesWad`；不保存或验证 multiplier 快照、不调用 nonce getter，也不复制乘法公式。这只证明接入点沿用发行方转换方法，不能单独证明其输出的一单位等于一股。发行方与法务须确认该方法语义、舍入、输入含费/输出净到账口径，以及账户持仓权益定义。真实 wTSLAx/TSLAx 代理 ABI、实现和管理员、转换调用的最坏 gas、转账限制与原 owner 收款能力仍是生产准入门槛；本地行为 mock 不构成真实实例证据。
+当前 `ERC8056DirectLegalShareAdapter` 绑定池内 Currency 并读取该 Token 的 `uiMultiplier()`；它不会查询 TSLAx，也不会调用 `getUnderlyingAmountByShares(shares)`。若真实 wTSLAx 未提供语义兼容且经批准的 `uiMultiplier()`，当前实现不适用于 wTSLAx。发行方与法务须确认换算方法语义、舍入、输入含费/输出净到账口径，以及账户持仓权益定义。真实 wTSLAx/TSLAx 代理 ABI、实现和管理员、转换调用的最坏 gas、转账限制与原 owner 收款能力仍是生产准入门槛；本地行为 mock 不构成真实实例证据。
 
-## 7. ERC-8056 与本地 `STDx` 夹具（当前不接入股数 Adapter）
+## 7. ERC-8056 与本地 `STDx` 夹具
 
 [ERC-8056](https://eips.ethereum.org/EIPS/eip-8056) 是 ERC-20 UI multiplier 扩展标准，目前为 Draft。仓库中的 [`ERC8056TestToken`](../lib/TestToken/erc8056/ERC8056TestToken.sol)（测试符号 `STDx`）是本地夹具，不是已部署的发行方 Token，也不构成证券权益证明。
 
-该夹具的 raw `balanceOf()`、转账和 V4 结算不随 multiplier 改写。它用于说明 ERC-8056 multiplier 语义，不属于当前 Backed Adapter 的输入类型；仓库未提供读取 ERC-8056 multiplier 的股数 Adapter，Registry 因而不会仅凭此 Token 实现这些接口就准许它作为当前股票资产。生产准入仍须按实际采用的 ERC-8056 版本核对 ERC-165 声明和 multiplier 行为；该 Draft 的接口 ID 为核心 `0xa60bf13d`、待生效系数 `0x4bd27648`，可选转换 `0x57854fc3`、可选 UI 余额 `0xd890fd71`。若未来为其编写直接换算 Adapter，应单独评审并使用发行方批准的逐笔公式，例如：
+该夹具的 raw `balanceOf()`、转账和 V4 结算不随 multiplier 改写。当前 `ERC8056DirectLegalShareAdapter` 从池内 Token 读取 `uiMultiplier()`，按 raw 单位换算股数；实现 Draft 接口并不等于发行方已批准其法律公式。生产准入仍须按实际采用的 ERC-8056 版本核对 ERC-165 声明和 multiplier 行为；该 Draft 的接口 ID 为核心 `0xa60bf13d`、待生效系数 `0x4bd27648`，可选转换 `0x57854fc3`、可选 UI 余额 `0xd890fd71`。发行方须批准逐笔公式，例如：
 
 ```text
 legalSharesWad = floor(rawAmount × uiMultiplier / 10^decimals)
 ```
 
-V4 价格、滑点边界、Swap/LP 参数和余额均继续使用 raw 数量；multiplier 不会自动进入 TSV 的额度换算。未来若加入适配器，运行时转换结果会反映 Token 在 `afterSwap` 调用时生效的参数；如果它改变法律股数单位，则按第 4.1 节核对额度排期和单位，必要时暂停处理。准入真实 ERC-8056 Token 还须独立核对接口/权限/代理、raw 稳定、双侧精确转账、multiplier 生效规则、有界 gas、法律单位和对应 ADTV/quota。
+V4 价格、滑点边界、Swap/LP 参数和余额均继续使用 raw 数量；multiplier 只通过 Adapter 进入成交额度换算。运行时转换结果反映 Token 在 `afterSwap` 调用时生效的参数；如果它改变法律股数单位，则按第 4.1 节核对额度排期和单位，必要时暂停处理。准入真实 ERC-8056 Token 还须独立核对接口/权限/代理、raw 稳定、双侧精确转账、multiplier 生效规则、有界 gas、法律单位和对应 ADTV/quota。
 
-当前本地 Hook 集成测试直接接入 Backed Adapter 和 Backed 行为 mock，见 [`BackedAutoFeeLegalShareAdapter`](../src/v1/adapters/BackedAutoFeeLegalShareAdapter.sol) 与 [`Trading.t.sol`](../test/integration/local/trading/Trading.t.sol)。本地测试覆盖不能替代真实 Token 的逐实例准入。
+当前本地 Hook 集成测试使用 `ERC8056DirectLegalShareAdapter` 和暴露 mock `uiMultiplier()` 的测试 Token；相关 Hook 流程见 [`WrappedSwap.t.sol`](../test/integration/local/trading/WrappedSwap.t.sol)。本地测试覆盖不能替代真实 Token 的逐实例准入。

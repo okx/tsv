@@ -12,6 +12,10 @@ import {LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVPermissionedSettlementLib} from "tsv-v1/libraries/TSVPermissionedSettlementLib.sol";
 
+interface IV1MockMultiplierSource {
+    function getCurrentMultiplier() external view returns (uint256 currentMultiplier, uint256 periodsPassed, uint256 nonce);
+}
+
 /// @dev Behavior fixture for issuer U and quote Q; never deployed as a production asset.
 contract V1SwapToken is ERC20 {
     address public immutable asset;
@@ -64,6 +68,11 @@ contract V1SwapToken is ERC20 {
         if (metadataMode == 1) revert("metadata read failed");
         if (metadataMode == 2) assembly ("memory-safe") { return(0, 1) }
         return precision;
+    }
+
+    /// @dev Exposes the test issuer's live multiplier for the direct-adapter integration fixture.
+    function uiMultiplier() external view returns (uint256 currentMultiplier) {
+        (currentMultiplier,,) = IV1MockMultiplierSource(asset).getCurrentMultiplier();
     }
 
     function transfer(address to, uint256 value) public override returns (bool) {

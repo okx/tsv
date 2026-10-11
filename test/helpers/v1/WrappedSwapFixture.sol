@@ -19,7 +19,7 @@ import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
 import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
 import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
@@ -47,7 +47,7 @@ abstract contract WrappedSwapFixture is Test {
     V1SwapToken internal underlying;
     V1SwapToken internal quote;
     PermissionsAdapter internal stock;
-    BackedAutoFeeLegalShareAdapter internal legalAdapter;
+    ERC8056DirectLegalShareAdapter internal legalAdapter;
     V1ConfigReceiver internal exitReceiver;
     V1IssuerAllowlistChecker internal issuerChecker;
     V1LocalSBT internal sbt;
@@ -106,7 +106,7 @@ abstract contract WrappedSwapFixture is Test {
         issuer = new V1MockIssuerShares();
         underlying = new V1SwapToken("STOCK_U", 18, address(issuer));
         quote = new V1SwapToken("QUOTE_Q", _quoteDecimals(), address(0));
-        legalAdapter = new BackedAutoFeeLegalShareAdapter(address(issuer), address(underlying));
+        legalAdapter = new ERC8056DirectLegalShareAdapter(address(underlying));
         exitReceiver = new V1ConfigReceiver();
         issuerChecker = new V1IssuerAllowlistChecker();
         stock = _newWrapper();

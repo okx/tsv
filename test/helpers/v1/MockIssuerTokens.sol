@@ -119,6 +119,11 @@ contract V1MockIssuerWrapped is ERC20 {
         return address(underlying);
     }
 
+    /// @dev Exposes the mock multiplier through the ERC-8056 adapter surface used by TSV fixtures.
+    function uiMultiplier() external view returns (uint256) {
+        return underlying.multiplier();
+    }
+
     /// @dev Mints mock wrapped-token shares for a test.
     function mintTestShares(address receiver, uint256 shares) external {
         _mint(receiver, shares);

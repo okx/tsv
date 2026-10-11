@@ -4,9 +4,9 @@ pragma solidity 0.8.26;
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {PermissionedRegisterParam, SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedAdmission, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
+import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
 import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
 import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
@@ -17,7 +17,7 @@ import {V1MockIssuerWrapped} from "../../../helpers/v1/MockIssuerTokens.sol";
 contract TSVAdmissionTest is FoundationFixture {
     function testAdmissionAtomicallyListsAndBindsUniqueUnderlying() public {
         bytes32 securityId = keccak256("new-security");
-        PermissionedRegisterParam memory a = _newStockConfig(securityId);
+        PermissionedAdmission memory a = _newStockConfig(securityId);
         registry.registerPermissionedCurrency(a, 1);
         address underlying = registry.getCurrencyUnderlying(a.currency);
         assertTrue(underlying != address(0));
@@ -29,7 +29,7 @@ contract TSVAdmissionTest is FoundationFixture {
 
     function testFirstAdmissionPreservesExistingPoolManagerUnderlying() public {
         bytes32 securityId = keccak256("prefunded-security");
-        PermissionedRegisterParam memory a = _newStockConfig(securityId);
+        PermissionedAdmission memory a = _newStockConfig(securityId);
         V1MockIssuerWrapped u = V1MockIssuerWrapped(address(PermissionsAdapter(a.currency).PERMISSIONED_TOKEN()));
         address donor = makeAddr("admission-donor");
         u.mintTestShares(donor, 1);
@@ -48,7 +48,7 @@ contract TSVAdmissionTest is FoundationFixture {
         stockToken.mintTestShares(donor, 1);
         vm.prank(donor);
         stockToken.transfer(address(manager), 1);
-        PermissionedRegisterParam memory a = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        PermissionedAdmission memory a = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         registry.registerPermissionedCurrency(a, 1);
         assertTrue(registry.getCurrencyUnderlying(a.currency) != address(0));
         assertEq(stockToken.balanceOf(address(manager)), 1);
@@ -57,15 +57,18 @@ contract TSVAdmissionTest is FoundationFixture {
     }
 
     function testFuzzAdmissionFailureRollsBackSecurityTierAndAsset(uint8 fault) public {
-        fault = uint8(bound(fault, 0, 3));
+        fault = uint8(bound(fault, 0, 6));
         bytes32 securityId = keccak256("atomic-failure");
-        PermissionedRegisterParam memory a = _newStockConfig(securityId);
+        PermissionedAdmission memory a = _newStockConfig(securityId);
         address w = a.currency;
         address u = address(PermissionsAdapter(w).PERMISSIONED_TOKEN());
         if (fault == 0) a.securityId = 0;
         else if (fault == 1) a.currency = address(stockToken);
         else if (fault == 2) a.legalShareAdapter = address(stockAdapter);
-        else vm.mockCall(u, abi.encodeWithSignature("decimals()"), abi.encode(uint8(19)));
+        else if (fault == 3) PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), false);
+        else if (fault == 4) PermissionsAdapter(w).updateAllowedHook(IHooks(address(this)), false);
+        else if (fault == 5) vm.mockCall(u, abi.encodeWithSignature("decimals()"), abi.encode(uint8(19)));
+        else vm.mockCall(w, abi.encodeWithSignature("totalSupply()"), abi.encode(uint256(1)));
         vm.expectRevert();
         registry.registerPermissionedCurrency(a, 1);
         assertEq(registry.getSecurity(securityId).securityId, 0);
@@ -74,24 +77,12 @@ contract TSVAdmissionTest is FoundationFixture {
         assertEq(registry.getUnderlying(u).securityId, 0);
     }
 
-    function testRegistrationDoesNotRequireWrapperPolicyOrEmptyInitialInventory() public {
-        bytes32 securityId = keccak256("policy-free-registration");
-        PermissionedRegisterParam memory a = _newStockConfig(securityId);
-        PermissionsAdapter(a.currency).updateAllowedWrapper(address(permissionedRouterFixture), false);
-        PermissionsAdapter(a.currency).updateAllowedHook(IHooks(address(this)), false);
-        vm.mockCall(a.currency, abi.encodeWithSignature("totalSupply()"), abi.encode(uint256(1)));
-        registry.registerPermissionedCurrency(a, 1);
-        assertEq(registry.getCurrencyUnderlying(a.currency), address(PermissionsAdapter(a.currency).PERMISSIONED_TOKEN()));
-        assertTrue(registry.getSecurity(securityId).listed);
-        vm.clearMockedCalls();
-    }
-
     function testSameUnderlyingManyWrappersShareCanonicalAndDoNotRequireFirstToClear() public {
         // Existing W1 may have supply and inventory; W2 itself must be pristine.
         stockToken.mintTestShares(address(stock), 100);
         vm.prank(address(permissionedRouterFixture));
         stock.wrapToPoolManager(100);
-        PermissionedRegisterParam memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         registry.registerPermissionedCurrency(second, 1);
         assertEq(registry.getCurrencyUnderlying(second.currency), address(stockToken));
         assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
@@ -106,13 +97,14 @@ contract TSVAdmissionTest is FoundationFixture {
     }
 
     function testNewWrapperUsesCurrentCanonicalAdapter() public {
-        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
-        BackedAutoFeeLegalShareAdapter next =
-            new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
+        _grantPauseRoles();
+        _pause(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
+        ERC8056DirectLegalShareAdapter next =
+            new ERC8056DirectLegalShareAdapter(address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next));
-        PermissionedRegisterParam memory second = _prepareCurrency(address(stockToken), SECURITY, address(next));
+        PermissionedAdmission memory second = _prepareCurrency(address(stockToken), SECURITY, address(next));
         registry.registerPermissionedCurrency(second, 1);
-        PermissionedRegisterParam memory wrong = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        PermissionedAdmission memory wrong = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
         registry.registerPermissionedCurrency(wrong, 1);
     }
@@ -139,22 +131,8 @@ contract TSVAdmissionTest is FoundationFixture {
         registry.registerQuoteToken(address(zero));
     }
 
-    function testDisableQuoteTokenPreservesMetadataAndRejectsMissingQuote() public {
-        V1MockToken extraQuote = new V1MockToken("disabled-quote", 8);
-        registry.registerQuoteToken(address(extraQuote));
-        assertEq(registry.getQuoteToken(address(extraQuote)).rawDecimals, 8);
-        assertTrue(registry.getQuoteToken(address(extraQuote)).registered);
-
-        registry.disableQuoteToken(address(extraQuote));
-
-        assertEq(registry.getQuoteToken(address(extraQuote)).rawDecimals, 8);
-        assertFalse(registry.getQuoteToken(address(extraQuote)).registered);
-        vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.disableQuoteToken(address(extraQuote));
-    }
-
     function testPoolOnlyAcceptsOneStockAndOneQuote() public {
-        PermissionedRegisterParam memory second = _newStockConfig(SECURITY);
+        PermissionedAdmission memory second = _newStockConfig(SECURITY);
         registry.registerPermissionedCurrency(second, 1);
         V1MockToken otherQuote = new V1MockToken("Q2", 6);
         registry.registerQuoteToken(address(otherQuote));
@@ -173,12 +151,78 @@ contract TSVAdmissionTest is FoundationFixture {
         }
     }
 
+    function testTokenRecoveryPreservesIdentityWithSupplyAndFees() public {
+        stockToken.mintTestShares(address(stock), 100);
+        vm.prank(address(permissionedRouterFixture));
+        stock.wrapToPoolManager(100);
+        _grantPauseRoles();
+        uint256 id = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
+        _assertOperationGates(false, false);
+        vm.mockCall(
+            address(manager),
+            abi.encodeWithSignature("protocolFeesAccrued(address)", address(stock)),
+            abi.encode(uint256(10))
+        );
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        _assertOperationGates(true, true);
+        assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
+        assertEq(stock.totalSupply(), 100);
+        id = _pause(PauseScope.TOKEN, bytes32(uint256(uint160(address(quote)))), PauseMode.ALL);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertTrue(registry.getQuoteToken(address(quote)).registered);
+        _assertOperationGates(true, true);
+    }
+
     function testIssuerOwnerRotationDoesNotRequireRegistryUpdate() public {
         address next = makeAddr("next-issuer-owner");
         stock.transferOwnership(address(next));
         vm.prank(next);
         stock.acceptOwnership();
         assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
+        _assertOperationGates(true, true);
+    }
+
+    function testQuoteRecoveryRejectsChangedPrecisionAndKeepsPauseUntilFixed() public {
+        _grantPauseRoles();
+        bytes32 target = bytes32(uint256(uint160(address(quote))));
+        uint256 id = _pause(PauseScope.TOKEN, target, PauseMode.ALL);
+        vm.mockCall(address(quote), abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
+        vm.expectRevert(TSVRegistryV1.PermissionedMetadataMismatch.selector);
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertEq(registry.activePauseCount(uint8(PauseScope.TOKEN), target, uint8(PauseMode.ALL)), 1);
+        _assertOperationGates(false, false);
+        vm.clearMockedCalls();
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertEq(registry.getQuoteToken(address(quote)).rawDecimals, 6);
+        assertTrue(registry.getQuoteToken(address(quote)).registered);
+        _assertOperationGates(true, true);
+    }
+
+    function testFuzzStockRecoveryRejectsInvalidPolicyAndKeepsPause(uint8 fault) public {
+        fault = uint8(bound(fault, 0, 4));
+        _grantPauseRoles();
+        bytes32 target = _pauseTarget(PauseScope.TOKEN);
+        uint256 id = _pause(PauseScope.TOKEN, target, PauseMode.ALL);
+        if (fault == 0) {
+            stock.updateAllowedWrapper(address(permissionedRouterFixture), false);
+        } else if (fault == 1) {
+            stock.updateAllowedHook(IHooks(address(this)), false);
+        } else if (fault == 2) {
+            vm.mockCall(address(stock), abi.encodeWithSignature("PERMISSIONED_TOKEN()"), abi.encode(address(quote)));
+        } else if (fault == 3) {
+            vm.mockCall(address(stockToken), abi.encodeWithSignature("decimals()"), abi.encode(uint8(6)));
+        } else {
+            vm.mockCall(address(stockAdapter), abi.encodeWithSignature("poolCurrency()"), abi.encode(address(quote)));
+        }
+        vm.expectRevert();
+        registry.clearEmergencyPause(id, keccak256("resume"));
+        assertEq(registry.activePauseCount(uint8(PauseScope.TOKEN), target, uint8(PauseMode.ALL)), 1);
+        assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
+        _assertOperationGates(false, false);
+        vm.clearMockedCalls();
+        if (fault == 0) stock.updateAllowedWrapper(address(permissionedRouterFixture), true);
+        else if (fault == 1) stock.updateAllowedHook(IHooks(address(this)), true);
+        registry.clearEmergencyPause(id, keccak256("resume"));
         _assertOperationGates(true, true);
     }
 }
