@@ -27,7 +27,7 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         secondKey.currency0 = Currency.wrap(a);
         secondKey.currency1 = Currency.wrap(b);
         bytes32 secondPool = registry.registerPool(secondKey);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertTrue(registry.isTradable(secondPool));
         assertEq(registry.listPoolCountBySecurity(SECURITY), 2);
         assertTrue(registry.updatePoolTickCount(key, 1));
@@ -46,7 +46,7 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         assertEq(registry.batchUpdatePoolLifeCycle(poolsToDelist, PoolLifecycle.DELIST), 2);
         assertEq(registry.listPoolCountBySecurity(SECURITY), 0);
         registry.delistSecurity(SECURITY);
-        assertEq(registry.tierPolicy(1).listedCount, 0);
+        assertEq(registry.getTierPolicy(1).listedCount, 0);
         _assertOperationGates(false, false);
         assertFalse(registry.isTradable(secondPool));
         assertFalse(registry.isLPAllowed(secondPool));
@@ -55,7 +55,7 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         _grantPauseRoles();
         uint256 pause = _pause(PauseScope.POOL, secondPool, PauseMode.ALL);
         registry.relistSecurity(SECURITY);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST));
         assertTrue(registry.updatePoolLifeCycle(secondPool, PoolLifecycle.LIST));
         assertEq(registry.listPoolCountBySecurity(SECURITY), 2);
@@ -77,7 +77,7 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         assertEq(_lifecycleState(), beforeState);
         registry.setTierPolicy(1, 25, 2);
         registry.relistSecurity(SECURITY);
-        assertEq(registry.tierPolicy(1).listedCount, 2);
+        assertEq(registry.getTierPolicy(1).listedCount, 2);
     }
 
     function testTierMoveReleasesOldSlotAndFailedMoveLeavesCountsAndCap() public {
@@ -92,15 +92,15 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         vm.expectEmit(true, false, false, true, address(registry));
         emit TSVRegistryV1.SecurityTierChanged(SECURITY, 1, 2);
         registry.setSecurityTier(SECURITY, 2);
-        assertEq(registry.tierPolicy(1).listedCount, 0);
-        assertEq(registry.tierPolicy(2).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).listedCount, 0);
+        assertEq(registry.getTierPolicy(2).listedCount, 1);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 0);
         registry.setSecurityTier(SECURITY, 1);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
-        assertEq(registry.tierPolicy(2).listedCount, 0);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(2).listedCount, 0);
         (, left) = ledger.remaining(SECURITY, DAY);
         assertEq(left, 1.5e18);
     }
@@ -152,9 +152,9 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         config.securityId = SECURITY;
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.registerPermissionedCurrency(config, 1);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
         registry.relistSecurity(SECURITY);
-        assertEq(registry.tierPolicy(1).listedCount, 2);
+        assertEq(registry.getTierPolicy(1).listedCount, 2);
     }
 
     function testPoolLifecyclePauseAllowsLpButBlocksSwap() public {
@@ -256,8 +256,8 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         return keccak256(
             abi.encode(
                 registry.getSecurity(SECURITY),
-                registry.tierPolicy(1),
-                registry.tierPolicy(2),
+                registry.getTierPolicy(1),
+                registry.getTierPolicy(2),
                 registry.getPool(poolId),
                 registry.getPoolLifeCycle(poolId),
                 registry.poolTickCount(poolId),

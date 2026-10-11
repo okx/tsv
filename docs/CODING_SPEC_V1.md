@@ -60,7 +60,7 @@ struct PermissionedAdmission {
     address legalShareAdapter;
 }
 
-struct TierPolicy {
+struct TierPolicyRecord {
     uint16 tierBps;
     uint32 maxListed;
     uint32 listedCount;

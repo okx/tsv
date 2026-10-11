@@ -10,12 +10,12 @@ import {OperationsSbt} from "../../../helpers/v1/OperationsMocks.sol";
 
 contract TSVOperationsConfigurationTest is FoundationFixture {
     function testTierPolicyBoundsCapacityAndEvents() public {
-        bytes32 beforeState = keccak256(abi.encode(registry.tierPolicy(1)));
+        bytes32 beforeState = keccak256(abi.encode(registry.getTierPolicy(1)));
         uint16[3] memory badBps = [uint16(0), 10001, type(uint16).max];
         for (uint256 i; i < badBps.length; ++i) {
             vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
             registry.setTierPolicy(1, badBps[i], 10);
-            assertEq(keccak256(abi.encode(registry.tierPolicy(1))), beforeState);
+            assertEq(keccak256(abi.encode(registry.getTierPolicy(1))), beforeState);
         }
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.setTierPolicy(0, 25, 10);
@@ -25,10 +25,10 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         emit TSVRegistryV1.TierPolicyChanged(1, 1, 1);
         registry.setTierPolicy(1, 1, 1);
         registry.setTierPolicy(1, 10000, 1);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
-        assertEq(registry.tierPolicy(1).tierBps, 10000);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).tierBps, 10000);
         registry.setTierPolicy(2, 25, 0);
-        assertEq(registry.tierPolicy(2).maxListed, 0);
+        assertEq(registry.getTierPolicy(2).maxListed, 0);
     }
 
     function testSbtMustBeConfiguredAndCredentialIsSeparateFromPermissionsAndPause() public {

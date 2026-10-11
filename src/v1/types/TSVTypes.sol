@@ -66,7 +66,7 @@ struct PermissionedAdmission {
 }
 
 /// @notice Stores the listing limit and quota multiplier for a security tier.
-struct TierPolicy {
+struct TierPolicyRecord {
     /// @notice ADTV hard-cap multiplier in basis points.
     uint16 tierBps;
     /// @notice Maximum number of securities that may be listed in this tier.

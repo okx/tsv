@@ -175,7 +175,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         PoolKey memory second = _seedPool(w2, 500);
         w2.updateSwappingEnabled(true);
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed);
-        assertEq(registry.tierPolicy(1).listedCount, 1);
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
         vm.prank(alice);
         (uint256 paid,) = router.swapExactInput(
             SwapRequest(

@@ -10,6 +10,10 @@ import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {ReportValidationLib} from "tsv-v1/libraries/ReportValidationLib.sol";
 
 /// @notice Validates signed-off market and volume reports before forwarding them to TSV state contracts.
+/// @dev DataInbox owns the ingress layer: reporter roles, replay protection, sequence ordering and freshness
+///      checks. Registry owns market pause state. VolumeLedger owns ADTV, quota, split-factor and volume-limit
+///      state. DataInbox reads roles from Registry instead of duplicating AccessControl, and Ledger accept
+///      functions only allow DataInbox to write so callers cannot bypass ingress validation.
 contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     error UnauthorizedUpgrade();
 
@@ -26,11 +30,24 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
 
     /// @dev Bounded to keep a monthly report submission within block gas limits.
     uint256 public constant MAX_ADTV_BATCH_SIZE = 100;
+    /// @dev Independent ordering stream for market status reports.
+    uint8 private constant REPORT_KIND_MARKET_STATUS = 0;
+    /// @dev Independent ordering stream for monthly ADTV reports.
+    uint8 private constant REPORT_KIND_ADTV = 1;
+    /// @dev Independent ordering stream for daily quota override reports.
+    uint8 private constant REPORT_KIND_QUOTA = 2;
+    /// @dev Independent ordering stream for split-factor reports.
+    uint8 private constant REPORT_KIND_SPLIT_FACTOR = 3;
 
+    /// @notice Registry used for reporter roles and market-status transitions.
     TSVRegistryV1 public registry;
+    /// @notice VolumeLedger used for ADTV, quota and split-factor storage.
     TSVVolumeLedgerV1 public ledger;
+    /// @notice Whether a globally unique report ID has already been consumed.
     mapping(bytes32 => bool) public reportIdUsed;
+    /// @notice Last accepted sequence by report kind and security.
     mapping(uint8 => mapping(bytes32 => uint64)) public lastSequence;
+    /// @notice Last accepted source timestamp by report kind and security.
     mapping(uint8 => mapping(bytes32 => uint64)) public lastSourceTimestamp;
 
     /// @dev Locks the implementation; proxy storage is initialized separately.
@@ -53,10 +70,16 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Validates and records the next market-state report for a listed security.
+    /// @dev Flow: cheap payload checks, _accept with REPORT_KIND_MARKET_STATUS and HALT_REPORTER_ROLE, then
+    ///      Registry.applyMarketStatus. Registry still checks that msg.sender is DataInbox, the security is
+    ///      listed, the market sequence advances, and the pause mode actually changes. Market reports therefore
+    ///      have two ordering guards: DataInbox lastSequence[market][securityId] and Registry market state
+    ///      sequence.
     /// @param report Market action, reason code, source timestamps, ordering fields and report ID.
     function submitMarketStatus(MarketReport calldata report) external {
+        if (report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0) revert InvalidReport();
         _accept(
-            0,
+            REPORT_KIND_MARKET_STATUS,
             report.securityId,
             HALT_REPORTER_ROLE,
             report.sourceTimestamp,
@@ -64,18 +87,23 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
             report.sequence,
             report.reportId
         );
-        if (report.securityId == 0 || report.mode == PauseMode.NONE || report.reasonCode == 0) revert InvalidReport();
         registry.applyMarketStatus(report.securityId, report.action, report.mode, report.sequence, report.reportId);
     }
 
     /// @notice Validates and accepts one monthly ADTV report.
+    /// @dev Flow: _submitAdtv, _accept with REPORT_KIND_ADTV and VOLUME_ORACLE_ROLE, then
+    ///      Ledger.acceptAdtv. Ledger performs business validation such as listed security, valid month and
+    ///      nonzero ADTV before storing the value.
     /// @param report Security, source month, ADTV value, and source metadata.
     function submitAdtv(AdtvReport calldata report) external {
         _submitAdtv(report);
     }
 
     /// @notice Atomically accepts the monthly ADTV reports for multiple securities.
-    /// @dev Reports must use the same source month and be sorted by unique securityId.
+    /// @dev Reports must use the same source month, each securityId must be nonzero, and securityId values must
+    ///      be strictly ascending to avoid duplicates and unordered batches. Each item still reuses _submitAdtv,
+    ///      so every report has its own reportId, sequence and sourceTimestamp checks. Any failure reverts the
+    ///      whole batch, including entries already processed earlier in the loop.
     /// @param reports Reports to accept; the whole batch reverts if any entry is invalid.
     function submitAdtvBatch(AdtvReport[] calldata reports) external {
         if (reports.length == 0 || reports.length > MAX_ADTV_BATCH_SIZE) {
@@ -98,10 +126,11 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @dev Applies common ingress checks and forwards one ADTV report to the Ledger.
+    ///      Used by both single-report and batch ADTV entry points.
     /// @param report ADTV report being accepted.
     function _submitAdtv(AdtvReport calldata report) private {
         _accept(
-            1,
+            REPORT_KIND_ADTV,
             report.securityId,
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
@@ -113,10 +142,12 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Validates and accepts a quota override for one security and trade day.
+    /// @dev Flow: _accept with REPORT_KIND_QUOTA and VOLUME_ORACLE_ROLE, then Ledger.acceptQuota. Ledger performs
+    ///      the quota-specific business checks, including listed security and hard-cap constraints.
     /// @param report Quota action, target day, and source metadata.
     function submitQuota(QuotaReport calldata report) external {
         _accept(
-            2,
+            REPORT_KIND_QUOTA,
             report.securityId,
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
@@ -128,10 +159,12 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Schedules, corrects or cancels a split factor at a future trade-day start.
+    /// @dev Flow: _accept with REPORT_KIND_SPLIT_FACTOR and VOLUME_ORACLE_ROLE, then Ledger.acceptSplitFactor.
+    ///      Ledger validates split-factor semantics, including that the effective trade day is in the future.
     /// @param report Source-month-relative factor and the announcement's effective trade day.
     function submitSplitFactor(SplitFactorReport calldata report) external {
         _accept(
-            3,
+            REPORT_KIND_SPLIT_FACTOR,
             report.securityId,
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
@@ -143,6 +176,15 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @dev Enforces reporter authorization and shared report freshness and uniqueness rules.
+    ///      The common ingress checks are:
+    ///      1. msg.sender must have the required role in Registry.
+    ///      2. reportId must be nonzero and unused.
+    ///      3. sequence must be greater than the last sequence for this kind and security.
+    ///      4. sourceTimestamp must not move backwards.
+    ///      5. sourceTimestamp must not be in the future.
+    ///      6. block.timestamp must not exceed submitDeadline.
+    ///      7. lastSequence, lastSourceTimestamp and reportIdUsed are written.
+    ///      If the later Registry or Ledger call reverts, these writes are reverted with the whole transaction.
     /// @param kind Report category used to maintain independent ordering state.
     /// @param key Security identifier whose reports are being ordered.
     /// @param role Role required from the submitting address.

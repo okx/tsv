@@ -2,7 +2,7 @@
 
 ## 1. 背景
 
-当前 `TSVRegistryV1` 中的 `TierPolicy`、`SecurityRecord`、`UnderlyingRecord`、`QuoteTokenRecord`、`PoolRecord`、`MarketStateRecord` 和 `EmergencyPauseRecord` 已统一收敛到 `TSVTypes.sol` 中。它们本质上不是同一层级的配置，而是存在明确的业务归属关系：
+当前 `TSVRegistryV1` 中的 `TierPolicyRecord`、`SecurityRecord`、`UnderlyingRecord`、`QuoteTokenRecord`、`PoolRecord`、`MarketStateRecord` 和 `EmergencyPauseRecord` 已统一收敛到 `TSVTypes.sol` 中。它们本质上不是同一层级的配置，而是存在明确的业务归属关系：
 
 - `Tier` 定义证券上市容量和交易额度策略。
 - `Security` 表示一只股票或证券，是 permissioned stock 业务的主聚合根。
@@ -516,7 +516,7 @@ mapping(bytes32 pauseKey => mapping(uint8 mode => uint256 count)) activePauseCou
 
 先在文档和注释中统一领域名：
 
-- `TierPolicy` -> tier record / tier policy
+- `TierPolicyRecord` -> tier record / tier policy
 - 旧 `SecurityConfig` -> 已删除，由 `SecurityRecord` 替代
 - `UnderlyingRecord` -> 底层资产记录
 - `currencyUnderlying` -> permissioned currency admission index

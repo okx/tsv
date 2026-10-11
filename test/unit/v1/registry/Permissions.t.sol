@@ -91,7 +91,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         vm.prank(operator);
         ledger.cancelPendingDayStart();
         assertEq(ledger.dayStartCheckpointCount(), 1);
-        assertEq(registry.tierPolicy(2).tierBps, 0);
+        assertEq(registry.getTierPolicy(2).tierBps, 0);
         assertEq(address(registry.participantSbt()), address(identitySbt));
         assertEq(registry.sbtTokenIds().length, 0);
     }
@@ -134,7 +134,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
                 registry.getPoolLifeCycle(poolId),
                 registry.poolTickCount(poolId),
                 registry.listPoolCountBySecurity(SECURITY),
-                registry.tierPolicy(1),
+                registry.getTierPolicy(1),
                 ledger.used(SECURITY, DAY),
                 registry.nextPauseId()
             )
