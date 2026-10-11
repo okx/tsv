@@ -55,6 +55,13 @@ library PermissionedValidationLib {
         _validateQuoteIdentity(quote);
     }
 
+    /// @dev Validates a legal-share adapter's interface support and bound underlying currency.
+    /// @param adapter Candidate legal-share adapter to validate.
+    /// @param currency Canonical underlying U expected by the adapter.
+    function validateLegalShareAdapter(address adapter, address currency) external view {
+        _validateLegalShareAdapter(adapter, currency);
+    }
+
     function _validateLegalShareAdapter(address adapter, address currency) internal view {
         if (adapter.code.length == 0) revert InvalidConfig();
         (bool ok, bytes memory result) = adapter.staticcall(
