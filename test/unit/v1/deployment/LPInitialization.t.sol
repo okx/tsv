@@ -19,6 +19,7 @@ import {ITokenApproveProxy} from "tsv-v1/interfaces/ITokenApproveProxy.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
 import {LPPositionMath} from "tsv-v1/vendor/permissionedPools/libraries/LPPositionMath.sol";
+import {IPermissionsAdapter} from "tsv-v1/vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
 
 contract TSVLPInitializationTest is Test {
     TSVLPManagerV1 private lp;
@@ -96,6 +97,35 @@ contract TSVLPInitializationTest is Test {
         _initialize();
     }
 
+    function testRejectsVerifiedAdapterWithoutOwnerOnEitherSide() public {
+        vm.expectCall(registry, abi.encodeCall(ITSVPermissionedRegistry.registerPool, (key)), uint64(0));
+        vm.expectCall(manager, abi.encodeCall(IPoolManager.initialize, (key, uint160(1 << 96))), uint64(0));
+        for (uint256 i; i < 2; ++i) {
+            Currency currency = i == 0 ? key.currency0 : key.currency1;
+            _setVerified(currency, address(4));
+            vm.mockCall(
+                Currency.unwrap(currency), abi.encodeCall(IPermissionsAdapter.owner, ()), abi.encode(address(0))
+            );
+            vm.expectRevert(TSVLPManagerLib.PermissionedAdapterWithoutOwner.selector);
+            lp.initializePool(key, uint160(1 << 96));
+            _setVerified(currency, address(0));
+        }
+    }
+
+    function testChecksBothVerifiedAdapterOwners() public {
+        _setVerified(key.currency0, address(4));
+        _setVerified(key.currency1, address(5));
+        vm.mockCall(
+            Currency.unwrap(key.currency1), abi.encodeCall(IPermissionsAdapter.owner, ()), abi.encode(address(0))
+        );
+        vm.expectRevert(TSVLPManagerLib.PermissionedAdapterWithoutOwner.selector);
+        lp.initializePool(key, uint160(1 << 96));
+        vm.mockCall(
+            Currency.unwrap(key.currency1), abi.encodeCall(IPermissionsAdapter.owner, ()), abi.encode(address(this))
+        );
+        _initialize();
+    }
+
     function _initialize() private {
         vm.expectCall(registry, abi.encodeCall(ITSVPermissionedRegistry.registerPool, (key)));
         vm.expectCall(manager, abi.encodeCall(IPoolManager.initialize, (key, uint160(1 << 96))));
@@ -108,5 +138,12 @@ contract TSVLPInitializationTest is Test {
             abi.encodeCall(IPermissionsAdapterFactory.verifiedPermissionsAdapterOf, (Currency.unwrap(currency))),
             abi.encode(underlying)
         );
+        if (underlying != address(0)) {
+            vm.mockCall(
+                Currency.unwrap(currency), abi.encodeCall(IPermissionsAdapter.owner, ()), abi.encode(address(this))
+            );
+            // The factory returns the underlying token, which need not expose an owner method.
+            vm.mockCallRevert(underlying, abi.encodeCall(IPermissionsAdapter.owner, ()), "underlying is not adapter");
+        }
     }
 }
