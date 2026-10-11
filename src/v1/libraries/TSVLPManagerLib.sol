@@ -33,6 +33,7 @@ library TSVLPManagerLib {
     ISubscriber private constant NO_SUBSCRIBER = ISubscriber(address(0));
     bytes32 public constant WITHDRAW_CLAIM_ROLE = keccak256("WITHDRAW_CLAIM_ROLE");
 
+    error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error Unauthorized();
     error LpUnWindable();
     error PoolDelisted();
@@ -67,6 +68,10 @@ library TSVLPManagerLib {
         uint128 amount0Min;
         uint128 amount1Min;
         bytes hookData;
+    }
+
+    function requireRole(ITSVPermissionedRegistry registry, bytes32 role) external view {
+        if (!registry.hasRole(role, msg.sender)) revert AccessControlUnauthorizedAccount(msg.sender, role);
     }
 
     /// @dev Original TSV exit body; state mappings and immutable dependencies are explicit parameters.

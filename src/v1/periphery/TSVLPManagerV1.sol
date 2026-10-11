@@ -74,7 +74,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     uint256[48] private __gap;
 
     modifier onlyRole(bytes32 role) {
-        if (!registry.hasRole(role, msg.sender)) revert AccessControlUnauthorizedAccount(msg.sender, role);
+        TSVLPManagerLib.requireRole(registry, role);
         _;
     }
 
