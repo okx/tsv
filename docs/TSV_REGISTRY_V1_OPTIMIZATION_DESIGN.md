@@ -248,7 +248,9 @@ _isSecurityOperationAllowed(securityId, checkType)
 
 | 当前校验 | 删除后的影响 |
 | --- | --- |
+| `PermissionedValidationLib.validatePolicy(currency, underlying)` | 不再链上校验 W 的 wrapper/Hook policy；无调用方后库函数和只服务它的 helper 一并删除。 |
 | `PermissionedValidationLib.validateInitialInventory(permissionedPoolManager, currency, underlying)` | 不再链上校验首次准入时 W totalSupply、PM W 余额、W 持有 U 余额、PM protocol fee；无调用方后库函数一并删除。 |
+| `PermissionedValidationLib.validateLegalShareAdapter(adapter, underlying)` | 不再作为库外部入口暴露；相同的 adapter interface / `poolCurrency()` 绑定校验保留为 `PermissionedValidationLib._validateLegalShareAdapter` internal helper。 |
 
 保留校验建议：
 
@@ -257,7 +259,7 @@ _isSecurityOperationAllowed(securityId, checkType)
 - `candidateUnderlying(currency)`；
 - W/U decimals 一致且不超过 18；
 - canonical U 的 `securityId/rawDecimals/legalShareAdapter` 一致；
-- `validateLegalShareAdapter(registerParam.legalShareAdapter, underlying)`；
+- `PermissionedValidationLib._validateLegalShareAdapter(registerParam.legalShareAdapter, underlying)`；
 - `underlying != legalShareAdapter` 且 `currency != legalShareAdapter`；
 - 写入 `underlyings[underlying]` 和 `currencyUnderlying[currency]`。
 
@@ -338,7 +340,7 @@ _isSecurityOperationAllowed(securityId, checkType)
 5. 删除 scoped emergency pause 接口和 helper，新增全局 emergency pause 开关接口与事件。
 6. 重写 `_isOperationAllowed` pause gate，保留 pool/lifecycle/asset 前置检查。
 7. 将 `isAllowed` 改名为 `isSbtAllowed`，同步所有调用方。
-8. 删除 `_registerPermissionedCurrency` 中的 `validatePolicy` 和 `validateInitialInventory` 调用；`validateInitialInventory` 无其他调用方后删除库函数本体。
+8. 删除 `_registerPermissionedCurrency` 中的 `validatePolicy` 和 `validateInitialInventory` 调用；`validateInitialInventory` 无其他调用方后删除库函数本体；`validateLegalShareAdapter` 外部库入口迁移为 `PermissionedValidationLib._validateLegalShareAdapter` internal helper。
 9. 更新接口、事件名、ABI artifact、文档和测试。
 10. 跑 Registry、DataInbox、Router、LPManager、Hook 相关测试。
 

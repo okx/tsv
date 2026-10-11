@@ -37,12 +37,7 @@ library PermissionedValidationLib {
     error InvalidPermissionedConfig();
     error UnverifiedPermissionedAdapter(address currency);
     error PermissionedMetadataMismatch();
-    error PermissionedPolicyMismatch();
     error UnsupportedAsset(address currency);
-
-    function validateLegalShareAdapter(address adapter, address currency) external view {
-        _validateLegalShareAdapter(adapter, currency);
-    }
 
     function candidateUnderlying(address w) external view returns (address) {
         return _candidateUnderlying(w);
@@ -56,25 +51,25 @@ library PermissionedValidationLib {
         return _stockDecimals(w, u);
     }
 
-    function validatePolicy(address w, address) external view {
-        _validatePolicy(w);
-    }
-
     function validateQuoteIdentity(address quote) external view {
         _validateQuoteIdentity(quote);
     }
 
-    function _validateLegalShareAdapter(address adapter, address currency) private view {
+    function _validateLegalShareAdapter(address adapter, address currency) internal view {
         if (adapter.code.length == 0) revert InvalidConfig();
         (bool ok, bytes memory result) = adapter.staticcall(
             abi.encodeWithSelector(IERC165.supportsInterface.selector, type(IDirectLegalShareAdapter).interfaceId)
         );
         uint256 supported;
-        if (result.length >= 32) assembly ("memory-safe") { supported := mload(add(result, 32)) }
-        if (!ok || supported != 1 || _readAddress(adapter, IDirectLegalShareAdapter.poolCurrency.selector) != currency) revert InvalidConfig();
+        if (result.length >= 32) assembly ("memory-safe") {
+            supported := mload(add(result, 32))
+        }
+        if (!ok || supported != 1 || _readAddress(adapter, IDirectLegalShareAdapter.poolCurrency.selector) != currency) {
+            revert InvalidConfig();
+        }
     }
 
-    /// @dev Shared strict getter decoding avoids duplicating external-call code at every policy check.
+    /// @dev Shared strict getter decoding avoids duplicating external-call code across admission checks.
     function _staticWord(address target, bytes4 selector, uint256 argument, uint256 inputLength)
         private
         view
@@ -108,12 +103,6 @@ library PermissionedValidationLib {
         uint256 value = _staticWord(target, selector, uint160(argument), 36);
         if (value > type(uint160).max) revert InvalidPermissionedConfig();
         return address(uint160(value));
-    }
-
-    function _readBool(address target, bytes4 selector, address argument) private view returns (bool) {
-        uint256 value = _staticWord(target, selector, uint160(argument), 36);
-        if (value > 1) revert InvalidPermissionedConfig();
-        return value == 1;
     }
 
     function _candidateUnderlying(address w) private view returns (address u) {
@@ -173,17 +162,6 @@ library PermissionedValidationLib {
     function _stockDecimals(address w, address u) private view returns (uint8 decimals) {
         decimals = _readDecimals(u);
         if (_readDecimals(w) != decimals) revert PermissionedMetadataMismatch();
-    }
-
-    function _validatePolicy(address w) private view {
-        IPermissionedRegistryViews r = IPermissionedRegistryViews(address(this));
-        if (
-            !_readBool(
-                    w,
-                    IPermissionsAdapter.allowedWrappers.selector,
-                    _readAddress(r.hook(), IPermissionedComponentV1.router.selector)
-                ) || !_readBool(w, IPermissionsAdapter.allowedHooks.selector, r.hook())
-        ) revert PermissionedPolicyMismatch();
     }
 
     function _validateQuoteIdentity(address quote) private view {

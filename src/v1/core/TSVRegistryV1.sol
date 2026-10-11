@@ -59,8 +59,6 @@ contract TSVRegistryV1 is TSVGoverned {
     error UnverifiedPermissionedAdapter(address currency);
     /// @dev Reverts when current token metadata no longer matches the stored registration record.
     error PermissionedMetadataMismatch();
-    /// @dev Reverts when a permissioned-stock policy or exit-admin invariant is not satisfied.
-    error PermissionedPolicyMismatch();
     /// @dev Reverts when a token is neither a registered permissioned stock nor a registered quote asset.
     /// @param currency Token address that failed asset registration lookup.
     error UnsupportedAsset(address currency);
@@ -429,7 +427,7 @@ contract TSVRegistryV1 is TSVGoverned {
             config.securityId == 0 || newAdapter == config.legalShareAdapter
                 || !_securityPausedForReplacement(config.securityId)
         ) revert InvalidConfig();
-        PermissionedValidationLib.validateLegalShareAdapter(newAdapter, u);
+        PermissionedValidationLib._validateLegalShareAdapter(newAdapter, u);
         address previousAdapter = config.legalShareAdapter;
         config.legalShareAdapter = newAdapter;
         emit UnderlyingLegalShareAdapterChanged(u, previousAdapter, newAdapter);
@@ -724,7 +722,7 @@ contract TSVRegistryV1 is TSVGoverned {
         ) {
             revert InvalidPermissionedConfig();
         }
-        PermissionedValidationLib.validateLegalShareAdapter(registerParam.legalShareAdapter, underlying);
+        PermissionedValidationLib._validateLegalShareAdapter(registerParam.legalShareAdapter, underlying);
         if (underlying == registerParam.legalShareAdapter || currency == registerParam.legalShareAdapter) {
             revert InvalidPermissionedConfig();
         }
