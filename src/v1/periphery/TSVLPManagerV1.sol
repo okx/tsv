@@ -59,6 +59,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
     bytes32 public constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
     bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
+    bytes32 public constant WITHDRAW_CLAIM_ROLE = keccak256("WITHDRAW_CLAIM_ROLE");
 
     /// @dev Action bitset for authorized exit callbacks; BURN_POSITION has separate NFT accounting below.
     uint256 private constant EXIT_SETTLEMENT_ACTIONS = (uint256(1) << Actions.TAKE_PAIR)
@@ -73,7 +74,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     uint256[48] private __gap;
 
     modifier onlyRole(bytes32 role) {
-        if (!registry.hasRole(role, msg.sender)) revert AccessControlUnauthorizedAccount(msg.sender, role);
+        TSVLPManagerLib.requireRole(registry, role);
         _;
     }
 
@@ -215,7 +216,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         PositionManager.modifyLiquiditiesWithoutUnlock(actions, params);
     }
 
-    /// @notice Allows a verified adapter's owner or a force-exit admin to redeem its own claims to itself without TSV SBT permission.
+    /// @notice Allows a verified adapter's owner or a claim-withdrawal role holder to redeem its own claims to itself without TSV SBT permission.
     function withdrawClaim(Currency currency, uint256 amount, address to)
         public
         override
