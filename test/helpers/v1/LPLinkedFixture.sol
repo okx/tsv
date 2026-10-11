@@ -225,6 +225,7 @@ abstract contract LPLinkedFixture is Test {
             Currency.unwrap(key.currency0), abi.encodeCall(IPermissionsAdapter.wrapToPoolManager, (uint256(9))), ""
         );
         vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(false));
+        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isLPAllowed.selector), abi.encode(true));
         vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isAllowed.selector), abi.encode(true));
         vm.mockCall(
             registry, abi.encodeCall(ITSVPermissionedRegistry.updatePoolTickCount, (key, int256(-1))), abi.encode(true)

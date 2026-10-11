@@ -7,8 +7,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {LPHookContext, LPOperationMode} from "tsv-v1/types/TSVTypes.sol";
-import {TSVHookV1, IActiveLPContextV1} from "tsv-v1/core/TSVHookV1.sol";
+import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 
@@ -66,21 +65,143 @@ contract TSVHookInitializationTest is Test {
         hook.afterInitialize(lpManager, key, uint160(1 << 96), 0);
     }
 
-    function testForceExitRequiresRegistrationAndBypassesOrdinaryLPAdmission() public {
+    function testRemovalRequiresRegisteredAllowedPool() public {
         bytes32 poolId = PoolId.unwrap(key.toId());
         IPoolManager.ModifyLiquidityParams memory params =
             IPoolManager.ModifyLiquidityParams(-60, 60, -1, bytes32(uint256(1)));
-        LPHookContext memory ctx = LPHookContext(
-            poolId, params.tickLower, params.tickUpper, LPOperationMode.FORCE_EXIT, params.salt, params.liquidityDelta
-        );
-        vm.mockCall(lpManager, abi.encodeCall(IActiveLPContextV1.activeLPContext, ()), abi.encode(ctx));
         vm.expectRevert(TSVHookV1.InvalidPool.selector);
         vm.prank(manager);
         hook.beforeRemoveLiquidity(lpManager, key, params, "");
 
         vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isKnownPool, (poolId)), abi.encode(true));
         assertFalse(registry.isLPAllowed(poolId));
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        vm.prank(manager);
+        hook.beforeRemoveLiquidity(lpManager, key, params, "");
+
+        vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isLPAllowed, (poolId)), abi.encode(true));
         vm.prank(manager);
         assertEq(hook.beforeRemoveLiquidity(lpManager, key, params, ""), IHooks.beforeRemoveLiquidity.selector);
+
+        vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isPaused, ()), abi.encode(true));
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        vm.prank(manager);
+        hook.beforeRemoveLiquidity(lpManager, key, params, "");
+    }
+
+    function _allowLP() private {
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isKnownPool, (poolId)), abi.encode(true));
+        vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isLPAllowed, (poolId)), abi.encode(true));
+    }
+
+    function testOrdinaryLPDoesNotRequireLegacyContextOrManagerSbt() public {
+        _allowLP();
+        // This manager has no legacy context or credential. User policy is enforced at its entry points.
+        vm.mockCallRevert(lpManager, abi.encodeWithSignature("activeLPContext()"), "unexpected context read");
+        IPoolManager.ModifyLiquidityParams memory params =
+            IPoolManager.ModifyLiquidityParams(-60, 60, 1, bytes32(uint256(7)));
+        vm.startPrank(manager);
+        assertEq(hook.beforeAddLiquidity(lpManager, key, params, ""), IHooks.beforeAddLiquidity.selector);
+        params.liquidityDelta = -1;
+        assertEq(hook.beforeRemoveLiquidity(lpManager, key, params, ""), IHooks.beforeRemoveLiquidity.selector);
+        params.liquidityDelta = 0;
+        assertEq(hook.beforeAddLiquidity(lpManager, key, params, ""), IHooks.beforeAddLiquidity.selector);
+        assertEq(hook.beforeRemoveLiquidity(lpManager, key, params, ""), IHooks.beforeRemoveLiquidity.selector);
+        vm.stopPrank();
+    }
+
+    function testLPRejectsDirectCallsAndOtherInitiators() public {
+        _allowLP();
+        IPoolManager.ModifyLiquidityParams memory params =
+            IPoolManager.ModifyLiquidityParams(-60, 60, 1, bytes32(uint256(1)));
+        vm.expectRevert(TSVHookV1.UnauthorizedCallback.selector);
+        hook.beforeAddLiquidity(lpManager, key, params, "");
+        vm.prank(manager);
+        vm.expectRevert(TSVHookV1.UnauthorizedCallback.selector);
+        hook.beforeAddLiquidity(address(this), key, params, "");
+        params.liquidityDelta = -1;
+        vm.expectRevert(TSVHookV1.UnauthorizedCallback.selector);
+        hook.beforeRemoveLiquidity(lpManager, key, params, "");
+        vm.prank(manager);
+        vm.expectRevert(TSVHookV1.UnauthorizedCallback.selector);
+        hook.beforeRemoveLiquidity(address(this), key, params, "");
+    }
+
+    function testLPRejectsUnknownOrDifferentHookKey() public {
+        _allowLP();
+        IPoolManager.ModifyLiquidityParams memory params =
+            IPoolManager.ModifyLiquidityParams(-60, 60, 1, bytes32(uint256(1)));
+        PoolKey memory other = key;
+        other.fee++;
+        vm.startPrank(manager);
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        hook.beforeAddLiquidity(lpManager, other, params, "");
+        other.hooks = IHooks(address(1));
+        vm.mockCall(
+            address(registry),
+            abi.encodeCall(TSVRegistryV1.isKnownPool, (PoolId.unwrap(other.toId()))),
+            abi.encode(true)
+        );
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        hook.beforeAddLiquidity(lpManager, other, params, "");
+        vm.stopPrank();
+    }
+
+    function testOrdinaryLPAndZeroDeltaCollectRespectPoolAndGlobalGates() public {
+        _allowLP();
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        IPoolManager.ModifyLiquidityParams memory params =
+            IPoolManager.ModifyLiquidityParams(-60, 60, 1, bytes32(uint256(1)));
+        for (uint256 i; i < 2; ++i) {
+            vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isLPAllowed, (poolId)), abi.encode(i == 1));
+            vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isPaused, ()), abi.encode(i == 1));
+            vm.startPrank(manager);
+            params.liquidityDelta = 1;
+            vm.expectRevert(TSVHookV1.InvalidPool.selector);
+            hook.beforeAddLiquidity(lpManager, key, params, "");
+            params.liquidityDelta = -1;
+            vm.expectRevert(TSVHookV1.InvalidPool.selector);
+            hook.beforeRemoveLiquidity(lpManager, key, params, "");
+            params.liquidityDelta = 0;
+            vm.expectRevert(TSVHookV1.InvalidPool.selector);
+            hook.beforeAddLiquidity(lpManager, key, params, "");
+            vm.expectRevert(TSVHookV1.InvalidPool.selector);
+            hook.beforeRemoveLiquidity(lpManager, key, params, "");
+            vm.stopPrank();
+        }
+    }
+
+    function testPoolGateAppliesToEveryPositionAndAction() public {
+        _allowLP();
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isLPAllowed, (poolId)), abi.encode(false));
+        IPoolManager.ModifyLiquidityParams memory params =
+            IPoolManager.ModifyLiquidityParams(-60, 60, -1, bytes32(uint256(2)));
+        vm.startPrank(manager);
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        hook.beforeRemoveLiquidity(lpManager, key, params, "");
+        params.salt = bytes32(uint256(1));
+        PoolKey memory other = key;
+        other.fee++;
+        vm.mockCall(
+            address(registry),
+            abi.encodeCall(TSVRegistryV1.isKnownPool, (PoolId.unwrap(other.toId()))),
+            abi.encode(true)
+        );
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        hook.beforeRemoveLiquidity(lpManager, other, params, "");
+        params.liquidityDelta = 0;
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        hook.beforeRemoveLiquidity(lpManager, key, params, "");
+        params.liquidityDelta = 1;
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        hook.beforeAddLiquidity(lpManager, key, params, "");
+        vm.expectRevert(TSVHookV1.InvalidOperation.selector);
+        hook.beforeRemoveLiquidity(lpManager, key, params, "");
+        params.liquidityDelta = -1;
+        vm.expectRevert(TSVHookV1.InvalidOperation.selector);
+        hook.beforeAddLiquidity(lpManager, key, params, "");
+        vm.stopPrank();
     }
 }
