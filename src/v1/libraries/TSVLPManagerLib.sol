@@ -41,6 +41,7 @@ library TSVLPManagerLib {
     error UnsupportedAction(uint256 action);
     error InvalidHook();
     error NoVerifiedAdapter();
+    error PermissionedAdapterWithoutOwner();
     error NonContractCurrency();
     error PoolNotAllowed();
     error AdminIsZero();
@@ -400,10 +401,20 @@ library TSVLPManagerLib {
         PoolKey calldata key,
         uint160 sqrtPriceX96
     ) external returns (int24) {
-        bool verified0 =
-            factory.verifiedPermissionsAdapterOf(Currency.unwrap(key.currency0)) != address(0);
-        bool verified1 = factory.verifiedPermissionsAdapterOf(Currency.unwrap(key.currency1)) != address(0);
-        if (!verified0 && !verified1) revert NoVerifiedAdapter();
+        address permissionedToken0 = factory.verifiedPermissionsAdapterOf(Currency.unwrap(key.currency0));
+        address permissionedToken1 = factory.verifiedPermissionsAdapterOf(Currency.unwrap(key.currency1));
+        bool verified = false;
+        if (permissionedToken0 != address(0)) {
+            address owner0 = IPermissionsAdapter(Currency.unwrap(key.currency0)).owner();
+            if (owner0 == address(0)) revert PermissionedAdapterWithoutOwner();
+            verified = true;
+        }
+        if (permissionedToken1 != address(0)) {
+            address owner1 = IPermissionsAdapter(Currency.unwrap(key.currency1)).owner();
+            if (owner1 == address(0)) revert PermissionedAdapterWithoutOwner();
+            verified = true;
+        }
+        if (!verified) revert NoVerifiedAdapter();
         registry.registerPool(key);
         return poolManager.initialize(key, sqrtPriceX96);
     }
