@@ -78,12 +78,12 @@ interface ITSVPermissionedRegistry {
     /// @notice Returns the number of pools for a security whose lifecycle is not DELIST.
     /// @param securityId Security whose lifecycle-listed pool count is queried.
     /// @return count Number of pools that still block `delistSecurity`.
-    function listPoolCountBySecurity(bytes32 securityId) external view returns (uint32 count);
+    function getListPoolCountBySecurity(bytes32 securityId) external view returns (uint32 count);
 
     /// @notice Returns the current Tick/NFT count tracked for a registered pool.
     /// @param poolId Raw Uniswap V4 pool ID to query.
     /// @return count Current tracked Tick/NFT count.
-    function poolTickCount(bytes32 poolId) external view returns (uint256 count);
+    function getPoolTickCount(bytes32 poolId) external view returns (uint256 count);
 
     /// @notice Updates one registered pool's lifecycle.
     /// @param poolId Raw Uniswap V4 pool ID whose lifecycle changes.
@@ -173,17 +173,17 @@ interface ITSVPermissionedRegistry {
     /// @notice Returns the derived operation status for a security.
     /// @param id Security identifier to query.
     /// @return Derived operation status from the security pause mode.
-    function securityStatus(bytes32 id) external view returns (SecurityOperationStatus);
+    function getSecurityStatus(bytes32 id) external view returns (SecurityOperationStatus);
 
     /// @notice Returns the last accepted market-report sequence for a security.
     /// @param id Security identifier to query.
     /// @return Last accepted market-report sequence number.
-    function securitySequence(bytes32 id) external view returns (uint64);
+    function getSecuritySequence(bytes32 id) external view returns (uint64);
 
     /// @notice Returns the current operation pause mode for a security.
     /// @param id Security identifier to query.
     /// @return Current security pause mode.
-    function securityPauseMode(bytes32 id) external view returns (SecurityPauseMode);
+    function getSecurityPauseMode(bytes32 id) external view returns (SecurityPauseMode);
 
     /// @notice Lists a new security with its first stock W, or adds a W to an existing listed security.
     /// @param registerParam Permissioned stock registration payload for the W/U/security binding.
@@ -205,5 +205,6 @@ interface ITSVPermissionedRegistry {
     /// @param dataInbox DataInbox authorized to apply market reports.
     /// @param factory Real issuer Factory used to verify W provenance and derive PoolManager.
     /// @param sbt Fixed SBT contract supplying participant identities.
-    function bindComponents(address hook, address lpManager, address dataInbox, address factory, address sbt) external;
+    function bindComponents(address hook, address lpManager, address dataInbox, address factory, address sbt)
+        external;
 }

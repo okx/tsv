@@ -30,8 +30,8 @@ contract TSVPausesTest is FoundationFixture {
             )
         );
         assertFalse(ok);
-        assertEq(uint8(registry.securityPauseMode(SECURITY)), uint8(SecurityPauseMode.NONE));
-        assertEq(registry.securitySequence(SECURITY), 0);
+        assertEq(uint8(registry.getSecurityPauseMode(SECURITY)), uint8(SecurityPauseMode.NONE));
+        assertEq(registry.getSecuritySequence(SECURITY), 0);
         _assertOperationGates(true, true);
     }
 
@@ -44,9 +44,9 @@ contract TSVPausesTest is FoundationFixture {
         registry.registerPermissionedCurrency(another, 1);
         registry.relistSecurity(SECURITY);
         registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST);
-        assertEq(uint8(registry.securityStatus(SECURITY)), uint8(SecurityOperationStatus.HALTED));
-        assertEq(uint8(registry.securityPauseMode(SECURITY)), uint8(SecurityPauseMode.ALL));
-        assertEq(registry.securitySequence(SECURITY), 1);
+        assertEq(uint8(registry.getSecurityStatus(SECURITY)), uint8(SecurityOperationStatus.HALTED));
+        assertEq(uint8(registry.getSecurityPauseMode(SECURITY)), uint8(SecurityPauseMode.ALL));
+        assertEq(registry.getSecuritySequence(SECURITY), 1);
         assertEq(inbox.lastSequence(0, SECURITY), 1);
         _assertOperationGates(false, false);
         _submitMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 2);
@@ -122,7 +122,8 @@ contract TSVPausesTest is FoundationFixture {
         emit TSVRegistryV1.EmergencyPauseChanged(true, address(this), keccak256("pause"));
         _enableEmergencyPause();
 
-        bytes32 reportId = keccak256(abi.encode("market-mode", SecurityOperationType.HALT, SecurityPauseMode.TRADE, uint64(2)));
+        bytes32 reportId =
+            keccak256(abi.encode("market-mode", SecurityOperationType.HALT, SecurityPauseMode.TRADE, uint64(2)));
         vm.expectEmit(true, true, false, true, address(registry));
         emit TSVRegistryV1.SecurityStatusChanged(
             SECURITY,

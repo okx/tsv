@@ -132,8 +132,8 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
                 registry.getCurrencyUnderlying(address(stock)),
                 registry.getPool(poolId),
                 registry.getPoolLifeCycle(poolId),
-                registry.poolTickCount(poolId),
-                registry.listPoolCountBySecurity(SECURITY),
+                registry.getPoolTickCount(poolId),
+                registry.getListPoolCountBySecurity(SECURITY),
                 registry.getTierPolicy(1),
                 ledger.used(SECURITY, DAY),
                 registry.emergencyPauseEnable()

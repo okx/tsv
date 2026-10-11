@@ -22,9 +22,8 @@ import {
 import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {PermissionedValidationLib} from "tsv-v1/libraries/PermissionedValidationLib.sol";
-import {
-    IPermissionsAdapterFactory
-} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {IPermissionsAdapterFactory} from
+    "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
 /// @dev Defines the SBT pause and credential-verification views required by the Registry.
 interface ISmartWalletSbtV1 {
@@ -505,25 +504,17 @@ contract TSVRegistryV1 is TSVGoverned {
         return pools[PoolId.unwrap(key.toId())].lifecycle;
     }
 
-    /// @notice Returns the explicit lifecycle for a registered pool.
-    /// @dev Compatibility getter replacing the previous public mapping.
-    /// @param poolId Raw Uniswap V4 pool ID to query.
-    /// @return lifecycle Current pool lifecycle; unknown pools return the enum default DELIST.
-    function poolLifecycle(bytes32 poolId) external view returns (PoolLifecycle lifecycle) {
-        return pools[poolId].lifecycle;
-    }
-
     /// @notice Returns the number of pools for a security whose lifecycle is not DELIST.
     /// @param securityId Security whose lifecycle-listed pool count is queried.
     /// @return count Number of pools that still block `delistSecurity`.
-    function listPoolCountBySecurity(bytes32 securityId) external view returns (uint32 count) {
+    function getListPoolCountBySecurity(bytes32 securityId) external view returns (uint32 count) {
         return securities[securityId].listedPoolCount;
     }
 
     /// @notice Returns the current Tick/NFT count tracked for a registered pool.
     /// @param poolId Raw Uniswap V4 pool ID to query.
     /// @return count Current tracked Tick/NFT count.
-    function poolTickCount(bytes32 poolId) external view returns (uint256 count) {
+    function getPoolTickCount(bytes32 poolId) external view returns (uint256 count) {
         return pools[poolId].tickCount;
     }
 
@@ -580,7 +571,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Derives the operation status from a known security's pause mask.
     /// @param securityId Security identifier to query.
     /// @return OPEN when no security operation pause applies, otherwise HALTED; unknown IDs revert.
-    function securityStatus(bytes32 securityId) external view returns (SecurityOperationStatus) {
+    function getSecurityStatus(bytes32 securityId) external view returns (SecurityOperationStatus) {
         if (securities[securityId].securityId == 0) revert InvalidConfig();
         return securities[securityId].securityState.pauseMode == SecurityPauseMode.NONE
             ? SecurityOperationStatus.OPEN
@@ -590,14 +581,14 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Returns the last accepted market-report sequence for a security.
     /// @param securityId Security identifier to query.
     /// @return sequence Last accepted market-report sequence number.
-    function securitySequence(bytes32 securityId) external view returns (uint64 sequence) {
+    function getSecuritySequence(bytes32 securityId) external view returns (uint64 sequence) {
         return securities[securityId].securityState.sequence;
     }
 
     /// @notice Returns the current security operation pause mask for a security.
     /// @param securityId Security identifier to query.
     /// @return mode Current security operation pause mode.
-    function securityPauseMode(bytes32 securityId) external view returns (SecurityPauseMode mode) {
+    function getSecurityPauseMode(bytes32 securityId) external view returns (SecurityPauseMode mode) {
         return securities[securityId].securityState.pauseMode;
     }
 
@@ -767,9 +758,6 @@ contract TSVRegistryV1 is TSVGoverned {
         } else if (checkType == SecurityOperationCheckType.LP) {
             if (lifecycle == PoolLifecycle.DELIST) return false;
         }
-        address currency0 = Currency.unwrap(pool.key.currency0);
-        address currency1 = Currency.unwrap(pool.key.currency1);
-        if (!_assetAllowed(currency0) || !_assetAllowed(currency1)) return false;
         return _isSecurityOperationAllowed(pool.securityId, checkType);
     }
 

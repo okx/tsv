@@ -133,9 +133,9 @@ abstract contract FoundationFixture is Test {
     }
 
     function _assertMarketPause(SecurityPauseMode mode, bool tradeAllowed, bool lpAllowed) internal view {
-        assertEq(uint8(registry.securityPauseMode(SECURITY)), uint8(mode));
+        assertEq(uint8(registry.getSecurityPauseMode(SECURITY)), uint8(mode));
         assertEq(
-            uint8(registry.securityStatus(SECURITY)),
+            uint8(registry.getSecurityStatus(SECURITY)),
             uint8(mode == SecurityPauseMode.NONE ? SecurityOperationStatus.OPEN : SecurityOperationStatus.HALTED)
         );
         _assertOperationGates(tradeAllowed, lpAllowed);
@@ -148,14 +148,19 @@ abstract contract FoundationFixture is Test {
         inbox.submitMarketStatus(report);
     }
 
-    function _rejectMarketMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence, bytes4 expectedError) internal {
+    function _rejectMarketMode(
+        SecurityOperationType action,
+        SecurityPauseMode mode,
+        uint64 sequence,
+        bytes4 expectedError
+    ) internal {
         MarketReport memory report =
             _market(action, sequence, keccak256(abi.encode("rejected-market-mode", action, mode, sequence)));
         report.mode = mode;
-        uint64 previousSequence = registry.securitySequence(SECURITY);
+        uint64 previousSequence = registry.getSecuritySequence(SECURITY);
         vm.expectRevert(expectedError);
         inbox.submitMarketStatus(report);
-        assertEq(registry.securitySequence(SECURITY), previousSequence);
+        assertEq(registry.getSecuritySequence(SECURITY), previousSequence);
         assertEq(inbox.lastSequence(0, SECURITY), previousSequence);
         assertFalse(inbox.reportIdUsed(report.reportId));
     }

@@ -32,22 +32,22 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
         assertFalse(registry.isTradable(secondPool));
         assertTrue(registry.isLPAllowed(secondPool));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 2);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 2);
         assertTrue(registry.updatePoolTickCount(key, 1));
         assertTrue(registry.updatePoolTickCount(secondKey, 1));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 2);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 2);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.delistSecurity(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST);
         assertTrue(registry.updatePoolTickCount(key, -1));
         assertTrue(registry.updatePoolTickCount(secondKey, -1));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 2);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 2);
         bytes32[] memory poolsToDelist = new bytes32[](2);
         poolsToDelist[0] = poolId;
         poolsToDelist[1] = secondPool;
         assertEq(registry.batchUpdatePoolLifeCycle(poolsToDelist, PoolLifecycle.DELIST), 2);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 0);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 0);
         registry.delistSecurity(SECURITY);
         assertEq(registry.getTierPolicy(1).listedCount, 0);
         _assertOperationGates(false, false);
@@ -59,7 +59,7 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST));
         assertTrue(registry.updatePoolLifeCycle(secondPool, PoolLifecycle.LIST));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 2);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 2);
         _assertOperationGates(false, true);
         assertFalse(registry.isTradable(secondPool));
         assertTrue(registry.isLPAllowed(secondPool));
@@ -159,55 +159,55 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
 
     function testPoolLifecyclePauseAllowsLpButBlocksSwap() public {
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.LIST));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
         _assertOperationGates(true, true);
 
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.PAUSE));
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.PAUSE));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
         _assertOperationGates(false, true);
 
         assertTrue(registry.updatePoolTickCount(key, 1));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST);
         assertTrue(registry.updatePoolTickCount(key, -1));
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST));
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.DELIST));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 0);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 0);
         _assertOperationGates(false, false);
 
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST));
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.LIST));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
         _assertOperationGates(true, true);
     }
 
     function testPoolTickCountDeltaPreservesListedPoolCount() public {
-        assertEq(registry.poolTickCount(poolId), 0);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getPoolTickCount(poolId), 0);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
 
         assertTrue(registry.updatePoolTickCount(key, 2));
-        assertEq(registry.poolTickCount(poolId), 2);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getPoolTickCount(poolId), 2);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
 
         assertTrue(registry.updatePoolTickCount(key, 1));
-        assertEq(registry.poolTickCount(poolId), 3);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getPoolTickCount(poolId), 3);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
 
         assertTrue(registry.updatePoolTickCount(key, -1));
-        assertEq(registry.poolTickCount(poolId), 2);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getPoolTickCount(poolId), 2);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
 
         assertTrue(registry.updatePoolTickCount(key, -2));
-        assertEq(registry.poolTickCount(poolId), 0);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getPoolTickCount(poolId), 0);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
 
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.updatePoolTickCount(key, -1);
 
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST));
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 0);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 0);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
         registry.updatePoolTickCount(key, 1);
     }
@@ -216,11 +216,11 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         SecurityRecord memory security = registry.getSecurity(SECURITY);
         PoolRecord memory pool = registry.getPool(poolId);
 
-        assertEq(uint8(registry.poolLifecycle(poolId)), uint8(PoolLifecycle.LIST));
+        assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.LIST));
         assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.LIST));
         assertEq(uint8(registry.getPoolLifeCycle(key)), uint8(PoolLifecycle.LIST));
-        assertEq(registry.poolTickCount(poolId), 0);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getPoolTickCount(poolId), 0);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
         assertEq(security.poolIds.length, 1);
         assertEq(security.poolIds[0], poolId);
         assertEq(security.listedPoolCount, 1);
@@ -232,8 +232,8 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
 
         assertTrue(registry.updatePoolTickCount(key, 1));
         pool = registry.getPool(poolId);
-        assertEq(registry.poolTickCount(poolId), 1);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 1);
+        assertEq(registry.getPoolTickCount(poolId), 1);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 1);
         assertEq(pool.tickCount, 1);
         assertEq(uint8(pool.lifecycle), uint8(PoolLifecycle.LIST));
 
@@ -241,9 +241,9 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST));
         security = registry.getSecurity(SECURITY);
         pool = registry.getPool(poolId);
-        assertEq(uint8(registry.poolLifecycle(poolId)), uint8(PoolLifecycle.DELIST));
-        assertEq(registry.poolTickCount(poolId), 0);
-        assertEq(registry.listPoolCountBySecurity(SECURITY), 0);
+        assertEq(uint8(registry.getPoolLifeCycle(poolId)), uint8(PoolLifecycle.DELIST));
+        assertEq(registry.getPoolTickCount(poolId), 0);
+        assertEq(registry.getListPoolCountBySecurity(SECURITY), 0);
         assertEq(security.listedPoolCount, 0);
         assertEq(security.poolIds[0], poolId);
         assertEq(pool.securityId, SECURITY);
@@ -260,8 +260,8 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
                 registry.getTierPolicy(2),
                 registry.getPool(poolId),
                 registry.getPoolLifeCycle(poolId),
-                registry.poolTickCount(poolId),
-                registry.listPoolCountBySecurity(SECURITY),
+                registry.getPoolTickCount(poolId),
+                registry.getListPoolCountBySecurity(SECURITY),
                 registry.getCurrencyUnderlying(address(stock)),
                 registry.getUnderlying(registry.getCurrencyUnderlying(address(stock))),
                 registry.getQuoteToken(address(quote)),

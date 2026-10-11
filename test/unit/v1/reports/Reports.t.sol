@@ -93,13 +93,13 @@ contract TSVReportsTest is FoundationFixture {
     function testMarketReportDoesNotNeedHeartbeatAndReplayFails() public {
         _submitMarket(SecurityOperationType.HALT, 1, keccak256("market-1"));
         vm.warp(block.timestamp + 30 days);
-        assertEq(uint8(registry.securityStatus(SECURITY)), uint8(SecurityOperationStatus.HALTED));
+        assertEq(uint8(registry.getSecurityStatus(SECURITY)), uint8(SecurityOperationStatus.HALTED));
         MarketReport memory report = _market(SecurityOperationType.RESUME, 2, keccak256("market-2"));
         report.submitDeadline = uint64(block.timestamp + 1);
         inbox.submitMarketStatus(report);
         vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
         inbox.submitMarketStatus(report);
-        assertEq(uint8(registry.securityStatus(SECURITY)), uint8(SecurityOperationStatus.OPEN));
+        assertEq(uint8(registry.getSecurityStatus(SECURITY)), uint8(SecurityOperationStatus.OPEN));
     }
 
     /// @dev Verifies report submission requires a caller with the direct reporter role.
@@ -114,7 +114,9 @@ contract TSVReportsTest is FoundationFixture {
         _assertMarketPause(SecurityPauseMode.NONE, true, true);
         _rejectMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 1, TSVRegistryV1.InvalidStatus.selector);
         _rejectMarketMode(SecurityOperationType.HALT, SecurityPauseMode.NONE, 1, TSVDataInboxV1.InvalidReport.selector);
-        _rejectMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.NONE, 1, TSVDataInboxV1.InvalidReport.selector);
+        _rejectMarketMode(
+            SecurityOperationType.RESUME, SecurityPauseMode.NONE, 1, TSVDataInboxV1.InvalidReport.selector
+        );
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
         _rejectMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 2, TSVRegistryV1.InvalidStatus.selector);
         _rejectMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.LP, 2, TSVRegistryV1.InvalidStatus.selector);

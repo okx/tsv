@@ -46,7 +46,11 @@ abstract contract OperationsFixture is FoundationFixture {
 
     function _callInbox(bytes memory payload) internal {
         (bool ok, bytes memory result) = address(inbox).call(payload);
-        if (!ok) assembly ("memory-safe") { revert(add(result, 32), mload(result)) }
+        if (!ok) {
+            assembly ("memory-safe") {
+                revert(add(result, 32), mload(result))
+            }
+        }
     }
 
     function _reportState(bytes32 securityId, uint32 month, uint32 day, bytes32 candidateId)
@@ -68,8 +72,8 @@ abstract contract OperationsFixture is FoundationFixture {
                     )
                 ),
                 registry.getSecurity(securityId),
-                registry.securityPauseMode(securityId),
-                registry.securitySequence(securityId),
+                registry.getSecurityPauseMode(securityId),
+                registry.getSecuritySequence(securityId),
                 ledger.adtvOf(securityId, month),
                 ledger.quotaOf(securityId, day),
                 ledger.used(securityId, day)
