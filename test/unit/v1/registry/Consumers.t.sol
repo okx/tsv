@@ -8,7 +8,7 @@ import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
-import {UnderlyingRecord, QuoteTokenRecord, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingRecord, QuoteTokenRecord, SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
@@ -59,12 +59,11 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
     }
 
     function testHookUsesReplacementAdapterAndLedgerAccountsOnce() public {
-        _grantPauseRoles();
-        uint256 pause = _pause(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
+        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         BackedAutoFeeLegalShareAdapter next =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next));
-        registry.clearEmergencyPause(pause, keccak256("resume"));
+        _submitMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 2);
         vm.expectCall(
             address(next), abi.encodeCall(IDirectLegalShareAdapter.toLegalShares, (address(stockToken), 1e18))
         );

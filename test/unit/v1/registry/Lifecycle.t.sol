@@ -5,11 +5,11 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {
-    PermissionedAdmission,
+    PermissionedRegisterParam,
     SecurityRecord,
     PoolRecord,
-    PauseScope,
-    PauseMode,
+    SecurityOperationType,
+    SecurityPauseMode,
     PoolLifecycle
 } from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -18,8 +18,8 @@ import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
 contract TSVOperationsLifecycleTest is OperationsFixture {
     using PoolIdLibrary for PoolKey;
 
-    function testDelistingStopsAllPoolsAndRelistingKeepsIndependentPauses() public {
-        PermissionedAdmission memory secondCurrency = _newStockConfig(SECURITY);
+    function testDelistingStopsAllPoolsAndRelistingKeepsSecurityPause() public {
+        PermissionedRegisterParam memory secondCurrency = _newStockConfig(SECURITY);
         registry.registerPermissionedCurrency(secondCurrency, 1);
         PoolKey memory secondKey = key;
         address a = secondCurrency.currency < address(quote) ? secondCurrency.currency : address(quote);
@@ -29,6 +29,9 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         bytes32 secondPool = registry.registerPool(secondKey);
         assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertTrue(registry.isTradable(secondPool));
+        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
+        assertFalse(registry.isTradable(secondPool));
+        assertTrue(registry.isLPAllowed(secondPool));
         assertEq(registry.listPoolCountBySecurity(SECURITY), 2);
         assertTrue(registry.updatePoolTickCount(key, 1));
         assertTrue(registry.updatePoolTickCount(secondKey, 1));
@@ -52,17 +55,16 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         assertFalse(registry.isLPAllowed(secondPool));
         assertTrue(registry.isKnownPool(poolId));
         assertTrue(registry.isKnownPool(secondPool));
-        _grantPauseRoles();
-        uint256 pause = _pause(PauseScope.POOL, secondPool, PauseMode.ALL);
         registry.relistSecurity(SECURITY);
         assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST));
         assertTrue(registry.updatePoolLifeCycle(secondPool, PoolLifecycle.LIST));
         assertEq(registry.listPoolCountBySecurity(SECURITY), 2);
-        _assertOperationGates(true, true);
+        _assertOperationGates(false, true);
         assertFalse(registry.isTradable(secondPool));
+        assertTrue(registry.isLPAllowed(secondPool));
         assertEq(keccak256(abi.encode(registry.getPool(secondPool).key)), keccak256(abi.encode(secondKey)));
-        registry.clearEmergencyPause(pause, keccak256("resume"));
+        _submitMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.TRADE, 2);
         assertTrue(registry.isTradable(secondPool));
         assertTrue(registry.isLPAllowed(secondPool));
     }
@@ -130,16 +132,14 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
         registry.relistSecurity(SECURITY);
     }
 
-    function testPoolRecoveryKeepsIndependentTokenPauses() public {
+    function testGlobalEmergencyPauseSurvivesPoolLifecycleChanges() public {
         _grantPauseRoles();
-        uint256 poolPause = _pause(PauseScope.POOL, poolId, PauseMode.ALL);
-        uint256 stockPause = _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
-        uint256 quotePause = _pause(PauseScope.TOKEN, bytes32(uint256(uint160(address(quote)))), PauseMode.ALL);
-        registry.clearEmergencyPause(poolPause, keccak256("resume-pool"));
+        _enableEmergencyPause();
+        assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.PAUSE));
         _assertOperationGates(false, false);
-        registry.clearEmergencyPause(stockPause, keccak256("resume-stock"));
-        _assertOperationGates(false, false);
-        registry.clearEmergencyPause(quotePause, keccak256("resume-quote"));
+        _disableEmergencyPause();
+        _assertOperationGates(false, true);
+        assertTrue(registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST));
         _assertOperationGates(true, true);
         assertTrue(registry.isKnownPool(poolId));
     }
@@ -147,7 +147,7 @@ contract TSVOperationsLifecycleTest is OperationsFixture {
     function testDelistingPreservesSecurityIdentityAndAllowsDifferentSecurity() public {
         _delistPrimarySecurity();
         bytes32 otherSecurity = keccak256("other-security");
-        PermissionedAdmission memory config = _newStockConfig(otherSecurity);
+        PermissionedRegisterParam memory config = _newStockConfig(otherSecurity);
         registry.registerPermissionedCurrency(config, 1);
         config.securityId = SECURITY;
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);

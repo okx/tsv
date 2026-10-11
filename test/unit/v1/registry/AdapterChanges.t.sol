@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {UnderlyingRecord, PauseScope, PauseMode, MarketAction} from "tsv-v1/types/TSVTypes.sol";
+import {UnderlyingRecord, SecurityPauseMode, SecurityOperationType} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
@@ -12,7 +12,7 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
     function testSecurityPauseReplacementChangesAdapterAndPreservesUsed() public {
         _submitAdtv(1000e18);
         _charge(1e18);
-        _submitMarketMode(MarketAction.HALT, PauseMode.ALL, 1);
+        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         for (uint256 i; i < 2; ++i) {
             BackedAutoFeeLegalShareAdapter replacement =
                 new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
@@ -25,21 +25,19 @@ contract TSVOperationsAdapterChangesTest is OperationsFixture {
         }
     }
 
-    function testPoolAndSingleWTokenPauseAreInsufficient() public {
-        _grantPauseRoles();
-        _pause(PauseScope.POOL, poolId, PauseMode.ALL);
-        _pause(PauseScope.TOKEN, _pauseTarget(PauseScope.TOKEN), PauseMode.ALL);
+    function testSingleOperationPauseIsInsufficientForReplacement() public {
+        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
         BackedAutoFeeLegalShareAdapter replacement =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
-        _pause(PauseScope.SECURITY, SECURITY, PauseMode.ALL);
+        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.LP, 2);
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
     }
 
     function testReplacementRejectsInvalidIdentityInterfaceAndCurrency() public {
         _grantPauseRoles();
-        _pause(PauseScope.GLOBAL, 0, PauseMode.ALL);
+        _enableEmergencyPause();
         BackedAutoFeeLegalShareAdapter good =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         BackedAutoFeeLegalShareAdapter wrongCurrency =

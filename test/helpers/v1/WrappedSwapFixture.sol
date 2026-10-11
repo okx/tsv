@@ -11,7 +11,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
-import {PermissionedAdmission, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedRegisterParam, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {AdtvReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -110,7 +110,7 @@ abstract contract WrappedSwapFixture is Test {
         exitReceiver = new V1ConfigReceiver();
         issuerChecker = new V1IssuerAllowlistChecker();
         stock = _newWrapper();
-        registry.registerPermissionedCurrency(PermissionedAdmission(address(stock), SECURITY, address(legalAdapter)), 1);
+        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(stock), SECURITY, address(legalAdapter)), 1);
         registry.registerQuoteToken(address(quote));
         underlying.mint(address(this), 1e30);
         quote.mint(address(this), 1e30);

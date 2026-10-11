@@ -17,7 +17,7 @@ contract TSVDirectUpgradeTest is GovernanceFixture {
         vm.expectRevert(V1RegistryUpgradeMock.UpgradeInitFailed.selector);
         registry.upgradeToAndCall(address(next), abi.encodeCall(V1RegistryUpgradeMock.initializeV2, (42, true)));
         assertEq(proxy.tsvImplementation(), oldImplementation);
-        assertEq(registry.nextPauseId(), 1);
+        assertFalse(registry.emergencyPauseEnable());
         assertTrue(registry.hasRole(0, address(this)));
         registry.upgradeToAndCall(address(next), abi.encodeCall(V1RegistryUpgradeMock.initializeV2, (99, false)));
         assertEq(V1RegistryUpgradeMock(address(proxy)).upgradeMarker(), 99);
@@ -59,7 +59,7 @@ contract TSVDirectUpgradeTest is GovernanceFixture {
         registry.upgradeToAndCall(address(next), abi.encodeCall(V1RegistryUpgradeMock.initializeV2, (42, false)));
         assertEq(proxy.tsvImplementation(), address(next));
         assertEq(V1RegistryUpgradeMock(address(proxy)).upgradeMarker(), 42);
-        assertEq(registry.nextPauseId(), 1);
+        assertFalse(registry.emergencyPauseEnable());
         assertTrue(registry.hasRole(registry.SYMBOL_ADMIN_ROLE(), council));
         assertEq(block.timestamp, timestamp);
     }

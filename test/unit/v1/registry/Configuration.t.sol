@@ -54,18 +54,18 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         credential.setCredential(owner, 7, true);
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
         assertTrue(registry.hasCredential(owner));
-        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
-        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         assertFalse(registry.hasCredential(makeAddr("nonholder")));
         credential.setPaused(true);
         assertTrue(registry.hasCredential(owner));
-        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
-        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         credential.setPaused(false);
         registry.setSbtConfig(7, PermissionFlags.NONE);
         assertTrue(registry.hasCredential(owner));
-        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
-        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
     }
 
     function testInvalidIdentityRegistrationAndUpdateAreAtomic() public {
@@ -154,17 +154,17 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         registry.setSbtConfig(8, PermissionFlags.LIQUIDITY_ALLOWED);
         credential.setCredential(owner, 7, true);
         credential.setCredential(owner, 8, true);
-        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
-        assertTrue(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         registry.setSbtConfig(7, PermissionFlags.NONE);
-        assertFalse(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
-        assertTrue(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         registry.setSbtConfig(8, PermissionFlags.NONE);
         assertTrue(registry.hasCredential(owner));
-        assertFalse(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
-        assertTrue(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner));
-        assertTrue(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
+        assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         uint256[] memory ids = registry.sbtTokenIds();
         assertEq(ids.length, 2);
         assertEq(ids[0], 7);
@@ -195,8 +195,8 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         credential.setPaused(paused);
         uint8 expected = paused ? 0 : ((holders & 1 != 0 ? first : 0) | (holders & 2 != 0 ? second : 0));
         assertEq(registry.hasCredential(owner), holders != 0);
-        assertEq(registry.isAllowed(PermissionFlags.SWAP_ALLOWED, owner), expected & 1 != 0);
-        assertEq(registry.isAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner), expected & 2 != 0);
+        assertEq(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner), expected & 1 != 0);
+        assertEq(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner), expected & 2 != 0);
         assertEq(PermissionFlag.unwrap(registry.permissionsOf(owner)), bytes2(uint16(expected)));
     }
 

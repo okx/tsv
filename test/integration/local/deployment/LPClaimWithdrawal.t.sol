@@ -53,7 +53,7 @@ contract LPClaimWithdrawalTest is Test {
         lpOwner = makeAddr("lp-owner");
         vm.etch(registry, hex"00");
         vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(false));
-        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isAllowed.selector), abi.encode(false));
+        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isSbtAllowed.selector), abi.encode(false));
         vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.hasRole.selector), abi.encode(false));
         LPLinkedDependencies deps = new LPLinkedDependencies();
         TSVLPManagerV1 implementation = new TSVLPManagerV1(
@@ -97,7 +97,7 @@ contract LPClaimWithdrawalTest is Test {
     function _allow(address account, bool allowed) private {
         vm.mockCall(
             registry,
-            abi.encodeCall(ITSVPermissionedRegistry.isAllowed, (PermissionFlags.LIQUIDITY_ALLOWED, account)),
+            abi.encodeCall(ITSVPermissionedRegistry.isSbtAllowed, (PermissionFlags.LIQUIDITY_ALLOWED, account)),
             abi.encode(allowed)
         );
     }

@@ -7,11 +7,13 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {
     UnderlyingRecord,
     QuoteTokenRecord,
-    PermissionedAdmission,
+    PermissionedRegisterParam,
     TierPolicyRecord,
     PoolRecord,
     SecurityRecord,
-    PoolLifecycle
+    PoolLifecycle,
+    SecurityOperationStatus,
+    SecurityPauseMode
 } from "tsv-v1/types/TSVTypes.sol";
 
 /// @notice Shared W/U/Q interface. Asset records use the canonical TSVTypes definitions.
@@ -19,7 +21,7 @@ interface ITSVPermissionedRegistry {
     /// @notice Checks a role in the Registry, including its dynamically resolved default admin.
     function hasRole(bytes32 role, address account) external view returns (bool);
     /// @notice Registers the exact pool key; only the bound LP Manager may call this.
-    /// @param key Full Uniswap V4 pool key to admit.
+    /// @param key Full Uniswap V4 pool key to register.
     /// @return poolId Raw pool ID derived from `key`.
     function registerPool(PoolKey calldata key) external returns (bytes32 poolId);
 
@@ -104,7 +106,7 @@ interface ITSVPermissionedRegistry {
     function updatePoolTickCount(PoolKey calldata key, int256 delta) external returns (bool);
 
     /// @notice Returns whether a protocol-wide emergency pause is currently active.
-    /// @return Whether a GLOBAL TRADE, GLOBAL LP, or GLOBAL ALL emergency pause is active.
+    /// @return Whether the global emergency pause is active.
     function isPaused() external view returns (bool);
 
     /// @notice Returns the bound permissioned adapter Factory.
@@ -150,7 +152,7 @@ interface ITSVPermissionedRegistry {
     /// @param permission SWAP_ALLOWED or LIQUIDITY_ALLOWED.
     /// @param account Participant whose permissions are checked.
     /// @return Whether `account` currently has `permission`.
-    function isAllowed(PermissionFlag permission, address account) external view returns (bool);
+    function isSbtAllowed(PermissionFlag permission, address account) external view returns (bool);
 
     /// @notice Checks a registered identity independently of operation permissions and global pause.
     /// @param owner Account whose SBT identity ownership is checked.
@@ -168,18 +170,28 @@ interface ITSVPermissionedRegistry {
     /// @param permissions TSV operation flags assigned to the identity.
     function setSbtConfig(uint256 tokenId, PermissionFlag permissions) external;
 
+    /// @notice Returns the derived operation status for a security.
+    /// @param id Security identifier to query.
+    /// @return Derived operation status from the security pause mode.
+    function securityStatus(bytes32 id) external view returns (SecurityOperationStatus);
+
     /// @notice Returns the last accepted market-report sequence for a security.
     /// @param id Security identifier to query.
     /// @return Last accepted market-report sequence number.
-    function marketSequence(bytes32 id) external view returns (uint64);
+    function securitySequence(bytes32 id) external view returns (uint64);
+
+    /// @notice Returns the current operation pause mode for a security.
+    /// @param id Security identifier to query.
+    /// @return Current security pause mode.
+    function securityPauseMode(bytes32 id) external view returns (SecurityPauseMode);
 
     /// @notice Lists a new security with its first stock W, or adds a W to an existing listed security.
-    /// @param admission Permissioned stock admission payload for the W/U/security binding.
+    /// @param registerParam Permissioned stock registration payload for the W/U/security binding.
     /// @param tierId Tier to assign to a newly listed security, or the existing security tier for additional W.
-    function registerPermissionedCurrency(PermissionedAdmission calldata admission, uint8 tierId) external;
+    function registerPermissionedCurrency(PermissionedRegisterParam calldata registerParam, uint8 tierId) external;
 
     /// @notice Registers an original quote ERC-20.
-    /// @param q Quote token address to admit.
+    /// @param q Quote token address to register.
     function registerQuoteToken(address q) external;
 
     /// @notice Replaces the canonical legal-share adapter for an underlying.

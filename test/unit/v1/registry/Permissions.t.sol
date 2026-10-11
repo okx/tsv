@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {PermissionedAdmission, PauseScope, PauseMode, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
+import {PermissionedRegisterParam, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {OperationsFixture} from "../../../helpers/v1/OperationsFixture.sol";
@@ -13,7 +13,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
     function testEverySymbolAdminEntryRejectsUnassignedAndRevokedRoleIncludingGovernor() public {
         bytes32 role = registry.SYMBOL_ADMIN_ROLE();
         address operator = makeAddr("symbol-operator");
-        PermissionedAdmission memory config = _newStockConfig(keccak256("new-security"));
+        PermissionedRegisterParam memory config = _newStockConfig(keccak256("new-security"));
         bytes[] memory calls = new bytes[](7);
         calls[0] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config, 1));
         calls[1] = abi.encodeCall(TSVRegistryV1.updatePoolLifeCycle, (poolId, PoolLifecycle.PAUSE));
@@ -51,26 +51,26 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         registry.grantRole(resumeRole, resumer);
         vm.expectRevert(_denied(resumer, pauseRole));
         vm.prank(resumer);
-        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"));
+        registry.setEmergencyPauseEnable(true, keccak256("incident"));
         vm.prank(pauser);
-        uint256 id = registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"));
+        registry.setEmergencyPauseEnable(true, keccak256("incident"));
         vm.expectRevert(_denied(pauser, resumeRole));
         vm.prank(pauser);
-        registry.clearEmergencyPause(id, keccak256("resume"));
+        registry.setEmergencyPauseEnable(false, keccak256("resume"));
         registry.revokeRole(resumeRole, resumer);
         vm.expectRevert(_denied(resumer, resumeRole));
         vm.prank(resumer);
-        registry.clearEmergencyPause(id, keccak256("resume"));
+        registry.setEmergencyPauseEnable(false, keccak256("resume"));
         _assertOperationGates(false, false);
         registry.grantRole(resumeRole, resumer);
         vm.prank(resumer);
-        registry.clearEmergencyPause(id, keccak256("resume"));
+        registry.setEmergencyPauseEnable(false, keccak256("resume"));
         _assertOperationGates(true, true);
         registry.revokeRole(pauseRole, pauser);
         vm.expectRevert(_denied(pauser, pauseRole));
         vm.prank(pauser);
-        registry.addEmergencyPause(PauseScope.GLOBAL, 0, PauseMode.ALL, keccak256("incident"));
-        assertEq(registry.nextPauseId(), 2);
+        registry.setEmergencyPauseEnable(true, keccak256("incident"));
+        assertFalse(registry.emergencyPauseEnable());
     }
 
     function testBusinessOperatorsCannotChangeGovernorConfigurationOrDaySchedule() public {
@@ -136,7 +136,7 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
                 registry.listPoolCountBySecurity(SECURITY),
                 registry.getTierPolicy(1),
                 ledger.used(SECURITY, DAY),
-                registry.nextPauseId()
+                registry.emergencyPauseEnable()
             )
         );
     }

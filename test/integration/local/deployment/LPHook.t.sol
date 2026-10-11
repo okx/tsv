@@ -26,7 +26,12 @@ import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {BackedAutoFeeLegalShareAdapter} from "tsv-v1/adapters/BackedAutoFeeLegalShareAdapter.sol";
-import {PermissionedAdmission, PoolLifecycle, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PermissionedRegisterParam,
+    PoolLifecycle,
+    SecurityOperationType,
+    SecurityPauseMode
+} from "tsv-v1/types/TSVTypes.sol";
 import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolId, PoolIdLibrary} from "lib/v4-periphery/lib/v4-core/src/types/PoolId.sol";
 import {V1LocalSBT} from "../../../helpers/v1/LocalMocks.sol";
@@ -121,7 +126,7 @@ contract LPHookTest is Test {
         stock.updateAllowedWrapper(address(lp), true);
         stock.updateAllowedHook(IHooks(address(hook)), true);
         BackedAutoFeeLegalShareAdapter legal = new BackedAutoFeeLegalShareAdapter(address(issuer), address(underlying));
-        registry.registerPermissionedCurrency(PermissionedAdmission(address(stock), SECURITY, address(legal)), 1);
+        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(stock), SECURITY, address(legal)), 1);
         registry.registerQuoteToken(address(quote));
         (address a, address b) =
             address(stock) < address(quote) ? (address(stock), address(quote)) : (address(quote), address(stock));
@@ -221,11 +226,10 @@ contract LPHookTest is Test {
         _mint("");
     }
 
-    function testPoolPauseBlocksOrdinaryChangesAndBothUnwindsUntilResume() public {
+    function testSecurityLpPauseBlocksOrdinaryChangesAndBothUnwindsUntilResume() public {
         uint256 first = _mint("");
         uint256 second = _mint("");
-        uint256 pauseId =
-            registry.addEmergencyPause(PauseScope.POOL, PoolId.unwrap(key.toId()), PauseMode.LP, keccak256("lp-pause"));
+        _applySecurityMode(SecurityOperationType.HALT, SecurityPauseMode.LP, 1);
         vm.expectRevert();
         _change(first, Actions.INCREASE_LIQUIDITY, 1, "");
         vm.expectRevert();
@@ -239,7 +243,7 @@ contract LPHookTest is Test {
         lp.unwindPosition(second, 0, 0, "");
         assertEq(lp.getPositionLiquidity(first), LIQUIDITY);
         assertEq(lp.getPositionLiquidity(second), LIQUIDITY);
-        registry.clearEmergencyPause(pauseId, keccak256("resume"));
+        _applySecurityMode(SecurityOperationType.RESUME, SecurityPauseMode.LP, 2);
         lp.unwindPositionByOkx(first, 0, 0, "");
         lp.unwindPosition(second, 0, 0, "");
         assertEq(registry.poolTickCount(PoolId.unwrap(key.toId())), 0);
@@ -251,7 +255,7 @@ contract LPHookTest is Test {
     function testGlobalPauseStillBlocksOrdinaryAndForcedActions() public {
         uint256 tokenId = _mint("");
         _authorizeExit();
-        registry.addEmergencyPause(PauseScope.GLOBAL, bytes32(0), PauseMode.TRADE, keccak256("global"));
+        registry.setEmergencyPauseEnable(true, keccak256("global"));
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         _change(tokenId, Actions.DECREASE_LIQUIDITY, 0, "");
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
@@ -277,15 +281,13 @@ contract LPHookTest is Test {
         _change(tokenId, Actions.DECREASE_LIQUIDITY, LIQUIDITY, "");
         assertEq(lp.getPositionLiquidity(tokenId), 0);
         _authorizeExit();
-        uint256 pauseId = registry.addEmergencyPause(
-            PauseScope.POOL, PoolId.unwrap(key.toId()), PauseMode.ALL, keccak256("empty-pause")
-        );
+        _applySecurityMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         vm.expectRevert(TSVLPManagerLib.PoolNotAllowed.selector);
         lp.unwindPositionByOkx(tokenId, 0, 0, "");
         vm.expectRevert(TSVLPManagerLib.PoolNotAllowed.selector);
         lp.unwindPosition(tokenId, 0, 0, "");
         assertEq(lp.ownerOf(tokenId), alice);
-        registry.clearEmergencyPause(pauseId, keccak256("resume"));
+        _applySecurityMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 2);
         registry.updatePoolLifeCycle(PoolId.unwrap(key.toId()), PoolLifecycle.PAUSE);
         assertTrue(registry.isLPAllowed(PoolId.unwrap(key.toId())));
         lp.unwindPositionByOkx(tokenId, 0, 0, "");
@@ -295,7 +297,7 @@ contract LPHookTest is Test {
     function testUnwindCannotBeAuthorizedByUserHookDataOrUnapprovedCaller() public {
         uint256 tokenId = _mint("");
         bytes memory snapshot = abi.encode(issuer.multiplier());
-        registry.addEmergencyPause(PauseScope.POOL, PoolId.unwrap(key.toId()), PauseMode.LP, keccak256("lp-pause"));
+        _applySecurityMode(SecurityOperationType.HALT, SecurityPauseMode.LP, 1);
         vm.expectRevert();
         _change(tokenId, Actions.DECREASE_LIQUIDITY, 1, snapshot);
         _authorizeExit();
@@ -303,6 +305,16 @@ contract LPHookTest is Test {
         vm.expectRevert();
         lp.unwindPosition(tokenId, 0, 0, "");
         assertEq(lp.getPositionLiquidity(tokenId), LIQUIDITY);
+    }
+
+    function _applySecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence) private {
+        registry.applySecurityStatus(
+            SECURITY,
+            action,
+            mode,
+            sequence,
+            keccak256(abi.encode("security-operation", action, mode, sequence))
+        );
     }
 
     function testOptionalSnapshotAcceptsMatchingRejectsStaleAndMalformed() public {

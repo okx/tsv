@@ -213,11 +213,11 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         bytes[] memory params = new bytes[](1);
         params[0] = abi.encode(tokenId, uint128(0), uint128(0), bytes(""));
         bytes memory data = abi.encode(abi.encodePacked(uint8(Actions.BURN_POSITION)), params);
-        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isAllowed.selector), abi.encode(false));
+        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isSbtAllowed.selector), abi.encode(false));
         vm.prank(owner);
         vm.expectRevert(IERC721Permit_v4.Unauthorized.selector);
         lp.modifyLiquidities(data, block.timestamp);
-        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isAllowed.selector), abi.encode(true));
+        vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isSbtAllowed.selector), abi.encode(true));
         vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isLPAllowed.selector), abi.encode(false));
         vm.prank(owner);
         vm.expectRevert(TSVLPManagerLib.PoolNotAllowed.selector);
