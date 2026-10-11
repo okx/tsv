@@ -10,7 +10,12 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {CustomRevert} from "v4-core/libraries/CustomRevert.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
-import {PermissionedAdmission, SwapRequest, PauseScope, PauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {
+    PermissionedRegisterParam,
+    SwapRequest,
+    SecurityOperationType,
+    SecurityPauseMode
+} from "tsv-v1/types/TSVTypes.sol";
 import {QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
@@ -164,7 +169,7 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         _swap(true, 1e16);
         uint256 alreadyUsed = ledger.used(SECURITY, DAY);
         PermissionsAdapter w2 = _newWrapper();
-        registry.registerPermissionedCurrency(PermissionedAdmission(address(w2), SECURITY, address(legalAdapter)), 1);
+        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(w2), SECURITY, address(legalAdapter)), 1);
         PoolKey memory second = _seedPool(w2, 500);
         w2.updateSwappingEnabled(true);
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed);
@@ -181,10 +186,10 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
             )
         );
         assertEq(ledger.used(SECURITY, DAY), alreadyUsed + paid);
-        registry.addEmergencyPause(PauseScope.SECURITY, SECURITY, PauseMode.ALL, keccak256("replace"));
+        _submitWrappedSecurityMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         ERC8056DirectLegalShareAdapter next = new ERC8056DirectLegalShareAdapter(address(underlying));
         registry.replaceUnderlyingLegalShareAdapter(address(underlying), address(next));
-        registry.clearEmergencyPause(1, keccak256("done"));
+        _submitWrappedSecurityMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 2);
         vm.expectCall(
             address(next), abi.encodeCall(ERC8056DirectLegalShareAdapter.toLegalShares, (address(underlying), 1e16)), 2
         );

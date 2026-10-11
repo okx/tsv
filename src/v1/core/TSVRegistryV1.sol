@@ -427,7 +427,7 @@ contract TSVRegistryV1 is TSVGoverned {
             config.securityId == 0 || newAdapter == config.legalShareAdapter
                 || !_securityPausedForReplacement(config.securityId)
         ) revert InvalidConfig();
-        PermissionedValidationLib._validateLegalShareAdapter(newAdapter, u);
+        PermissionedValidationLib.validateLegalShareAdapter(newAdapter, u);
         address previousAdapter = config.legalShareAdapter;
         config.legalShareAdapter = newAdapter;
         emit UnderlyingLegalShareAdapterChanged(u, previousAdapter, newAdapter);
@@ -722,7 +722,7 @@ contract TSVRegistryV1 is TSVGoverned {
         ) {
             revert InvalidPermissionedConfig();
         }
-        PermissionedValidationLib._validateLegalShareAdapter(registerParam.legalShareAdapter, underlying);
+        PermissionedValidationLib.validateLegalShareAdapter(registerParam.legalShareAdapter, underlying);
         if (underlying == registerParam.legalShareAdapter || currency == registerParam.legalShareAdapter) {
             revert InvalidPermissionedConfig();
         }

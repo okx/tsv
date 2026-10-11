@@ -14,11 +14,10 @@ import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {
-    PermissionedAdmission,
-    MarketStatus,
-    MarketAction,
-    PauseScope,
-    PauseMode,
+    PermissionedRegisterParam,
+    SecurityOperationStatus,
+    SecurityOperationType,
+    SecurityPauseMode,
     PoolLifecycle
 } from "tsv-v1/types/TSVTypes.sol";
 import {MarketReport, AdtvReport, QuotaReport} from "tsv-v1/types/TSVReports.sol";
@@ -103,7 +102,8 @@ abstract contract FoundationFixture is Test {
         stockToken = new V1MockIssuerWrapped(stockUnderlying);
         quote = new V1MockToken("QUOTE6", 6);
         stockAdapter = new ERC8056DirectLegalShareAdapter(address(stockToken));
-        PermissionedAdmission memory admission = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        PermissionedRegisterParam memory admission =
+            _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         stock = PermissionsAdapter(admission.currency);
         registry.registerPermissionedCurrency(admission, 1);
         registry.registerQuoteToken(address(quote));
@@ -119,15 +119,12 @@ abstract contract FoundationFixture is Test {
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
     }
 
-    function _pauseTarget(PauseScope scope) internal view returns (bytes32) {
-        if (scope == PauseScope.GLOBAL) return 0;
-        if (scope == PauseScope.SECURITY) return SECURITY;
-        if (scope == PauseScope.TOKEN) return bytes32(uint256(uint160(address(stock))));
-        return poolId;
+    function _enableEmergencyPause() internal {
+        registry.setEmergencyPauseEnable(true, keccak256("pause"));
     }
 
-    function _pause(PauseScope scope, bytes32 target, PauseMode mode) internal returns (uint256) {
-        return registry.addEmergencyPause(scope, target, mode, keccak256("pause"));
+    function _disableEmergencyPause() internal {
+        registry.setEmergencyPauseEnable(false, keccak256("resume"));
     }
 
     function _assertOperationGates(bool tradeAllowed, bool lpAllowed) internal view {
@@ -135,30 +132,35 @@ abstract contract FoundationFixture is Test {
         assertEq(registry.isLPAllowed(poolId), lpAllowed);
     }
 
-    function _assertMarketPause(PauseMode mode, bool tradeAllowed, bool lpAllowed) internal view {
-        assertEq(uint8(registry.marketPauseMode(SECURITY)), uint8(mode));
+    function _assertMarketPause(SecurityPauseMode mode, bool tradeAllowed, bool lpAllowed) internal view {
+        assertEq(uint8(registry.getSecurityPauseMode(SECURITY)), uint8(mode));
         assertEq(
-            uint8(registry.marketStatus(SECURITY)),
-            uint8(mode == PauseMode.NONE ? MarketStatus.OPEN : MarketStatus.HALTED)
+            uint8(registry.getSecurityStatus(SECURITY)),
+            uint8(mode == SecurityPauseMode.NONE ? SecurityOperationStatus.OPEN : SecurityOperationStatus.HALTED)
         );
         _assertOperationGates(tradeAllowed, lpAllowed);
     }
 
-    function _submitMarketMode(MarketAction action, PauseMode mode, uint64 sequence) internal {
+    function _submitMarketMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence) internal {
         MarketReport memory report =
             _market(action, sequence, keccak256(abi.encode("market-mode", action, mode, sequence)));
         report.mode = mode;
         inbox.submitMarketStatus(report);
     }
 
-    function _rejectMarketMode(MarketAction action, PauseMode mode, uint64 sequence, bytes4 expectedError) internal {
+    function _rejectMarketMode(
+        SecurityOperationType action,
+        SecurityPauseMode mode,
+        uint64 sequence,
+        bytes4 expectedError
+    ) internal {
         MarketReport memory report =
             _market(action, sequence, keccak256(abi.encode("rejected-market-mode", action, mode, sequence)));
         report.mode = mode;
-        uint64 previousSequence = registry.marketSequence(SECURITY);
+        uint64 previousSequence = registry.getSecuritySequence(SECURITY);
         vm.expectRevert(expectedError);
         inbox.submitMarketStatus(report);
-        assertEq(registry.marketSequence(SECURITY), previousSequence);
+        assertEq(registry.getSecuritySequence(SECURITY), previousSequence);
         assertEq(inbox.lastSequence(0, SECURITY), previousSequence);
         assertFalse(inbox.reportIdUsed(report.reportId));
     }
@@ -190,7 +192,7 @@ abstract contract FoundationFixture is Test {
         registry.registerPermissionedCurrency(_newStockConfig(securityId), 1);
     }
 
-    function _newStockConfig(bytes32 securityId) internal returns (PermissionedAdmission memory) {
+    function _newStockConfig(bytes32 securityId) internal returns (PermissionedRegisterParam memory) {
         V1MockIssuerShares underlying = new V1MockIssuerShares();
         V1MockIssuerWrapped token = new V1MockIssuerWrapped(underlying);
         ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
@@ -199,7 +201,7 @@ abstract contract FoundationFixture is Test {
 
     function _prepareCurrency(address u, bytes32 securityId, address adapter)
         internal
-        returns (PermissionedAdmission memory)
+        returns (PermissionedRegisterParam memory)
     {
         address w = permissionsFactory.createPermissionsAdapter(
             PermissionedIERC20(u), address(this), IAllowlistChecker(address(issuerChecker))
@@ -214,13 +216,13 @@ abstract contract FoundationFixture is Test {
     function _config(address w, bytes32 securityId, address adapter)
         internal
         view
-        returns (PermissionedAdmission memory)
+        returns (PermissionedRegisterParam memory)
     {
-        return PermissionedAdmission(w, securityId, adapter);
+        return PermissionedRegisterParam(w, securityId, adapter);
     }
 
     /// @dev Builds a market-state report with the supplied action and sequence metadata.
-    function _market(MarketAction action, uint64 sequence, bytes32 reportId)
+    function _market(SecurityOperationType action, uint64 sequence, bytes32 reportId)
         internal
         view
         returns (MarketReport memory report)
@@ -228,7 +230,7 @@ abstract contract FoundationFixture is Test {
         report = MarketReport(
             SECURITY,
             action,
-            PauseMode.ALL,
+            SecurityPauseMode.ALL,
             keccak256("reason"),
             uint64(block.timestamp - 1),
             uint64(block.timestamp + 100),
@@ -238,7 +240,7 @@ abstract contract FoundationFixture is Test {
     }
 
     /// @dev Submits a market-state report to the data Inbox.
-    function _submitMarket(MarketAction action, uint64 sequence, bytes32 reportId) internal {
+    function _submitMarket(SecurityOperationType action, uint64 sequence, bytes32 reportId) internal {
         MarketReport memory report = _market(action, sequence, reportId);
         inbox.submitMarketStatus(report);
     }

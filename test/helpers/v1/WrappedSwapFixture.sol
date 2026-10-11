@@ -11,8 +11,13 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
-import {PermissionedRegisterParam, SwapRequest} from "tsv-v1/types/TSVTypes.sol";
-import {AdtvReport} from "tsv-v1/types/TSVReports.sol";
+import {
+    PermissionedRegisterParam,
+    SecurityOperationType,
+    SecurityPauseMode,
+    SwapRequest
+} from "tsv-v1/types/TSVTypes.sol";
+import {MarketReport, AdtvReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVDataInboxV1} from "tsv-v1/core/TSVDataInboxV1.sol";
@@ -194,6 +199,21 @@ abstract contract WrappedSwapFixture is Test {
 
     function _submitSwap(SwapRequest memory request) internal returns (uint256, uint256) {
         return swapAdapter.swapExactInputDirect(router, request, alice, alice);
+    }
+
+    function _submitWrappedSecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence) internal {
+        inbox.submitMarketStatus(
+            MarketReport(
+                SECURITY,
+                action,
+                mode,
+                keccak256("wrapped-security-mode"),
+                uint64(block.timestamp - 1),
+                uint64(block.timestamp + 100),
+                sequence,
+                keccak256(abi.encode("wrapped-security-mode", action, mode, sequence))
+            )
+        );
     }
 
     function _inventory() internal view returns (uint256) {

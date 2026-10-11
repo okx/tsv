@@ -54,9 +54,9 @@ runs = 64
 depth = 32
 fail_on_revert = true
 
-[soldeer]
+[profile.soldeer]
 remappings_generate = false
 
 [dependencies]
-"@openzeppelin-contracts" = "5.5.0"
-"@openzeppelin-contracts-upgradeable" = "5.5.0"
+"@openzeppelin-contracts" = { version = "5.5.0" }
+"@openzeppelin-contracts-upgradeable" = { version = "5.5.0" }
