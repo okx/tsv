@@ -171,6 +171,10 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param quote Quote token address that was disabled.
     /// @param reasonCode Operational reason code for disabling the token.
     event QuoteTokenDisabled(address indexed quote, bytes32 reasonCode);
+    /// @notice Emitted when a canonical underlying is disabled for future pool registration.
+    /// @param underlying Canonical underlying whose pool registration was disabled.
+    /// @param reasonCode Operational reason code for disabling the underlying.
+    event UnderlyingPoolRegisterDisabled(address indexed underlying, bytes32 reasonCode);
     /// @notice Emitted when the canonical legal-share converter for an underlying changes.
     /// @param underlying Canonical underlying U whose converter changed.
     /// @param oldAdapter Previous legal-share adapter.
@@ -459,15 +463,32 @@ contract TSVRegistryV1 is TSVGoverned {
         emit QuoteTokenRegistered(quote, rawDecimals, reasonCode);
     }
 
-    /// @notice Disables a registered quote token while preserving its stored metadata for audit reads.
-    /// @param quote Quote token address to disable.
+    /// @notice Disables a registered quote token for future pool registration while preserving metadata.
+    /// @param quote Quote token address whose future pool registration should be disabled.
     /// @param reasonCode Nonzero operational reason code for disabling the quote token.
-    function disableQuoteToken(address quote, bytes32 reasonCode) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+    {
         _requireReasonCode(reasonCode);
         QuoteTokenRecord storage config = quoteTokens[quote];
         if (!config.registered) revert InvalidStatus();
         config.registered = false;
         emit QuoteTokenDisabled(quote, reasonCode);
+    }
+
+    /// @notice Disables a canonical underlying for future pool registration while preserving metadata.
+    /// @param u Canonical underlying whose future pool registration should be disabled.
+    /// @param reasonCode Nonzero operational reason code for disabling the underlying.
+    function disableUnderlyingPoolRegister(address u, bytes32 reasonCode)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+    {
+        _requireReasonCode(reasonCode);
+        UnderlyingRecord storage config = underlyings[u];
+        if (!config.registered) revert InvalidStatus();
+        config.registered = false;
+        emit UnderlyingPoolRegisterDisabled(u, reasonCode);
     }
 
     /// @notice Replaces the legal-share converter for U; the new adapter applies to subsequent swaps immediately.
@@ -782,10 +803,12 @@ contract TSVRegistryV1 is TSVGoverned {
         }
         if (canonicalUnderlying.securityId == 0) {
             underlyings[underlying] =
-                UnderlyingRecord(registerParam.securityId, registerParam.legalShareAdapter, rawDecimals);
+                UnderlyingRecord(registerParam.securityId, registerParam.legalShareAdapter, rawDecimals, true);
             emit UnderlyingBound(
                 underlying, registerParam.securityId, registerParam.legalShareAdapter, rawDecimals, reasonCode
             );
+        } else {
+            canonicalUnderlying.registered = true;
         }
         currencyUnderlying[currency] = underlying;
         emit PermissionedCurrencyRegistered(currency, underlying, registerParam.securityId, reasonCode);
@@ -796,9 +819,9 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return Whether `asset` is a registered quote or a listed permissioned stock.
     function _assetAllowed(address asset) private view returns (bool) {
         address underlying = currencyUnderlying[asset];
-        return underlying != address(0)
-            ? securities[underlyings[underlying].securityId].listed
-            : quoteTokens[asset].registered;
+        if (underlying == address(0)) return quoteTokens[asset].registered;
+        UnderlyingRecord storage config = underlyings[underlying];
+        return config.registered && securities[config.securityId].listed;
     }
     /// @dev Applies registration and pause checks for one pool operation type.
     /// @param poolId Registered pool ID to check.

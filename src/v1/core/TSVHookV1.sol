@@ -56,6 +56,7 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
 
     /// @dev Upgrade authorization is managed exclusively by the Registry.
     function _authorizeUpgrade(address) internal view override {
+        if (registry.isPaused()) revert InvalidOperation();
         if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert UnauthorizedUpgrade();
     }
 
@@ -100,7 +101,7 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         returns (bytes4)
     {
         if (
-            sender != lpManager || address(key.hooks) != address(this)
+            sender != lpManager || address(key.hooks) != address(this) || registry.isPaused()
                 || !registry.isKnownPool(PoolId.unwrap(key.toId()))
         ) revert InvalidPool();
         return IHooks.beforeInitialize.selector;
@@ -205,7 +206,7 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         if (sender != router) revert UnauthorizedCallback();
-        if (!registry.isTradable(PoolId.unwrap(key.toId()))) revert InvalidOperation();
+        if (!registry.isTradable(PoolId.unwrap(key.toId())) || registry.isPaused()) revert InvalidOperation();
         _validateMultiplierSnapshot(key, _decodeMultiplierSnapshot(hookData));
         return (IHooks.beforeSwap.selector, BeforeSwapDelta.wrap(0), 0);
     }

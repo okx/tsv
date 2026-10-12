@@ -278,10 +278,28 @@
   },
   {
     "type": "function",
-    "name": "disableQuoteToken",
+    "name": "disableQuoteTokenPoolRegister",
     "inputs": [
       {
         "name": "quote",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "disableUnderlyingPoolRegister",
+    "inputs": [
+      {
+        "name": "u",
         "type": "address",
         "internalType": "address"
       },
@@ -719,6 +737,11 @@
             "name": "rawDecimals",
             "type": "uint8",
             "internalType": "uint8"
+          },
+          {
+            "name": "registered",
+            "type": "bool",
+            "internalType": "bool"
           }
         ]
       }
@@ -2147,6 +2170,25 @@
     "inputs": [
       {
         "name": "quote",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UnderlyingPoolRegisterDisabled",
+    "inputs": [
+      {
+        "name": "underlying",
         "type": "address",
         "indexed": true,
         "internalType": "address"

@@ -200,10 +200,15 @@ interface ITSVPermissionedRegistry {
     /// @param reasonCode Nonzero operational reason code for registering the quote token.
     function registerQuoteToken(address q, bytes32 reasonCode) external;
 
-    /// @notice Disables a registered quote token while preserving stored metadata.
-    /// @param quote Quote token address to disable.
+    /// @notice Disables a registered quote token for future pool registration while preserving stored metadata.
+    /// @param quote Quote token address whose future pool registration should be disabled.
     /// @param reasonCode Nonzero operational reason code for disabling the quote token.
-    function disableQuoteToken(address quote, bytes32 reasonCode) external;
+    function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode) external;
+
+    /// @notice Disables a canonical underlying for future pool registration while preserving stored metadata.
+    /// @param u Canonical underlying whose future pool registration should be disabled.
+    /// @param reasonCode Nonzero operational reason code for disabling the underlying.
+    function disableUnderlyingPoolRegister(address u, bytes32 reasonCode) external;
 
     /// @notice Replaces the legal-share adapter for an underlying; the new adapter applies to subsequent swaps immediately.
     /// @param u Canonical underlying whose legal-share adapter is replaced.

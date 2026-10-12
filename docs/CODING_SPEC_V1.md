@@ -46,6 +46,7 @@ struct UnderlyingRecord {
     bytes32 securityId;
     address legalShareAdapter;
     uint8 rawDecimals;
+    bool registered;
 }
 
 struct QuoteTokenRecord {
