@@ -46,9 +46,6 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     TSVVolumeLedgerV1 public ledger;
     /// @notice Whether a globally unique report ID has already been consumed.
     mapping(bytes32 => bool) public reportIdUsed;
-    /// @dev Reserved storage slot from the removed per-stream sequence mapping.
-    ///      Keep this slot to preserve the upgradeable Inbox storage layout.
-    mapping(uint8 => mapping(bytes32 => uint64)) private deprecatedLastSequence;
     /// @notice Last accepted source timestamp by report kind and security.
     mapping(uint8 => mapping(bytes32 => uint64)) public lastSourceTimestamp;
 

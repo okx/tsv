@@ -65,12 +65,17 @@ struct TierPolicyRecord {
     uint32 listedCount;
 }
 
+struct SecurityStateRecord {
+    SecurityPauseMode pauseMode;
+}
+
 struct SecurityRecord {
     bytes32 securityId;
     uint8 tierId;
     bool listed;
     bytes32[] poolIds;
     uint32 listedPoolCount;
+    SecurityStateRecord securityState;
 }
 
 struct PoolRecord {
@@ -80,10 +85,6 @@ struct PoolRecord {
     PoolLifecycle lifecycle;
     uint256 tickCount;
     uint256 poolSecurityIndex;
-}
-
-struct SecurityStateView {
-    PauseMode pauseMode;
 }
 
 struct EmergencyPauseRecord {

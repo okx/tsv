@@ -65,8 +65,6 @@ struct TierPolicyRecord {
 
 /// @notice DataInbox-driven security operation state for one security.
 struct SecurityStateRecord {
-    /// @dev Reserved storage from the removed market-report sequence; retained for proxy layout compatibility.
-    uint64 deprecatedSequence;
     /// @notice Current security operation pause mask.
     SecurityPauseMode pauseMode;
 }
@@ -85,22 +83,6 @@ struct SecurityRecord {
     uint32 listedPoolCount;
     /// @notice DataInbox-driven operation state for this security.
     SecurityStateRecord securityState;
-}
-
-/// @notice Public security operation state without the reserved legacy sequence storage.
-struct SecurityStateView {
-    /// @notice Current security operation pause mask.
-    SecurityPauseMode pauseMode;
-}
-
-/// @notice Public security record view that omits reserved legacy sequence storage.
-struct SecurityRecordView {
-    bytes32 securityId;
-    uint8 tierId;
-    bool listed;
-    bytes32[] poolIds;
-    uint32 listedPoolCount;
-    SecurityStateView securityState;
 }
 
 /// @notice Stores one registered V4 pool's identity and lifecycle-owned state.

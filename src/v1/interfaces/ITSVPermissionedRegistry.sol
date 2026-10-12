@@ -10,7 +10,7 @@ import {
     PermissionedRegisterParam,
     TierPolicyRecord,
     PoolRecord,
-    SecurityRecordView,
+    SecurityRecord,
     PoolLifecycle,
     SecurityOperationStatus,
     SecurityPauseMode
@@ -48,7 +48,7 @@ interface ITSVPermissionedRegistry {
     /// @notice Returns the stored listing and tier for a security.
     /// @param id Security identifier to query.
     /// @return Stored security record; unknown IDs return a default record.
-    function getSecurity(bytes32 id) external view returns (SecurityRecordView memory);
+    function getSecurity(bytes32 id) external view returns (SecurityRecord memory);
 
     /// @notice Returns the quota and listing-cap policy currently configured for a tier.
     /// @param tierId Tier identifier to query.

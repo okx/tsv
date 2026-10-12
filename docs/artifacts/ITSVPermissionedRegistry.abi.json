@@ -337,7 +337,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct SecurityRecordView",
+        "internalType": "struct SecurityRecord",
         "components": [
           {
             "name": "securityId",
@@ -367,7 +367,7 @@
           {
             "name": "securityState",
             "type": "tuple",
-            "internalType": "struct SecurityStateView",
+            "internalType": "struct SecurityStateRecord",
             "components": [
               {
                 "name": "pauseMode",

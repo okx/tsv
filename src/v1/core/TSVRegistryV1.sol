@@ -11,9 +11,7 @@ import {
     PermissionedRegisterParam,
     TierPolicyRecord,
     SecurityRecord,
-    SecurityRecordView,
     PoolRecord,
-    SecurityStateView,
     SecurityStateRecord,
     PoolLifecycle,
     SecurityOperationStatus,
@@ -414,17 +412,9 @@ contract TSVRegistryV1 is TSVGoverned {
 
     /// @notice Returns the stored listing and tier for a security.
     /// @param securityId Security identifier to query.
-    /// @return record Stored security view; unknown IDs return a default view.
-    function getSecurity(bytes32 securityId) external view returns (SecurityRecordView memory record) {
-        SecurityRecord storage stored = securities[securityId];
-        record = SecurityRecordView({
-            securityId: stored.securityId,
-            tierId: stored.tierId,
-            listed: stored.listed,
-            poolIds: stored.poolIds,
-            listedPoolCount: stored.listedPoolCount,
-            securityState: SecurityStateView({pauseMode: stored.securityState.pauseMode})
-        });
+    /// @return record Stored security record; unknown IDs return a default record.
+    function getSecurity(bytes32 securityId) external view returns (SecurityRecord memory record) {
+        record = securities[securityId];
     }
 
     // W, U, and Q registration and configuration.
