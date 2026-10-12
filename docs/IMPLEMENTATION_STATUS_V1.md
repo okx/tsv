@@ -2,7 +2,7 @@
 
 ## 当前 Wrapped 交付状态（2026-10-07）
 
-Registry 与单池 Wrapped Swap 已编码；Router 当前只开放白名单 Adapter 发起的 U↔Q 直接结算 exact-in。Router 在 PoolManager 解锁前从 participant 拉取输入，直接向指定 recipient 交付输出，并要求输入全额成交。原版 W/PM 结算、一次回调绑定、准入期精确转账代码审查和不可变 PM/F 升级检查均已落地；Swap 不做 U/W 库存快照。`PermissionedValidationLib` 无存储，仅供 Registry 资产准入校验使用；资金与上下文留在 Router。
+Registry 与单池 Wrapped Swap 已编码；Router 提供 participant 直付和白名单 Adapter 代付两种 U↔Q exact-in 入口。Router 在 PoolManager 解锁前从对应付款方拉取输入，直接向 recipient 或调用 Adapter 交付输出，并要求输入全额成交。原版 W/PM 结算、一次回调绑定、准入期精确转账代码审查和不可变 PM/F 升级检查均已落地；Swap 不做 U/W 库存快照。
 
 当前验收记录、代码尺寸、库链接、ABI/layout 见 [Registry 与 Wrapped Swap](./PERMISSIONED_REGISTRY_V1.md)。生产 Wrapped LP 源码尚未迁移；测试 seed 不属于生产制品。manifest readiness 保持 false，真实发行方/生产 SBT/目标链及流动性证据另行验收。
 
@@ -20,14 +20,16 @@ review 已修正 PM/Router 绝对零 U 余额带来的交易和准入阻断：PM
 
 所有领域的剩余测试和验收工作已去重至[测试缺口统一清单](./TEST_GAPS_V1.md)，本文继续维护实现及历史执行状态。
 
+2026-10-12 变更：Reporter 报告 ABI 已移除 `sequence` 字段和链上序号检查，保留 reportId 去重与来源时间不倒退校验；运营端须按证券和报告类别串行提交。本次尚未运行测试。
+
 ## 1. 当前实现与缺口
 
 | ID / 状态 | 当前实现 | 尚缺事项或限制 |
 | --- | --- | --- |
 | GAP-01 **已编码（本地）** | Registry、Router 和 LP Manager 只直接结算唯一池内 Currency；旧 TSLAx→wTSLAx 用户结算组合不在当前 ABI | 真实 wTSLAx 实例及法律计股依据仍待准入；本部署无旧仓位迁移，验收见 A05/A06 |
 | GAP-02 **已编码（本地行为 mock）** | `ERC8056DirectLegalShareAdapter` 已接入 Hook；本地股票 Currency mock 通过 `uiMultiplier()` 提供动态 multiplier，本地 V4 集成覆盖两方向 Swap 与 LP | 本地 mock 不构成真实发行方证据；wTSLAx 的 `getUnderlyingAmountByShares` 尚未接入当前 Adapter，需确认接口兼容性、法律计量和逐实例准入，验收见 A01/A04 |
-| GAP-03 **部分实现** | 直接换算接口已取代 RateSnapshot、rateId 与反向 raw 换算；Hook 在 `afterSwap` 换算，Ledger 校验正/零 shares 与 Registry 元数据后记账；Adapter 可受控替换 | 成交事件记录实际计股量，不记录实时发行方参数；链上没有 unitEpoch，也不能拦截未预告的法律股数单位变化。拆并股额度已按 D-37 支持未来日独立系数；实际成交仍实时 Adapter 计股。来源法律单位异常时须暂停并在口径一致的新日恢复；无足够预告期的资产不得准入。流程见[准入标准 §4](./TOKEN_ADMISSION_STANDARD_V1.md#4-公司行动与数据单位) |
-| GAP-04 **已编码** | DataInbox 接受角色地址直写的 Market、ADTV、可选 Quota 和未来日 SplitFactor；支持 quota SET/CLEAR、版本顺序和硬上限 | 生产报告服务、索引器与角色操作留证仍须准备；规则见[编码规格 `7](./CODING_SPEC_V1.md#7-角色报告计量日和额度) |
+| GAP-03 **部分实现** | 直接换算接口已取代 RateSnapshot、rateId 与反向 raw 换算；Hook 在 `afterSwap` 换算，Ledger 校验正/零 shares 与 Registry 元数据后记账；Adapter 可由 `SYMBOL_ADMIN_ROLE` 随时替换 | 成交事件记录实际计股量，不记录实时发行方参数；链上没有 unitEpoch，也不迁移历史用量。Adapter 换算尺度变化可立即影响当日 `usedWad` 与限额判断。拆并股硬上限通过未来日 splitFactor 调整；quota 按目标日单位独立上报。实际成交仍实时 Adapter 计股。流程见[准入标准 §4](./TOKEN_ADMISSION_STANDARD_V1.md#4-公司行动与数据单位) |
+| GAP-04 **已编码** | DataInbox 接受角色地址直写的 Market、ADTV、可选 Quota 和未来日 SplitFactor；支持 quota SET/CLEAR、reportId 去重、来源时间校验和硬上限 | 生产报告服务、索引器与角色操作留证仍须准备；报告提交须按证券和类别串行；规则见[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度) |
 | GAP-05 **已编码** | VolumeLedger 按 UTC 与可配置起点自动生成计量日；支持未来排期、偏移边界、过渡日锁定和取消待生效配置 | 生产报告服务与索引器须采用同一日切规则；部署与验收见[部署清单](./DEPLOYMENT_CHECKLIST_V1.md)及 D04/D05/P03 |
 | GAP-06 **已编码，本地回归通过** | 独立 Authority 与治理根迁移已移除；唯一固定 Anchor 直接保存 Governor/Guardian/Council 和升级开关；Council 提案、当前 Guardian 批准后可恢复 Governor/Guardian | Anchor 不可升级，Council 固定；本版用于全新部署，目标链部署与真实多签恢复仍须独立核验；验收见 G09 |
 | GAP-07 **已编码** | Router 和 LP Manager 对直接结算校验转出、PoolManager 和最终收款方的实际余额变化；非精确转账整笔回滚 | 真实发行方 Token 与目标链仍须执行 A03 及固定依赖验证；相关安全评审见 F-05 |
@@ -35,8 +37,8 @@ review 已修正 PM/Router 绝对零 U 余额带来的交易和准入阻断：PM
 | GAP-09 **已编码，本地回归通过** | GLOBAL/SECURITY/TOKEN/POOL 紧急暂停与市场 HALT 支持 TRADE/LP/ALL；市场按模式叠加/恢复，交易与普通 LP 门禁分离，授权强退继续可用 | 本版按首次部署更新暂停、MarketReport、事件及计数查询 ABI；无旧暂停状态迁移。生产报告服务和索引器须采用新模式字段 |
 | GAP-10 **已编码，本地回归通过** | admitSecurity 原子登记证券及批准首个 Currency；registerToken 登记即批准；取消待审、市场未初始化及首次开市报告，准入后默认 OPEN；市场状态由暂停模式推导 | 报价币已获批时首次运营调用从六次减为三次；ADTV 与建池独立，缺 ADTV 时可提供 LP，但 Swap 全部回滚。准入与真实 V4 回归通过，包含准入回滚的 256 次 fuzz；本版用于全新部署，无旧 ABI/存储迁移 |
 | GAP-11 **已编码** | TimeLock 与专用 Executor 已移除；Governor 单笔 UUPS 升级并初始化，Anchor 支持六代理原子批量升级；恢复提案移至 Anchor；事故控制器已移除，Guardian 可冻结/解冻所有升级，身份恢复不自动解冻 | 新部署初始化 ABI 已简化为 Anchor 与业务依赖；发布仍须验证布局与批量初始化调用者，验收见 G02/G05/G07 |
-| GAP-12 **已编码，完整回归通过** | 独立 `SplitFactorReport` 精确比例按未来计量日开始自动生效，ADTV/Tier 保持；最新未生效项更正/取消；来源月基准、跨月防重复、版本/ID、防溢出、绝对 quota、升级保留 | 报告服务须固定月末单位与公告排期，发行方单位/监控及生产联测仍需证据；实际 Adapter 计股不新增通用归一化，见 TG-10/TG-12 和 D10–D13 |
-| GAP-13 **已编码** | 业务入口、TokenConfig、证券/报告/暂停/恢复/日切结构与事件已移除 hash 参数；部署脚本和 manifest 不再接收代码哈希输入。保留业务 ID、原因码、salt、权限、报告去重/序号和内部回调哈希 | 函数/事件 ABI 与存储布局已改变，须全新部署；链下审查材料按业务 ID、资产地址和交易记录归档；禁止直接升级旧布局实例 |
+| GAP-12 **已编码** | 独立 `SplitFactorReport` 精确比例按未来计量日开始自动生效，ADTV/Tier 保持；最新未生效项更正/取消；来源月基准、跨月防重复、ID、防溢出、绝对 quota、升级保留 | 报告服务须固定月末单位与公告排期，发行方单位/监控及生产联测仍需证据；本次序号移除后测试未重跑；实际 Adapter 计股不新增通用归一化，见 TG-10/TG-12 和 D10–D13 |
+| GAP-13 **已编码** | 业务入口、TokenConfig、证券/报告/暂停/恢复/日切结构与事件已移除 hash 参数；报告去掉 reporter sequence，保留 reportId、原因码、salt、权限和内部回调哈希 | 函数/事件 ABI 已改变；旧序号存储槽保留且不再读写，发布时核对存储布局与新 ABI；链下审查材料按业务 ID、资产地址和交易记录归档 |
 | DEPLOY-01 **脚本已编码，本地预测已测** | DeployGovernanceV1 与 DeployCoreV1 分阶段部署；六代理地址及 Hook 依赖 Router/LP Manager 地址的 CREATE/CREATE2 预测有回归 | 尚未在目标链广播；按[部署清单](./DEPLOYMENT_CHECKLIST_V1.md)完成绑定、SBT、角色及发布后快照 |
 
 ## 2. 规格与发布门禁

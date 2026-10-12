@@ -40,7 +40,6 @@ contract TSVSplitFactorTest is SplitFactorFixture {
         _charge(1);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
         assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)), 1000e18);
-        assertEq(inbox.lastSequence(3, SECURITY), 1); // Warp/query/Swap do not activate through another report.
     }
 
     function testReverseSplitUsesAnExactFractionAndCanReduceTheCapToZero() public {
@@ -93,7 +92,6 @@ contract TSVSplitFactorTest is SplitFactorFixture {
         _assertFactor(20261105, 1, 5);
         (, left) = ledger.remaining(SECURITY, 20261105);
         assertEq(left, 1e18);
-        assertEq(inbox.lastSequence(3, SECURITY), 2); // Report stream sequence does not restart each month.
     }
 
     function testFactorsAreIndependentAcrossSecurities() public {
@@ -140,21 +138,19 @@ contract TSVSplitFactorTest is SplitFactorFixture {
         assertEq(ledger.splitFactorCheckpointCount(SECURITY, uint32(MONTH)), 2);
     }
 
-    function testCancelLatestPendingFactorRestoresEarlierFactorAndSequenceNeverRewinds() public {
+    function testCancelLatestPendingFactorRestoresEarlierFactorWithoutOrderCounters() public {
         _setFactor(20261002, 2, 1, 1);
         _setFactor(20261005, 6, 1, 2);
         bytes32 oldId = ledger.splitFactorCheckpoint(SECURITY, uint32(MONTH), 1).reportId;
         _cancelFactor(20261005, 3);
         _assertFactor(20261005, 2, 1);
         assertTrue(inbox.reportIdUsed(oldId));
-        assertEq(inbox.lastSequence(3, SECURITY), 3);
         _setFactor(20261005, 3, 1, 4);
         _assertFactor(20261005, 3, 1);
         _cancelFactor(20261005, 5);
         _cancelFactor(20261002, 6);
         _assertFactor(20261005, 1, 1);
         assertEq(ledger.splitFactorCheckpointCount(SECURITY, uint32(MONTH)), 0);
-        assertEq(inbox.lastSequence(3, SECURITY), 6);
     }
 
     function testActivatedFactorCannotBeEditedCancelledOrReplayed() public {
@@ -170,7 +166,6 @@ contract TSVSplitFactorTest is SplitFactorFixture {
             assertEq(_factorState(report), beforeState);
         }
         _assertFactor(20261002, 2, 1);
-        assertEq(inbox.lastSequence(3, SECURITY), 1);
     }
 
     function testTwentyAndTwentyEightHourTransitionsActivateAtTheConfiguredDayStart() public {
@@ -213,7 +208,7 @@ contract TSVSplitFactorTest is SplitFactorFixture {
     function testTierAndAdtvCorrectionsStillParticipateInTheAdjustedCap() public {
         _submitAdtv(1000e18);
         _setFactor(20261002, 2, 1, 1);
-        registry.setTierPolicy(1, 50, 10);
+        registry.setTierPolicy(1, 50, 10, bytes32("TEST"));
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 10e18);
         inbox.submitAdtv(_adtv(SECURITY, 2000e18, 2, keccak256("same-basis-correction")));
@@ -223,24 +218,24 @@ contract TSVSplitFactorTest is SplitFactorFixture {
     }
 
     function testCapUsesOneFinalFloorInsteadOfFlooringBeforeApplyingTheFactor() public {
-        registry.setTierPolicy(1, 5000, 10);
+        registry.setTierPolicy(1, 5000, 10, bytes32("TEST"));
         _submitAdtv(3);
         _setFactor(20261002, 2, 1, 1);
         (, uint256 left) = ledger.remaining(SECURITY, 20261002);
         assertEq(left, 3); // floor(3 × 1/2 × 2), not floor(3 × 1/2) × 2.
     }
 
-    function _submitFutureQuota(uint32 day, uint256 amount, uint64 sequence) private {
-        bytes32 id = keccak256(abi.encode("factor-quota", day, sequence));
-        inbox.submitQuota(_futureQuota(day, amount, sequence, id));
+    function _submitFutureQuota(uint32 day, uint256 amount, uint64 label) private {
+        bytes32 id = keccak256(abi.encode("factor-quota", day, label));
+        inbox.submitQuota(_futureQuota(day, amount, label, id));
     }
 
-    function _futureQuota(uint32 day, uint256 amount, uint64 sequence, bytes32 id)
+    function _futureQuota(uint32 day, uint256 amount, uint64 label, bytes32 id)
         private
         view
         returns (QuotaReport memory report)
     {
-        report = _quota(amount, 1, sequence, id);
+        report = _quota(amount, 1, label, id);
         report.tradeDayId = day;
     }
 }

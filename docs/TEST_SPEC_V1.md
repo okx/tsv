@@ -39,7 +39,7 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 | `Day D` | 按测试输入选择日期和 UTC 起点；`tradeDayId`、ADTV 与 quota 规则见[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度) |
 | `Identity` | Governor、Guardian、RecoveryCouncil、各业务角色各自为单独地址；测试只改变地址和角色，不依赖多签内部签名门槛 |
 
-每个预期回滚的完整路径在发送交易前保存 `S_pre`：用户/Router/LP Manager/PoolManager 的相关 ERC-20 余额、V4 PoolId 状态和仓位流动性、TSV position/Receipt owner、`usedWad`、报告 reportId/序号、暂停计数和治理状态。回滚后逐项断言等于 `S_pre`；仅断言 revert selector 不足以证明原子性。成功路径逐项检查金额、股数、事件、V4 delta 清零及 Router/LP Manager 本次暂存余额回到基线。
+每个预期回滚的完整路径在发送交易前保存 `S_pre`：用户/Router/LP Manager/PoolManager 的相关 ERC-20 余额、V4 PoolId 状态和仓位流动性、TSV position/Receipt owner、`usedWad`、报告 reportId/来源时间、暂停计数和治理状态。回滚后逐项断言等于 `S_pre`；仅断言 revert selector 不足以证明原子性。成功路径逐项检查金额、股数、事件、V4 delta 清零及 Router/LP Manager 本次暂存余额回到基线。
 
 ## 3. 必须实现的确定性测试
 
@@ -49,9 +49,9 @@ V1 TSV 编译产物固定 Solidity `0.8.26`，SBT `^0.8.29`、Backed `0.8.9` 分
 
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
-| R01 U/I | 按目标配置登记股票 W/U、普通 `QUOTE`/`QUOTE6`，查询 W/U/Q 配置；尝试错误 Factory、owner 或 Adapter | 新证券通过 admitPermissionedSecurity 原子准入，新增 W 和 Q 使用各自注册入口；W 以非零 underlying、Q 以 registered 表示准入，零位精度 Q 合法；市场默认 OPEN、序号零；无兼容 Adapter 的股票配置失败 |
+| R01 U/I | 按目标配置登记股票 W/U、普通 `QUOTE`/`QUOTE6`，查询 W/U/Q 配置；尝试错误 Factory、owner 或 Adapter | 新证券通过 admitPermissionedSecurity 原子准入，新增 W 和 Q 使用各自注册入口；W 以非零 underlying、Q 以 registered 表示准入，零位精度 Q 合法；市场默认 OPEN；无兼容 Adapter 的股票配置失败 |
 | R02 U | Currency 为零、无代码、decimals 错、重复 W/Q、股票身份冒充 Q、股数 Adapter 报错或资产对不匹配 | 注册失败且不留下 W/U/Q 配置；不使用独立静态比例字段判断公式 |
-| R03 U/I | TOKEN 暂停后恢复 W/Q；暂停中篡改绑定、精度、owner/wrapper/Hook 权限或股数 Adapter；持有供给和手续费时恢复 | 恢复复核当前配置，失败保留暂停；修正后可重试；不重做首次库存检查，不改写历史资产或仓位；配置替换须覆盖两类操作暂停 |
+| R03 U/I | TOKEN 暂停后恢复 W/Q；暂停中篡改绑定、精度、owner/wrapper/Hook 权限；有无暂停时替换股数 Adapter；持有供给和手续费时恢复 | 恢复复核当前配置，失败保留暂停；修正后可重试；不重做首次库存检查，不改写历史资产或仓位；Adapter 替换只校验角色、接口和 U 绑定，不要求暂停，历史 used 不迁移 |
 | R04 U/I | Tier 名额上限边界、证券重复登记/下架/重上架、跨 W 同 securityId；重新上市时另有暂停 | listedCount 按证券去重；下架直接阻止全部池普通操作且保留历史池；重上架恢复未暂停池，独立暂停不被清除；同证券共享日额度 |
 | R05 I | POOL_CREATOR 提交有序 PoolKey、静态 fee、tickSpacing、sqrtPriceX96；随后重复初始化 | 代理 Hook 权限位 0x3FFF；Registry.registerPool 与真实 PM.initialize 同笔完成，无池生命周期字段；初始价格与输入一致，重复拒绝 |
 | R06 U/I | 非 POOL_CREATOR、错 Hook、两侧均为股票或报价币、倒序 Currency、动态费、fee=1_000_000、tickSpacing=0/32768、越界价格 | 拒绝且 Registry 不残留注册记录，V4 不创建池；修正价格后可成功重试 |
@@ -80,14 +80,14 @@ SBT 增补验收：按 tokenId 独立配置 swap-only、LP-only、双权限及�
 | ID / 层级 | 输入和动作 | 期望结果 |
 | --- | --- | --- |
 | D01 U/I | 由持有 `HALT_REPORTER_ROLE` 或 `VOLUME_ORACLE_ROLE` 的地址直接提交 Market、ADTV、Quota、SplitFactor 报告；尝试用 relayer、签名参数或旧 TradeDay 入口提交 | 只有 `msg.sender` 当前持有对应角色时接受；DataInbox ABI 不含签名参数或 signer 字段；旧日历报告无可调用入口 |
-| D02 U | 非角色调用、角色已撤、重复 reportId、序号回退、过 submitDeadline、sourceTimestamp 在未来、同月批次未排序/跨月 | 各自拒绝，reportId/sequence 不被占用；早先已接受状态不自动失效 |
-| D03 U | 准入后默认开放；首份 HALT 的三种模式；HALT 叠加与 RESUME 部分恢复；NONE、越界 action 和无模式变化报告 | 无需首次开市报告；按模式独立阻断/恢复，任一暂停时 HALTED、全部恢复时 OPEN；无变化请求整体回滚报告序号/去重状态；HALT 无年龄失效 |
+| D02 U | 非角色调用、角色已撤、重复 reportId、sourceTimestamp 回退/未来、过 submitDeadline、同月批次未排序/跨月 | 各自拒绝，失败不占用 reportId 或更新来源时间；早先已接受状态不自动失效 |
+| D03 U | 准入后默认开放；首份 HALT 的三种模式；HALT 叠加与 RESUME 部分恢复；NONE、越界 action 和无模式变化报告 | 无需首次开市报告；按模式独立阻断/恢复，任一暂停时 HALTED、全部恢复时 OPEN；无变化请求整体回滚去重状态；HALT 无年龄失效 |
 | D04 U/I | 初始 UTC 日切 04:00；普通日边界前后各一秒、周末、月末、闰日及年末；无预提交日历 | 每个 UTC 日期独立归属一个 `YYYYMMDD` 计量日，连续无空洞/重叠；边界后新日用量从零开始，历史用量不改；不要求下一窗口或心跳交易 |
 | D05 U/I | 治理将日切从 04:00 排期为未来 07:00；另试从 04:00 直接改到 09:00、同时存在第二项待生效排期、已开始的过渡日、更改过去或当前日、取消待生效排期 | 只有符合未来边界、每次偏移差不超过 4 小时且过渡日尚未开始的排期/取消成功；过渡日可为 20–28 小时但只有一份完整硬上限；已开始和历史日边界永久不变；自动生效无需激活交易 |
 | D06 U | 9 月 ADTV 适用 10 月计量日，进入 11 月但无 10 月 ADTV；同一月份 ADTV 值不变，同一日没有 quota 覆盖 | 10 月使用 9 月 ADTV；11 月缺适用 ADTV 则受影响证券 Swap fail-closed；无 quota 时仍按 ADTV/Tier 硬上限交易；同一有效期间不重复上报相同值 |
 | D07 U/I | 默认系数1时 ADTV=1000e18、tierBps=25 得硬上限 2.5e18；无覆盖时交易，再为指定日 SET quota=2e18，随后下调到已用量以下并 CLEAR | `used` 对同证券跨池/跨 Token 汇总；每笔成功 Swap 不超过当时有效上限；SET/CLEAR 从成功提交后影响后续 Swap，不清零 used；下调到低于 used 后新 Swap 拒绝，CLEAR 后恢复硬上限但不重置历史用量 |
 | D08 U/I | 不同证券的 W/W 或同证券不同 W 申请同一 PoolKey | 均在 registerPool 拒绝，不残留 Registry 记录，V4 不初始化池，各证券额度不变 |
-| D09 U | sourceMonth 格式错、SET 的 quota=0/大于提交时硬上限、CLEAR 无旧覆盖或 quota 非零、版本/序号回退、ADTV 更正后旧覆盖高于新 hard cap | 无效报告拒绝且不占 reportId；合法更正不改已用量，旧覆盖与新硬上限取更严值，不能继续超限成交；其他证券不受错误标的牵连 |
+| D09 U | sourceMonth 格式错、SET 的 quota=0/大于提交时硬上限、CLEAR 无旧覆盖或 quota 非零、来源时间回退、ADTV 更正后旧覆盖高于新 hard cap | 无效报告拒绝且不占 reportId；合法更正不改已用量，旧覆盖与新硬上限取更严值，不能继续超限成交；其他证券不受错误标的牵连 |
 
 
 ### 3.2.1 拆并股系数
@@ -96,7 +96,7 @@ SBT 增补验收：按 tokenId 独立配置 swap-only、LP-only、双权限及�
 | --- | --- | --- |
 | D10 U/I | 默认系数、拆/并股、日开始前一秒/准确边界、未来日查询、20/28h 过渡日及 Token 早/晚更新 | 无报告默认1/1；只在目标计量日开始切换，无激活交易；不允许当天/过去/非法日、源月错配；旧用量和 LP 保留，真实 Swap 使用调整上限 |
 | D11 U/I | 同月连续绝对系数、更正/取消最新待生效项、修改更早项、已生效后操作、跨月/跨证券 | 2→6 不再相乘；latest-only 且必须尚未开始；取消恢复前一项、版本仍递增，ID 不释放；新来源月默认1，证券隔离；ADTV 数据更正保留同月基准 |
-| D12 U/I | 系数角色/撤权/固定 writer、报告 metadata/replay、零比例、约分、单次最终 floor、最大分数、ADTV/Tier 更正及绝对 quota | 同一 VOLUME_ORACLE_ROLE，kind=3 独立序号/时间；拒绝完全回滚可纠正重试；精确正分数，超 full-Tier 可表示范围拒绝；quota 不自动乘因子，始终 min；边界 fuzz 用独立整数参考 |
+| D12 U/I | 系数角色/撤权/固定 writer、报告 metadata/replay、零比例、约分、单次最终 floor、最大分数、ADTV/Tier 更正及绝对 quota | 同一 VOLUME_ORACLE_ROLE，reportId 全局唯一、来源时间按类别/证券校验；拒绝完全回滚可纠正重试；精确正分数，超 full-Tier 可表示范围拒绝；quota 不自动乘因子，始终 min；边界 fuzz 用独立整数参考 |
 | D13 I/P | 现有资金/ADT/quota/角色/ID 加待生效系数升级 Ledger/Inbox、升级冻结、模型交错 | 升级追加字段且现有状态/排期保留；Guardian 冻结不阻止自动生效或业务报告；独立线性因子模型与实际二分查询比较，版本/历史/失败 ID 保留 |
 
 ### 3.3 股数、Swap 与原子结算
@@ -136,7 +136,7 @@ SBT 增补验收：按 tokenId 独立配置 swap-only、LP-only、双权限及�
 | L12 I | `closePosition` 或 `decreaseLiquidity` 在 tick 区间边界使一侧 delta 为零，同时该侧 `minPoolOut` 大于零 | `SlippageExceeded`，整笔回滚，仓位与 Receipt 保留；零输出也必须满足调用者设置的最低输出 |
 | L13 U/I | 四种紧急 scope × 三种 mode；同模式多记录、ALL 与单项叠加、清除顺序与未命中目标 | TRADE 只阻断 Swap、LP 只阻断全部普通 LP、ALL 同时阻断；精确模式计数逐条更新；恢复不误解除其他记录或市场暂停 |
 | L14 I | 市场/紧急 TRADE 暂停下完整 LP 生命周期；LP 暂停下 direct exact-in/out 与 Adapter 双向 Swap；Hook 与 Ledger 独立门禁 | 另一类操作成功，实际 V4 流动性、资产结算和计量符合预期；收费前先产生手续费，避免 NoFees 掩盖暂停行为 |
-| L15 U/I | 单项暂停下轮换 W owner 或替换 U 股数 Adapter；组合暂停覆盖两类操作；暂停期间建池 | owner 轮换须该 W 的两类操作暂停，TOKEN/SECURITY/GLOBAL/市场暂停可组合；规范 Adapter 替换须整个证券两类暂停，单 W 或 POOL 不足；建池仍只看准入 |
+| L15 U/I | 单项暂停下轮换 W owner；不同暂停状态下替换 U 股数 Adapter；暂停期间建池 | owner 轮换须该 W 的两类操作暂停；Adapter 替换不要求暂停，但仍须角色、接口和 U 绑定有效；建池仍只看准入 |
 
 ### 3.5 治理与升级
 
@@ -158,7 +158,7 @@ SBT 增补验收：按 tokenId 独立配置 swap-only、LP-only、双权限及�
 | G14 U | 绑定、批量、冻结/解冻、提案/批准/撤回/取消、身份恢复事件 | 校验事件发出地址、indexed 身份/ID、数量和 Guardian epoch |
 | G15 U | 部署输入校验与部署清单 verifier；错链/无代码依赖/SBT ABI/治理身份/绑定状态/实现地址 | 有效环境和清单通过；每项不符拒绝；身份恢复后旧清单失效，更新后通过；实际广播与生产多签另行验收 |
 
-准入回归还须覆盖：准入失败后证券、Tier 名额和 Token 配置全部回滚；重复证券/Currency、Tier 超额、无代码、decimals/Adapter 不匹配均拒绝；未登记资产不能建池；重新上市保留市场暂停和报告序号。真实 V4 用例验证缺 ADTV 时可提供 LP，但 Swap 的余额、价格、费用与用量全部回滚，提交有效 ADTV 后可成交；初始化失败不留下注册记录；历史池不因下架或暂停被删除。
+准入回归还须覆盖：准入失败后证券、Tier 名额和 Token 配置全部回滚；重复证券/Currency、Tier 超额、无代码、decimals/Adapter 不匹配均拒绝；未登记资产不能建池；重新上市保留市场暂停状态。真实 V4 用例验证缺 ADTV 时可提供 LP，但 Swap 的余额、价格、费用与用量全部回滚，提交有效 ADTV 后可成交；初始化失败不留下注册记录；历史池不因下架或暂停被删除。
 
 ## 4. 三个外部协议的专项集成
 
@@ -176,7 +176,7 @@ X-BACKED 必须覆盖 multiplier=`1e18`、低于 `1e18`、会跨一个费率周�
 | --- | --- | --- |
 | P01 | 随机 open/increase/decrease/collect/close/forceExit、tick、owner | 每个活跃 position 的 `(PoolId,ticks,salt)` V4 liquidity 与 TSV ledger 相等；Receipt 恰好一个且 owner 不变；关闭后不可再领取 |
 | P02 | 随机单池 exact-in/out、股票/quote 方向、滑点、fee、来源 multiplier、配额更正 | `usedWad[securityId][day]` 等于**所有成功 Swap** 逐笔按实际 delta 调用来源转换方法的返回值之和；每次成功成交均满足成交时两种上限，更正下调上限后禁止继续超额成交；LP 操作不计量 |
-| P03 | 随机报告顺序、延迟、UTC 日切偏移排期/取消、过渡日、ADTV、quota SET/CLEAR、未来日系数排期/更正/取消 | 任意时间只归属一个计量日，历史边界不变；无适用 ADTV 时不会成功 Swap，无 quota 时可按硬上限交易；已用额度不因报告或日切排期重置；按来源月与目标日选择绝对因子，版本/ID/序号与独立模型一致 |
+| P03 | 随机报告提交、来源时间、UTC 日切偏移排期/取消、过渡日、ADTV、quota SET/CLEAR、未来日系数排期/更正/取消 | 任意时间只归属一个计量日，历史边界不变；无适用 ADTV 时不会成功 Swap，无 quota 时可按硬上限交易；已用额度不因报告或日切排期重置；按来源月与目标日选择绝对因子，reportId/时间与独立模型一致 |
 | P04 | 随机权限、scope/target/mode 暂停叠加与逐条解除、市场部分恢复、SBT revoke/paused、池停用 | 交易仅受 TRADE/ALL、普通 LP 仅受 LP/ALL 阻断；紧急与市场暂停独立叠加；清除单条记录不清除其他条；强退仍按原 owner 交付 |
 | P05 | 随机直接 Token 故障、报价边界和回调重入 | 失败路径完全等于 `S_pre`；成功路径 V4 所有 Currency delta 为零，Router/LP Manager 不积累本笔余额 |
 | P06 | 随机 Governor/Guardian/Council 操作序列 | 直接/批量升级仅全局未冻结且当前 Governor 发起可执行；冻结/解冻仅当前 Guardian；身份恢复保持冻结；恢复要求 Council 提案和当前 Guardian 批准；批量升级初始化中不得执行身份恢复；根身份唯一 |

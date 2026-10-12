@@ -96,7 +96,7 @@ abstract contract FoundationFixture is Test {
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         registry.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
         registry.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
-        registry.setTierPolicy(1, 25, 10);
+        registry.setTierPolicy(1, 25, 10, bytes32("TEST"));
 
         stockUnderlying = new V1MockIssuerShares();
         stockToken = new V1MockIssuerWrapped(stockUnderlying);
@@ -105,8 +105,8 @@ abstract contract FoundationFixture is Test {
         PermissionedRegisterParam memory admission =
             _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
         stock = PermissionsAdapter(admission.currency);
-        registry.registerPermissionedCurrency(admission, 1);
-        registry.registerQuoteToken(address(quote));
+        registry.registerPermissionedCurrency(admission, 1, bytes32("TEST"));
+        registry.registerQuoteToken(address(quote), bytes32("TEST"));
 
         address a = address(stock) < address(quote) ? address(stock) : address(quote);
         address b = address(stock) < address(quote) ? address(quote) : address(stock);
@@ -141,9 +141,9 @@ abstract contract FoundationFixture is Test {
         _assertOperationGates(tradeAllowed, lpAllowed);
     }
 
-    function _submitMarketMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence) internal {
+    function _submitMarketMode(SecurityOperationType action, SecurityPauseMode mode, uint64 label) internal {
         MarketReport memory report =
-            _market(action, sequence, keccak256(abi.encode("market-mode", action, mode, sequence)));
+            _market(action, label, keccak256(abi.encode("market-mode", action, mode, label)));
         report.mode = mode;
         inbox.submitMarketStatus(report);
     }
@@ -151,25 +151,22 @@ abstract contract FoundationFixture is Test {
     function _rejectMarketMode(
         SecurityOperationType action,
         SecurityPauseMode mode,
-        uint64 sequence,
+        uint64 label,
         bytes4 expectedError
     ) internal {
         MarketReport memory report =
-            _market(action, sequence, keccak256(abi.encode("rejected-market-mode", action, mode, sequence)));
+            _market(action, label, keccak256(abi.encode("rejected-market-mode", action, mode, label)));
         report.mode = mode;
-        uint64 previousSequence = registry.getSecuritySequence(SECURITY);
         vm.expectRevert(expectedError);
         inbox.submitMarketStatus(report);
-        assertEq(registry.getSecuritySequence(SECURITY), previousSequence);
-        assertEq(inbox.lastSequence(0, SECURITY), previousSequence);
         assertFalse(inbox.reportIdUsed(report.reportId));
     }
 
     function _delistPrimarySecurity() internal {
         if (registry.getPoolLifeCycle(poolId) != PoolLifecycle.DELIST) {
-            registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST);
+            registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST, bytes32("TEST"));
         }
-        registry.delistSecurity(SECURITY);
+        registry.delistSecurity(SECURITY, bytes32("TEST"));
     }
 
     // Bound Hook and LP identity views for this unit fixture, whose writer is the test contract.
@@ -189,7 +186,7 @@ abstract contract FoundationFixture is Test {
     }
 
     function _admitAdditionalSecurity(bytes32 securityId) internal {
-        registry.registerPermissionedCurrency(_newStockConfig(securityId), 1);
+        registry.registerPermissionedCurrency(_newStockConfig(securityId), 1, bytes32("TEST"));
     }
 
     function _newStockConfig(bytes32 securityId) internal returns (PermissionedRegisterParam memory) {
@@ -221,8 +218,8 @@ abstract contract FoundationFixture is Test {
         return PermissionedRegisterParam(w, securityId, adapter);
     }
 
-    /// @dev Builds a market-state report with the supplied action and sequence metadata.
-    function _market(SecurityOperationType action, uint64 sequence, bytes32 reportId)
+    /// @dev Builds a market-state report with the supplied action and unique test ID.
+    function _market(SecurityOperationType action, uint64, bytes32 reportId)
         internal
         view
         returns (MarketReport memory report)
@@ -234,14 +231,13 @@ abstract contract FoundationFixture is Test {
             keccak256("reason"),
             uint64(block.timestamp - 1),
             uint64(block.timestamp + 100),
-            sequence,
             reportId
         );
     }
 
     /// @dev Submits a market-state report to the data Inbox.
-    function _submitMarket(SecurityOperationType action, uint64 sequence, bytes32 reportId) internal {
-        MarketReport memory report = _market(action, sequence, reportId);
+    function _submitMarket(SecurityOperationType action, uint64 label, bytes32 reportId) internal {
+        MarketReport memory report = _market(action, label, reportId);
         inbox.submitMarketStatus(report);
     }
 
@@ -252,7 +248,7 @@ abstract contract FoundationFixture is Test {
     }
 
     /// @dev Builds an ADTV report with the supplied value and replay-protection metadata.
-    function _adtv(bytes32 securityId, uint256 value, uint64 sequence, bytes32 reportId)
+    function _adtv(bytes32 securityId, uint256 value, uint64, bytes32 reportId)
         internal
         view
         returns (AdtvReport memory)
@@ -263,7 +259,6 @@ abstract contract FoundationFixture is Test {
             value,
             uint64(block.timestamp - 1),
             uint64(block.timestamp + 100),
-            sequence,
             reportId
         );
     }
@@ -275,13 +270,13 @@ abstract contract FoundationFixture is Test {
     }
 
     /// @dev Builds a daily quota report with the supplied action and replay-protection metadata.
-    function _quota(uint256 value, uint8 action, uint64 sequence, bytes32 reportId)
+    function _quota(uint256 value, uint8 action, uint64, bytes32 reportId)
         internal
         view
         returns (QuotaReport memory)
     {
         return QuotaReport(
-            SECURITY, DAY, action, value, uint64(block.timestamp - 1), uint64(block.timestamp + 100), sequence, reportId
+            SECURITY, DAY, action, value, uint64(block.timestamp - 1), uint64(block.timestamp + 100), reportId
         );
     }
 }

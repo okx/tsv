@@ -4,6 +4,8 @@
 
 更新：2026-10-04。范围依据[三系统总览的运营直接入口](./SYSTEMS_OVERVIEW.md#运营角色直接写入口总表)和[测试规格](./TEST_SPEC_V1.md)的 R01–R09、A02/A07/A09、D01–D13、暂停/强退、P03；配置入口还包括 Governor 控制的 Tier 和 SBT。本文 review 测试覆盖，不替代合约安全审计。
 
+2026-10-12 更新：报告 ABI 已移除 reporter `sequence`；下方旧矩阵中序号相关描述按 reportId、来源时间和运营串行提交规则理解。本次没有运行测试。
+
 跨领域剩余工作及完成条件统一维护在[测试缺口清单](./TEST_GAPS_V1.md)；本文保留运营入口及覆盖率的复核证据。
 
 ## 结论
@@ -19,16 +21,16 @@
 | 行为 / 规格 | review 发现的缺口 | 当前证据 |
 | --- | --- | --- |
 | 四个 Inbox 入口的角色 / D01–D02 | 原来只有市场报告的陌生 caller；未逐入口测试交叉角色、撤权和 renounce | `unit/v1/reports/Ingress.t.sol`：HALT 与 VOLUME 角色互不替代，单条/批量/Quota 撤权后拒绝，重授后可提交 |
-| 通用报告元数据 / D02 | reportId 为零、来源时间回退/未来、截止过期、零/重复序号、时间相等和序号跳跃缺矩阵 | `Ingress.t.sol`：三类报告 × 八种拒绝输入，失败比较业务状态、ID、序号和来源时间；截止相等/来源相等/递增跳号成功 |
-| 去重范围 / D02 | 缺跨类别、跨证券、批次内重复 ID | `Ingress.t.sol`、`AdtvBatch.t.sol`：ID 全局唯一；序号/来源时间按类别和证券独立，合法新 ID 可继续提交 |
+| 通用报告元数据 / D02 | reportId 为零/重复、来源时间回退/未来、截止过期、时间相等缺矩阵 | `Ingress.t.sol`：报告拒绝输入，失败比较业务状态、ID 和来源时间；截止相等/来源相等成功 |
+| 去重范围 / D02 | 缺跨类别、跨证券、批次内重复 ID | `Ingress.t.sol`、`AdtvBatch.t.sol`：ID 全局唯一；来源时间按类别和证券独立，合法新 ID 可继续提交 |
 | 报告业务字段 / D03/D06/D09 | 零/未知/下架标的、版本、月份、原因、Quota action 和数值缺完整拒绝及重试证据 | `PayloadValidation.t.sol`：Market 五类、ADTV 十一类、Quota 十二类输入；失败不占用元数据，修正后使用同一 ID 提交；CLEAR 非零/重复清除拒绝 |
 | ADTV 批次 / D02 | 原来只有两条成功和最后版本错误 | `AdtvBatch.t.sol`：0/1/100/101 条、零/重复/逆序标的、混月、重复 ID、三个位置的 ingress/业务错误 fuzz；100 条末项失败全回滚，修正后全部接受 |
-| 版本与期间 / D06/D09 | 更正、跨月版本重启与来源序号继续递增缺证据 | `PayloadValidation.t.sol`：版本必须严格加一；新月份从版本 1 开始但来源序号不重置；新 ID/版本允许相同正 ADTV 值，数值相同不属于链上 replay 判定 |
+| 版本与期间 / D06/D09 | 更正和跨月补报缺证据 | `PayloadValidation.t.sol`：更正使用新 ID；同一来源时间可提交新 ID；相同 ADTV 值不构成链上 replay 判定 |
 | 硬上限、额度、即时更正 / D07/D09 | 原有 SET/CLEAR 只覆盖未成交状态，Tier/ADTV 更正与旧覆盖取 min 不足 | `CapCorrections.t.sol`、`Lifecycle.t.sol` 与 `local/operations/OperationsFlows.t.sol`：下调到低于 used 后拒绝新成交，上调仍受旧 quota 约束，CLEAR 不清零 used，换 Tier 即时改变 cap；舍入及恰好达到上限 fuzz |
 | 报告有效性 / D06 | 提交截止与已接受值的生命周期易混淆 | `CapCorrections.t.sol`：提交 deadline 不让已接受 ADTV/Quota 过期；未来日额度不影响当前日，缺适用月份 ADTV fail-closed |
 | Tier 与证券生命周期 / R03–R04 | 缺转 Tier、容量回滚、多 Currency 去重、最后活跃池、下架后证券 ID 保留 | `registry/Lifecycle.t.sol`、`Configuration.t.sol`：上下架/换 Tier 的版本与计数，满 Tier 后重上架回滚并可重试；同证券多 Currency/池仅占一上市名额；旧 securityId 不可重新登记 |
 | Token 与 SBT 配置 / R02/R08/A09 | 缺 quote 股票元数据污染、部分 SBT selector 缺失、畸形返回及 tokenId 变更 | `Configuration.t.sol`：quote 元数据、decimals/代码存在性、无代码、SBT 单个 selector/读失败/短返回；错误配置保留旧值，tokenId 生效、paused 与资格区分；真实写路径读故障由原 `local/liquidity/ForceExit.t.sol` 验证 |
-| Adapter 更换 / R03/A07 | 缺无活跃池路径、版本连续、错误暂停范围、配置字段保留 | `registry/AdapterChanges.t.sol`、原 `Pauses.t.sol` 和 `local/operations/OperationsFlows.t.sol`：无活跃池可换；活跃池只接受 GLOBAL/TOKEN 共同覆盖 TRADE+LP；版本 2→3、身份/接口/绑定错误；已有真实仓位、池键、费用和 used 保留 |
+| Adapter 更换 / R03/A07 | 需验证无暂停更换、角色及 Adapter 身份/接口/绑定、历史状态保留 | `registry/AdapterChanges.t.sol`、`Pauses.t.sol`：无暂停、TRADE 暂停、ALL 暂停时均可替换；无效 U、相同 Adapter、无代码、接口或绑定错误仍拒绝；已有 used 保留。此轮未运行测试 |
 | 暂停审计及职责分离 | 已有 scope × mode 与叠加；缺原因码/target、完整 record 元数据和撤权 | `PauseBoundaries.t.sol`、`Permissions.t.sol`：错误请求不分配 ID；清除不改旧审计字段、不复用 ID；pauser/resumer 不互代；市场/紧急恢复独立及暂停下强退复用原集成用例 |
 | 所有 SYMBOL_ADMIN 写入口 / 角色 | 原来只专门检查 admit/register | `Permissions.t.sol`：九个入口拒绝无角色/撤权地址；Governor 未获该业务角色也被拒；业务角色不能改 Tier/SBT/日切；内部 LP/Hook/Inbox 写入只接受固定调用者 |
 | 初始化与绑定 / R09 | Registry/Ledger 自身零依赖、Writer 绑定缺直接用例 | `reports/Bindings.t.sol`：零依赖、偏移 86400、逐组件无代码、越权及重复绑定回滚，正确绑定可完成；交叉绑定与部署清单继续由治理部署用例检查 |
@@ -37,7 +39,7 @@
 | 日切与跨月成交 / D04–D07 | 单元查询不能证明实际 used/资金回滚 | `local/operations/OperationsFlows.t.sol`：20/28h 日均只有完整一份 quota，边界前拒绝和边界后新用量；11 月缺 10 月 ADTV 拒绝 Swap 而 LP 继续，补报恢复，历史 used 不变 |
 | 法律单位切换 / A02 | 缺完整运营动作示例；实现没有自动识别单位变化 | `OperationsFlows.t.sol`：暂停、批准的新单位 ADTV/下一日 quota、下一日恢复、当次换算、LP 关闭；旧 used 不重算。此用例不证明“同日提前恢复必被合约阻止” |
 | 拆并股额度 / D10–D13 | 缺系数排期、自动生效及源月基准 | `SplitFactor.t.sol`、`SplitFactorBoundaries.t.sol`、`SplitFactorFlows.t.sol`：正/反拆、精确分数、按未来日切自动选因子、最新待生效项更正/取消、跨月不重复、报告/算术边界、真实 V4、升级状态保留；实际 Token 计股仍实时 Adapter |
-| 报告/日切交错 / P03 | 原来只有单例/交易 Handler 的七日模型 | `reports/StatefulOperations.t.sol`、`helpers/v1/OperationsHandler.sol`：独立季度日历、四个月 ADTV、96 日 quota/used、来源序号/时间、全局 ID、角色撤授、偏移排期/取消、独立线性系数模型和成交记账模型（八类动作）；失败接受性及历史边界逐项比较 |
+| 报告/日切交错 / P03 | 原来只有单例/交易 Handler 的七日模型 | `reports/StatefulOperations.t.sol`、`helpers/v1/OperationsHandler.sol`：独立季度日历、四个月 ADTV、96 日 quota/used、来源时间、全局 ID、角色撤授、偏移排期/取消、独立线性系数模型和成交记账模型；失败接受性及历史边界逐项比较 |
 
 ## 模型与断言范围
 
@@ -54,7 +56,7 @@
 | 场景 | 仍缺的证据 |
 | --- | --- |
 | 生产发行方、SBT、Governor/运营多签 | 真实 ABI/实现与配置、撤证/暂停/拒转写路径、签名门槛与真实账户操作演练；DEX fork 的股票/SBT mock 不能替代 |
-| 报告生产与提交服务 | 数据源延迟/丢失/纠错/同月重试、持久化 ID/sequence、nonce 并发、交易失败重试、跨月补报与告警；当前仓库没有这些服务的可执行测试对象 |
+| 报告生产与提交服务 | 数据源延迟/丢失/纠错/同月重试、持久化 ID/sourceTimestamp、按证券和报告类别串行提交、nonce 并发、交易失败重试、跨月补报与告警；当前仓库没有这些服务的可执行测试对象 |
 | 链重组与索引服务 | 回滚未确认报告、去重状态回溯、事件重放、校对链上 cap/used 与业务报表；本地 EVM 测试未模拟服务端重组处理 |
 | 法律单位变化与代理升级监控 | 发行方预告/法务审批、先暂停后跨日切换、漏告警/错误解除演练。合约无 unitEpoch，不能自动识别单位变化或审核链下材料 |
 | 生产发布性能与运行 | 75/100 标的批次、最坏 Adapter/强退、长期检查点的 gas 和区块余量；目标链真实角色/资产配置、监控与回滚预案演练 |

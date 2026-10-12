@@ -85,7 +85,7 @@ const lpRegistryAbi = [
   "function isSbtAllowed(bytes2 permission,address account) view returns (bool)",
   "function hasRole(bytes32 role,address account) view returns (bool)",
   "function getCurrencyUnderlying(address currency) view returns (address)",
-  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals))",
+  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals,bool registered))",
 ];
 const lpPermissionsAdapterAbi = [
   "function owner() view returns (address)",
@@ -371,7 +371,7 @@ const swapRegistryAbi = [
   "function isTradable(bytes32 poolId) view returns (bool)",
   "function isSbtAllowed(bytes2 permission,address account) view returns (bool)",
   "function getCurrencyUnderlying(address currency) view returns (address)",
-  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals))",
+  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals,bool registered))",
 ];
 const swapPermissionsAdapterAbi = [
   "function isAllowed(address account,bytes2 permission) view returns (bool)",

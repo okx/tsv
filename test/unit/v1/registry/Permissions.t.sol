@@ -15,27 +15,32 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         address operator = makeAddr("symbol-operator");
         PermissionedRegisterParam memory config = _newStockConfig(keccak256("new-security"));
         bytes[] memory calls = new bytes[](9);
-        calls[0] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config, 1));
-        calls[1] = abi.encodeCall(TSVRegistryV1.updatePoolLifeCycle, (poolId, PoolLifecycle.PAUSE));
-        calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY));
-        calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY));
-        calls[4] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2));
+        calls[0] = abi.encodeCall(TSVRegistryV1.registerPermissionedCurrency, (config, 1, bytes32("TEST")));
+        calls[1] = abi.encodeCall(TSVRegistryV1.updatePoolLifeCycle, (poolId, PoolLifecycle.PAUSE, bytes32("TEST")));
+        calls[2] = abi.encodeCall(TSVRegistryV1.relistSecurity, (SECURITY, bytes32("TEST")));
+        calls[3] = abi.encodeCall(TSVRegistryV1.delistSecurity, (SECURITY, bytes32("TEST")));
+        calls[4] = abi.encodeCall(TSVRegistryV1.setSecurityTier, (SECURITY, 2, bytes32("TEST")));
         calls[5] = abi.encodeCall(
-            TSVRegistryV1.replaceUnderlyingLegalShareAdapter, (address(stockToken), address(stockAdapter))
+            TSVRegistryV1.replaceUnderlyingLegalShareAdapter,
+            (address(stockToken), address(stockAdapter), bytes32("TEST"))
         );
-        calls[6] = abi.encodeCall(TSVRegistryV1.registerQuoteToken, (address(quote)));
-        calls[7] = abi.encodeCall(TSVRegistryV1.disableQuoteTokenPoolRegister, (address(quote)));
-        calls[8] = abi.encodeCall(TSVRegistryV1.disableUnderlyingPoolRegister, (address(stockToken)));
+        calls[6] = abi.encodeCall(TSVRegistryV1.registerQuoteToken, (address(quote), bytes32("TEST")));
+        calls[7] = abi.encodeCall(
+            TSVRegistryV1.disableQuoteTokenPoolRegister, (address(quote), bytes32("TEST"))
+        );
+        calls[8] = abi.encodeCall(
+            TSVRegistryV1.disableUnderlyingPoolRegister, (address(stockToken), bytes32("TEST"))
+        );
         bytes32 beforeState = _state();
         _denyCalls(calls, operator, role);
         assertEq(_state(), beforeState);
         registry.grantRole(role, operator);
         vm.prank(operator);
-        registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST);
+        registry.updatePoolLifeCycle(poolId, PoolLifecycle.DELIST, bytes32("TEST"));
         vm.prank(operator);
-        registry.delistSecurity(SECURITY);
+        registry.delistSecurity(SECURITY, bytes32("TEST"));
         vm.prank(operator);
-        registry.relistSecurity(SECURITY);
+        registry.relistSecurity(SECURITY, bytes32("TEST"));
         beforeState = _state();
         registry.revokeRole(role, operator);
         _denyCalls(calls, operator, role);
@@ -81,10 +86,10 @@ contract TSVOperationsPermissionsTest is OperationsFixture {
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), operator);
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
-        registry.setTierPolicy(2, 10, 1);
+        registry.setTierPolicy(2, 10, 1, bytes32("TEST"));
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
-        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
         ledger.scheduleDayStart(18000, 20261004);

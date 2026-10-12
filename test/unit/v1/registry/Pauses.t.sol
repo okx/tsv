@@ -25,46 +25,34 @@ contract TSVPausesTest is FoundationFixture {
                 SECURITY,
                 uint8(2),
                 SecurityPauseMode.ALL,
-                uint64(1),
                 bytes32(0)
             )
         );
         assertFalse(ok);
         assertEq(uint8(registry.getSecurityPauseMode(SECURITY)), uint8(SecurityPauseMode.NONE));
-        assertEq(registry.getSecuritySequence(SECURITY), 0);
         _assertOperationGates(true, true);
     }
 
-    function testRelistingRetainsSecurityPauseAndReportSequence() public {
+    function testRelistingRetainsSecurityPauseState() public {
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.ALL, 1);
         _delistPrimarySecurity();
         _assertOperationGates(false, false);
         PermissionedRegisterParam memory another = _newStockConfig(SECURITY);
         vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
-        registry.registerPermissionedCurrency(another, 1);
-        registry.relistSecurity(SECURITY);
-        registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST);
+        registry.registerPermissionedCurrency(another, 1, bytes32("TEST"));
+        registry.relistSecurity(SECURITY, bytes32("TEST"));
+        registry.updatePoolLifeCycle(poolId, PoolLifecycle.LIST, bytes32("TEST"));
         assertEq(uint8(registry.getSecurityStatus(SECURITY)), uint8(SecurityOperationStatus.HALTED));
         assertEq(uint8(registry.getSecurityPauseMode(SECURITY)), uint8(SecurityPauseMode.ALL));
-        assertEq(registry.getSecuritySequence(SECURITY), 1);
-        assertEq(inbox.lastSequence(0, SECURITY), 1);
         _assertOperationGates(false, false);
         _submitMarketMode(SecurityOperationType.RESUME, SecurityPauseMode.ALL, 2);
         _assertOperationGates(true, true);
     }
 
-    function testLegalAdapterReplacementRequiresEmergencyPauseOrSecurityAllPause() public {
+    function testLegalAdapterReplacementDoesNotRequirePause() public {
         BackedAutoFeeLegalShareAdapter replacement =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
-
-        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 1);
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
-
-        _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.LP, 2);
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement), bytes32("TEST"));
         UnderlyingRecord memory config = registry.getUnderlying(address(stockToken));
         assertEq(config.legalShareAdapter, address(replacement));
     }
@@ -74,7 +62,7 @@ contract TSVPausesTest is FoundationFixture {
         BackedAutoFeeLegalShareAdapter replacement =
             new BackedAutoFeeLegalShareAdapter(address(stockUnderlying), address(stockToken));
         _enableEmergencyPause();
-        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement));
+        registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement), bytes32("TEST"));
         assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(replacement));
         _disableEmergencyPause();
     }
@@ -131,7 +119,6 @@ contract TSVPausesTest is FoundationFixture {
             uint8(SecurityOperationStatus.HALTED),
             uint8(SecurityPauseMode.NONE),
             uint8(SecurityPauseMode.TRADE),
-            2,
             reportId
         );
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.TRADE, 2);
@@ -143,7 +130,6 @@ contract TSVPausesTest is FoundationFixture {
             uint8(SecurityOperationStatus.HALTED),
             uint8(SecurityPauseMode.TRADE),
             uint8(SecurityPauseMode.ALL),
-            3,
             reportId
         );
         _submitMarketMode(SecurityOperationType.HALT, SecurityPauseMode.LP, 3);

@@ -210,7 +210,13 @@ if __name__ == "__main__":
     for token_id, mask in [(retail_id, retail_mask), (marketmaker_id, marketmaker_mask)]:
         expected = ["true", f"0x{mask:04x}"]
         if call(registry, "sbtIdentityConfig(uint256)(bool,bytes2)", token_id).splitlines() != expected:
-            send(registry, "setSbtConfig(uint256,bytes2)", token_id, expected[1])
+            send(
+                registry,
+                "setSbtConfig(uint256,bytes2,bytes32)",
+                token_id,
+                expected[1],
+                "0x5445535400000000000000000000000000000000000000000000000000000000",
+            )
     check("Configured SBT address", call(registry, "participantSbt()(address)"), SBT)
     manifest["sbt"] = {"address": SBT, "identities": [
         {"name": "retail", "tokenId": retail_id, "permissions": retail_mask},
@@ -229,7 +235,14 @@ if __name__ == "__main__":
         manifest["roles"][key] = [holder]
     save()
 
-    expect_revert("Deployer cannot configure SBT", registry, "setSbtConfig(uint256,bytes2)", [retail_id, "0x0003"], DEPLOYER, "AccessControlUnauthorizedAccount(address,bytes32)")
+    expect_revert(
+        "Deployer cannot configure SBT",
+        registry,
+        "setSbtConfig(uint256,bytes2,bytes32)",
+        [retail_id, "0x0003", "0x5445535400000000000000000000000000000000000000000000000000000000"],
+        DEPLOYER,
+        "AccessControlUnauthorizedAccount(address,bytes32)",
+    )
     expect_revert("Registry cannot be initialized twice", registry, "initialize(address)", [ANCHOR], DEPLOYER, "InvalidInitialization()")
     if call(SBT, "holds(address,uint256)(bool)", PARTICIPANT, retail_id) == "false":
         send(SBT, "setHolder(address,uint256,bool)", PARTICIPANT, retail_id, "true", sender=DEPLOYER)

@@ -67,8 +67,6 @@ struct TierPolicyRecord {
 
 /// @notice DataInbox-driven security operation state for one security.
 struct SecurityStateRecord {
-    /// @notice Last accepted market-report sequence.
-    uint64 sequence;
     /// @notice Current security operation pause mask.
     SecurityPauseMode pauseMode;
 }

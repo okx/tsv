@@ -72,7 +72,7 @@ contract TSVRegistryV1 is TSVGoverned {
     address public hook;
     /// @notice LP Manager authorized to register pools and validate LP callbacks.
     address public lpManager;
-    /// @notice DataInbox authorized to apply sequenced security operation reports.
+    /// @notice DataInbox authorized to apply security operation reports.
     address public dataInbox;
     /// @notice SBT contract used for participant identity and operation permissions.
     address public participantSbt;
@@ -123,51 +123,72 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Emitted when a security was added to the Registry with its listing tier.
     /// @param securityId TSV security identifier that is now listed.
     /// @param tierId Tier assigned to the security.
-    event SecurityListed(bytes32 indexed securityId, uint8 tierId);
+    /// @param reasonCode Operational reason code for listing the security.
+    event SecurityListed(bytes32 indexed securityId, uint8 tierId, bytes32 reasonCode);
     /// @notice Emitted when a security was removed from the active listing set.
     /// @param securityId TSV security identifier that is now delisted.
-    event SecurityDelisted(bytes32 indexed securityId);
+    /// @param reasonCode Operational reason code for delisting the security.
+    event SecurityDelisted(bytes32 indexed securityId, bytes32 reasonCode);
     /// @notice Emitted when a listed security was assigned a different tier.
     /// @param securityId Listed security whose tier changed.
     /// @param oldTierId Previous tier ID.
     /// @param newTierId New tier ID.
-    event SecurityTierChanged(bytes32 indexed securityId, uint8 oldTierId, uint8 newTierId);
+    /// @param reasonCode Operational reason code for changing the tier.
+    event SecurityTierChanged(bytes32 indexed securityId, uint8 oldTierId, uint8 newTierId, bytes32 reasonCode);
     /// @notice Emitted when a security tier policy was created or updated.
     /// @param tierId Tier whose policy changed.
     /// @param tierBps ADTV multiplier in basis points.
     /// @param maxListed Maximum listed-security capacity for the tier.
-    event TierPolicyChanged(uint8 indexed tierId, uint16 tierBps, uint32 maxListed);
+    /// @param reasonCode Operational reason code for changing the policy.
+    event TierPolicyChanged(uint8 indexed tierId, uint16 tierBps, uint32 maxListed, bytes32 reasonCode);
     /// @notice Emitted when the first permissioned stock binds a canonical underlying to a security.
     /// @param underlying Canonical underlying stock token U.
     /// @param securityId TSV security identifier assigned to the underlying.
     /// @param legalShareAdapter Canonical converter used for legal-share accounting.
     /// @param rawDecimals Decimals read from the permissioned stock and underlying pair.
+    /// @param reasonCode Operational reason code for registering the underlying.
     event UnderlyingBound(
-        address indexed underlying, bytes32 indexed securityId, address legalShareAdapter, uint8 rawDecimals
+        address indexed underlying,
+        bytes32 indexed securityId,
+        address legalShareAdapter,
+        uint8 rawDecimals,
+        bytes32 reasonCode
     );
     /// @notice Emitted when a permissioned stock adapter W is registered.
     /// @param currency Permissioned stock adapter address.
     /// @param underlying Canonical underlying U derived from the adapter.
     /// @param securityId TSV security identifier for the stock.
+    /// @param reasonCode Operational reason code for registering the stock adapter.
     event PermissionedCurrencyRegistered(
-        address indexed currency, address indexed underlying, bytes32 indexed securityId
+        address indexed currency, address indexed underlying, bytes32 indexed securityId, bytes32 reasonCode
     );
     /// @notice Emitted when an original quote ERC-20 is registered.
     /// @param quote Quote token address.
     /// @param rawDecimals Decimals read from the quote token.
-    event QuoteTokenRegistered(address indexed quote, uint8 rawDecimals);
+    /// @param reasonCode Operational reason code for registering the quote token.
+    event QuoteTokenRegistered(address indexed quote, uint8 rawDecimals, bytes32 reasonCode);
+    /// @notice Emitted when a registered quote token is disabled.
+    /// @param quote Quote token address that was disabled.
+    /// @param reasonCode Operational reason code for disabling the token.
+    event QuoteTokenDisabled(address indexed quote, bytes32 reasonCode);
+    /// @notice Emitted when a canonical underlying is disabled for future pool registration.
+    /// @param underlying Canonical underlying whose pool registration was disabled.
+    /// @param reasonCode Operational reason code for disabling the underlying.
+    event UnderlyingPoolRegisterDisabled(address indexed underlying, bytes32 reasonCode);
     /// @notice Emitted when the canonical legal-share converter for an underlying changes.
     /// @param underlying Canonical underlying U whose converter changed.
     /// @param oldAdapter Previous legal-share adapter.
     /// @param newAdapter New legal-share adapter.
-    event UnderlyingLegalShareAdapterChanged(address indexed underlying, address oldAdapter, address newAdapter);
+    /// @param reasonCode Operational reason code for replacing the adapter.
+    event UnderlyingLegalShareAdapterChanged(
+        address indexed underlying, address oldAdapter, address newAdapter, bytes32 reasonCode
+    );
     /// @notice Emitted when a security operation report was accepted.
     /// @param securityId Security whose operation pause mask changed.
     /// @param oldStatus Previous derived operation status.
     /// @param newStatus New derived operation status.
     /// @param oldPauseMode Previous operation pause mask.
     /// @param newPauseMode New operation pause mask.
-    /// @param sequence Accepted report sequence number.
     /// @param reportId Unique report identifier supplied by DataInbox.
     event SecurityStatusChanged(
         bytes32 indexed securityId,
@@ -175,7 +196,6 @@ contract TSVRegistryV1 is TSVGoverned {
         uint8 newStatus,
         uint8 oldPauseMode,
         uint8 newPauseMode,
-        uint64 sequence,
         bytes32 indexed reportId
     );
     /// @notice Emitted when the global emergency pause is enabled or disabled.
@@ -187,7 +207,8 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param sbt Bound SBT contract used for the identity.
     /// @param tokenId Identity token ID whose configuration changed.
     /// @param permissions TSV operation permission flags assigned to the identity.
-    event SbtConfigChanged(address indexed sbt, uint256 indexed tokenId, PermissionFlag permissions);
+    /// @param reasonCode Operational reason code for changing the identity configuration.
+    event SbtConfigChanged(address indexed sbt, uint256 indexed tokenId, PermissionFlag permissions, bytes32 reasonCode);
     /// @notice Emitted when an LP Manager registers a new TSV pool.
     /// @param poolId Raw Uniswap V4 pool ID derived from the full pool key.
     /// @param securityId Single stock security assigned to the pool.
@@ -201,8 +222,13 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param securityId Single stock security assigned to the pool.
     /// @param oldLifecycle Previous lifecycle value.
     /// @param newLifecycle New lifecycle value.
+    /// @param reasonCode Operational reason code for changing the lifecycle.
     event PoolLifecycleChanged(
-        bytes32 indexed poolId, bytes32 indexed securityId, PoolLifecycle oldLifecycle, PoolLifecycle newLifecycle
+        bytes32 indexed poolId,
+        bytes32 indexed securityId,
+        PoolLifecycle oldLifecycle,
+        PoolLifecycle newLifecycle,
+        bytes32 reasonCode
     );
 
     /// @notice Initializes governance.
@@ -258,7 +284,12 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Registers one identity or updates its swap/LP permissions on the bound SBT.
     /// @param tokenId Identity to register or update.
     /// @param permissions TSV operation flags: NONE, SWAP_ALLOWED, LIQUIDITY_ALLOWED, or their union.
-    function setSbtConfig(uint256 tokenId, PermissionFlag permissions) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for the configuration change.
+    function setSbtConfig(uint256 tokenId, PermissionFlag permissions, bytes32 reasonCode)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _requireReasonCode(reasonCode);
         if (participantSbt == address(0)) revert SbtNotConfigured();
         if (uint16(PermissionFlag.unwrap(permissions)) > 3) revert InvalidConfig();
         try ISmartWalletSbtV1(participantSbt).verify(address(this), tokenId) returns (bool) {}
@@ -267,7 +298,7 @@ contract TSVRegistryV1 is TSVGoverned {
         }
         if (!sbtIdentityConfig[tokenId].registered) identityTokenIds.push(tokenId);
         sbtIdentityConfig[tokenId] = SbtIdentityConfig(true, permissions);
-        emit SbtConfigChanged(participantSbt, tokenId, permissions);
+        emit SbtConfigChanged(participantSbt, tokenId, permissions, reasonCode);
     }
 
     /// @notice Enumerates registered identities, including identities with both permissions disabled.
@@ -319,14 +350,19 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param tierId Nonzero tier identifier.
     /// @param tierBps Volume multiplier in basis points, from 1 through 10,000.
     /// @param maxListed Maximum number of securities that may be listed in this tier.
-    function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for the policy change.
+    function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed, bytes32 reasonCode)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _requireReasonCode(reasonCode);
         TierPolicyRecord storage tier = tiers[tierId];
         if (tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount) {
             revert InvalidConfig();
         }
         tier.tierBps = tierBps;
         tier.maxListed = maxListed;
-        emit TierPolicyChanged(tierId, tierBps, maxListed);
+        emit TierPolicyChanged(tierId, tierBps, maxListed, reasonCode);
     }
 
     /// @notice Returns the quota and listing-cap policy currently configured for `tierId`.
@@ -338,52 +374,67 @@ contract TSVRegistryV1 is TSVGoverned {
 
     /// @notice Relists a delisted security under its existing tier.
     /// @param securityId Existing security to relist.
-    function relistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for relisting the security.
+    function relistSecurity(bytes32 securityId, bytes32 reasonCode) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        _requireReasonCode(reasonCode);
         SecurityRecord storage config = securities[securityId];
         if (config.securityId == 0 || config.listed) revert InvalidStatus();
         _takeTierSlot(config.tierId);
         config.listed = true;
-        emit SecurityListed(securityId, config.tierId);
+        emit SecurityListed(securityId, config.tierId, reasonCode);
     }
 
     /// @notice Moves a listed security to another tier and updates both tier listing counts.
     /// @param securityId Listed security whose tier changes.
     /// @param tierId Configured destination tier with available capacity.
-    function setSecurityTier(bytes32 securityId, uint8 tierId) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for the tier change.
+    function setSecurityTier(bytes32 securityId, uint8 tierId, bytes32 reasonCode)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+    {
+        _requireReasonCode(reasonCode);
         SecurityRecord storage config = securities[securityId];
         if (!config.listed || config.tierId == tierId) revert InvalidStatus();
         _takeTierSlot(tierId);
         tiers[config.tierId].listedCount--;
         uint8 oldTierId = config.tierId;
         config.tierId = tierId;
-        emit SecurityTierChanged(securityId, oldTierId, tierId);
+        emit SecurityTierChanged(securityId, oldTierId, tierId, reasonCode);
     }
 
     /// @notice Delists a security, blocking ordinary operations across all its registered pools.
     /// @param securityId Listed security to remove from the active listing set.
-    function delistSecurity(bytes32 securityId) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for delisting the security.
+    function delistSecurity(bytes32 securityId, bytes32 reasonCode) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        _requireReasonCode(reasonCode);
         SecurityRecord storage config = securities[securityId];
         if (!config.listed || config.listedPoolCount != 0) revert InvalidStatus();
         config.listed = false;
         tiers[config.tierId].listedCount--;
-        emit SecurityDelisted(securityId);
+        emit SecurityDelisted(securityId, reasonCode);
     }
 
     /// @notice Returns the stored listing and tier for a security.
     /// @param securityId Security identifier to query.
-    /// @return Stored security record; unknown IDs return a default record.
-    function getSecurity(bytes32 securityId) external view returns (SecurityRecord memory) {
-        return securities[securityId];
+    /// @return record Stored security record; unknown IDs return a default record.
+    function getSecurity(bytes32 securityId) external view returns (SecurityRecord memory record) {
+        record = securities[securityId];
     }
 
     // W, U, and Q registration and configuration.
     /// @notice Atomically lists a new security with its first stock W, or adds a W to an existing listed security.
     /// @param registerParam Permissioned stock registration payload for the W/U/security binding.
     /// @param tierId Tier to assign to a newly listed security, or the existing security tier for additional W.
-    function registerPermissionedCurrency(PermissionedRegisterParam calldata registerParam, uint8 tierId)
+    /// @param reasonCode Nonzero operational reason code for the registration.
+    function registerPermissionedCurrency(
+        PermissionedRegisterParam calldata registerParam,
+        uint8 tierId,
+        bytes32 reasonCode
+    )
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
     {
+        _requireReasonCode(reasonCode);
         if (registerParam.securityId == 0) revert InvalidConfig();
         _requireEnvironment();
         SecurityRecord storage config = securities[registerParam.securityId];
@@ -392,53 +443,69 @@ contract TSVRegistryV1 is TSVGoverned {
             config.securityId = registerParam.securityId;
             config.tierId = tierId;
             config.listed = true;
-            emit SecurityListed(registerParam.securityId, tierId);
+            emit SecurityListed(registerParam.securityId, tierId, reasonCode);
         } else if (!config.listed || config.tierId != tierId) {
             revert InvalidStatus();
         }
-        _registerPermissionedCurrency(registerParam);
+        _registerPermissionedCurrency(registerParam, reasonCode);
     }
 
     /// @notice Registers an original quote ERC-20; stock identities cannot become quotes.
     /// @param quote Quote token address to register.
-    function registerQuoteToken(address quote) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for registering the quote token.
+    function registerQuoteToken(address quote, bytes32 reasonCode) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        _requireReasonCode(reasonCode);
         _requireEnvironment();
         if (quoteTokens[quote].registered) revert InvalidStatus();
         PermissionedValidationLib.validateQuoteIdentity(quote);
         uint8 rawDecimals = PermissionedValidationLib.readDecimals(quote);
         quoteTokens[quote] = QuoteTokenRecord(rawDecimals, true);
-        emit QuoteTokenRegistered(quote, rawDecimals);
+        emit QuoteTokenRegistered(quote, rawDecimals, reasonCode);
     }
 
     /// @notice Disables a registered quote token for future pool registration while preserving metadata.
     /// @param quote Quote token address whose future pool registration should be disabled.
-    function disableQuoteTokenPoolRegister(address quote) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for disabling the quote token.
+    function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+    {
+        _requireReasonCode(reasonCode);
         QuoteTokenRecord storage config = quoteTokens[quote];
         if (!config.registered) revert InvalidStatus();
         config.registered = false;
+        emit QuoteTokenDisabled(quote, reasonCode);
     }
 
     /// @notice Disables a canonical underlying for future pool registration while preserving metadata.
     /// @param u Canonical underlying whose future pool registration should be disabled.
-    function disableUnderlyingPoolRegister(address u) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for disabling the underlying.
+    function disableUnderlyingPoolRegister(address u, bytes32 reasonCode)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+    {
+        _requireReasonCode(reasonCode);
         UnderlyingRecord storage config = underlyings[u];
         if (!config.registered) revert InvalidStatus();
         config.registered = false;
+        emit UnderlyingPoolRegisterDisabled(u, reasonCode);
     }
 
-    /// @notice Replaces the canonical U converter while emergency pause or security ALL pause protects operations.
+    /// @notice Replaces the legal-share converter for U; the new adapter applies to subsequent swaps immediately.
     /// @param u Canonical underlying whose legal-share adapter is replaced.
     /// @param newAdapter New legal-share adapter for `u`.
-    function replaceUnderlyingLegalShareAdapter(address u, address newAdapter) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    /// @param reasonCode Nonzero operational reason code for replacing the adapter.
+    function replaceUnderlyingLegalShareAdapter(address u, address newAdapter, bytes32 reasonCode)
+        external
+        onlyRole(SYMBOL_ADMIN_ROLE)
+    {
+        _requireReasonCode(reasonCode);
         UnderlyingRecord storage config = underlyings[u];
-        if (
-            config.securityId == 0 || newAdapter == config.legalShareAdapter
-                || !_securityPausedForReplacement(config.securityId)
-        ) revert InvalidConfig();
+        if (config.securityId == 0 || newAdapter == config.legalShareAdapter) revert InvalidConfig();
         PermissionedValidationLib.validateLegalShareAdapter(newAdapter, u);
         address previousAdapter = config.legalShareAdapter;
         config.legalShareAdapter = newAdapter;
-        emit UnderlyingLegalShareAdapterChanged(u, previousAdapter, newAdapter);
+        emit UnderlyingLegalShareAdapterChanged(u, previousAdapter, newAdapter, reasonCode);
     }
 
     /// @notice Returns the canonical underlying bound to a permissioned stock adapter.
@@ -535,32 +602,36 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Updates one registered pool's lifecycle.
     /// @param poolId Raw Uniswap V4 pool ID whose lifecycle changes.
     /// @param lifecycle New lifecycle to set.
+    /// @param reasonCode Nonzero operational reason code for the lifecycle change.
     /// @return Whether storage changed.
-    function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle)
+    function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle, bytes32 reasonCode)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
         returns (bool)
     {
+        _requireReasonCode(reasonCode);
         PoolRecord storage pool = pools[poolId];
         if (!isKnownPool(poolId)) revert InvalidPool();
-        return _updatePoolLifecycle(poolId, pool, lifecycle);
+        return _updatePoolLifecycle(poolId, pool, lifecycle, reasonCode);
     }
 
     /// @notice Updates many registered pools to the same lifecycle.
     /// @param poolIds Pool IDs whose lifecycle should be updated.
     /// @param lifecycle New lifecycle to apply to every pool.
+    /// @param reasonCode Nonzero operational reason code for the lifecycle changes.
     /// @return changedCount Number of pools whose stored lifecycle changed.
-    function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle)
+    function batchUpdatePoolLifeCycle(bytes32[] calldata poolIds, PoolLifecycle lifecycle, bytes32 reasonCode)
         external
         onlyRole(SYMBOL_ADMIN_ROLE)
         returns (uint256 changedCount)
     {
+        _requireReasonCode(reasonCode);
         if (poolIds.length == 0) revert InvalidConfig();
         for (uint256 i; i < poolIds.length; ++i) {
             bytes32 poolId = poolIds[i];
             PoolRecord storage pool = pools[poolId];
             if (!isKnownPool(poolId)) revert InvalidPool();
-            if (_updatePoolLifecycle(poolId, pool, lifecycle)) changedCount++;
+            if (_updatePoolLifecycle(poolId, pool, lifecycle, reasonCode)) changedCount++;
         }
     }
 
@@ -592,13 +663,6 @@ contract TSVRegistryV1 is TSVGoverned {
             : SecurityOperationStatus.HALTED;
     }
 
-    /// @notice Returns the last accepted market-report sequence for a security.
-    /// @param securityId Security identifier to query.
-    /// @return sequence Last accepted market-report sequence number.
-    function getSecuritySequence(bytes32 securityId) external view returns (uint64 sequence) {
-        return securities[securityId].securityState.sequence;
-    }
-
     /// @notice Returns the current security operation pause mask for a security.
     /// @param securityId Security identifier to query.
     /// @return mode Current security operation pause mode.
@@ -610,19 +674,16 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param securityId Listed security whose operation state changes.
     /// @param action Halt or resume action from the report.
     /// @param mode Operations affected by this action: TRADE, LP, or ALL.
-    /// @param sequence Report sequence for this security.
     /// @param reportId Unique ID of the accepted MarketReport.
     function applySecurityStatus(
         bytes32 securityId,
         SecurityOperationType action,
         SecurityPauseMode mode,
-        uint64 sequence,
         bytes32 reportId
     ) external {
         SecurityRecord storage security = securities[securityId];
         if (
-            msg.sender != dataInbox || securityId == 0 || !security.listed
-                || sequence <= security.securityState.sequence || mode == SecurityPauseMode.NONE
+            msg.sender != dataInbox || securityId == 0 || !security.listed || mode == SecurityPauseMode.NONE
         ) revert InvalidStatus();
         SecurityStateRecord storage state = security.securityState;
         SecurityPauseMode previousPauseMode = state.pauseMode;
@@ -640,14 +701,12 @@ contract TSVRegistryV1 is TSVGoverned {
             ? SecurityOperationStatus.OPEN
             : SecurityOperationStatus.HALTED;
         state.pauseMode = nextPauseMode;
-        state.sequence = sequence;
         emit SecurityStatusChanged(
             securityId,
             uint8(previousStatus),
             uint8(nextStatus),
             uint8(previousPauseMode),
             uint8(nextPauseMode),
-            sequence,
             reportId
         );
     }
@@ -711,9 +770,17 @@ contract TSVRegistryV1 is TSVGoverned {
         if (permissionsAdapterFactory == address(0)) revert PermissionedEnvironmentNotBound();
     }
 
+    /// @dev Rejects administrative operations without an audit reason code.
+    /// @param reasonCode Operational reason code supplied by the caller.
+    function _requireReasonCode(bytes32 reasonCode) private pure {
+        if (reasonCode == 0) revert InvalidConfig();
+    }
+
     /// @dev Validates and stores one permissioned stock adapter under an already listed security.
     /// @param registerParam Permissioned stock registration payload to validate and store.
-    function _registerPermissionedCurrency(PermissionedRegisterParam calldata registerParam) private {
+    function _registerPermissionedCurrency(PermissionedRegisterParam calldata registerParam, bytes32 reasonCode)
+        private
+    {
         _requireEnvironment();
         address currency = registerParam.currency;
         if (currencyUnderlying[currency] != address(0) || !securities[registerParam.securityId].listed) {
@@ -737,19 +804,14 @@ contract TSVRegistryV1 is TSVGoverned {
         if (canonicalUnderlying.securityId == 0) {
             underlyings[underlying] =
                 UnderlyingRecord(registerParam.securityId, registerParam.legalShareAdapter, rawDecimals, true);
-            emit UnderlyingBound(underlying, registerParam.securityId, registerParam.legalShareAdapter, rawDecimals);
+            emit UnderlyingBound(
+                underlying, registerParam.securityId, registerParam.legalShareAdapter, rawDecimals, reasonCode
+            );
         } else {
             canonicalUnderlying.registered = true;
         }
         currencyUnderlying[currency] = underlying;
-        emit PermissionedCurrencyRegistered(currency, underlying, registerParam.securityId);
-    }
-
-    /// @dev Checks whether replacement-sensitive operations are paused for a security.
-    /// @param securityId Security whose replacement gate is checked.
-    /// @return Whether global emergency pause or security ALL operation pause covers replacement.
-    function _securityPausedForReplacement(bytes32 securityId) private view returns (bool) {
-        return _isPaused() || securities[securityId].securityState.pauseMode == SecurityPauseMode.ALL;
+        emit PermissionedCurrencyRegistered(currency, underlying, registerParam.securityId, reasonCode);
     }
 
     /// @dev Checks whether an asset is currently registered for pool operations.
@@ -802,7 +864,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param pool Stored pool configuration for `poolId`.
     /// @param lifecycle New lifecycle value.
     /// @return Whether the stored lifecycle changed.
-    function _updatePoolLifecycle(bytes32 poolId, PoolRecord storage pool, PoolLifecycle lifecycle)
+    function _updatePoolLifecycle(bytes32 poolId, PoolRecord storage pool, PoolLifecycle lifecycle, bytes32 reasonCode)
         private
         returns (bool)
     {
@@ -817,7 +879,7 @@ contract TSVRegistryV1 is TSVGoverned {
             securities[securityId].listedPoolCount--;
         }
         pool.lifecycle = lifecycle;
-        emit PoolLifecycleChanged(poolId, securityId, previousLifecycle, lifecycle);
+        emit PoolLifecycleChanged(poolId, securityId, previousLifecycle, lifecycle, reasonCode);
         return true;
     }
 

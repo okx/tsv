@@ -100,12 +100,12 @@ abstract contract WrappedSwapFixture is Test {
         registry.bindComponents(address(hook), address(seed), address(inbox), address(factory), address(sbt));
         ledger.bindWriters(address(hook), address(inbox));
         sbt.setHolder(alice, 1, true);
-        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
-        registry.setSbtConfig(2, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
+        registry.setSbtConfig(2, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
         registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
-        registry.setTierPolicy(1, 10_000, 10);
+        registry.setTierPolicy(1, 10_000, 10, bytes32("TEST"));
         registry.grantRole(inbox.VOLUME_ORACLE_ROLE(), address(this));
         registry.grantRole(inbox.HALT_REPORTER_ROLE(), address(this));
         issuer = new V1MockIssuerShares();
@@ -115,8 +115,8 @@ abstract contract WrappedSwapFixture is Test {
         exitReceiver = new V1ConfigReceiver();
         issuerChecker = new V1IssuerAllowlistChecker();
         stock = _newWrapper();
-        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(stock), SECURITY, address(legalAdapter)), 1);
-        registry.registerQuoteToken(address(quote));
+        registry.registerPermissionedCurrency(PermissionedRegisterParam(address(stock), SECURITY, address(legalAdapter)), 1, bytes32("TEST"));
+        registry.registerQuoteToken(address(quote), bytes32("TEST"));
         underlying.mint(address(this), 1e30);
         quote.mint(address(this), 1e30);
         underlying.approve(address(seed), type(uint256).max);
@@ -135,7 +135,6 @@ abstract contract WrappedSwapFixture is Test {
                 1000e18,
                 uint64(block.timestamp - 1),
                 uint64(block.timestamp + 100),
-                1,
                 keccak256("wrapped-adtv")
             )
         );
@@ -201,7 +200,7 @@ abstract contract WrappedSwapFixture is Test {
         return swapAdapter.swapExactInputDirect(router, request, alice, alice);
     }
 
-    function _submitWrappedSecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 sequence) internal {
+    function _submitWrappedSecurityMode(SecurityOperationType action, SecurityPauseMode mode, uint64 label) internal {
         inbox.submitMarketStatus(
             MarketReport(
                 SECURITY,
@@ -210,8 +209,7 @@ abstract contract WrappedSwapFixture is Test {
                 keccak256("wrapped-security-mode"),
                 uint64(block.timestamp - 1),
                 uint64(block.timestamp + 100),
-                sequence,
-                keccak256(abi.encode("wrapped-security-mode", action, mode, sequence))
+                keccak256(abi.encode("wrapped-security-mode", action, mode, label))
             )
         );
     }

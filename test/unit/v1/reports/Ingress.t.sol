@@ -24,9 +24,9 @@ contract TSVOperationsIngressTest is OperationsFixture {
                 } else if (fault == 1) {
                     bad.id = accepted.id;
                 } else if (fault == 2) {
-                    bad.sequence = 0;
+                    bad.timestamp = accepted.timestamp - 1;
                 } else if (fault == 3) {
-                    bad.sequence = 1;
+                    bad.id = accepted.id;
                 } else if (fault == 4) {
                     bad.timestamp = accepted.timestamp - 1;
                 } else if (fault == 5) {
@@ -44,11 +44,10 @@ contract TSVOperationsIngressTest is OperationsFixture {
                 _callInbox(_reportPayload(kind, bad));
                 assertEq(_reportState(bad.id), beforeState);
             }
-            // Equal source time, skipped sequence numbers and deadline equality are valid.
+            // Equal source time and deadline equality are valid.
             ReportMetadata memory next = _metadata(3, keccak256(abi.encode("retry", kind)));
             next.deadline = uint64(block.timestamp);
             _callInbox(_reportPayload(kind, next));
-            assertEq(inbox.lastSequence(kind, SECURITY), 3);
             assertEq(inbox.lastSourceTimestamp(kind, SECURITY), next.timestamp);
             assertTrue(inbox.reportIdUsed(next.id));
             assertTrue(vm.revertToState(fixture));
@@ -96,7 +95,7 @@ contract TSVOperationsIngressTest is OperationsFixture {
         }
     }
 
-    function testReportIdsAreGlobalWhileOrderingIsPerKindAndSecurity() public {
+    function testReportIdsAreGlobalWhileSourceTimeIsTrackedPerKindAndSecurity() public {
         bytes32 second = keccak256("second-report-security");
         _admitAdditionalSecurity(second);
         bytes32 id = keccak256("global-report-id");
@@ -118,10 +117,10 @@ contract TSVOperationsIngressTest is OperationsFixture {
         assertEq(_reportState(quota.reportId), beforeState);
         quota.reportId = keccak256("first-quota");
         inbox.submitQuota(quota);
-        assertEq(inbox.lastSequence(0, SECURITY), 10);
-        assertEq(inbox.lastSequence(1, SECURITY), 1);
-        assertEq(inbox.lastSequence(1, second), 1);
-        assertEq(inbox.lastSequence(2, SECURITY), 1);
+        assertEq(inbox.lastSourceTimestamp(0, SECURITY), market.sourceTimestamp);
+        assertEq(inbox.lastSourceTimestamp(1, second), adtv.sourceTimestamp);
+        assertEq(inbox.lastSourceTimestamp(1, SECURITY), adtv.sourceTimestamp);
+        assertEq(inbox.lastSourceTimestamp(2, SECURITY), quota.sourceTimestamp);
     }
 
     function testDirectWritersCannotBypassInboxAuthorization() public {
@@ -132,7 +131,7 @@ contract TSVOperationsIngressTest is OperationsFixture {
         vm.expectRevert(TSVVolumeLedgerV1.UnauthorizedWriter.selector);
         ledger.acceptQuota(quota);
         vm.expectRevert(TSVRegistryV1.InvalidStatus.selector);
-        registry.applySecurityStatus(SECURITY, SecurityOperationType.HALT, SecurityPauseMode.ALL, 1, keccak256("direct-market"));
+        registry.applySecurityStatus(SECURITY, SecurityOperationType.HALT, SecurityPauseMode.ALL, keccak256("direct-market"));
         assertFalse(inbox.reportIdUsed(adtv.reportId));
         assertEq(ledger.adtvOf(SECURITY, uint32(MONTH)), 0);
     }

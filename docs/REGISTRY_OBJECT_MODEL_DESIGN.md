@@ -1,5 +1,7 @@
 # TSVRegistryV1 领域对象关系设计
 
+> 历史设计稿。2026-10-12 起，当前报告 ABI 已移除 reporter `sequence` 字段及 Registry 序号检查；本稿中的序号相关设计不再作为当前行为依据。以[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度)为准。
+
 ## 1. 背景
 
 当前 `TSVRegistryV1` 中的 `TierPolicyRecord`、`SecurityRecord`、`UnderlyingRecord`、`QuoteTokenRecord`、`PoolRecord`、`MarketStateRecord` 和 `EmergencyPauseRecord` 已统一收敛到 `TSVTypes.sol` 中。它们本质上不是同一层级的配置，而是存在明确的业务归属关系：

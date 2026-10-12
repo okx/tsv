@@ -35,7 +35,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             inbox.submitMarketStatus(r);
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, uint32(MONTH), DAY, id), targetBefore);
-            if (fault == 4) registry.relistSecurity(SECURITY);
+            if (fault == 4) registry.relistSecurity(SECURITY, bytes32("TEST"));
             r = _market(SecurityOperationType.HALT, 1, id);
             inbox.submitMarketStatus(r);
             assertTrue(inbox.reportIdUsed(id));
@@ -66,7 +66,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             inbox.submitAdtv(r);
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, r.sourceMonth, DAY, id), targetBefore);
-            if (fault == 8) registry.relistSecurity(SECURITY);
+            if (fault == 8) registry.relistSecurity(SECURITY, bytes32("TEST"));
             inbox.submitAdtv(_adtv(SECURITY, 1000e18, 1, id));
             assertTrue(vm.revertToState(snapshot));
         }
@@ -108,23 +108,15 @@ contract TSVOperationsPayloadTest is OperationsFixture {
             inbox.submitQuota(r);
             assertEq(_reportState(id), beforeState);
             assertEq(_reportState(r.securityId, uint32(MONTH), r.tradeDayId, id), targetBefore);
-            if (fault == 9) registry.relistSecurity(SECURITY);
+            if (fault == 9) registry.relistSecurity(SECURITY, bytes32("TEST"));
             inbox.submitQuota(_quota(2e18, 1, 1, id));
             assertTrue(vm.revertToState(snapshot));
         }
     }
 
-    function testCorrectionsRequireIncreasingSequencesAcrossPeriods() public {
+    function testCorrectionsUseUniqueIdsAndNondecreasingSourceTimeAcrossPeriods() public {
         _submitAdtv(1000e18);
         AdtvReport memory correction = _adtv(SECURITY, 500e18, 2, keccak256("correction"));
-        for (uint64 sequence; sequence < 2; ++sequence) {
-            correction.sequence = sequence;
-            bytes32 beforeState = _reportState(correction.reportId);
-            vm.expectRevert(TSVDataInboxV1.InvalidReport.selector);
-            inbox.submitAdtv(correction);
-            assertEq(_reportState(correction.reportId), beforeState);
-        }
-        correction.sequence = 2;
         vm.expectEmit(true, true, true, true, address(ledger));
         emit TSVVolumeLedgerV1.AdtvAccepted(SECURITY, uint32(MONTH), 500e18, correction.reportId);
         inbox.submitAdtv(correction);
@@ -133,15 +125,13 @@ contract TSVOperationsPayloadTest is OperationsFixture {
         inbox.submitAdtv(nextMonth);
         assertEq(ledger.adtvOf(SECURITY, 202609), 500e18);
         assertEq(ledger.adtvOf(SECURITY, 202610), 500e18);
-        assertEq(inbox.lastSequence(1, SECURITY), 3);
-        // A fresh ID/sequence may report the same positive value; value equality is not replay protection.
-        nextMonth.sequence = 4;
-        nextMonth.reportId = keccak256("same-value-new-sequence");
+        // A fresh ID may report the same positive value at the same source timestamp.
+        nextMonth.reportId = keccak256("same-value-new-id");
         inbox.submitAdtv(nextMonth);
         assertEq(ledger.adtvOf(SECURITY, 202610), 500e18);
     }
 
-    function testQuotaClearMustBeZeroAndKeepsSequenceAndUsage() public {
+    function testQuotaClearMustBeZeroAndKeepsUsage() public {
         _submitAdtv(1000e18);
         _submitQuota(2e18);
         _charge(1e18);
@@ -155,9 +145,7 @@ contract TSVOperationsPayloadTest is OperationsFixture {
         emit TSVVolumeLedgerV1.QuotaAccepted(SECURITY, DAY, 2, 0, r.reportId);
         inbox.submitQuota(r);
         assertEq(ledger.used(SECURITY, DAY), 1e18);
-        assertEq(inbox.lastSequence(2, SECURITY), 2);
         assertEq(ledger.quotaOf(SECURITY, DAY), 0);
-        r.sequence = 3;
         r.reportId = keccak256("second-clear");
         beforeState = _reportState(r.reportId);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidReport.selector);
@@ -166,7 +154,6 @@ contract TSVOperationsPayloadTest is OperationsFixture {
         r.action = 1;
         r.quotaWad = 1.5e18;
         inbox.submitQuota(r);
-        assertEq(inbox.lastSequence(2, SECURITY), 3);
         (bool valid, uint256 left) = ledger.remaining(SECURITY, DAY);
         assertTrue(valid);
         assertEq(left, 0.5e18);

@@ -10,7 +10,7 @@ import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {ReportValidationLib} from "tsv-v1/libraries/ReportValidationLib.sol";
 
 /// @notice Validates signed-off market and volume reports before forwarding them to TSV state contracts.
-/// @dev DataInbox owns the ingress layer: reporter roles, replay protection, sequence ordering and freshness
+/// @dev DataInbox owns the ingress layer: reporter roles, report-ID replay protection and source-time freshness
 ///      checks. Registry owns security operation pause state. VolumeLedger owns ADTV, quota, split-factor and
 ///      volume-limit
 ///      state. DataInbox reads roles from Registry instead of duplicating AccessControl, and Ledger accept
@@ -31,13 +31,13 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
 
     /// @dev Bounded to keep a monthly report submission within block gas limits.
     uint256 public constant MAX_ADTV_BATCH_SIZE = 100;
-    /// @dev Independent ordering stream for market status reports.
+    /// @dev Independent source-time stream for market status reports.
     uint8 private constant REPORT_KIND_MARKET_STATUS = 0;
-    /// @dev Independent ordering stream for monthly ADTV reports.
+    /// @dev Independent source-time stream for monthly ADTV reports.
     uint8 private constant REPORT_KIND_ADTV = 1;
-    /// @dev Independent ordering stream for daily quota override reports.
+    /// @dev Independent source-time stream for daily quota override reports.
     uint8 private constant REPORT_KIND_QUOTA = 2;
-    /// @dev Independent ordering stream for split-factor reports.
+    /// @dev Independent source-time stream for split-factor reports.
     uint8 private constant REPORT_KIND_SPLIT_FACTOR = 3;
 
     /// @notice Registry used for reporter roles and market-status transitions.
@@ -46,8 +46,6 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     TSVVolumeLedgerV1 public ledger;
     /// @notice Whether a globally unique report ID has already been consumed.
     mapping(bytes32 => bool) public reportIdUsed;
-    /// @notice Last accepted sequence by report kind and security.
-    mapping(uint8 => mapping(bytes32 => uint64)) public lastSequence;
     /// @notice Last accepted source timestamp by report kind and security.
     mapping(uint8 => mapping(bytes32 => uint64)) public lastSourceTimestamp;
 
@@ -72,11 +70,9 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
 
     /// @notice Validates and records the next security operation report for a listed security.
     /// @dev Flow: cheap payload checks, _accept with REPORT_KIND_MARKET_STATUS and HALT_REPORTER_ROLE, then
-    ///      Registry.applySecurityStatus. Registry still checks that msg.sender is DataInbox, the security is
-    ///      listed, the report sequence advances, and the pause mode actually changes. Market reports therefore
-    ///      have two ordering guards: DataInbox lastSequence[market][securityId] and Registry security state
-    ///      sequence.
-    /// @param report Market action, reason code, source timestamps, ordering fields and report ID.
+    ///      Registry.applySecurityStatus. Registry checks that msg.sender is DataInbox, the security is listed,
+    ///      and the pause mode actually changes. Report order is checked by source timestamp in DataInbox.
+    /// @param report Market action, reason code, source timestamps and report ID.
     function submitMarketStatus(MarketReport calldata report) external {
         if (report.securityId == 0 || report.mode == SecurityPauseMode.NONE || report.reasonCode == 0) {
             revert InvalidReport();
@@ -87,10 +83,9 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
             HALT_REPORTER_ROLE,
             report.sourceTimestamp,
             report.submitDeadline,
-            report.sequence,
             report.reportId
         );
-        registry.applySecurityStatus(report.securityId, report.action, report.mode, report.sequence, report.reportId);
+        registry.applySecurityStatus(report.securityId, report.action, report.mode, report.reportId);
     }
 
     /// @notice Validates and accepts one monthly ADTV report.
@@ -105,7 +100,7 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     /// @notice Atomically accepts the monthly ADTV reports for multiple securities.
     /// @dev Reports must use the same source month, each securityId must be nonzero, and securityId values must
     ///      be strictly ascending to avoid duplicates and unordered batches. Each item still reuses _submitAdtv,
-    ///      so every report has its own reportId, sequence and sourceTimestamp checks. Any failure reverts the
+    ///      so every report has its own reportId and sourceTimestamp checks. Any failure reverts the
     ///      whole batch, including entries already processed earlier in the loop.
     /// @param reports Reports to accept; the whole batch reverts if any entry is invalid.
     function submitAdtvBatch(AdtvReport[] calldata reports) external {
@@ -138,7 +133,6 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
             report.submitDeadline,
-            report.sequence,
             report.reportId
         );
         ledger.acceptAdtv(report);
@@ -155,7 +149,6 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
             report.submitDeadline,
-            report.sequence,
             report.reportId
         );
         ledger.acceptQuota(report);
@@ -172,7 +165,6 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
             VOLUME_ORACLE_ROLE,
             report.sourceTimestamp,
             report.submitDeadline,
-            report.sequence,
             report.reportId
         );
         ledger.acceptSplitFactor(report);
@@ -182,18 +174,16 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
     ///      The common ingress checks are:
     ///      1. msg.sender must have the required role in Registry.
     ///      2. reportId must be nonzero and unused.
-    ///      3. sequence must be greater than the last sequence for this kind and security.
-    ///      4. sourceTimestamp must not move backwards.
-    ///      5. sourceTimestamp must not be in the future.
-    ///      6. block.timestamp must not exceed submitDeadline.
-    ///      7. lastSequence, lastSourceTimestamp and reportIdUsed are written.
+    ///      3. sourceTimestamp must not move backwards for this kind and security.
+    ///      4. sourceTimestamp must not be in the future.
+    ///      5. block.timestamp must not exceed submitDeadline.
+    ///      6. lastSourceTimestamp and reportIdUsed are written.
     ///      If the later Registry or Ledger call reverts, these writes are reverted with the whole transaction.
     /// @param kind Report category used to maintain independent ordering state.
     /// @param key Security identifier whose reports are being ordered.
     /// @param role Role required from the submitting address.
     /// @param sourceTimestamp Time at which the source data was produced.
     /// @param submitDeadline Last timestamp at which the report may be submitted.
-    /// @param sequence Monotonically increasing sequence for this category and security.
     /// @param reportId Globally unique nonzero report identifier.
     function _accept(
         uint8 kind,
@@ -201,21 +191,17 @@ contract TSVDataInboxV1 is Initializable, UUPSUpgradeable {
         bytes32 role,
         uint64 sourceTimestamp,
         uint64 submitDeadline,
-        uint64 sequence,
         bytes32 reportId
     ) private {
         if (!registry.hasRole(role, msg.sender)) revert UnauthorizedReporter();
         ReportValidationLib.validate(
-            lastSequence[kind][key],
             lastSourceTimestamp[kind][key],
             reportIdUsed[reportId],
             sourceTimestamp,
             submitDeadline,
-            sequence,
             reportId,
             block.timestamp
         );
-        lastSequence[kind][key] = sequence;
         lastSourceTimestamp[kind][key] = sourceTimestamp;
         reportIdUsed[reportId] = true;
     }

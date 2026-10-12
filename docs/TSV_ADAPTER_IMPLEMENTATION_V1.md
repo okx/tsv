@@ -5,7 +5,7 @@
 - 仓库：https://gitlab.okg.com/web3-dex/GitHub-Web3-DEX-Adapters-EVM
 - 提交：`e38c6b109875893ad037677eb8d8221fa4b5687b`
 - 子模块：`lib/dex-adapters`
-- 实现：`src/adapters/uniswap-v4/TSVAdapter.sol`，在固定上游版本上仅增加 W→U / Q→Q 的收付币种解析。
+- 实现：`src/adapters/uniswap-v4/TSVAdapter.sol`，在固定上游版本上增加 Main Router ABI 适配、W→U / Q→Q 结算币映射、当前股票侧 multiplier 读取和合约预存输入结算。
 - 初始化：`git submodule update --init lib/dex-adapters`。
 
 Foundry 的上下文 remapping 将该子模块的 `@interfaces` 和 `@libraries` 限定在其自己的源码中。
@@ -14,7 +14,7 @@ Foundry 的上下文 remapping 将该子模块的 `@interfaces` 和 `@libraries`
 
 真实 Adapter 构造参数为 `(tsvRouter, authSigner)`。`MoreInfo` 编码为 `(PoolKey key, uint64 expiry, address[] allowedCallers, uint256 nonce, bytes authSig)`。后端签名绑定 Adapter、池、expiry、允许的调用合约、单次 nonce 及 chainId，签名为 64 字节 EIP-2098 格式。测试使用固定的测试专用签名 key，不配置生产签名密钥。
 
-`sellBase` 卖 currency0，`sellQuote` 卖 currency1。签名和 TSV 请求的 PoolKey 为 W/Q；Adapter 可通过 Router 的 `settlementCurrency` 查询 W→U、Q→Q 映射。Router 当前仅开放 `swapExactInputFromAdapterDirect`：participant 必须持有输入币并批准 Router，Router 直接拉取输入且向指定 recipient 发送输出。Adapter 自身余额不再作为 Swap 输入，部分成交会整体回滚。因此本文固定提交中的旧 Adapter 调用模式与当前 Router ABI 不兼容，需迁移到直接结算入口，并调整外部 DEX 路由的输入转移方式后才能恢复集成。
+`sellBase` 卖 currency0，`sellQuote` 卖 currency1。签名和 TSV 请求的 PoolKey 为 W/Q；Adapter 通过 Router 的 `settlementCurrency` 查询 W→U、Q→Q 映射，并通过 Router Registry 读取股票侧 canonical Adapter 的当前 multiplier。Main Router 保留 `swapExactInputFromAdapterDirect`，同时新增 `swapExactInputFromContract`：后者从已授权 Adapter 拉取预存输入、以 marker 中的 participant 检查 SBT、把输出返给 Adapter。TSVAdapter 再将本次输出转给外部 DEX 指定的 hop 收款地址。
 
 身份来自倒数第 64 字节的 caller marker，退款地址来自最后 32 字节的 ORIGIN_PAYER；必须有规范 ABI calldata 加恰好两个 marker。旧夹具从 refund marker 提取 SBT 身份的行为已删除。
 

@@ -28,7 +28,7 @@
 | DEX 原始身份 | 原 Adapter mock 接受任意 participant，不能证明真实 DEX 身份传递 | 测试 Adapter 只接受指定 DEX callback，身份来自经过验证的追加 marker；本地 `DexAdapter.t.sol` 检查伪造 caller、长度/前缀/零身份、错路由、授权清理和捐赠余额保护 |
 | DEX + TSV 完整流程 | 真实 DEX/授权组件入口未落地 | `xlayer/DexRouterFlow.t.sol` 固定区块调用用户指定地址：双向、拆单、多跳、合约钱包、指定收款人、退款、暂停/撤权、DEX 滑点失败全回滚及 LP 生命周期；部署 manifest 验证八个 codehash |
 | 运营 R01–R09 / D01–D09 | 报告 metadata/批次边界、Tier 与上下架、配置故障、日切和额度更正缺直接证据 | `unit/v1/registry/`、`unit/v1/reports/` 及 `local/operations/`：逐入口角色与撤权、报告拒绝快照/修正重试、100 条批次原子性、资产生命周期及真实 V4 更正/跨月/20–28h 日切；逐项见[运营 review](./OPERATIONS_TEST_REVIEW_V1.md) |
-| 运营随机序列 P03 | 报告/日切只验证个别确定性例子 | `reports/StatefulOperations.t.sol`：八类报告/额度/系数/时间/排期/权限动作，两项独立模型性质；四个月 ADTV 与因子检查点、96 日 quota/used/边界、失败 ID/sequence/sourceTime 保留，季度/月末/跨年确定性序列 |
+| 运营随机模型 P03 | 报告/日切只验证个别确定性例子 | `reports/StatefulOperations.t.sol`：报告/额度/系数/时间/排期/权限动作，两项独立模型性质；四个月 ADTV 与因子检查点、96 日 quota/used/边界、失败 ID/sourceTimestamp 保留，季度/月末/跨年确定性序列 |
 | 拆并股 D10–D13 | 缺独立比例及未来日自动生效能力 | `reports/SplitFactor.t.sol`、`SplitFactorBoundaries.t.sol` 和 `local/operations/SplitFactorFlows.t.sol`：精确比例、日边界、连续/换月、latest-only 更正/取消、防重放/算术拒绝、绝对 quota、真实 V4、资金与排期升级保留；P03 模型加入独立线性因子查询 |
 | 报告/暂停/仓位 ID | 原有测试散落、Position ID 继承导致重复执行 | 保留原有具名测试，拆分至 reports/registry/liquidity 等目录；fixture 没有测试方法，脚本禁止套件继承套件 |
 

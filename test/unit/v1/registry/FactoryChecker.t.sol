@@ -41,9 +41,9 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         assertEq(empty.permissionsAdapterFactory(), address(0));
         empty.grantRole(empty.SYMBOL_ADMIN_ROLE(), address(this));
         vm.expectRevert(TSVRegistryV1.PermissionedEnvironmentNotBound.selector);
-        empty.registerQuoteToken(address(quote));
+        empty.registerQuoteToken(address(quote), bytes32("TEST"));
         vm.expectRevert(TSVRegistryV1.PermissionedEnvironmentNotBound.selector);
-        empty.registerPermissionedCurrency(_config(address(stock), SECURITY, address(stockAdapter)), 1);
+        empty.registerPermissionedCurrency(_config(address(stock), SECURITY, address(stockAdapter)), 1, bytes32("TEST"));
     }
 
     function testRealFactoryCreationAndVerificationDoNotGrantTSVAdmission() public {
@@ -63,7 +63,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         assertEq(registry.getCurrencyUnderlying(w), address(0));
         PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), true);
         PermissionsAdapter(w).updateAllowedHook(key.hooks, true);
-        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1);
+        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1, bytes32("TEST"));
         assertEq(registry.getCurrencyUnderlying(w), address(stockToken));
     }
 
@@ -74,14 +74,14 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         stockToken.mintTestShares(w, 1);
         foreign.verifyPermissionsAdapter(w);
         vm.expectRevert(abi.encodeWithSelector(TSVRegistryV1.UnverifiedPermissionedAdapter.selector, w));
-        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1);
+        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1, bytes32("TEST"));
     }
 
     function testIssuerPolicyDoesNotReadTSVSbtOrPause() public {
         address user = makeAddr("identity-user");
         assertTrue(stock.isAllowed(user, PermissionFlags.SWAP_ALLOWED));
         OperationsSbt credential = identitySbt;
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, user));
         credential.setCredential(user, 7, true);
         assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, user));
@@ -117,7 +117,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
             registry.isSbtAllowed(PermissionFlag.wrap(bytes2(invalidFlags[i])), address(this));
         }
         OperationsSbt credential = identitySbt;
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED);
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         credential.setCredential(address(this), 7, true);
         issuerChecker.setFailReads(true);
         assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, address(this)));
@@ -134,7 +134,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         tsvMask &= 3;
         address user = makeAddr("permission-user");
         OperationsSbt credential = identitySbt;
-        registry.setSbtConfig(7, PermissionFlag.wrap(bytes2(uint16(tsvMask))));
+        registry.setSbtConfig(7, PermissionFlag.wrap(bytes2(uint16(tsvMask))), bytes32("TEST"));
         credential.setCredential(user, 7, held);
         credential.setPaused(paused);
         issuerChecker.setPermissions(user, address(stockToken), PermissionFlag.wrap(bytes2(uint16(issuerMask))));
