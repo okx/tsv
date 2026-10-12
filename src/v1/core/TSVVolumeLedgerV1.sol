@@ -54,6 +54,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable, Multicall {
     /// @notice Overwrites daily used volume without changing quotas.
     /// @dev Uses legal-share WAD; zero and values above quota are allowed. Subsequent swaps enforce the quota.
     function setUsedWad(bytes32 securityId, DailyQuota[] calldata values, bytes32 reasonCode) external {
+        if (reasonCode == 0) revert InvalidConfig();
         if (!registry.hasRole(VOLUME_ORACLE_ROLE, msg.sender)) revert Unauthorized();
         if (securityId == bytes32(0)) revert InvalidInput();
         for (uint256 i; i < values.length; ++i) {
