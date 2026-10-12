@@ -787,7 +787,6 @@ contract TSVRegistryV1 is TSVGoverned {
         view
         returns (bool)
     {
-        if (_isPaused()) return false;
         SecurityPauseMode operation =
             checkType == SecurityOperationCheckType.LP ? SecurityPauseMode.LP : SecurityPauseMode.TRADE;
         return (uint8(securities[securityId].securityState.pauseMode) & uint8(operation)) == 0;
