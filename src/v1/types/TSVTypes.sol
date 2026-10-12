@@ -4,19 +4,9 @@ pragma solidity 0.8.26;
 import {PermissionFlag} from "../vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 
-/// @notice Operation status derived from a known security's current pause mask.
-enum SecurityOperationStatus {
-    OPEN, // Security operations may proceed when all other gates pass.
-    HALTED // Trading, ordinary LP actions, or both are paused.
-}
-/// @notice Allowed security operation transitions; newly registered securities default to open.
-enum SecurityOperationType {
-    HALT, // Adds the selected trading and/or LP pause to a listed security.
-    RESUME // Removes the selected pause; the security is open once all operation pauses clear.
-}
 /// @notice Operations affected by a security pause; values also form the operation pause bitmask.
 enum SecurityPauseMode {
-    NONE, // No operation pause; invalid as the mode of a pause or resume request.
+    NONE, // No operation pause; setting this mode opens all security operations.
     TRADE, // Blocks swaps only.
     LP, // Blocks all ordinary LP actions only.
     ALL // Blocks swaps and all ordinary LP actions.
@@ -55,17 +45,15 @@ struct PermissionedRegisterParam {
     address legalShareAdapter;
 }
 
-/// @notice Stores the listing limit and quota multiplier for a security tier.
+/// @notice Stores the listing limit and current listed count for a security tier.
 struct TierPolicyRecord {
-    /// @notice ADTV hard-cap multiplier in basis points.
-    uint16 tierBps;
     /// @notice Maximum number of securities that may be listed in this tier.
     uint32 maxListed;
     /// @notice Number of securities currently assigned to this tier.
     uint32 listedCount;
 }
 
-/// @notice DataInbox-driven security operation state for one security.
+/// @notice Security operation state for one security.
 struct SecurityStateRecord {
     /// @notice Current security operation pause mask.
     SecurityPauseMode pauseMode;
@@ -75,7 +63,7 @@ struct SecurityStateRecord {
 struct SecurityRecord {
     /// @notice Unique internal security identifier.
     bytes32 securityId;
-    /// @notice Tier whose multiplier sets the security's hard daily volume cap.
+    /// @notice Tier whose capacity tracks the listed security.
     uint8 tierId;
     /// @notice Whether the security is currently listed for pool and report use.
     bool listed;
@@ -83,7 +71,7 @@ struct SecurityRecord {
     bytes32[] poolIds;
     /// @notice Number of associated pools whose lifecycle is not DELIST.
     uint32 listedPoolCount;
-    /// @notice DataInbox-driven operation state for this security.
+    /// @notice Operation pause state for this security.
     SecurityStateRecord securityState;
 }
 

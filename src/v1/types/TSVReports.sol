@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {SecurityOperationType, SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
+import {SecurityPauseMode} from "tsv-v1/types/TSVTypes.sol";
 
-/// @notice Source-backed security operation transition submitted through DataInbox.
+/// @notice Source-backed security operation transition submitted through report ingress.
 struct MarketReport {
     /// @notice Listed security affected by the operation-state report.
     bytes32 securityId;
-    /// @notice Halt or resume action; newly registered securities default to open.
-    SecurityOperationType action;
-    /// @notice Operations paused or resumed: TRADE, LP, or ALL.
+    /// @notice Target pause mode: NONE opens all operations, TRADE/LP/ALL pause selected operations.
     SecurityPauseMode mode;
     /// @notice Nonzero operational reason code included for audit.
     bytes32 reasonCode;
     /// @notice Time when the source produced this market information.
     uint64 sourceTimestamp;
-    /// @notice Latest timestamp at which DataInbox may accept the report.
+    /// @notice Latest timestamp at which report ingress may accept the report.
     uint64 submitDeadline;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
@@ -31,7 +29,7 @@ struct AdtvReport {
     uint256 adtvWad;
     /// @notice Time when the source produced this ADTV value.
     uint64 sourceTimestamp;
-    /// @notice Latest timestamp at which DataInbox may accept the report.
+    /// @notice Latest timestamp at which report ingress may accept the report.
     uint64 submitDeadline;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
@@ -49,7 +47,7 @@ struct QuotaReport {
     uint256 quotaWad;
     /// @notice Time when the source produced this quota instruction.
     uint64 sourceTimestamp;
-    /// @notice Latest timestamp at which DataInbox may accept the report.
+    /// @notice Latest timestamp at which report ingress may accept the report.
     uint64 submitDeadline;
     /// @notice Globally unique report identifier.
     bytes32 reportId;
@@ -71,7 +69,7 @@ struct SplitFactorReport {
     uint128 denominator;
     /// @notice Time when the source produced this instruction.
     uint64 sourceTimestamp;
-    /// @notice Latest timestamp at which DataInbox may accept the report.
+    /// @notice Latest timestamp at which report ingress may accept the report.
     uint64 submitDeadline;
     /// @notice Globally unique nonzero report identifier.
     bytes32 reportId;
