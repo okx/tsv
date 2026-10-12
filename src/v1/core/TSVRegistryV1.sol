@@ -372,9 +372,9 @@ contract TSVRegistryV1 is TSVGoverned {
         _requireReasonCode(reasonCode);
         SecurityRecord storage config = securities[securityId];
         if (!config.listed || config.tierId == tierId) revert InvalidStatus();
-        _takeTierSlot(tierId);
-        tiers[config.tierId].listedCount--;
         uint8 oldTierId = config.tierId;
+        _takeTierSlot(tierId);
+        tiers[oldTierId].listedCount--;
         config.tierId = tierId;
         emit SecurityTierChanged(securityId, oldTierId, tierId, reasonCode);
     }
