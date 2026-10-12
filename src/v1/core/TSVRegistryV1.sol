@@ -640,7 +640,8 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Applies the next valid security operation transition.
     /// @param securityId Listed security whose operation state changes.
     /// @param mode Target pause mask: NONE opens all operations, TRADE/LP/ALL pause the selected operations.
-    function applySecurityStatus(bytes32 securityId, SecurityPauseMode mode) external onlyRole(HALT_REPORTER_ROLE) {
+    function applySecurityStatus(bytes32 securityId, SecurityPauseMode mode, bytes32 reasonCode) external onlyRole(HALT_REPORTER_ROLE) {
+        if (reasonCode == 0) revert InvalidConfig();
         SecurityRecord storage security = securities[securityId];
         if (securityId == 0 || !security.listed) revert InvalidStatus();
         SecurityStateRecord storage state = security.securityState;

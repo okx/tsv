@@ -10,6 +10,7 @@ import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable, Multicall {
     error Unauthorized();
     error InvalidInput();
+    error InvalidConfig();
     error QuotaExceeded(bytes32 securityId, uint256 ESTDay);
 
     bytes32 public constant VOLUME_ORACLE_ROLE = keccak256("VOLUME_ORACLE_ROLE");
@@ -41,6 +42,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable, Multicall {
 
     /// @notice Sets daily quotas without resetting volume already used.
     function setQuota(bytes32 securityId, DailyQuota[] calldata values, bytes32 reasonCode) external {
+        if (reasonCode == 0) revert InvalidConfig();
         if (!registry.hasRole(VOLUME_ORACLE_ROLE, msg.sender)) revert Unauthorized();
         if (securityId == bytes32(0)) revert InvalidInput();
         for (uint256 i; i < values.length; ++i) {
