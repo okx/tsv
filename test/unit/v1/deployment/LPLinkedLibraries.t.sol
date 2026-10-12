@@ -166,6 +166,23 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         assertEq(lp.ownerOf(tokenId), owner);
     }
 
+    function testMintPositionFromDeltasIsForbiddenThroughBothEntryPoints() public {
+        bytes memory actions = abi.encodePacked(uint8(Actions.MINT_POSITION_FROM_DELTAS));
+        bytes[] memory params = new bytes[](1);
+        params[0] = abi.encode(key, int24(-60), int24(60), uint128(9), uint128(9), owner, bytes(""));
+        bytes memory expectedError =
+            abi.encodeWithSelector(TSVLPManagerLib.UnsupportedAction.selector, Actions.MINT_POSITION_FROM_DELTAS);
+        uint256 nextTokenId = lp.nextTokenId();
+
+        vm.startPrank(owner);
+        vm.expectRevert(expectedError);
+        lp.modifyLiquidities(abi.encode(actions, params), block.timestamp);
+        vm.expectRevert(expectedError);
+        lp.modifyLiquiditiesWithoutUnlock(actions, params);
+        vm.stopPrank();
+        assertEq(lp.nextTokenId(), nextTokenId);
+    }
+
     function testNormalActionsCannotRedeemClaims() public {
         uint256 id = uint160(Currency.unwrap(key.currency1));
         manager.seedClaim(owner, id, 9);

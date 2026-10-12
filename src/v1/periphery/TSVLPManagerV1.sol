@@ -348,9 +348,8 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     /// @dev Only ordinary actions reach this dispatcher; forced exits execute through their authorized callback.
     function _handleAction(uint256 action, bytes calldata params) internal override {
         if (
-            action == Actions.MINT_POSITION || action == Actions.MINT_POSITION_FROM_DELTAS
-                || action == Actions.INCREASE_LIQUIDITY || action == Actions.DECREASE_LIQUIDITY
-                || action == Actions.BURN_POSITION
+            action == Actions.MINT_POSITION || action == Actions.INCREASE_LIQUIDITY
+                || action == Actions.DECREASE_LIQUIDITY || action == Actions.BURN_POSITION
         ) {
             _handlePositionAction(action, params);
             return;
@@ -364,7 +363,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
             registry, action, params, msgSender(), _ownerOf, positionInfo, poolKeys
         );
         PermissionedPositionManager._handleAction(action, params);
-        if (action == Actions.MINT_POSITION || action == Actions.MINT_POSITION_FROM_DELTAS) {
+        if (action == Actions.MINT_POSITION) {
             _updatePoolTickCount(poolKey, 1);
         } else if (action == Actions.BURN_POSITION) {
             _updatePoolTickCount(poolKey, -1);
