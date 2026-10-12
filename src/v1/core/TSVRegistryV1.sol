@@ -273,10 +273,6 @@ contract TSVRegistryV1 is TSVGoverned {
     {
         _requireReasonCode(reasonCode);
         if (participantSbt == address(0)) revert SbtNotConfigured();
-        PermissionFlag allowedPermissions = PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED;
-        if (PermissionFlag.unwrap(permissions & allowedPermissions) != PermissionFlag.unwrap(permissions)) {
-            revert InvalidConfig();
-        }
         try ISmartWalletSbtV1(participantSbt).verify(address(this), tokenId) returns (bool) {}
         catch {
             revert InvalidConfig();
