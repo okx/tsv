@@ -22,13 +22,13 @@ test-trading:
 	FOUNDRY_PROFILE=default forge test --match-path 'test/**/trading/*.t.sol' --summary
 
 test-liquidity:
-	FOUNDRY_PROFILE=default forge test --match-path 'test/**/liquidity/*.t.sol' --summary
+	FOUNDRY_PROFILE=default forge test --match-contract '(TSVLP.*Test|LP.*Test|TSVHookInitializationTest)' --summary
 
 test-operations:
-	FOUNDRY_PROFILE=default forge test --match-path 'test/**/{registry,reports,operations}/*.t.sol' --summary
+	FOUNDRY_PROFILE=default forge test --match-path 'test/unit/v1/registry/*.t.sol' --summary
 
 test-invariants:
-	FOUNDRY_PROFILE=default forge test --match-contract 'TSVStateful.*Test' --summary
+	FOUNDRY_PROFILE=default forge test --match-test '^invariant' --summary
 
 test-xlayer:
 	FOUNDRY_PROFILE=xlayer forge test --summary

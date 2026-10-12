@@ -7,7 +7,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
+import {TSVHookV1, ITSVLPUnwindContext} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 
@@ -25,6 +25,7 @@ contract TSVHookInitializationTest is Test {
         lpManager = makeAddr("lp-manager");
         vm.etch(manager, hex"00");
         vm.etch(lpManager, hex"00");
+        vm.mockCall(lpManager, abi.encodeCall(ITSVLPUnwindContext.isUnwindActive, ()), abi.encode(false));
         registry = TSVRegistryV1(
             address(
                 new TSVERC1967Proxy(
@@ -93,6 +94,21 @@ contract TSVHookInitializationTest is Test {
         bytes32 poolId = PoolId.unwrap(key.toId());
         vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isKnownPool, (poolId)), abi.encode(true));
         vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isLPAllowed, (poolId)), abi.encode(true));
+    }
+
+    function testAuthorizedUnwindBypassesOrdinaryLPGateButNotGlobalPause() public {
+        _allowLP();
+        bytes32 poolId = PoolId.unwrap(key.toId());
+        vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isLPAllowed, (poolId)), abi.encode(false));
+        vm.mockCall(lpManager, abi.encodeCall(ITSVLPUnwindContext.isUnwindActive, ()), abi.encode(true));
+        IPoolManager.ModifyLiquidityParams memory params =
+            IPoolManager.ModifyLiquidityParams(-60, 60, -1, bytes32(uint256(1)));
+        vm.prank(manager);
+        assertEq(hook.beforeRemoveLiquidity(lpManager, key, params, ""), IHooks.beforeRemoveLiquidity.selector);
+        vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.isPaused, ()), abi.encode(true));
+        vm.expectRevert(TSVHookV1.InvalidPool.selector);
+        vm.prank(manager);
+        hook.beforeRemoveLiquidity(lpManager, key, params, "");
     }
 
     function testOrdinaryLPOnlyRequiresTrustedManagerAndRegistryPool() public {

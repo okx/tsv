@@ -13,10 +13,12 @@ abstract contract TSVAdapterFixture is Test {
     uint256 internal constant TEST_AUTH_KEY = 0xA11CE;
     uint256 internal authNonce;
 
-    function _adapterRoute(TSVAdapter adapter, address trustedCaller, PoolKey memory poolKey)
-        internal
-        returns (bytes memory)
-    {
+    function _adapterRoute(
+        TSVAdapter adapter,
+        address trustedCaller,
+        PoolKey memory poolKey,
+        uint256 expectedMultiplier
+    ) internal returns (bytes memory) {
         ITSVSwapRouter.PoolKey memory externalKey = ITSVSwapRouter.PoolKey(
             Currency.unwrap(poolKey.currency0),
             Currency.unwrap(poolKey.currency1),
@@ -28,12 +30,14 @@ abstract contract TSVAdapterFixture is Test {
         address[] memory allowed = new address[](1);
         allowed[0] = trustedCaller;
         uint256 nonce = authNonce++;
-        bytes32 payloadHash = keccak256(abi.encode(externalKey, expiry));
+        bytes32 payloadHash = keccak256(abi.encode(externalKey, expectedMultiplier, expiry));
         bytes32 inner = keccak256(abi.encode(address(adapter), payloadHash, allowed, nonce, block.chainid));
         (uint8 v, bytes32 r, bytes32 s) =
             vm.sign(TEST_AUTH_KEY, keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", inner)));
         bytes32 vs = bytes32(uint256(s) | (uint256(v - 27) << 255));
-        return abi.encode(TSVAdapter.MoreInfo(externalKey, expiry, allowed, nonce, abi.encodePacked(r, vs)));
+        return abi.encode(
+            TSVAdapter.MoreInfo(externalKey, expectedMultiplier, expiry, allowed, nonce, abi.encodePacked(r, vs))
+        );
     }
 
     function _adapterPayload(
