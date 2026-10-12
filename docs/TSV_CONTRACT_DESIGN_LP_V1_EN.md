@@ -1,8 +1,6 @@
 # TSV Contract Design: Permissioned Pools and LP Operations
 
-Date: 2026-10-09. This document covers the overall architecture, Uniswap source reuse and modifications, Securitize management responsibilities, and LP business logic. Detailed entry-point flows for swaps and administration will be added later.
-
-The implementation references are the current `src/v1` workspace, including uncommitted LP initialization and TokenApproveProxy changes. “Target design” refers to confirmed requirements; “current implementation” refers to behavior already present in the source; “pending discussion” refers to interface semantics that have not been finalized. This document does not establish production deployment or completion of integration acceptance testing for the full LP flow.
+> **Historical design material (2026-10-09). Not a current ABI or implementation guide.** This document preserves an earlier proposal that includes Inbox, report, and governance boundaries. The source has since changed. For current behavior, see [`SYSTEMS_OVERVIEW.md`](./SYSTEMS_OVERVIEW.md), [`CODING_SPEC_V1.md`](./CODING_SPEC_V1.md), and [`DEPLOYMENT_CHECKLIST_V1.md`](./DEPLOYMENT_CHECKLIST_V1.md). The current implementation is defined by `src/v1/`.
 
 ## 1. Overall Architecture
 

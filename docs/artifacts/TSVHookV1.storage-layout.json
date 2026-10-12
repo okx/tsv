@@ -1,0 +1,66 @@
+{
+  "storage": [
+    {
+      "astId": 5111,
+      "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+      "label": "poolManager",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_contract(IPoolManager)2682"
+    },
+    {
+      "astId": 5114,
+      "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+      "label": "registry",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_contract(TSVRegistryV1)8568"
+    },
+    {
+      "astId": 5117,
+      "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+      "label": "ledger",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_contract(TSVVolumeLedgerV1)9018"
+    },
+    {
+      "astId": 5119,
+      "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+      "label": "router",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_address"
+    },
+    {
+      "astId": 5121,
+      "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+      "label": "lpManager",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_address"
+    }
+  ],
+  "types": {
+    "t_address": {
+      "encoding": "inplace",
+      "label": "address",
+      "numberOfBytes": "20"
+    },
+    "t_contract(IPoolManager)2682": {
+      "encoding": "inplace",
+      "label": "contract IPoolManager",
+      "numberOfBytes": "20"
+    },
+    "t_contract(TSVRegistryV1)8568": {
+      "encoding": "inplace",
+      "label": "contract TSVRegistryV1",
+      "numberOfBytes": "20"
+    },
+    "t_contract(TSVVolumeLedgerV1)9018": {
+      "encoding": "inplace",
+      "label": "contract TSVVolumeLedgerV1",
+      "numberOfBytes": "20"
+    }
+  }
+}

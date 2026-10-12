@@ -1,6 +1,6 @@
 # TSVRegistryV1 领域对象关系设计
 
-> 历史设计稿。2026-10-12 起，当前报告 ABI 已移除 reporter `sequence` 字段及 Registry 序号检查；本稿中的序号相关设计不再作为当前行为依据。以[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度)为准。
+> **历史对象模型提案，不是当前 storage layout。** 本稿中的 `MarketStateRecord`、`EmergencyPauseRecord`、报告序号和目标聚合边界不代表现有存储。当前结构以 [`src/v1/types/TSVTypes.sol`](../src/v1/types/TSVTypes.sol) 与 [`TSVRegistryV1.sol`](../src/v1/core/TSVRegistryV1.sol) 为准；当前代码没有报告序号、DataInbox 或配置式 market-state record。行为摘要见 [`CODING_SPEC_V1.md`](./CODING_SPEC_V1.md)。
 
 ## 1. 背景
 

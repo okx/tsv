@@ -1,0 +1,59 @@
+{
+  "storage": [
+    {
+      "astId": 7614,
+      "contract": "src/v1/core/TSVVolumeLedgerV1.sol:TSVVolumeLedgerV1",
+      "label": "registry",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_contract(TSVRegistryV1)7567"
+    },
+    {
+      "astId": 7621,
+      "contract": "src/v1/core/TSVVolumeLedgerV1.sol:TSVVolumeLedgerV1",
+      "label": "Quota",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_mapping(t_bytes32,t_mapping(t_uint256,t_uint256))"
+    },
+    {
+      "astId": 7627,
+      "contract": "src/v1/core/TSVVolumeLedgerV1.sol:TSVVolumeLedgerV1",
+      "label": "usedWad",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_mapping(t_bytes32,t_mapping(t_uint256,t_uint256))"
+    }
+  ],
+  "types": {
+    "t_bytes32": {
+      "encoding": "inplace",
+      "label": "bytes32",
+      "numberOfBytes": "32"
+    },
+    "t_contract(TSVRegistryV1)7567": {
+      "encoding": "inplace",
+      "label": "contract TSVRegistryV1",
+      "numberOfBytes": "20"
+    },
+    "t_mapping(t_bytes32,t_mapping(t_uint256,t_uint256))": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => mapping(uint256 => uint256))",
+      "numberOfBytes": "32",
+      "value": "t_mapping(t_uint256,t_uint256)"
+    },
+    "t_mapping(t_uint256,t_uint256)": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => uint256)",
+      "numberOfBytes": "32",
+      "value": "t_uint256"
+    },
+    "t_uint256": {
+      "encoding": "inplace",
+      "label": "uint256",
+      "numberOfBytes": "32"
+    }
+  }
+}
