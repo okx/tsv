@@ -497,7 +497,7 @@ const volumeRegistryAbi = [
 
 ### 2. 从 Token 获取 securityId 并查询当日额度
 
-累计量的准确接口名为 **`usedWad`**（不是 `usdWad`），表示已使用的 legal-share WAD，单位不是美元。以下查询均为 `view`，只需 Provider，无需 Signer 或 `VOLUME_ORACLE_ROLE`。
+累计量的准确接口名为 **`usedWad`**，表示已使用的 legal-share WAD，单位不是美元。以下查询均为 `view`，只需 Provider，无需 Signer 或 `VOLUME_ORACLE_ROLE`。
 
 先通过 `ledger.registry()` 取得对应 Registry 地址，再按已知的股票 Token 类型查询：
 
@@ -699,8 +699,90 @@ async function submitVolumeMulticallTransaction(oracleSigner, volumeLedgerAddres
 
 返回的 `results[i]` 为第 i 项的 ABI 编码返回值；两个写入函数均无返回值，对应 `0x`。交易回执应按 Ledger 代理地址解析 `QuotaSet` / `UsedWadSet` 事件。重复设置同一证券同一天的同一字段时，最后一次写入生效。该封装只允许两个后端写入方法；合约的 `multicall` 本身可组合其他公开入口，但不会绕过角色或 Hook 调用者检查。
 
+### 8. Multiplier 变化：同步换算 Quota 与 usedWad
+
+**Ledger 不会随 multiplier 变化自动更新额度或累计量。** 当前 `ERC8056DirectLegalShareAdapter` 的换算为 `legalSharesWad = floor(rawAmount × multiplier / 10^decimals)`。下面的算法用于保持同一原始 Token 数量所对应的额度和累计量，将二者统一换算到新 multiplier 的股数口径；假设 Token decimals 和 Adapter 换算方式不变。
+
+#### 换算公式与取整
+
+设 `Mold` 为这份额度及累计量当前使用的倍率，`Mnew` 为即将采用的新倍率，二者必须大于 0。`Mold` 必须来自后端保存的计量口径记录，不能在倍率生效后把链上最新倍率同时当成新旧值。
+
+```text
+quotaNewWad = floor(quotaOldWad × Mnew / Mold)
+usedNewWad  = ceil(usedOldWad × Mnew / Mold)
+remainingNewWad = max(quotaNewWad - usedNewWad, 0)
+```
+
+比例是 **新倍率 / 旧倍率**，不是反过来。两个 multiplier 使用相同精度，比例中精度相消，不要额外乘除 `10^18`。先做整数乘法，再做整数除法；全部使用 `bigint`，不要先计算浮点比例。额度向下取整、累计量向上取整是本指南的后端保守换算规则，避免换算舍入增加可用额度；不是 `setQuota` / `setUsedWad` 内置的取整逻辑。
+
+| 旧倍率 → 新倍率 | 旧总额度 / 旧累计量（股） | 新总额度 / 新累计量（股） | 新剩余额度（股） |
+| --- | --- | --- | --- |
+| `1e18 → 2e18` | `1000 / 300` | `2000 / 600` | `1400` |
+| `2e18 → 1e18` | `1000 / 300` | `500 / 150` | `350` |
+
+不足 1 WAD 最小单位也要按公式处理：例如 `Mold = 3e18`、`Mnew = 2e18`、`quotaOldWad = 10`、`usedOldWad = 4`，结果为 `quotaNewWad = 6`、`usedNewWad = 3`，剩余 3；此例单位是 WAD 最小整数单位，不是整股。不要把 `usedNewWad` 截断到 `quotaNewWad`，也不要先缩放剩余额度再反推累计量。
+
+#### 后端执行顺序
+
+1. **锁定证券并暂停成交。** 对 `(chainId, ledgerAddress, securityId)` 建立后端排他任务，暂停其他额度/累计量写入。须在新倍率生效前暂停该证券所有池的 Swap，并等待暂停确认。当前 Registry 可由 `HALT_REPORTER_ROLE` 调用 `applySecurityStatus(securityId, mode)`：保留原暂停位并设置 `TRADE` 位（`NONE=0`、`TRADE=1`、`LP=2`、`ALL=3`，目标为 `oldMode | 1`）；若已经暂停交易则不重复调用。该权限与 `VOLUME_ORACLE_ROLE` 不同，仅停止后端报价不能阻止链上其他交易入口。
+2. **确定目标日期及旧口径快照。** 暂停确认后，在同一区块读取 `currentESTDay()`、目标日的 `Quota` 和 `usedWad`，并记录区块号、区块 hash、原值和 `Mold`。当前 EST day 必须使用第 3 节公式。未来已配置且仍使用旧倍率口径的日期也要换算；已按新口径配置的日期不得重复换算。默认保留已结束日期的历史账，跨 UTC 05:00 后须重新确认恢复交易当天及预配置日期均已覆盖。
+3. **确认新倍率及适用范围。** 从 `registry.getUnderlying(underlyingToken).legalShareAdapter` 获取 Adapter，再调用 `currentMultiplier(underlyingToken)` 确认 `Mnew` 已生效；此前可先依据发行方已确认的计划准备计算。只有该证券所有累计量和额度使用同一旧口径，且所有相关底层 Token 采用同一换算比例时，才能对证券总量整体缩放。多个池共享 `securityId`，每个证券每天只换算一次，不能逐池重复写入。
+4. **计算并原子写入。** 按上述公式生成两个相同日期集合的数组，在一次 Ledger `multicall` 中执行 `setQuota(securityId, quotaValues, reasonCode)` 和 `setUsedWad(securityId, usedValues, reasonCode)`。提交账户须有 `VOLUME_ORACLE_ROLE`；完整批次先模拟、估算 gas，再提交。保持成交、其他写入及进一步倍率变更协调暂停，直到核对完成。Registry 暂停操作和外部 Token 的倍率更新不属于 Ledger `multicall` 的原子范围。
+5. **核对后恢复。** 成功回执中核对全部 `QuotaSet` / `UsedWadSet`；在该回执区块回读额度、累计量与新倍率。确认成功后，后端将各目标日的计量口径标记为 `Mnew`，记录交易 hash 和变更事件唯一 ID，再恢复本任务暂停的操作，保留其他管理员设置的暂停状态。失败则维持暂停并处理，不先恢复交易。
+
+`currentMultiplier` 的查询 ABI 为 `function currentMultiplier(address underlyingToken) view returns (uint256)`。Ledger 两个 setter 不接收预期旧值或 multiplier，`multicall` 只保证两次写入原子性，不保证快照仍有效；后台锁、链上暂停和倍率变更协调不能省略。
+
+#### 计算与组装示例
+
+下面复用第 7 节的提交函数。`snapshots` 是同一暂停区块读取的目标日期数组，各项格式为 `{ ESTDay, quotaWad, usedWad }`，且均尚未从 `oldMultiplier` 换算到 `newMultiplier`。
+
+```javascript
+function buildMultiplierSyncUpdates(input) {
+  const { securityId, oldMultiplier, newMultiplier, snapshots, reasonCode } = input;
+  const maxUint256 = (1n << 256n) - 1n;
+  const checkUint256 = (value) => {
+    if (typeof value !== "bigint" || value < 0n || value > maxUint256) {
+      throw new Error("Expected uint256 bigint");
+    }
+  };
+  checkUint256(oldMultiplier);
+  checkUint256(newMultiplier);
+  if (oldMultiplier === 0n || newMultiplier === 0n) throw new Error("Zero multiplier");
+  if (snapshots.length === 0) throw new Error("Empty snapshots");
+  const seenDays = new Set();
+  const quotaValues = [];
+  const usedValues = [];
+  for (const { ESTDay, quotaWad, usedWad } of snapshots) {
+    [ESTDay, quotaWad, usedWad].forEach(checkUint256);
+    if (seenDays.has(ESTDay)) throw new Error("Duplicate ESTDay");
+    seenDays.add(ESTDay);
+    const quotaNewWad = (quotaWad * newMultiplier) / oldMultiplier;
+    const usedNewWad = (usedWad * newMultiplier + oldMultiplier - 1n) / oldMultiplier;
+    checkUint256(quotaNewWad);
+    checkUint256(usedNewWad);
+    quotaValues.push({ ESTDay, amount: quotaNewWad });
+    usedValues.push({ ESTDay, amount: usedNewWad });
+  }
+  return [
+    { method: "setQuota", securityId, values: quotaValues, reasonCode },
+    { method: "setUsedWad", securityId, values: usedValues, reasonCode },
+  ];
+}
+// const updates = buildMultiplierSyncUpdates(syncInput);
+// await submitVolumeMulticallTransaction(oracleSigner, volumeLedgerAddress, updates);
+```
+
+#### 重试与已混合口径的处理
+
+后端按证券、日期和倍率变更事件记录处理状态，不要只用 `Mold/Mnew` 这一对数值去重，因为同一倍率变化可能再次发生。网络超时先查原交易回执和链上值；重试只使用已保存的绝对目标值，且须确认暂停仍有效、任务尚未完成、没有后续倍率或管理员修改。**不要读取已经换算后的值再乘同一个比例；恢复成交后也不能重放旧的绝对值，否则会覆盖新增成交量。** `reasonCode` 仅用于事件追溯，合约不据此去重。
+
+如果新倍率生效后已有成交，`usedWad` 可能同时包含旧口径和新口径，不能将整个累计量乘 `Mnew/Mold`。须先暂停，按交易执行顺序和实际倍率分段重建：旧口径部分换算，新口径部分保持不变。例如旧口径累计 300 股，倍率翻倍后又按新口径成交 50 股，正确新累计量为 `300 × 2 + 50 = 650`，不是 `(300 + 50) × 2 = 700`。历史管理员修正和先前同步也要纳入口径记录。单独的 `VolumeUsed` 事件不包含 multiplier，不能仅凭当前倍率推导过去每笔的口径。
+
+上述算法缩放的是已存储的 WAD 总量，可能与按新倍率逐笔重算原始成交量存在最小单位舍入差异；若要求逐笔重算一致，需保存各笔 raw amount 并重新执行 Adapter 的向下取整规则。只有当前总量、没有可信旧倍率和分段记录时，无法可靠恢复混合口径，应保持暂停并完成对账后再写入。
+
 ## 源码依据
 
 - LP：[TSVLPManagerV1](../src/v1/periphery/TSVLPManagerV1.sol)、[校验与强退逻辑](../src/v1/libraries/TSVLPManagerLib.sol)、[继承的 PositionManager](../src/v1/vendor/permissionedPools/PositionManager.sol)。
 - Swap：[TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol)、[SwapRequest](../src/v1/types/TSVTypes.sol)、[Hook](../src/v1/core/TSVHookV1.sol)。
 - Volume Ledger：[TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol) 的 `setQuota`、`setUsedWad`、`currentESTDay` 与 `recordSwap`。
+- Multiplier：[ERC8056DirectLegalShareAdapter](../src/v1/adapters/ERC8056DirectLegalShareAdapter.sol) 的 `currentMultiplier` / `toLegalShares`；证券交易暂停使用 [Registry](../src/v1/core/TSVRegistryV1.sol) 的 `applySecurityStatus`。
