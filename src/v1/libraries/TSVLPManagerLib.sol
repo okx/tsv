@@ -176,6 +176,9 @@ library TSVLPManagerLib {
     }
 
     /// @dev Lifted from PermissionedPositionManager._deliverCurrency without changing the fallback order.
+    ///      Risk disclaimer (issue #6, item 4): an ordinary quote has no adapter owner and no delivery fallback.
+    ///      If its LP recipient can reject a transfer, delivery failure reverts the burn and NFT count update.
+    ///      Quote admission must exclude receiver-controlled rejection; this routine does not enforce it.
     function _deliverCurrency(UnwindParams memory p, Currency currency, uint256 amount) private {
         address lp = p.lp;
         uint256 tokenId = p.tokenId;

@@ -144,6 +144,9 @@ library PermissionedValidationLib {
 
     function _validateAssetIdentities(address w, address u) private view {
         IPermissionedRegistryViews r = IPermissionedRegistryViews(address(this));
+        // Risk disclaimer (issue #6, item 1): registered tracks current quote admission, not historical use.
+        // Governance must exclude disabled historical quotes from W/U admission; this check cannot enforce
+        // that rule. A historical Q reused as U can still trade in old pools without its new security controls.
         if (
             u.code.length == 0 || w == u || _isSystem(w) || _isSystem(u) || r.getQuoteToken(w).registered
                 || r.getQuoteToken(u).registered || r.getUnderlying(w).securityId != 0

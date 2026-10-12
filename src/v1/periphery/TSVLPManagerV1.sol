@@ -137,6 +137,9 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
 
     /// @notice Burns the position and returns principal and accrued fees directly to the LP.
     /// @dev Either currency failing delivery reverts the entire unwind.
+    ///      Risk disclaimer (issue #6, item 4): a quote with receiver-controlled rejection lets the LP veto
+    ///      delivery. This path has no quote custody/claim fallback; the NFT and pool count are restored on
+    ///      revert, potentially blocking pool/security delisting. Quote admission must exclude this behavior.
     function unwindPositionByOkx(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)
         external
         onlyRole(FORCE_EXIT_ADMIN_ROLE)
@@ -164,6 +167,10 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         );
     }
 
+    /// @dev Risk disclaimer (issue #6, item 4): the issuer fallback applies only to permissioned currencies.
+    ///      A quote with receiver-controlled rejection can therefore revert this entire exit, restoring the
+    ///      NFT and pool count and potentially blocking pool/security delisting. Quote admission must exclude
+    ///      this behavior; forced exit is not guaranteed if the quote token itself blocks transfers.
     function unwindPosition(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)
         public
         override
