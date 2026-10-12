@@ -12,7 +12,6 @@ import {
     PoolRecord,
     SecurityRecord,
     PoolLifecycle,
-    SecurityOperationStatus,
     SecurityPauseMode
 } from "tsv-v1/types/TSVTypes.sol";
 
@@ -45,12 +44,12 @@ interface ITSVPermissionedRegistry {
     /// @return Stored pool record; unknown pools return a default record.
     function getPool(bytes32 id) external view returns (PoolRecord memory);
 
-    /// @notice Returns the stored listing and tier for a security.
+    /// @notice Returns the stored listing, tier, and operation state for a security.
     /// @param id Security identifier to query.
     /// @return Stored security record; unknown IDs return a default record.
     function getSecurity(bytes32 id) external view returns (SecurityRecord memory);
 
-    /// @notice Returns the quota and listing-cap policy currently configured for a tier.
+    /// @notice Returns the listing-cap policy currently configured for a tier.
     /// @param tierId Tier identifier to query.
     /// @return Stored tier policy record; unknown tiers return a default record.
     function getTierPolicy(uint8 tierId) external view returns (TierPolicyRecord memory);
@@ -129,10 +128,6 @@ interface ITSVPermissionedRegistry {
     /// @return LP Manager address.
     function lpManager() external view returns (address);
 
-    /// @notice Returns the DataInbox authorized to apply market reports.
-    /// @return DataInbox address.
-    function dataInbox() external view returns (address);
-
     /// @notice Returns the participant SBT used for identity checks.
     /// @return Participant SBT address.
     function participantSbt() external view returns (address);
@@ -175,11 +170,6 @@ interface ITSVPermissionedRegistry {
     /// @param reasonCode Nonzero operational reason code for the configuration change.
     function setSbtConfig(uint256 tokenId, PermissionFlag permissions, bytes32 reasonCode) external;
 
-    /// @notice Returns the derived operation status for a security.
-    /// @param id Security identifier to query.
-    /// @return Derived operation status from the security pause mode.
-    function getSecurityStatus(bytes32 id) external view returns (SecurityOperationStatus);
-
     /// @notice Returns the current operation pause mode for a security.
     /// @param id Security identifier to query.
     /// @return Current security pause mode.
@@ -219,9 +209,8 @@ interface ITSVPermissionedRegistry {
     /// @notice Binds Registry dependencies once, after all components are deployed.
     /// @param hook TSV Hook authorized for pool callbacks.
     /// @param lpManager LP Manager authorized to register exact pool keys before initialization.
-    /// @param dataInbox DataInbox authorized to apply market reports.
     /// @param factory Real issuer Factory used to verify W provenance and derive PoolManager.
     /// @param sbt Fixed SBT contract supplying participant identities.
-    function bindComponents(address hook, address lpManager, address dataInbox, address factory, address sbt)
+    function bindComponents(address hook, address lpManager, address factory, address sbt)
         external;
 }

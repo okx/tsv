@@ -12,7 +12,6 @@ interface IPermissionedRegistryViews {
     function permissionedPoolManager() external view returns (address);
     function hook() external view returns (address);
     function lpManager() external view returns (address);
-    function dataInbox() external view returns (address);
     function participantSbt() external view returns (address);
     function getCurrencyUnderlying(address w) external view returns (address);
     function getUnderlying(address u) external view returns (UnderlyingRecord memory);
@@ -139,7 +138,7 @@ library PermissionedValidationLib {
         IPermissionedRegistryViews r = IPermissionedRegistryViews(address(this));
         return a == address(this) || a == r.permissionedPoolManager() || a == r.permissionsAdapterFactory()
             || a == _readAddress(r.hook(), IPermissionedComponentV1.router.selector) || a == r.hook()
-            || a == r.lpManager() || a == r.dataInbox() || a == r.participantSbt()
+            || a == r.lpManager() || a == r.participantSbt()
             || a == _readAddress(r.hook(), IPermissionedComponentV1.ledger.selector);
     }
 

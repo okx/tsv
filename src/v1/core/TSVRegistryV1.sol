@@ -14,8 +14,6 @@ import {
     PoolRecord,
     SecurityStateRecord,
     PoolLifecycle,
-    SecurityOperationStatus,
-    SecurityOperationType,
     SecurityPauseMode,
     SecurityOperationCheckType
 } from "tsv-v1/types/TSVTypes.sol";
@@ -71,8 +69,6 @@ contract TSVRegistryV1 is TSVGoverned {
     address public hook;
     /// @notice LP Manager authorized to register pools and validate LP callbacks.
     address public lpManager;
-    /// @notice DataInbox authorized to apply security operation reports.
-    address public dataInbox;
     /// @notice SBT contract used for participant identity and operation permissions.
     address public participantSbt;
 
@@ -107,14 +103,12 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Emitted when core component addresses were bound to the Registry.
     /// @param hook TSV Hook authorized for registered pool callbacks.
     /// @param lpManager LP Manager authorized for pool registration and LP validation.
-    /// @param dataInbox DataInbox authorized to apply market reports.
     /// @param factory Permissioned adapter Factory used for W provenance checks.
     /// @param poolManager PoolManager returned by `factory`.
     /// @param sbt Participant SBT used for identity checks.
     event ComponentsBound(
         address indexed hook,
         address indexed lpManager,
-        address indexed dataInbox,
         address factory,
         address poolManager,
         address sbt
@@ -136,10 +130,9 @@ contract TSVRegistryV1 is TSVGoverned {
     event SecurityTierChanged(bytes32 indexed securityId, uint8 oldTierId, uint8 newTierId, bytes32 reasonCode);
     /// @notice Emitted when a security tier policy was created or updated.
     /// @param tierId Tier whose policy changed.
-    /// @param tierBps ADTV multiplier in basis points.
     /// @param maxListed Maximum listed-security capacity for the tier.
     /// @param reasonCode Operational reason code for changing the policy.
-    event TierPolicyChanged(uint8 indexed tierId, uint16 tierBps, uint32 maxListed, bytes32 reasonCode);
+    event TierPolicyChanged(uint8 indexed tierId, uint32 maxListed, bytes32 reasonCode);
     /// @notice Emitted when the first permissioned stock binds a canonical underlying to a security.
     /// @param underlying Canonical underlying stock token U.
     /// @param securityId TSV security identifier assigned to the underlying.
@@ -182,20 +175,12 @@ contract TSVRegistryV1 is TSVGoverned {
     event UnderlyingLegalShareAdapterChanged(
         address indexed underlying, address oldAdapter, address newAdapter, bytes32 reasonCode
     );
-    /// @notice Emitted when a security operation report was accepted.
+    /// @notice Emitted when a security operation pause mode changes.
     /// @param securityId Security whose operation pause mask changed.
-    /// @param oldStatus Previous derived operation status.
-    /// @param newStatus New derived operation status.
     /// @param oldPauseMode Previous operation pause mask.
     /// @param newPauseMode New operation pause mask.
-    /// @param reportId Unique report identifier supplied by DataInbox.
     event SecurityStatusChanged(
-        bytes32 indexed securityId,
-        uint8 oldStatus,
-        uint8 newStatus,
-        uint8 oldPauseMode,
-        uint8 newPauseMode,
-        bytes32 indexed reportId
+        bytes32 indexed securityId, SecurityPauseMode oldPauseMode, SecurityPauseMode newPauseMode
     );
     /// @notice Emitted when the global emergency pause is enabled or disabled.
     /// @param enabled Whether ordinary trade and LP operations are globally paused.
@@ -240,17 +225,16 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Binds Registry dependencies once, after all components are deployed.
     /// @param hook_ TSV Hook authorized for pool callbacks.
     /// @param lpManager_ LP Manager authorized to register exact pool keys before initialization.
-    /// @param dataInbox_ DataInbox authorized to apply market reports.
     /// @param factory Real issuer Factory used to verify W provenance and derive PoolManager.
     /// @param sbt_ Fixed SBT contract supplying participant identities.
-    function bindComponents(address hook_, address lpManager_, address dataInbox_, address factory, address sbt_)
+    function bindComponents(address hook_, address lpManager_, address factory, address sbt_)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
         if (permissionsAdapterFactory != address(0)) revert InvalidStatus();
         if (
-            hook_.code.length == 0 || lpManager_.code.length == 0 || dataInbox_.code.length == 0
-                || factory.code.length == 0 || sbt_.code.length == 0
+            hook_.code.length == 0 || lpManager_.code.length == 0 || factory.code.length == 0
+                || sbt_.code.length == 0
         ) {
             revert InvalidConfig();
         }
@@ -266,11 +250,10 @@ contract TSVRegistryV1 is TSVGoverned {
         if (poolManager.code.length == 0) revert InvalidConfig();
         hook = hook_;
         lpManager = lpManager_;
-        dataInbox = dataInbox_;
         permissionsAdapterFactory = factory;
         permissionedPoolManager = poolManager;
         participantSbt = sbt_;
-        emit ComponentsBound(hook_, lpManager_, dataInbox_, factory, poolManager, sbt_);
+        emit ComponentsBound(hook_, lpManager_, factory, poolManager, sbt_);
     }
 
     /// @notice Returns the stateless validator address linked into this implementation.
@@ -290,7 +273,6 @@ contract TSVRegistryV1 is TSVGoverned {
     {
         _requireReasonCode(reasonCode);
         if (participantSbt == address(0)) revert SbtNotConfigured();
-        if (uint16(PermissionFlag.unwrap(permissions)) > 3) revert InvalidConfig();
         try ISmartWalletSbtV1(participantSbt).verify(address(this), tokenId) returns (bool) {}
         catch {
             revert InvalidConfig();
@@ -345,28 +327,24 @@ contract TSVRegistryV1 is TSVGoverned {
     }
 
     // Securities and tier capacity.
-    /// @notice Sets a tier's quota multiplier and maximum number of listed securities.
+    /// @notice Sets a tier's maximum number of listed securities.
     /// @param tierId Nonzero tier identifier.
-    /// @param tierBps Volume multiplier in basis points, from 1 through 10,000.
     /// @param maxListed Maximum number of securities that may be listed in this tier.
     /// @param reasonCode Nonzero operational reason code for the policy change.
-    function setTierPolicy(uint8 tierId, uint16 tierBps, uint32 maxListed, bytes32 reasonCode)
+    function setTierPolicy(uint8 tierId, uint32 maxListed, bytes32 reasonCode)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
         _requireReasonCode(reasonCode);
         TierPolicyRecord storage tier = tiers[tierId];
-        if (tierId == 0 || tierBps == 0 || tierBps > 10_000 || maxListed < tier.listedCount) {
-            revert InvalidConfig();
-        }
-        tier.tierBps = tierBps;
+        if (tierId == 0 || maxListed < tier.listedCount) revert InvalidConfig();
         tier.maxListed = maxListed;
-        emit TierPolicyChanged(tierId, tierBps, maxListed, reasonCode);
+        emit TierPolicyChanged(tierId, maxListed, reasonCode);
     }
 
-    /// @notice Returns the quota and listing-cap policy currently configured for `tierId`.
+    /// @notice Returns the listing-cap policy currently configured for `tierId`.
     /// @param tierId Tier identifier to query.
-    /// @return Tier policy containing multiplier, capacity, and current listing count.
+    /// @return Tier policy containing capacity and current listing count.
     function getTierPolicy(uint8 tierId) external view returns (TierPolicyRecord memory) {
         return tiers[tierId];
     }
@@ -413,7 +391,7 @@ contract TSVRegistryV1 is TSVGoverned {
         emit SecurityDelisted(securityId, reasonCode);
     }
 
-    /// @notice Returns the stored listing and tier for a security.
+    /// @notice Returns the stored listing, tier, and operation state for a security.
     /// @param securityId Security identifier to query.
     /// @return record Stored security record; unknown IDs return a default record.
     function getSecurity(bytes32 securityId) external view returns (SecurityRecord memory record) {
@@ -652,16 +630,6 @@ contract TSVRegistryV1 is TSVGoverned {
     }
 
     // Security operation state and emergency pause.
-    /// @notice Derives the operation status from a known security's pause mask.
-    /// @param securityId Security identifier to query.
-    /// @return OPEN when no security operation pause applies, otherwise HALTED; unknown IDs revert.
-    function getSecurityStatus(bytes32 securityId) external view returns (SecurityOperationStatus) {
-        if (securities[securityId].securityId == 0) revert InvalidConfig();
-        return securities[securityId].securityState.pauseMode == SecurityPauseMode.NONE
-            ? SecurityOperationStatus.OPEN
-            : SecurityOperationStatus.HALTED;
-    }
-
     /// @notice Returns the current security operation pause mask for a security.
     /// @param securityId Security identifier to query.
     /// @return mode Current security operation pause mode.
@@ -669,45 +637,17 @@ contract TSVRegistryV1 is TSVGoverned {
         return securities[securityId].securityState.pauseMode;
     }
 
-    /// @notice Applies the next valid security operation transition from the bound DataInbox.
+    /// @notice Applies the next valid security operation transition.
     /// @param securityId Listed security whose operation state changes.
-    /// @param action Halt or resume action from the report.
-    /// @param mode Operations affected by this action: TRADE, LP, or ALL.
-    /// @param reportId Unique ID of the accepted MarketReport.
-    function applySecurityStatus(
-        bytes32 securityId,
-        SecurityOperationType action,
-        SecurityPauseMode mode,
-        bytes32 reportId
-    ) external {
+    /// @param mode Target pause mask: NONE opens all operations, TRADE/LP/ALL pause the selected operations.
+    function applySecurityStatus(bytes32 securityId, SecurityPauseMode mode) external onlyRole(HALT_REPORTER_ROLE) {
         SecurityRecord storage security = securities[securityId];
-        if (
-            msg.sender != dataInbox || securityId == 0 || !security.listed || mode == SecurityPauseMode.NONE
-        ) revert InvalidStatus();
+        if (securityId == 0 || !security.listed) revert InvalidStatus();
         SecurityStateRecord storage state = security.securityState;
         SecurityPauseMode previousPauseMode = state.pauseMode;
-        SecurityOperationStatus previousStatus = previousPauseMode == SecurityPauseMode.NONE
-            ? SecurityOperationStatus.OPEN
-            : SecurityOperationStatus.HALTED;
-        SecurityPauseMode nextPauseMode;
-        if (action == SecurityOperationType.HALT) {
-            nextPauseMode = SecurityPauseMode(uint8(previousPauseMode) | uint8(mode));
-        } else {
-            nextPauseMode = SecurityPauseMode(uint8(previousPauseMode) & ~uint8(mode));
-        }
-        if (nextPauseMode == previousPauseMode) revert InvalidStatus();
-        SecurityOperationStatus nextStatus = nextPauseMode == SecurityPauseMode.NONE
-            ? SecurityOperationStatus.OPEN
-            : SecurityOperationStatus.HALTED;
-        state.pauseMode = nextPauseMode;
-        emit SecurityStatusChanged(
-            securityId,
-            uint8(previousStatus),
-            uint8(nextStatus),
-            uint8(previousPauseMode),
-            uint8(nextPauseMode),
-            reportId
-        );
+        if (mode == previousPauseMode) revert InvalidStatus();
+        state.pauseMode = mode;
+        emit SecurityStatusChanged(securityId, previousPauseMode, mode);
     }
 
     /// @notice Enables or disables the protocol-wide emergency pause.
@@ -760,7 +700,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param tierId Tier whose listing slot is reserved.
     function _takeTierSlot(uint8 tierId) private {
         TierPolicyRecord storage tier = tiers[tierId];
-        if (tier.tierBps == 0 || tier.listedCount >= tier.maxListed) revert InvalidConfig();
+        if (tier.listedCount >= tier.maxListed) revert InvalidConfig();
         tier.listedCount++;
     }
 
