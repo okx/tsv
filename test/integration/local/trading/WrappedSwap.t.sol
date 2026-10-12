@@ -19,7 +19,7 @@ import {
 import {QuotaReport} from "tsv-v1/types/TSVReports.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
-import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
+import {PermissionsAdapter} from "tsv-v1/vendor/permissionedPools/PermissionsAdapter.sol";
 import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {V1ConfigReceiver} from "../../../helpers/v1/PermissionedMocks.sol";
 import {V1TestParticipantWallet} from "../../../helpers/v1/LocalMocks.sol";

@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {GovernanceFixture} from "../../../helpers/v1/GovernanceFixture.sol";
-import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
+import {PermissionsAdapterFactory} from "tsv-v1/vendor/permissionedPools/PermissionsAdapterFactory.sol";
 
 contract TSVRouterInitializationTest is GovernanceFixture {
     function testRouterRejectsEveryDependencyWithoutCode() public {

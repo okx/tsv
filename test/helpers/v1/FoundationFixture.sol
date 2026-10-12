@@ -2,10 +2,13 @@
 pragma solidity 0.8.26;
 
 import {PoolManager} from "v4-core/PoolManager.sol";
-import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
-import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
-import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
-import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {PermissionsAdapterFactory} from "tsv-v1/vendor/permissionedPools/PermissionsAdapterFactory.sol";
+import {PermissionsAdapter} from "tsv-v1/vendor/permissionedPools/PermissionsAdapter.sol";
+import {
+    IERC20 as PermissionedIERC20,
+    IHooks as AdapterHooks
+} from "tsv-v1/vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {IAllowlistChecker} from "tsv-v1/vendor/permissionedPools/interfaces/IAllowlistChecker.sol";
 import {V1PermissionedComponent, V1ConfigReceiver, V1IssuerAllowlistChecker} from "./PermissionedMocks.sol";
 import {Test} from "forge-std/Test.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -204,7 +207,7 @@ abstract contract FoundationFixture is Test {
             PermissionedIERC20(u), address(this), IAllowlistChecker(address(issuerChecker))
         );
         PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), true);
-        PermissionsAdapter(w).updateAllowedHook(IHooks(address(this)), true);
+        PermissionsAdapter(w).updateAllowedHook(AdapterHooks(address(this)), true);
         V1MockIssuerWrapped(u).mintTestShares(w, 1);
         permissionsFactory.verifyPermissionsAdapter(w);
         return _config(w, securityId, adapter);

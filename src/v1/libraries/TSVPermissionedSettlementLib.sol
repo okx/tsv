@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {IPermissionsAdapter} from "../vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
 
 /// @notice Internal safe-transfer helpers. Never syncs or settles PoolManager debt.
 /// @dev Token exact-transfer behavior is enforced at admission; these helpers do not recheck token balances.
