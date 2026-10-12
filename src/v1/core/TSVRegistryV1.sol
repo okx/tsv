@@ -410,10 +410,18 @@ contract TSVRegistryV1 is TSVGoverned {
         emit QuoteTokenRegistered(quote, rawDecimals);
     }
 
-    /// @notice Disables a registered quote token while preserving its stored metadata for audit reads.
-    /// @param quote Quote token address to disable.
-    function disableQuoteToken(address quote) external onlyRole(SYMBOL_ADMIN_ROLE) {
+    /// @notice Disables a registered quote token for future pool registration while preserving metadata.
+    /// @param quote Quote token address whose future pool registration should be disabled.
+    function disableQuoteTokenPoolRegister(address quote) external onlyRole(SYMBOL_ADMIN_ROLE) {
         QuoteTokenRecord storage config = quoteTokens[quote];
+        if (!config.registered) revert InvalidStatus();
+        config.registered = false;
+    }
+
+    /// @notice Disables a canonical underlying for future pool registration while preserving metadata.
+    /// @param u Canonical underlying whose future pool registration should be disabled.
+    function disableUnderlyingPoolRegister(address u) external onlyRole(SYMBOL_ADMIN_ROLE) {
+        UnderlyingRecord storage config = underlyings[u];
         if (!config.registered) revert InvalidStatus();
         config.registered = false;
     }
@@ -728,8 +736,10 @@ contract TSVRegistryV1 is TSVGoverned {
         }
         if (canonicalUnderlying.securityId == 0) {
             underlyings[underlying] =
-                UnderlyingRecord(registerParam.securityId, registerParam.legalShareAdapter, rawDecimals);
+                UnderlyingRecord(registerParam.securityId, registerParam.legalShareAdapter, rawDecimals, true);
             emit UnderlyingBound(underlying, registerParam.securityId, registerParam.legalShareAdapter, rawDecimals);
+        } else {
+            canonicalUnderlying.registered = true;
         }
         currencyUnderlying[currency] = underlying;
         emit PermissionedCurrencyRegistered(currency, underlying, registerParam.securityId);
@@ -747,9 +757,9 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return Whether `asset` is a registered quote or a listed permissioned stock.
     function _assetAllowed(address asset) private view returns (bool) {
         address underlying = currencyUnderlying[asset];
-        return underlying != address(0)
-            ? securities[underlyings[underlying].securityId].listed
-            : quoteTokens[asset].registered;
+        if (underlying == address(0)) return quoteTokens[asset].registered;
+        UnderlyingRecord storage config = underlyings[underlying];
+        return config.registered && securities[config.securityId].listed;
     }
     /// @dev Applies registration and pause checks for one pool operation type.
     /// @param poolId Registered pool ID to check.

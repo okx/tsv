@@ -10,7 +10,6 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {
     UnderlyingRecord,
-    QuoteTokenRecord,
     SecurityOperationType,
     SecurityPauseMode
 } from "tsv-v1/types/TSVTypes.sol";
@@ -103,15 +102,14 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         assertEq(ledger.used(SECURITY, DAY), 0);
     }
 
-    function testLedgerRejectsUnknownAndWrongTypeQuoteFromHookAndRollsBackCharge() public {
-        address q = address(quote);
-        vm.mockCall(
-            address(registry), abi.encodeCall(TSVRegistryV1.getQuoteToken, (q)), abi.encode(QuoteTokenRecord(6, false))
-        );
-        vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
+    function testDisabledQuotePoolRegisterDoesNotBreakExistingPoolAccounting() public {
+        registry.disableQuoteTokenPoolRegister(address(quote));
         _callback(-1e18);
-        assertEq(ledger.used(SECURITY, DAY), 0);
-        vm.clearMockedCalls();
+        assertEq(ledger.used(SECURITY, DAY), 1e18);
+    }
+
+    function testLedgerRejectsWrongTypeQuoteFromHookAndRollsBackCharge() public {
+        address q = address(quote);
         vm.mockCall(
             address(registry), abi.encodeCall(TSVRegistryV1.getCurrencyUnderlying, (q)), abi.encode(address(stockToken))
         );
@@ -155,16 +153,11 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
         assertEq(ledger.used(SECURITY, DAY), 0);
     }
 
-    function testLedgerRejectsUnregisteredQuoteIndependentlyAndRollsBackCharge() public {
-        vm.mockCall(
-            address(registry),
-            abi.encodeCall(TSVRegistryV1.getQuoteToken, (address(quote))),
-            abi.encode(QuoteTokenRecord(6, false))
-        );
+    function testLedgerRejectsUnknownPoolAndRollsBackCharge() public {
         bool stock0 = Currency.unwrap(key.currency0) == address(stock);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidLegalShareAmount.selector);
         ledger.recordSwap(
-            poolId,
+            keccak256("unknown-pool"),
             stock0 ? -int128(1e18) : int128(1e6),
             stock0 ? int128(1e6) : -int128(1e18),
             stock0 ? 1e18 : 0,

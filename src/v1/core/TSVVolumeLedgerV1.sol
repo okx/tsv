@@ -457,6 +457,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
         uint32 day = currentTradeDay();
         address currency0 = Currency.unwrap(pool.key.currency0);
         address currency1 = Currency.unwrap(pool.key.currency1);
+        if (currency0 == address(0) || currency1 == address(0)) revert InvalidLegalShareAmount();
         _recordLeg(poolId, _legSecurityId(pool.securityId, currency0), currency0, delta0, legalShares0, day);
         _recordLeg(poolId, _legSecurityId(pool.securityId, currency1), currency1, delta1, legalShares1, day);
     }
@@ -467,9 +468,9 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     }
 
     /// @dev Validates and accounts one pool leg using its canonical legal-share conversion.
-    ///      Quote-token legs are validated as registered quote tokens and return without consuming quota. Stock
-    ///      legs must resolve to an underlying whose security matches the pool, have a nonzero legalSharesWad, and
-    ///      then call _consume before emitting the audit event.
+    ///      Quote-token legs are validated by the stored pool key before this helper and return without consuming
+    ///      quota. Stock legs must resolve to an underlying whose security matches the pool, have a nonzero
+    ///      legalSharesWad, and then call _consume before emitting the audit event.
     /// @param poolId Pool that produced the actual swap delta.
     /// @param securityId Security assigned to this Currency, or zero for a non-stock token.
     /// @param currency Pool Currency associated with the delta.
@@ -486,9 +487,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     ) private {
         address underlyingAddress = registry.getCurrencyUnderlying(currency);
         if (underlyingAddress == address(0)) {
-            if (!registry.getQuoteToken(currency).registered || securityId != 0 || legalSharesWad != 0) {
-                revert InvalidLegalShareAmount();
-            }
+            if (securityId != 0 || legalSharesWad != 0) revert InvalidLegalShareAmount();
             return;
         }
         UnderlyingRecord memory underlying = registry.getUnderlying(underlyingAddress);

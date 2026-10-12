@@ -194,9 +194,13 @@ interface ITSVPermissionedRegistry {
     /// @param q Quote token address to register.
     function registerQuoteToken(address q) external;
 
-    /// @notice Disables a registered quote token while preserving stored metadata.
-    /// @param quote Quote token address to disable.
-    function disableQuoteToken(address quote) external;
+    /// @notice Disables a registered quote token for future pool registration while preserving stored metadata.
+    /// @param quote Quote token address whose future pool registration should be disabled.
+    function disableQuoteTokenPoolRegister(address quote) external;
+
+    /// @notice Disables a canonical underlying for future pool registration while preserving stored metadata.
+    /// @param u Canonical underlying whose future pool registration should be disabled.
+    function disableUnderlyingPoolRegister(address u) external;
 
     /// @notice Replaces the canonical legal-share adapter for an underlying.
     /// @param u Canonical underlying whose legal-share adapter is replaced.
