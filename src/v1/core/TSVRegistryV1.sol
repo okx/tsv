@@ -404,6 +404,10 @@ contract TSVRegistryV1 is TSVGoverned {
 
     // W, U, and Q registration and configuration.
     /// @notice Atomically lists a new security with its first stock W, or adds a W to an existing listed security.
+    /// @dev Risk disclaimer (issue #6, item 1): governance must never reuse a historical quote token as W or U,
+    ///      even after disabling its future pool registration. This admission rule has no permanent on-chain
+    ///      quote marker. Reusing Q as U can leave existing W_A/Q pools outside the new security's pause, quota,
+    ///      multiplier and issuer controls.
     /// @param registerParam Permissioned stock registration payload for the W/U/security binding.
     /// @param tierId Tier to assign to a newly listed security, or the existing security tier for additional W.
     /// @param reasonCode Nonzero operational reason code for the registration.
@@ -432,6 +436,10 @@ contract TSVRegistryV1 is TSVGoverned {
     }
 
     /// @notice Registers an original quote ERC-20; stock identities cannot become quotes.
+    /// @dev Risk disclaimer (issue #6, item 4): admission must ensure quote transfers cannot be rejected by an
+    ///      LP through receiver-controlled callbacks or other receiver-controlled behavior, including after
+    ///      token upgrades. These properties are not checked here. Otherwise both forced-exit paths may revert,
+    ///      restoring the position NFT and its pool count and preventing pool/security delisting.
     /// @param quote Quote token address to register.
     /// @param reasonCode Nonzero operational reason code for registering the quote token.
     function registerQuoteToken(address quote, bytes32 reasonCode) external onlyRole(SYMBOL_ADMIN_ROLE) {
@@ -445,6 +453,8 @@ contract TSVRegistryV1 is TSVGoverned {
     }
 
     /// @notice Disables a registered quote token for future pool registration while preserving metadata.
+    /// @dev Existing pools retain the quote identity. Clearing registered does not make the token safe to
+    ///      register as W or U; the historical-quote admission rule above must still be followed.
     /// @param quote Quote token address whose future pool registration should be disabled.
     /// @param reasonCode Nonzero operational reason code for disabling the quote token.
     function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode)
