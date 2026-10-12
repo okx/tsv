@@ -699,8 +699,90 @@ async function submitVolumeMulticallTransaction(oracleSigner, volumeLedgerAddres
 
 Each `results[i]` contains the ABI-encoded return value of subcall i; both write functions return no value, so their results are `0x`. Parse `QuotaSet` / `UsedWadSet` events from the Ledger proxy in the transaction receipt. When the same field for the same security and day is written repeatedly, the last write takes effect. This helper permits only the two backend write methods. The contract's `multicall` can combine other public entry points, but does not bypass role or Hook caller checks.
 
+### 8. Multiplier Changes: Synchronizing Quota and usedWad
+
+**The Ledger does not automatically update quotas or usage when the multiplier changes.** The current `ERC8056DirectLegalShareAdapter` computes `legalSharesWad = floor(rawAmount × multiplier / 10^decimals)`. The algorithm below preserves the underlying raw-token quantities represented by the quota and usage, restating both in the new multiplier's share units. It assumes unchanged token decimals and Adapter conversion logic.
+
+#### Formula and Rounding
+
+Let `Mold` be the multiplier basis currently used by these quota and usage values, and `Mnew` the new multiplier. Both must be positive. Obtain `Mold` from the backend's persisted accounting-basis record; after activation, do not use the latest on-chain multiplier as both the old and new value.
+
+```text
+quotaNewWad = floor(quotaOldWad × Mnew / Mold)
+usedNewWad  = ceil(usedOldWad × Mnew / Mold)
+remainingNewWad = max(quotaNewWad - usedNewWad, 0)
+```
+
+The ratio is **new multiplier / old multiplier**, not its inverse. Both multipliers have the same precision, which cancels in the ratio; do not multiply or divide by an additional `10^18`. Multiply integers before dividing, use `bigint` throughout, and do not calculate a floating-point ratio first. Rounding quota down and usage up is this guide's conservative backend conversion policy, intended to avoid increasing available quota through rounding. Neither setter implements this rounding internally.
+
+| Old → new multiplier | Old quota / usage (shares) | New quota / usage (shares) | New remaining quota (shares) |
+| --- | --- | --- | --- |
+| `1e18 → 2e18` | `1000 / 300` | `2000 / 600` | `1400` |
+| `2e18 → 1e18` | `1000 / 300` | `500 / 150` | `350` |
+
+Apply the formula even at the smallest WAD unit. For example, `Mold = 3e18`, `Mnew = 2e18`, `quotaOldWad = 10`, and `usedOldWad = 4` produce `quotaNewWad = 6`, `usedNewWad = 3`, and remaining quota 3. These example amounts are integer WAD units, not whole shares. Do not clamp `usedNewWad` to `quotaNewWad`, or scale remaining quota first and infer usage from it.
+
+#### Backend Execution Order
+
+1. **Lock the security and pause trading.** Acquire a backend exclusive job for `(chainId, ledgerAddress, securityId)` and stop other quota/usage writers. Pause swaps across every pool of the security before the new multiplier activates, and wait for confirmation. In the current Registry, a `HALT_REPORTER_ROLE` holder can call `applySecurityStatus(securityId, mode)`: preserve existing pause bits and set the `TRADE` bit (`NONE=0`, `TRADE=1`, `LP=2`, `ALL=3`; target `oldMode | 1`). Do not repeat the call if trading is already paused. This role differs from `VOLUME_ORACLE_ROLE`; stopping backend quotes alone does not block other on-chain trading entry points.
+2. **Choose days and snapshot the old basis.** After pause confirmation, read `currentESTDay()`, `Quota`, and `usedWad` for the target days at the same block. Record its number and hash, original values, and `Mold`. Derive the current EST day using Section 3. Also convert preconfigured future days still on the old basis; do not reconvert days already configured on the new basis. Keep completed days as historical records by default. If the process crosses 05:00 UTC, recheck that the day on which trading resumes and the relevant preconfigured days are covered.
+3. **Confirm the new multiplier and scope.** Resolve the Adapter through `registry.getUnderlying(underlyingToken).legalShareAdapter`, then call `currentMultiplier(underlyingToken)` to confirm that `Mnew` is active. Calculations may be prepared earlier from an issuer-confirmed schedule. Scale a security's aggregate only if all affected quota and usage values share the same old basis and all related underlying tokens use the same conversion ratio. Pools sharing a `securityId` share its usage; convert each security/day once, rather than once per pool.
+4. **Calculate and write atomically.** Generate quota and usage arrays for the same set of days using the formulas above. Execute `setQuota(securityId, quotaValues, reasonCode)` and `setUsedWad(securityId, usedValues, reasonCode)` in one Ledger `multicall`. The signer must hold `VOLUME_ORACLE_ROLE`. Simulate and estimate gas for the full batch before submitting it. Keep trading, other writes, and further multiplier changes coordinated and paused until verification completes. Registry pause operations and the external token's multiplier update are outside the atomic scope of Ledger `multicall`.
+5. **Verify before resuming.** Check every `QuotaSet` / `UsedWadSet` in the successful receipt, then read back quota, usage, and the new multiplier at the receipt block. After confirmation, mark each target day's accounting basis as `Mnew` and record the transaction hash and unique change-event ID. Restore only operations paused by this job, preserving pauses imposed by other administrators. On failure, keep trading paused while resolving the issue.
+
+The multiplier query ABI is `function currentMultiplier(address underlyingToken) view returns (uint256)`. Neither Ledger setter accepts an expected old value or multiplier. `multicall` makes the two writes atomic but does not verify snapshot freshness; backend locking, an on-chain pause, and coordination of multiplier changes remain necessary.
+
+#### Calculation and Batch Construction
+
+The example reuses the submission helper from Section 7. `snapshots` contains target days read at the same paused block, each shaped as `{ ESTDay, quotaWad, usedWad }`. None has already been converted from `oldMultiplier` to `newMultiplier`.
+
+```javascript
+function buildMultiplierSyncUpdates(input) {
+  const { securityId, oldMultiplier, newMultiplier, snapshots, reasonCode } = input;
+  const maxUint256 = (1n << 256n) - 1n;
+  const checkUint256 = (value) => {
+    if (typeof value !== "bigint" || value < 0n || value > maxUint256) {
+      throw new Error("Expected uint256 bigint");
+    }
+  };
+  checkUint256(oldMultiplier);
+  checkUint256(newMultiplier);
+  if (oldMultiplier === 0n || newMultiplier === 0n) throw new Error("Zero multiplier");
+  if (snapshots.length === 0) throw new Error("Empty snapshots");
+  const seenDays = new Set();
+  const quotaValues = [];
+  const usedValues = [];
+  for (const { ESTDay, quotaWad, usedWad } of snapshots) {
+    [ESTDay, quotaWad, usedWad].forEach(checkUint256);
+    if (seenDays.has(ESTDay)) throw new Error("Duplicate ESTDay");
+    seenDays.add(ESTDay);
+    const quotaNewWad = (quotaWad * newMultiplier) / oldMultiplier;
+    const usedNewWad = (usedWad * newMultiplier + oldMultiplier - 1n) / oldMultiplier;
+    checkUint256(quotaNewWad);
+    checkUint256(usedNewWad);
+    quotaValues.push({ ESTDay, amount: quotaNewWad });
+    usedValues.push({ ESTDay, amount: usedNewWad });
+  }
+  return [
+    { method: "setQuota", securityId, values: quotaValues, reasonCode },
+    { method: "setUsedWad", securityId, values: usedValues, reasonCode },
+  ];
+}
+// const updates = buildMultiplierSyncUpdates(syncInput);
+// await submitVolumeMulticallTransaction(oracleSigner, volumeLedgerAddress, updates);
+```
+
+#### Retries and Mixed Accounting Bases
+
+Track processing by security, day, and multiplier-change event. Do not deduplicate only by the `Mold/Mnew` pair, because the same transition can occur again. After a network timeout, check the original receipt and on-chain values first. Retry only the saved absolute target values, after confirming that the pause is still active, the job has not completed, and no later multiplier or administrator changes have occurred. **Do not read already-converted values and multiply them by the same ratio again. Do not replay old absolute values after trading resumes, as doing so would overwrite new volume.** `reasonCode` is only for event tracing; the contract does not use it for deduplication.
+
+If trades have occurred after the new multiplier activated, `usedWad` may mix old and new units. Do not multiply the entire total by `Mnew/Mold`. Pause first and reconstruct usage in execution order, partitioned by the actual multiplier: convert old-basis usage and leave new-basis usage unchanged. For example, if old-basis usage is 300 shares and another 50 shares trade under the doubled multiplier, the correct new total is `300 × 2 + 50 = 650`, not `(300 + 50) × 2 = 700`. Include historical administrator corrections and earlier synchronizations in the basis records. `VolumeUsed` alone does not contain a multiplier, so the current multiplier cannot establish the basis of each past trade.
+
+This algorithm scales stored WAD aggregates. It can differ by rounding units from recalculating each raw trade under the new multiplier. If exact per-trade recalculation is required, retain each raw amount and reapply the Adapter's floor-rounding rule. A current aggregate without trustworthy old multipliers and segment records is insufficient to reconstruct mixed-basis usage reliably; keep trading paused until reconciliation is complete.
+
 ## Source References
 
 - LP: [TSVLPManagerV1](../src/v1/periphery/TSVLPManagerV1.sol), [validation and unwind logic](../src/v1/libraries/TSVLPManagerLib.sol), and the [inherited PositionManager](../src/v1/vendor/permissionedPools/PositionManager.sol).
 - Swap: [TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol), [SwapRequest](../src/v1/types/TSVTypes.sol), and [Hook](../src/v1/core/TSVHookV1.sol).
 - Volume Ledger: `setQuota`, `setUsedWad`, `currentESTDay`, and `recordSwap` in [TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol).
+- Multiplier: `currentMultiplier` / `toLegalShares` in [ERC8056DirectLegalShareAdapter](../src/v1/adapters/ERC8056DirectLegalShareAdapter.sol); security trading pauses use `applySecurityStatus` in [Registry](../src/v1/core/TSVRegistryV1.sol).
