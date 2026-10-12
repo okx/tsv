@@ -7,11 +7,9 @@ import {V4Router, IPoolManager, Currency, PoolKey} from "../../V4Router.sol";
 import {
     IPermissionsAdapter,
     IHooks as AdapterHooks
-} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
-import {
-    IPermissionsAdapterFactory
-} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
-import {PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+} from "../../../permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {IPermissionsAdapterFactory} from "../../../permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {PermissionFlags} from "../../../permissionedPools/libraries/PermissionFlags.sol";
 
 /// @title Abstract base for routers that support permissioned V4 pools
 /// @notice Provides _pay and _mapSettleAmount overrides for wrapping/unwrapping permissioned tokens.

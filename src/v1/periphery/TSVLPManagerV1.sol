@@ -21,9 +21,6 @@ import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.s
 import {PoolLifecycle} from "../types/TSVTypes.sol";
 import {ITokenApproveProxy} from "../interfaces/ITokenApproveProxy.sol";
 import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
-import {
-    PermissionFlags as RegistryPermissionFlags
-} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {ERC721Permit_v4} from "../vendor/permissionedPools/base/ERC721Permit_v4.sol";
 import {PositionManager} from "../vendor/permissionedPools/PositionManager.sol";
 import {BaseActionsRouter} from "../vendor/permissionedPools/base/BaseActionsRouter.sol";

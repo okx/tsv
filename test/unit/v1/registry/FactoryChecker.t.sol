@@ -4,14 +4,15 @@ pragma solidity 0.8.26;
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {IAllowlistChecker} from "tsv-v1/vendor/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {IPermissionsAdapterFactory} from "tsv-v1/vendor/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 import {
-    IPermissionsAdapterFactory
-} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
-import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
-import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
-import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
-import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+    IERC20 as PermissionedIERC20,
+    IHooks as AdapterHooks
+} from "tsv-v1/vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {PermissionsAdapter} from "tsv-v1/vendor/permissionedPools/PermissionsAdapter.sol";
+import {PermissionsAdapterFactory} from "tsv-v1/vendor/permissionedPools/PermissionsAdapterFactory.sol";
+import {PermissionFlag, PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 import {OperationsSbt} from "../../../helpers/v1/OperationsMocks.sol";
 import {V1IssuerAllowlistChecker} from "../../../helpers/v1/PermissionedMocks.sol";
@@ -62,7 +63,7 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         assertEq(permissionsFactory.verifiedPermissionsAdapterOf(w), address(stockToken));
         assertEq(registry.getCurrencyUnderlying(w), address(0));
         PermissionsAdapter(w).updateAllowedWrapper(address(permissionedRouterFixture), true);
-        PermissionsAdapter(w).updateAllowedHook(key.hooks, true);
+        PermissionsAdapter(w).updateAllowedHook(AdapterHooks(address(key.hooks)), true);
         registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1, bytes32("TEST"));
         assertEq(registry.getCurrencyUnderlying(w), address(stockToken));
     }

@@ -11,14 +11,12 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeab
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVPermissionedSettlementLib} from "tsv-v1/libraries/TSVPermissionedSettlementLib.sol";
 import {PermissionedV4Router} from "tsv-v1/vendor/v4-router/hooks/permissionedPools/PermissionedV4Router.sol";
-import {PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {PermissionFlags} from "../vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {IV4Router} from "tsv-v1/vendor/v4-router/interfaces/IV4Router.sol";
 import {Actions} from "tsv-v1/vendor/v4-router/libraries/Actions.sol";
 import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
-import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
-import {
-    IPermissionsAdapterFactory
-} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {IPermissionsAdapter} from "../vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {IPermissionsAdapterFactory} from "../vendor/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
 /// @notice One-pool exact-input W/Q swaps submitted by approved adapters.
 contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router, ReentrancyLock {

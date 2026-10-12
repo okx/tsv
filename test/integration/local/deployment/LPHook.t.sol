@@ -32,7 +32,7 @@ import {
     SecurityOperationType,
     SecurityPauseMode
 } from "tsv-v1/types/TSVTypes.sol";
-import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {PermissionFlag, PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolId, PoolIdLibrary} from "lib/v4-periphery/lib/v4-core/src/types/PoolId.sol";
 import {V1LocalSBT} from "../../../helpers/v1/LocalMocks.sol";
 import {V1SwapToken} from "../../../helpers/v1/WrappedSwapMocks.sol";

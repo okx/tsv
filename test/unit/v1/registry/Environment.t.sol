@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {TSVRegistryV1, ISmartWalletSbtV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
 import {V1PermissionedComponent} from "../../../helpers/v1/PermissionedMocks.sol";

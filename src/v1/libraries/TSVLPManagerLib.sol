@@ -11,9 +11,6 @@ import {
     PermissionFlags,
     IHooks
 } from "../vendor/permissionedPools/PermissionedPositionManager.sol";
-import {
-    PermissionFlags as RegistryPermissionFlags
-} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
 import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.sol";
 import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
 import {PositionInfo} from "v4-periphery/libraries/PositionInfoLibrary.sol";
@@ -324,7 +321,7 @@ library TSVLPManagerLib {
     }
 
     function _requireLiquidityPermission(ITSVPermissionedRegistry registry, address account) private view {
-        if (!registry.isSbtAllowed(RegistryPermissionFlags.LIQUIDITY_ALLOWED, account)) revert Unauthorized();
+        if (!registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, account)) revert Unauthorized();
     }
 
     /// @dev Identical validation order and errors to PermissionedPositionManager._validateLiquidityCurrency.

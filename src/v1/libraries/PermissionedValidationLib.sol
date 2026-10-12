@@ -3,11 +3,9 @@ pragma solidity 0.8.26;
 
 import {UnderlyingRecord, QuoteTokenRecord} from "tsv-v1/types/TSVTypes.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
-import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
-import {
-    IPermissionsAdapterFactory
-} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
-import {IAllowlistChecker, IERC165} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {IPermissionsAdapter} from "../vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {IPermissionsAdapterFactory} from "../vendor/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {IAllowlistChecker, IERC165} from "../vendor/permissionedPools/interfaces/IAllowlistChecker.sol";
 
 interface IPermissionedRegistryViews {
     function permissionsAdapterFactory() external view returns (address);

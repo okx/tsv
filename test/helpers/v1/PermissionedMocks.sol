@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IAllowlistChecker, IERC165} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
-import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {IAllowlistChecker, IERC165} from "tsv-v1/vendor/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {PermissionFlag, PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
 
 /// @dev Issuer-owned policy fixture. It neither calls nor depends on TSV Registry or SBT.
 contract V1IssuerAllowlistChecker is IAllowlistChecker {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {PermissionFlag, PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {PoolManager} from "v4-core/PoolManager.sol";
@@ -25,10 +25,13 @@ import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
-import {PermissionsAdapter} from "v4-periphery/hooks/permissionedPools/PermissionsAdapter.sol";
-import {PermissionsAdapterFactory} from "v4-periphery/hooks/permissionedPools/PermissionsAdapterFactory.sol";
-import {IERC20 as PermissionedIERC20} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
-import {IAllowlistChecker} from "v4-periphery/hooks/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {PermissionsAdapter} from "tsv-v1/vendor/permissionedPools/PermissionsAdapter.sol";
+import {PermissionsAdapterFactory} from "tsv-v1/vendor/permissionedPools/PermissionsAdapterFactory.sol";
+import {
+    IERC20 as PermissionedIERC20,
+    IHooks as AdapterHooks
+} from "tsv-v1/vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
+import {IAllowlistChecker} from "tsv-v1/vendor/permissionedPools/interfaces/IAllowlistChecker.sol";
 import {V1MockIssuerShares} from "./MockIssuerTokens.sol";
 import {V1LocalSBT, V1TestExternalAdapter} from "./LocalMocks.sol";
 import {V1ConfigReceiver, V1IssuerAllowlistChecker} from "./PermissionedMocks.sol";
@@ -161,7 +164,7 @@ abstract contract WrappedSwapFixture is Test {
         );
         w.updateAllowedWrapper(address(router), true);
         w.updateAllowedWrapper(address(seed), true); // Explicitly test-only.
-        w.updateAllowedHook(IHooks(address(hook)), true);
+        w.updateAllowedHook(AdapterHooks(address(hook)), true);
         underlying.mint(address(w), 17); // Verification dust must survive all swaps.
         factory.verifyPermissionsAdapter(address(w));
     }

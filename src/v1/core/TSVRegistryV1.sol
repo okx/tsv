@@ -19,11 +19,10 @@ import {
     SecurityPauseMode,
     SecurityOperationCheckType
 } from "tsv-v1/types/TSVTypes.sol";
-import {PermissionFlag, PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+import {PermissionFlag, PermissionFlags} from "../vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {PermissionedValidationLib} from "tsv-v1/libraries/PermissionedValidationLib.sol";
-import {IPermissionsAdapterFactory} from
-    "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {IPermissionsAdapterFactory} from "../vendor/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
 /// @dev Defines the SBT pause and credential-verification views required by the Registry.
 interface ISmartWalletSbtV1 {
