@@ -278,6 +278,10 @@ contract TSVRegistryV1 is TSVGoverned {
             revert InvalidConfig();
         }
         if (!sbtIdentityConfig[tokenId].registered) identityTokenIds.push(tokenId);
+        // `permissionsOf` returns this raw vendor bitmask, while `isSbtAllowed`
+        // only treats SWAP_ALLOWED and LIQUIDITY_ALLOWED as TSV permissions.
+        // Consumers must not interpret other stored bits, such as UNWIND_ALLOWED
+        // or ALL_ALLOWED, as current TSV operation privileges.
         sbtIdentityConfig[tokenId] = SbtIdentityConfig(true, permissions);
         emit SbtConfigChanged(participantSbt, tokenId, permissions, reasonCode);
     }
