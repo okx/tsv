@@ -1,5 +1,5 @@
-# 实际治理账户测试扩展入口
+# Governance integration test boundary
 
-此目录预留实际 Governor、Guardian、Council 合约账户的集成测试，当前没有生产多签演练套件。
+This directory contains no executable `.t.sol` suite. The current source uses AccessControl and UUPS roles rooted at `TSVRegistryV1`; it does not include Governor, Guardian, RecoveryCouncil, Governance Anchor, batch upgrade freeze, or identity-recovery contracts.
 
-需要提供实际多签实现/版本、部署地址、签名门槛、模块配置和受控签名账户。验证单笔/批量升级、冻结/解冻、身份恢复审批/撤回/取消、权限轮换及重放拒绝。现有 `GovernorExecutor` 仅验证合约调用路径，不能代替这些验证。
+Current role and upgrade tests are under `test/unit/v1/governance/` and `test/unit/v1/deployment/`. Production key custody, multi-signature procedures, role assignment, and target-chain upgrade rehearsal require separate deployment evidence.

@@ -1,43 +1,20 @@
-# TSV Adapter 实现与测试依赖
+# TSV Adapter 源码位置与接口
 
-## 固定实现
+当前 Adapter 实现在 pinned submodule [`lib/dex-adapters`](../lib/dex-adapters/)，源码为 `src/adapters/uniswap-v4/TSVAdapter.sol`；与当前 TSV Router 的连接规范见 [`EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md`](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md)。submodule 版本以仓库 gitlink 和 `git submodule status` 为准，不以本说明里的历史提交号为准。
 
-- 仓库：https://gitlab.okg.com/web3-dex/GitHub-Web3-DEX-Adapters-EVM
-- 提交：`e38c6b109875893ad037677eb8d8221fa4b5687b`
-- 子模块：`lib/dex-adapters`
-- 实现：`src/adapters/uniswap-v4/TSVAdapter.sol`，在固定上游版本上增加 Main Router ABI 适配、W→U / Q→Q 结算币映射、当前股票侧 multiplier 读取和合约预存输入结算。
-- 初始化：`git submodule update --init lib/dex-adapters`。
+## 当前实现
 
-Foundry 的上下文 remapping 将该子模块的 `@interfaces` 和 `@libraries` 限定在其自己的源码中。
+`TSVAdapter` 实现外部 `IAdapter.sellBase` / `sellQuote`，通过 `ITSVSwapRouter.swapExactInputFromContract` 连接 TSV。它只支持单池 exact-input：方向取自入口；PoolKey 和 `expectedMultiplier` 由 `MoreInfo` 提供；输入 Token 由 Router `settlementCurrency(W)` 映射为 U，Q 保持原地址。
 
-## 与旧测试夹具的差异
+`MoreInfo` 由 `PoolKey`、multiplier 快照、签名到期时间、允许 caller 列表、nonce 和签名组成。CallerAuth 将 adapter 地址、链 ID、allowedCallers、nonce 和 `(key, expectedMultiplier, expiry)` 摘要纳入验证。调用者名单包含实际 `msg.sender` 才能通过；nonce 为单次使用。Adapter 从经验证的尾部 marker 获取 SBT participant，退款地址 marker 只用于输入退款。
 
-真实 Adapter 构造参数为 `(tsvRouter, authSigner)`。`MoreInfo` 编码为 `(PoolKey key, uint64 expiry, address[] allowedCallers, uint256 nonce, bytes authSig)`。后端签名绑定 Adapter、池、expiry、允许的调用合约、单次 nonce 及 chainId，签名为 64 字节 EIP-2098 格式。测试使用固定的测试专用签名 key，不配置生产签名密钥。
+Adapter 使用自身 settlement-token 全部余额作为输入，并拒绝 0 或大于 `int128.max` 的金额。Router 仍要求全额成交；Adapter 检查 Router 返回量、余额 delta 并只把当前交易的输出增量发送给 `to`。TSVAdapter 使用最小非零 `limitAmount`，产品滑点和外层 deadline 由 DexRouter 处理。
 
-`sellBase` 卖 currency0，`sellQuote` 卖 currency1。签名和 TSV 请求的 PoolKey 为 W/Q；Adapter 通过 Router 的 `settlementCurrency` 查询 W→U、Q→Q 映射，并通过 Router Registry 读取股票侧 canonical Adapter 的当前 multiplier。Main Router 保留 `swapExactInputFromAdapterDirect`，同时新增 `swapExactInputFromContract`：后者从已授权 Adapter 拉取预存输入、以 marker 中的 participant 检查 SBT、把输出返给 Adapter。TSVAdapter 再将本次输出转给外部 DEX 指定的 hop 收款地址。
+## 边界
 
-身份来自倒数第 64 字节的 caller marker，退款地址来自最后 32 字节的 ORIGIN_PAYER；必须有规范 ABI calldata 加恰好两个 marker。旧夹具从 refund marker 提取 SBT 身份的行为已删除。
+- Router 必须先把 Adapter 地址加入 `isAdapterAllowed`；此 TSV allowlist 与签名 `allowedCallers` 是两层不同授权。
+- 外部 DexRouter caller marker 的产生/尾部排列由 DexRouter 协议与 Adapter 的 `CallerAuth` 实现共同决定；不要从本文推导其他 Adapter 的 marker 规则。
+- SBT 的 participant 身份检查由 TSV Router/Registry 执行，issuer swap permission 由 W 执行。后端应确认 signer、可信 caller 集合和 Adapter 部署地址。
+- 本文描述源码，不构成某个 Adapter、DexRouter、TSV Router 或 signer 已在目标链部署并相互授权的证据。
 
-上游 Adapter 的 TSV 请求采用 `limitAmount=1`、`deadline=block.timestamp`，交易滑点及订单期限由外部 DexRouter 负责；`expiry` 单独控制签名有效期。本地 callback 测试仅验证 Adapter/TSV 交互，外部 DexRouter 全局 minReturnAmount 的原子回滚由 fork 测试验证。
-
-## 测试
-
-- `test/integration/local/trading/DexAdapter.t.sol`：签名可信来源、marker 格式、SBT 与收款/退款地址区分、双向兑换、余额语义、授权清理、部分成交退款、签名重放及过期。
-- `test/integration/xlayer/DexRouterFlow.t.sol.deferred`（仍待 Wrapped LP 与目标链迁移）：使用固定区块真实 DexRouter、TSVAdapter 和本地部署的 TSV/V4。保留双向、拆单、多跳、AA、指定 receiver、全局滑点、部分成交和暂停等场景。
-- `test/helpers/v1/TSVAdapterFixture.sol`：只生成签名和路由数据，实际兑换由上游 TSVAdapter 执行。Router 边界测试中的小型调用 mock 仍仅用于隔离 Router 权限和暂停行为。
-
-运行：
-
-```sh
-FOUNDRY_PROFILE=local forge test --match-path 'test/integration/local/trading/*.t.sol' --summary
-```
-
-本依赖不代表已部署生产 Adapter；正式签名服务、真实生产资产及生产 SBT 仍须按上线流程验收。
-
-## Wrapped 模式验证记录（2026-10-08）
-
-本地交易目录 42 项通过，0 失败、0 跳过；此为移除普通 Adapter 结算模式前的历史记录。其中现有 TSVAdapter 的 11 项用例使用真实 W/Q 池、U/Q 收付。XLayer 用例仍延期，未计入本次通过数。
-
-## 历史 DIRECT 模式验证记录
-
-本地交易目录回归：52 通过，0 失败，0 跳过，其中上游 Adapter 接入用例 9 项。固定区块 XLayer DEX 套件：11 通过，0 失败，0 跳过。验证期间工作区存在并行的哈希参数清理，完整 fork 验证使用本次开始时提交 `a8e577a` 加本次 Adapter 改动的隔离快照；不把此结果解释为并行修改的全项目验证。
+相关 Adapter 单元/集成测试位于 submodule 的 `test/adapters/uniswap-v4/TSVAdapterUnit.t.sol`、`Tsv.t.sol` 和 `TsvTestBase.sol`。本仓库自身的本地合约集成测试位于 `test/integration/local/trading/DexAdapter.t.sol`。

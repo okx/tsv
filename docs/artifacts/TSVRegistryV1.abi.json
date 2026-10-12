@@ -165,17 +165,12 @@
         "internalType": "bytes32"
       },
       {
-        "name": "action",
-        "type": "uint8",
-        "internalType": "enum SecurityOperationType"
-      },
-      {
         "name": "mode",
         "type": "uint8",
         "internalType": "enum SecurityPauseMode"
       },
       {
-        "name": "reportId",
+        "name": "reasonCode",
         "type": "bytes32",
         "internalType": "bytes32"
       }
@@ -227,11 +222,6 @@
         "internalType": "address"
       },
       {
-        "name": "dataInbox_",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "factory",
         "type": "address",
         "internalType": "address"
@@ -244,19 +234,6 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "dataInbox",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -654,25 +631,6 @@
   },
   {
     "type": "function",
-    "name": "getSecurityStatus",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "enum SecurityOperationStatus"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getTierPolicy",
     "inputs": [
       {
@@ -687,11 +645,6 @@
         "type": "tuple",
         "internalType": "struct TierPolicyRecord",
         "components": [
-          {
-            "name": "tierBps",
-            "type": "uint16",
-            "internalType": "uint16"
-          },
           {
             "name": "maxListed",
             "type": "uint32",
@@ -1342,11 +1295,6 @@
         "internalType": "uint8"
       },
       {
-        "name": "tierBps",
-        "type": "uint16",
-        "internalType": "uint16"
-      },
-      {
         "name": "maxListed",
         "type": "uint32",
         "internalType": "uint32"
@@ -1489,12 +1437,6 @@
       },
       {
         "name": "lpManager",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "dataInbox",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -1653,6 +1595,25 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "enum PoolLifecycle"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "QuoteTokenDisabled",
+    "inputs": [
+      {
+        "name": "quote",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -1843,34 +1804,16 @@
         "internalType": "bytes32"
       },
       {
-        "name": "oldStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "newStatus",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
         "name": "oldPauseMode",
         "type": "uint8",
         "indexed": false,
-        "internalType": "uint8"
+        "internalType": "enum SecurityPauseMode"
       },
       {
         "name": "newPauseMode",
         "type": "uint8",
         "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "reportId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        "internalType": "enum SecurityPauseMode"
       }
     ],
     "anonymous": false
@@ -1915,12 +1858,6 @@
         "type": "uint8",
         "indexed": true,
         "internalType": "uint8"
-      },
-      {
-        "name": "tierBps",
-        "type": "uint16",
-        "indexed": false,
-        "internalType": "uint16"
       },
       {
         "name": "maxListed",
@@ -1994,6 +1931,25 @@
         "name": "newAdapter",
         "type": "address",
         "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "reasonCode",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UnderlyingPoolRegisterDisabled",
+    "inputs": [
+      {
+        "name": "underlying",
+        "type": "address",
+        "indexed": true,
         "internalType": "address"
       },
       {
@@ -2163,43 +2119,5 @@
         "internalType": "address"
       }
     ]
-  },
-  {
-    "type": "event",
-    "name": "QuoteTokenDisabled",
-    "inputs": [
-      {
-        "name": "quote",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "UnderlyingPoolRegisterDisabled",
-    "inputs": [
-      {
-        "name": "underlying",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
   }
 ]

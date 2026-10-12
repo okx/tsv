@@ -1,15 +1,15 @@
 {
   "storage": [
     {
-      "astId": 11303,
+      "astId": 10033,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "registry",
       "offset": 0,
       "slot": "0",
-      "type": "t_contract(TSVRegistryV1)9898"
+      "type": "t_contract(TSVRegistryV1)8979"
     },
     {
-      "astId": 11307,
+      "astId": 10037,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "isAdapterAllowed",
       "offset": 0,
@@ -17,7 +17,7 @@
       "type": "t_mapping(t_address,t_bool)"
     },
     {
-      "astId": 11309,
+      "astId": 10040,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeParticipant",
       "offset": 0,
@@ -25,7 +25,7 @@
       "type": "t_address"
     },
     {
-      "astId": 11311,
+      "astId": 10043,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeAmountIn",
       "offset": 0,
@@ -33,7 +33,7 @@
       "type": "t_uint256"
     },
     {
-      "astId": 11313,
+      "astId": 10046,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeAmountOut",
       "offset": 0,
@@ -41,7 +41,7 @@
       "type": "t_uint256"
     },
     {
-      "astId": 11315,
+      "astId": 10049,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeRecipient",
       "offset": 0,
@@ -49,7 +49,7 @@
       "type": "t_address"
     },
     {
-      "astId": 11317,
+      "astId": 10052,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeInputCurrency",
       "offset": 0,
@@ -68,7 +68,7 @@
       "label": "bool",
       "numberOfBytes": "1"
     },
-    "t_contract(TSVRegistryV1)9898": {
+    "t_contract(TSVRegistryV1)8979": {
       "encoding": "inplace",
       "label": "contract TSVRegistryV1",
       "numberOfBytes": "20"

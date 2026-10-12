@@ -1,6 +1,6 @@
 # TSVRegistryV1 优化方案：Security 聚合操作状态与全局 Emergency Pause
 
-> 历史设计稿。2026-10-12 起，当前报告 ABI 已移除 reporter `sequence` 字段及 Registry 序号检查；本稿中的序号相关设计不再作为当前行为依据。以[编码规格 §7](./CODING_SPEC_V1.md#7-角色报告计量日和额度)为准。
+> **历史优化提案，不是当前实现说明。** 本稿中的 `MarketStateRecord`、独立 `marketStates` mapping、报告 ABI 和优化步骤属于当时方案；当前结构及状态以 [`src/v1/types/TSVTypes.sol`](../src/v1/types/TSVTypes.sol) 与 [`src/v1/core/TSVRegistryV1.sol`](../src/v1/core/TSVRegistryV1.sol) 为准。当前代码没有 DataInbox、reporter sequence 或 `MarketStateRecord`。代码行为见 [`SYSTEMS_OVERVIEW.md`](./SYSTEMS_OVERVIEW.md)。
 
 ## 1. 目标
 

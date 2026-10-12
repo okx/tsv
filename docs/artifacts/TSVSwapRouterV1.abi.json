@@ -629,11 +629,6 @@
   },
   {
     "type": "error",
-    "name": "SettlementMismatch",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "SlippageExceeded",
     "inputs": []
   },

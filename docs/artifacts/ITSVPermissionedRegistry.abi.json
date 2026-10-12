@@ -43,11 +43,6 @@
         "internalType": "address"
       },
       {
-        "name": "dataInbox",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "factory",
         "type": "address",
         "internalType": "address"
@@ -60,19 +55,6 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "dataInbox",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -420,25 +402,6 @@
   },
   {
     "type": "function",
-    "name": "getSecurityStatus",
-    "inputs": [
-      {
-        "name": "id",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "enum SecurityOperationStatus"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getTierPolicy",
     "inputs": [
       {
@@ -453,11 +416,6 @@
         "type": "tuple",
         "internalType": "struct TierPolicyRecord",
         "components": [
-          {
-            "name": "tierBps",
-            "type": "uint16",
-            "internalType": "uint16"
-          },
           {
             "name": "maxListed",
             "type": "uint32",

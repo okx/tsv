@@ -1,162 +1,106 @@
-<div align="center">
+# TSV V1
 
-Registry 与单池 Wrapped Swap 已采用 W／U／原币报价 Q 模型；[当前实现与验收](docs/PERMISSIONED_REGISTRY_V1.md)说明 ABI 和只读验证库链接。用户收付 U/Q，生产 Wrapped LP 待独立交付。
+TSV V1 is a Solidity protocol that gates Uniswap V4 stock pools by participant credentials, issuer permissions, pool lifecycle and per-security daily volume quotas. The implementation lives in [`src/v1/`](src/v1/). This README describes that code; design proposals and dated review reports are indexed separately in [`docs/README.md`](docs/README.md).
 
-<img src="docs/assets/tsv-banner.svg" alt="TSV V1 — 交易与流动性、证券额度、运营报告和固定 Anchor 治理" width="100%">
+## Current asset and contract model
 
-# TSV V1 · 证券交易合约
+TSV uses three asset identities:
 
-**交易有资格 · 成交有额度 · 升级有治理**
+| Symbol | Meaning | On-chain role |
+| --- | --- | --- |
+| **W** | Issuer permissioned stock adapter created by the configured Permissions Adapter Factory | Stock currency held by a V4 pool |
+| **U** | Original stock token wrapped by W | User-facing settlement and canonical legal-share conversion input |
+| **Q** | Registered quote ERC-20 | Quote currency held by the pool and used for user settlement |
 
-![Solidity](https://img.shields.io/badge/Solidity-0.8.26-627EEA?logo=solidity&logoColor=white)
-![Uniswap](https://img.shields.io/badge/Uniswap-V4-FF007A)
-![EVM](https://img.shields.io/badge/EVM-Cancun-8B5CF6)
-![Target](https://img.shields.io/badge/Target-X_Layer_196-14B8A6)
-
-[📖 系统总览](docs/SYSTEMS_OVERVIEW.md) · [⚡ 快速启动](#quick-start) · [构建与验证](#tests) · [🗺️ 文档导航](#docs)
-
-</div>
-
----
-
-TSV 是基于 **Uniswap V4** 的证券交易合约系统。它把持证资格、证券级成交额度、运营报告和升级治理接入 Swap：池内使用原版 PermissionsAdapter W 与报价 Q，用户收付 U/Q，真实成交按 U 的法律股数记账，同一证券的所有 W/池共享日额度。
-
-当前代码位于 [`src/v1/`](src/v1/)，目标链为 **X Layer / 196**。当前 Wrapped Swap 使用真实本地 PM 和原版 Factory/W 验证，尚未广播生产部署；生产发行方、SBT 与 Wrapped LP 条件见[当前交付边界](docs/PERMISSIONED_REGISTRY_V1.md)和[市场开通流程](docs/OPENING_A_STOCK_MARKET_V1.md)。
-
-## ✨ 能做什么
-
-| 系统 | 核心能力 | 关键规则 |
-| :--- | :--- | :--- |
-| 🔄 **交易** | 单 W/Q 池、U↔Q 双向 exact-input / exact-output | 真实用户 SBT；精确 wrap/unwrap；回调与策略快照绑定；失败回滚；external Adapter 拒绝 |
-| 💧 **流动性** | 生产 Wrapped LP 待交付；旧 LP 源码保留 | 历史 Swap 测试使用真实 W/PM seed helper 准备流动性；测试已移除 |
-| 📊 **额度** | 证券级共享日额度、自动日切、可选 quota、拆并股系数 | 上月日均 ADTV × Tier rate × 系数；拆并股只在未来计量日开始生效 |
-| 🛠️ **运营** | 原子证券准入、报告提交、资产/池状态、范围与模式暂停 | 专职角色直接提交；报告去重与顺序校验；TRADE / LP / ALL 分别控制 |
-| 🛡️ **治理** | 固定 Anchor、单笔或原子批量升级、全局升级冻结、身份恢复 | Governor 升级；Guardian 关闭全部升级入口；Council 提案 + 当前 Guardian 批准恢复 |
-
-## 🧭 一张图认识系统
+Every registered pool is a single **W/Q** V4 pool with exactly one registered stock side and one registered quote side. The Router accepts exact-input requests. On the stock side, the user pays or receives U while the PoolManager settles W through the issuer adapter; Q remains the quote settlement asset. The Registry ties every W for one U to a single security ID and legal-share adapter, so all pools for that security consume the same daily quota.
 
 ```mermaid
 flowchart LR
-    U["👤 SBT 持有人"] --> R["Swap Router"]
-    U --> LP["LP Manager · Receipt"]
-    R --> PM["Uniswap V4 PoolManager"]
-    LP --> PM
-    PM --> H["TSV Hook"]
-    H --> REG["Registry · 准入 / 资格 / 暂停"]
-    H --> VL["Volume Ledger · 证券日额度"]
-    OP["🛠️ 运营角色"] --> DI["Data Inbox · 报告验证"]
-    DI --> REG
-    DI --> VL
-    GOV["🛡️ Governor / Guardian / Council"] --> A["固定 Governance Anchor"]
-    A -.->|"身份 / 升级 / 冻结"| B["六个业务代理"]
-    B -.-> R
-    B -.-> LP
-    B -.-> H
-    B -.-> REG
-    B -.-> VL
-    B -.-> DI
-    classDef trade fill:#ecfccb,stroke:#65a30d,color:#1a2e05
-    classDef ops fill:#ccfbf1,stroke:#0d9488,color:#134e4a
-    classDef gov fill:#ede9fe,stroke:#8b5cf6,color:#4c1d95
-    class U,R,LP,PM,H trade
-    class OP,DI,REG,VL ops
-    class GOV,A,B gov
+  User[Participant] --> Adapter[Approved adapter]
+  Adapter --> Router[TSVSwapRouterV1]
+  User --> LP[TSVLPManagerV1]
+  Router --> PM[Uniswap V4 PoolManager]
+  LP --> PM
+  PM --> Hook[TSVHookV1]
+  Hook --> Registry[TSVRegistryV1]
+  Hook --> Ledger[TSVVolumeLedgerV1]
+  Router --> Registry
+  LP --> Registry
+  Registry --> Factory[Permissions Adapter Factory]
+  Registry --> SBT[Participant SBT]
+  W[W permissioned stock] --- U[U original stock]
+  Pool[Pool currency pair: W/Q] --> W
+  Pool --> Q[Q quote token]
 ```
 
-六个业务代理是 **Registry、VolumeLedger、DataInbox、Hook、SwapRouter、LPManager**。固定 Anchor 保存治理身份与升级开关；具体权限、交互和入口参数见[三系统总览](docs/SYSTEMS_OVERVIEW.md)。
+The code has five TSV business contracts: `TSVRegistryV1`, `TSVVolumeLedgerV1`, `TSVHookV1`, `TSVSwapRouterV1`, and `TSVLPManagerV1`. There is no DataInbox or Governance Anchor in the current source tree. Operators call Registry and Ledger role-gated setters directly; upgrades use UUPS authorization checked against roles held by the Registry.
 
-<a id="quick-start"></a>
+## What the contracts enforce
 
-## ⚡ 快速启动
+- **Admission:** the Registry verifies W provenance and metadata against the configured Factory, binds W to U and a security, validates the legal-share adapter, and separately registers Q. A pool can only be registered through the LP Manager and must contain one W and one Q.
+- **Participant access:** the Registry combines permissions from the participant's registered SBT identities. The Router requires `SWAP_ALLOWED`; ordinary position actions require `LIQUIDITY_ALLOWED` for both executor and position owner. W also applies its issuer-side `swappingEnabled` and allowlist checks.
+- **Swap execution:** approved adapters call one of the Router's exact-input entry points. The requested input must be fully spent and the minimum output must be met. The Hook rechecks the stock multiplier snapshot and records the actual stock-side PoolManager delta in the Ledger.
+- **Volume limits:** `setQuota` writes absolute WAD values by security and fixed EST epoch day. A missing quota is zero, so a positive-volume swap needs a quota set for the current day. `setUsedWad` is an explicit correction and may lower usage, set it to zero, or set it above quota; later swaps enforce the resulting quota.
+- **LP positions:** the LP Manager registers and initializes pools, processes supported position actions, and maintains an NFT count per pool. The two delta-funded mint/increase actions are rejected. `withdrawClaim` is disabled. Forced exits are full-position operations and can fail if token delivery is rejected or the PoolManager delta exceeds its `int128` range.
+- **Pauses:** security pause mode is assigned as a final `NONE`, `TRADE`, `LP`, or `ALL` value. Pool lifecycle is `LIST`, `PAUSE`, or `DELIST`. A separate global emergency pause blocks execution paths; `isTradable` and `isLPAllowed` do not include that global flag.
 
-需要已安装 **Foundry** 和 Git。初始化私有 SBT 子模块需要对应 GitLab 仓库的访问权限。
+See [`docs/SYSTEMS_OVERVIEW.md`](docs/SYSTEMS_OVERVIEW.md) for call flows and role boundaries and [`docs/CODING_SPEC_V1.md`](docs/CODING_SPEC_V1.md) for current public interfaces and state rules.
+
+## Build and test
+
+Requirements: Foundry, Git submodules, and network access for dependency installation. Some submodules may require repository access.
 
 ```sh
-# 初始化仓库固定的外部子模块
-# 已初始化的工作区可直接进入下面的构建和检查
 git submodule update --init --recursive
-
-# 安装 foundry.toml 中锁定的 OpenZeppelin 依赖
 forge soldeer install
-
-# 检查格式和 diff
 make check
-
-# 全部不联网测试
 make test
 ```
 
-编译配置：**Solidity 0.8.26 · Cancun · via-IR · optimizer 200 runs**，以 [`foundry.toml`](foundry.toml) 为准。首次完整 via-IR 编译耗时较长；后续会复用缓存。
+The compiler configuration is Solidity 0.8.26, Cancun, via-IR, and optimizer runs 200, as set in [`foundry.toml`](foundry.toml). The default test profile runs unit tests and local PoolManager integrations; it excludes `test/integration/xlayer/`, which currently contains no executable fork tests.
 
-## 📐 每日额度怎么算
-
-```text
-硬上限 = floor(上月日均成交量 × tierBps × 拆并股分子 / (10,000 × 拆并股分母))
-有效上限 = 有 quota 覆盖 ? min(硬上限, quota) : 硬上限
-剩余额度 = max(0, 有效上限 − 当日已用量)
-```
-
-例如 ADTV 为 **1,000 股**，Tier 为 **25 bps**，每日硬上限为 **2.5 股**。提前排期一拆二后，指定未来计量日开始时变为 **5 股**；无需激活交易，也不等待 Token 更新。新日独立累计，旧日用量保留。
-
-- **精确比例：**一拆二为 `2/1`，五合一为 `1/5`；同月连续一拆二、再一拆三，上报累计系数 `6/1`。
-- **排期规则：**由 `VOLUME_ORACLE_ROLE` 提交 `SplitFactorReport`，只能选择未来计量日开始；最新未生效项可更正或取消。
-- **月度基准：**报告服务固定 ADTV 的来源月月末股数单位，新月数据已体现的事件不再重复乘入；quota 是目标日绝对覆盖值。
-- **成交计股：**每笔仍由实时 Adapter 换算。额度排期不替代发行方单位核定或异常监控。
-
-准确 ABI、舍入、版本与存储规则见[编码规格 §7](docs/CODING_SPEC_V1.md#7-角色报告计量日和额度)，公司行动步骤见[准入标准 §4](docs/TOKEN_ADMISSION_STANDARD_V1.md#4-公司行动与数据单位)。
-
-<a id="tests"></a>
-
-## 构建与验证
-
-`feat/tsv-lp` 开发分支不包含 TSV 测试，其改动通过本集成分支合入目标分支。本集成分支保留兼容的旧测试，删除依赖旧 LP ABI 的套件和 fixture；清理范围见 [测试说明](test/README.md)。文档中的历史测试结果仅代表对应版本。
+Useful focused commands:
 
 ```sh
-forge build src
-make check
-make test
+make test-unit
+make test-local
+make test-governance
+make test-trading
+make test-liquidity
+make test-operations
+make test-invariants
+make coverage
 ```
 
-## 🗂️ 项目地图
+The executable test architecture, fixture boundaries, and current test assumptions are in [`test/README.md`](test/README.md). Local tests use mocks for issuer, SBT, and some external dependencies; they do not establish production-token or deployment acceptance.
+
+## Repository map
 
 ```text
-src/v1/
-├── core/          Registry · DataInbox · VolumeLedger · V4 Hook
-├── periphery/     Swap Router · LP Manager / Receipt
-├── governance/    固定 Anchor · 共用治理与 UUPS 权限
-├── adapters/      法律股数直接换算
-├── deployment/    ERC-1967 Proxy · CREATE2 Hook Factory
-├── libraries/     结算 · 日切 · 报告验证
-├── types/         请求、配置与报告
-└── interfaces/    合约边界
-
-test/                     保留的单元与本地集成回归
-docs/                     规范、操作步骤、覆盖与验收记录
-lib/dexrouter-interfaces/ 可提交的薄 ABI；无需完整 DEX 源码即可运行 fork
+src/v1/core/          Registry, Hook, and Volume Ledger
+src/v1/periphery/     Swap Router and LP Manager
+src/v1/governance/    Shared AccessControl and UUPS authorization base
+src/v1/adapters/      ERC-8056 direct legal-share converter
+src/v1/libraries/     Admission, settlement, and LP action logic
+src/v1/deployment/    ERC-1967 proxy and CREATE2 Hook proxy factory
+src/v1/types/         Pool, asset, pause, identity, and request types
+test/unit/            Contract-level tests
+test/integration/     Local integration and X Layer test configuration
+docs/                 Current code guide and explicitly labeled historical designs
 ```
 
-<a id="docs"></a>
+## Documentation
 
-## 🗺️ 文档导航
+- [System overview](docs/SYSTEMS_OVERVIEW.md) — components, execution paths, access control, quotas, and pauses.
+- [Contract architecture](docs/CONTRACT_ARCHITECTURE.md) — code boundaries, design choices, and external risk assumptions.
+- [Coding specification](docs/CODING_SPEC_V1.md) — current interfaces and behavior derived from `src/v1/`.
+- [Registry and W/U/Q admission](docs/PERMISSIONED_REGISTRY_V1.md) — asset and pool admission details.
+- [Token admission standard](docs/TOKEN_ADMISSION_STANDARD_V1.md) — on-chain checks and off-chain review requirements.
+- [Backend integration guide](docs/BACKEND_INTEGRATION_GUIDE_V1.md) — Router, LP Manager, and Ledger calls.
+- [Deployment checklist](docs/DEPLOYMENT_CHECKLIST_V1.md) — required configuration and explicit deployment gaps.
+- [Test guide](test/README.md) — suites, commands, fixtures, and coverage limits.
+- [Full documentation index](docs/README.md) — current references versus design and audit archives.
 
-| 你想做的事 | 从这里开始 |
-| :--- | :--- |
-| 🧠 了解三个系统和角色 | [三系统总览](docs/SYSTEMS_OVERVIEW.md) · [架构决策](docs/CONTRACT_ARCHITECTURE.md) |
-| 🧩 查看接口和算法 | [编码规格](docs/CODING_SPEC_V1.md) |
-| 🏦 准入资产、核定法律股数 | [代币准入标准](docs/TOKEN_ADMISSION_STANDARD_V1.md) |
-| 🚀 开通一只股票市场 | [Opening a Stock Market](docs/OPENING_A_STOCK_MARKET_V1.md) |
-| 🔌 接入外部 DEX | [DEX Router / Adapter 接入](docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) |
-| 🧪 编写和维护测试 | [测试说明](test/README.md) · [测试规格](docs/TEST_SPEC_V1.md) |
-| 📋 评估当前完整度 | [实现状态](docs/IMPLEMENTATION_STATUS_V1.md) · [统一缺口](docs/TEST_GAPS_V1.md) |
-| 📦 部署或执行治理操作 | [部署清单](docs/DEPLOYMENT_CHECKLIST_V1.md) · [Manifest 模板](docs/DEPLOYMENT_MANIFEST_V1.example.json) |
+## Deployment boundary
 
-完整索引见 [`docs/README.md`](docs/README.md)。历史评审与审计按日期归档在 [`docs/reviews/`](docs/reviews/)，当前规则以源码和权威规格为准。
-
----
-
-<div align="center">
-
-**从一笔 Swap，到一份日账，再到一次升级。**<br>
-交易、运营、治理各有入口，共同守住资金、额度与权限。
-
-</div>
+The repository contains contract implementations, tests, and an X Layer configuration directory, but no completed production deployment record. `test/integration/xlayer/` has no executable fork suite. Production Factory, PoolManager, SBT, issuer tokens, roles, and transfers must be verified on the target deployment; local mocks are not evidence of those external systems.

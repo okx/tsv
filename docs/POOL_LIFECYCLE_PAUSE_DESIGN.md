@@ -1,5 +1,7 @@
 # TSVRegistryV1 Pool Lifecycle 与协议级 Pause 改造设计
 
+> **历史设计稿，不描述当前 ABI。** 本文记录过渡期目标，包含被后续实现替换的接口与流程。当前状态、枚举和操作门禁以 [`src/v1/core/TSVRegistryV1.sol`](../src/v1/core/TSVRegistryV1.sol)、[`src/v1/types/TSVTypes.sol`](../src/v1/types/TSVTypes.sol) 及 [`SYSTEMS_OVERVIEW.md`](./SYSTEMS_OVERVIEW.md) 为准；当前没有 DataInbox、市场报告或可配置日切。
+
 ## 1. 目标
 
 本文定义对 `TSVRegistryV1` 的接口和状态改造：

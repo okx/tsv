@@ -1,178 +1,97 @@
 {
-  "schemaVersion": "tsv-v1-permissioned-wrapped-swap-9",
-  "status": "WRAPPED_SWAP_TEMPLATE",
-  "network": {
-    "name": "xlayer",
-    "chainId": 196,
-    "poolManager": {
-      "address": "",
-      "v4Version": ""
-    }
+  "schemaVersion": "tsv-v1-current-source-template",
+  "status": "TEMPLATE_ONLY_NOT_DEPLOYED",
+  "target": {
+    "name": "",
+    "chainId": null,
+    "blockNumber": null,
+    "blockHash": ""
   },
   "build": {
     "gitCommit": "",
     "solidity": "0.8.26",
     "evmVersion": "cancun",
+    "optimizer": true,
     "optimizerRuns": 200,
     "viaIR": true,
-    "openzeppelinVersion": "5.5.0",
-    "v4CoreCommit": "",
-    "smartWalletSbtCommit": "",
-    "backedTokenCommit": "",
-    "permissionsUpstreamCommit": "9969eec44cfdf07e24b41de47f40276a58401976",
-    "permissionsOpenzeppelinVersion": "5.0.2",
-    "registryStorageLayoutArtifact": "docs/artifacts/TSVRegistryV1.storage-layout.json",
-    "registryAbiArtifact": "docs/artifacts/TSVRegistryV1.abi.json",
-    "registryRuntimeSizeBytes": 19883,
-    "permissionedValidationLibraryRuntimeSizeBytes": 7561,
-    "routerStorageLayoutArtifact": "docs/artifacts/TSVSwapRouterV1.storage-layout.json",
-    "routerAbiArtifact": "docs/artifacts/TSVSwapRouterV1.abi.json",
-    "routerConstructorParameters": [
-      "network.poolManager.address",
-      "permissionedEnvironment.realFactory"
-    ],
-    "routerCompatibilityDiffArtifact": "docs/artifacts/v4-router-compatibility.diff",
-    "permissionedValidationLibraryUsedBy": [
-      "registry"
-    ],
-    "routerRuntimeSizeBytes": 20190,
-    "routerInitcodeSizeBytes": 20932,
-    "permissionedValidationLibraryStorageLayoutArtifact": "docs/artifacts/PermissionedValidationLib.storage-layout.json",
-    "sharedRegistryInterfaceAbiArtifact": "docs/artifacts/ITSVPermissionedRegistry.abi.json",
-    "bytecodeHash": "none"
-  },
-  "governance": {
-    "governanceAnchor": "",
-    "governor": "",
-    "guardian": "",
-    "recoveryCouncil": "",
-    "upgradesFrozen": false,
-    "freezeEpoch": 0,
-    "freezeId": ""
-  },
-  "businessProxies": {
-    "registry": {
-      "proxy": "",
-      "implementation": ""
-    },
-    "volumeLedger": {
-      "proxy": "",
-      "implementation": ""
-    },
-    "dataInbox": {
-      "proxy": "",
-      "implementation": ""
-    },
-    "hook": {
-      "proxy": "",
-      "implementation": ""
-    },
-    "swapRouter": {
-      "proxy": "",
-      "implementation": ""
-    },
-    "lpManager": {
-      "proxy": "",
-      "implementation": ""
+    "openzeppelin": "5.5.0",
+    "submodules": {},
+    "libraryLinks": {
+      "permissionedValidationLib": "",
+      "tsvLPManagerLib": "",
+      "lpPositionMathLib": ""
     }
   },
+  "dependencies": {
+    "poolManager": "",
+    "permissionsAdapterFactory": "",
+    "participantSbt": "",
+    "tokenApproveProxy": "",
+    "tokenApprove": "",
+    "permit2": "",
+    "positionDescriptor": "",
+    "weth9": ""
+  },
+  "components": {
+    "registry": { "proxy": "", "implementation": "", "initializerTx": "" },
+    "volumeLedger": { "proxy": "", "implementation": "", "initializerTx": "" },
+    "hook": { "proxy": "", "implementation": "", "initializerTx": "" },
+    "swapRouter": { "proxy": "", "implementation": "", "initializerTx": "" },
+    "lpManager": { "proxy": "", "implementation": "", "initializerTx": "" }
+  },
   "hookDeployment": {
-    "factory": "",
+    "proxyFactory": "",
     "salt": "",
     "predictedProxy": "",
-    "actualProxy": "",
-    "requiredPermissionFlags": "0x3FFF",
-    "actualPermissionFlags": "",
-    "tsvImplementation": ""
+    "deployedProxy": "",
+    "requiredPermissionFlags": "0x3FFF"
   },
   "bindings": {
-    "anchorProxyOrder": [],
     "registryHook": "",
     "registryLpManager": "",
-    "registryDataInbox": "",
-    "ledgerHook": "",
-    "ledgerDataInbox": "",
-    "routerPoolManager": "",
-    "routerRegistry": "",
-    "lpPoolManager": "",
-    "lpRegistry": "",
+    "registryPermissionsAdapterFactory": "",
+    "registryPoolManager": "",
+    "registryParticipantSbt": "",
     "hookPoolManager": "",
     "hookRegistry": "",
     "hookLedger": "",
     "hookRouter": "",
-    "hookLpManager": ""
-  },
-  "sbt": {
-    "address": "",
-    "identities": [
-      {
-        "name": "retail",
-        "tokenId": 1,
-        "permissions": 3
-      },
-      {
-        "name": "marketmaker",
-        "tokenId": 2,
-        "permissions": 3
-      }
-    ]
+    "hookLpManager": "",
+    "routerPoolManager": "",
+    "routerPermissionsAdapterFactory": "",
+    "routerRegistry": "",
+    "ledgerRegistry": "",
+    "lpPoolManager": "",
+    "lpPermissionsAdapterFactory": "",
+    "lpTokenApproveProxy": "",
+    "lpRegistry": ""
   },
   "roles": {
+    "defaultAdmins": [],
     "symbolAdmins": [],
-    "poolCreators": [],
     "haltReporters": [],
     "volumeOracles": [],
     "emergencyPausers": [],
     "emergencyResumers": [],
-    "revokeExitExecutors": [],
-    "forceExitAdmins": []
+    "poolCreators": [],
+    "forceExitAdmins": [],
+    "upgradeAdmins": []
   },
-  "assets": [],
-  "pools": [],
-  "reports": {
-    "initialMarketReports": [],
-    "adtvReports": [],
-    "quotaOverrides": []
+  "sbtIdentities": [],
+  "assets": {
+    "securities": [],
+    "underlyings": [],
+    "permissionedCurrencies": [],
+    "quoteTokens": [],
+    "pools": []
   },
   "releaseEvidence": {
-    "deploymentTransactions": [],
-    "initializationTransactions": [],
-    "configurationTransactions": [],
-    "postDeploymentChecks": [],
-    "indexerStartBlock": null,
-    "operatorApprovals": [],
-    "wrappedRouterReady": false,
-    "wrappedLiquidityReady": false,
-    "wrappedSwapImplemented": true,
-    "wrappedSwapLocalVerified": true,
-    "productionLiquidityEvidence": [],
-    "issuerPermissionEvidence": [],
-    "localTestEvidence": {
-      "command": "forge test --dynamic-test-linking --summary --out out/tsv-router-lock.vhL8kj/eventless-tests --cache-path out/tsv-router-lock.vhL8kj/eventless-tests-cache.json",
-      "suiteCount": 48,
-      "passed": 318,
-      "failed": 0,
-      "skipped": 0,
-      "wrappedSwapTests": 33,
-      "deferredFilesExcluded": 27,
-      "dexAdapterTests": 11,
-      "log": "out/tsv-router-lock.vhL8kj/state-removal-full-tests.log"
-    }
-  },
-  "permissionedEnvironment": {
-    "realFactory": "",
-    "poolManager": "",
-    "router": "",
-    "validationLibrary": "",
-    "validationLibraryImmutableLink": true,
-    "bindingTransaction": "",
-    "routerPoolManagerImmutable": true,
-    "validationLibraryStorageFree": true,
-    "routerPermissionsAdapterFactory": "",
-    "routerFactoryImmutable": true
-  },
-  "permissionedCurrencies": [],
-  "underlyings": [],
-  "quoteTokens": [],
-  "underlyingExitAdmins": []
+    "deployTransactions": [],
+    "roleTransactions": [],
+    "admissionTransactions": [],
+    "poolTransactions": [],
+    "quotaTransactions": [],
+    "staticChecks": [],
+    "realAssetTests": []
+  }
 }

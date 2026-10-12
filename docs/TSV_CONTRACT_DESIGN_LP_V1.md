@@ -1,8 +1,6 @@
 # TSV 合约设计：Permissioned Pools 与 LP 流程
 
-日期：2026-10-09。本文先完成总体架构、Uniswap 源码复用与修改、Securitize 管理边界及 LP 业务设计；Swap 和管理业务的逐入口流程后续补充。
-
-本文以当前工作区 `src/v1` 为实现依据，包含尚未提交的 LP 初始化与 TokenApproveProxy 改动。“目标设计”表示已确认需求，“当前实现”表示源码已具备的行为，“待讨论”表示尚未确定的接口语义。本文不代表生产部署或完整 LP 联调验收。
+> **历史设计材料（2026-10-09）。不作为当前 ABI 或实现说明。** 本文保留早期 Permissioned Pools、Inbox、报告和治理边界的方案与流程；后续源码已多次变化。当前合约架构和接口请查 [`SYSTEMS_OVERVIEW.md`](./SYSTEMS_OVERVIEW.md)、[`CODING_SPEC_V1.md`](./CODING_SPEC_V1.md) 和 [`DEPLOYMENT_CHECKLIST_V1.md`](./DEPLOYMENT_CHECKLIST_V1.md)。当前行为以 `src/v1/` 为准。
 
 ## 1. 总体设计
 
