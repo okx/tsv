@@ -253,6 +253,15 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         );
     }
 
+    function upgradeToAndCall(address newImplementation, bytes memory data)
+        public
+        payable
+        override
+        whenRegistryNotPaused
+    {
+        UUPSUpgradeable.upgradeToAndCall(newImplementation, data);
+    }
+
     /// @dev Future upgrades must preserve immutable PoolManager/Factory identities and the new storage layout.
     function _authorizeUpgrade(address implementation) internal view override {
         if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert UnauthorizedUpgrade();
