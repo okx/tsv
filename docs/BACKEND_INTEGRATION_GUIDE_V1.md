@@ -452,7 +452,255 @@ async function simulateSwapRouterCall(provider, adapterAddress, input) {
 
 常见失败：`AdapterNotAllowed()` 为直接调用者未授权；`Expired()` 为过期；`PoolNotTradable()` 为池不可交易；`MultiplierChanged()` 为报价倍数已变；`SlippageExceeded()` 为本路由检查到输入未全部成交或无有效输出，v4 也可能返回自身的最低输出错误。
 
+## 三、Volume Ledger：后端设置每日成交量额度
+
+```text
+持有 VOLUME_ORACLE_ROLE 的后端账户 → TSVVolumeLedgerV1.setQuota / setUsedWad
+```
+
+本章基于提交 `74d6317bfd896f9836808554c67a1a4fe4b2ed37` 的 `TSVVolumeLedgerV1`，额度设置入口为 **`setQuota`**；本次新增的 **`setUsedWad`** 用于修正已累计成交量，见第 6 节；`multicall` 支持跨证券批量调用，见第 7 节。直接调用 Volume Ledger 代理，为一个证券批量设置多个 EST day 的每日总额度；nonpayable，无返回值，`value = 0`。
+
+### 1. 前置条件与 ABI
+
+调用账户须持有 **Ledger 所引用 Registry 中的 `VOLUME_ORACLE_ROLE`**，即 `registry.hasRole(keccak256("VOLUME_ORACLE_ROLE"), caller) == true`。`securityId` 使用 Registry 中目标证券的非零 ID；额度按 `securityId + ESTDay` 共享，同一证券的多个池共同消耗，不按池或用户单独分配。
+
+本章示例可独立使用：
+
+```javascript
+import { Contract, Interface, ZeroAddress, ZeroHash, formatUnits } from "ethers";
+
+const volumeLedgerAbi = [
+  "function multicall(bytes[] data) returns (bytes[] results)",
+  "function registry() view returns (address)",
+  "function currentESTDay() view returns (uint256)",
+  "function Quota(bytes32 securityId,uint256 ESTDay) view returns (uint256)",
+  "function usedWad(bytes32 securityId,uint256 ESTDay) view returns (uint256)",
+  "function setQuota(bytes32 securityId,tuple(uint256 ESTDay,uint256 amount)[] values,bytes32 reasonCode)",
+  "function setUsedWad(bytes32 securityId,tuple(uint256 ESTDay,uint256 amount)[] values,bytes32 reasonCode)",
+  "event QuotaSet(bytes32 indexed securityId,uint256 indexed ESTDay,uint256 amount,bytes32 reasonCode)",
+  "event UsedWadSet(bytes32 indexed securityId,uint256 indexed ESTDay,uint256 amount,bytes32 reasonCode)",
+];
+const volumeLedgerInterface = new Interface(volumeLedgerAbi);
+const volumeRegistryAbi = [
+  "function getCurrencyUnderlying(address currency) view returns (address underlying)",
+  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals,bool registered))",
+];
+```
+
+| 参数 | ABI 类型 | 要求 |
+| --- | --- | --- |
+| `securityId` | `bytes32` | 目标证券 ID，不能为零；不是 poolId 或代币地址 |
+| `values` | `tuple(uint256 ESTDay,uint256 amount)[]` | 同一证券的日期及额度数组；可以提前设置未来日期；后端应传入非空且日期不重复的数组 |
+| `values[i].ESTDay` | `uint256` | 按下面公式计算的 epoch day 整数；不是 Unix timestamp，也不是 `YYYYMMDD` |
+| `values[i].amount` | `uint256` | 当日总额度，单位为 **legal-share WAD（1 股 = `10^18`）**；例如 1,000 股为 `1000n * 10n ** 18n`，不是报价代币金额或底层代币 raw amount |
+| `reasonCode` | `bytes32` | 后端约定的原因码，同一批次共用；原样写入事件，合约不校验其业务含义 |
+
+### 2. 从 Token 获取 securityId 并查询当日额度
+
+累计量的准确接口名为 **`usedWad`**（不是 `usdWad`），表示已使用的 legal-share WAD，单位不是美元。以下查询均为 `view`，只需 Provider，无需 Signer 或 `VOLUME_ORACLE_ROLE`。
+
+先通过 `ledger.registry()` 取得对应 Registry 地址，再按已知的股票 Token 类型查询：
+
+| 已知地址 | 获取 `securityId` 的调用链 |
+| --- | --- |
+| 用户持有的底层股票代币 `underlyingToken` | `registry.getUnderlying(underlyingToken).securityId` |
+| 池内股票侧 `PermissionsAdapter` 地址 | 先 `underlyingToken = registry.getCurrencyUnderlying(permissionsAdapterAddress)`，再 `registry.getUnderlying(underlyingToken).securityId` |
+
+**不要自行对 token symbol 或地址做 hash 来生成 `securityId`，也不要传入报价代币地址。** 未知 PermissionsAdapter 返回零底层地址，未知底层代币返回默认记录（`securityId == 0`），后端应报错。`registered` 表示该底层代币是否允许用于注册新池，不应仅因其为 false 就丢弃已存储的证券 ID 或历史成交量。
+
+| 查询 | 返回含义 |
+| --- | --- |
+| `ledger.currentESTDay()` | 查询区块对应的 EST day |
+| `ledger.Quota(securityId, day)` | 当日总额度上限，注意方法名首字母大写 `Q` |
+| `ledger.usedWad(securityId, day)` | 当日已累计成交量，买卖都消耗额度，不按方向抵消 |
+
+下面一次返回证券 ID、当日上限、累计量和剩余额度。所有调用固定在同一个 `blockTag`，避免跨日或期间成交导致读取口径不一致；`tokenKind` 必须明确是 `"underlying"` 或 `"permissionsAdapter"`。
+
+```javascript
+async function readDailyVolume(provider, volumeLedgerAddress, stockTokenAddress, tokenKind) {
+  if (!["underlying", "permissionsAdapter"].includes(tokenKind)) {
+    throw new Error("Expected underlying or permissionsAdapter tokenKind");
+  }
+  const blockTag = await provider.getBlockNumber();
+  const atBlock = { blockTag };
+  const ledger = new Contract(volumeLedgerAddress, volumeLedgerAbi, provider);
+  const registryAddress = await ledger.registry(atBlock);
+  const registry = new Contract(registryAddress, volumeRegistryAbi, provider);
+  const underlyingToken = tokenKind === "permissionsAdapter"
+    ? await registry.getCurrencyUnderlying(stockTokenAddress, atBlock)
+    : stockTokenAddress;
+  if (underlyingToken === ZeroAddress) throw new Error("Unknown underlying token");
+  const { securityId } = await registry.getUnderlying(underlyingToken, atBlock);
+  if (securityId === ZeroHash) throw new Error("Unknown securityId");
+  const ESTDay = await ledger.currentESTDay(atBlock);
+  const [quotaWad, usedWad] = await Promise.all([
+    ledger.Quota(securityId, ESTDay, atBlock),
+    ledger.usedWad(securityId, ESTDay, atBlock),
+  ]);
+  const remainingWad = quotaWad > usedWad ? quotaWad - usedWad : 0n;
+  return {
+    blockTag, underlyingToken, securityId, ESTDay, quotaWad, usedWad, remainingWad,
+    quotaShares: formatUnits(quotaWad, 18),
+    usedShares: formatUnits(usedWad, 18),
+    remainingShares: formatUnits(remainingWad, 18),
+  };
+}
+// 底层股票代币：readDailyVolume(provider, volumeLedgerAddress, underlyingToken, "underlying")
+// 池内股票侧：readDailyVolume(provider, volumeLedgerAddress, permissionsAdapterAddress, "permissionsAdapter")
+```
+
+返回的 `quotaWad`、`usedWad`、`remainingWad` 是 `bigint`；用于展示的 `*Shares` 是十进制字符串，不要转换为浮点数参与额度计算。读取到的 `securityId` 可直接用于后续 `setQuota`；如需查询指定日期，使用第 3 节换算得到的 `ESTDay` 替换 `currentESTDay()` 的结果。
+
+### 3. EST day：从 UTC Unix timestamp 换算
+
+**输入必须是 Unix timestamp（UTC+0 基准、秒），直接减去 5 小时，再除以一天的秒数并向下取整。不要先将 timestamp 转为本地时间或 EST 后再次减 5 小时。**
+
+```text
+ESTDay = floor((unixTimestampSeconds - 5 × 3600) / 86400)
+       = floor((unixTimestampSeconds - 18000) / 86400)
+
+某个 ESTDay 的 UTC 时间区间：
+[ESTDay × 86400 + 18000, (ESTDay + 1) × 86400 + 18000)
+```
+
+这与合约 `currentESTDay()` 的 `(block.timestamp - 5 hours) / 1 days` 一致。**全年固定 EST = UTC−5，不启用夏令时；不要使用会切换到 EDT（UTC−4）的 `America/New_York` 时区规则。** 日界线为 UTC **05:00:00**，即固定 EST 的 00:00:00；UTC 00:00 至 04:59:59 仍属于前一个 EST day。
+
+| UTC 时间 | Unix timestamp（秒） | 固定 EST 时间（UTC−5） | `ESTDay` |
+| --- | --- | --- | --- |
+| `2026-10-12T04:59:59Z` | `1791781199` | `2026-10-11 23:59:59` | `20737` |
+| `2026-10-12T05:00:00Z` | `1791781200` | `2026-10-12 00:00:00` | `20738` |
+| `2026-10-13T04:59:59Z` | `1791867599` | `2026-10-12 23:59:59` | `20738` |
+| `2026-10-13T05:00:00Z` | `1791867600` | `2026-10-13 00:00:00` | `20739` |
+
+后端可直接复用以下换算。JavaScript 的 `Date.now()` 返回毫秒，须先除以 1,000；`block.timestamp` 已是秒，不要再除以 1,000。
+
+```javascript
+function toESTDay(unixTimestampSeconds) {
+  if (typeof unixTimestampSeconds !== "bigint" || unixTimestampSeconds < 18000n) {
+    throw new Error("Expected Unix seconds as bigint, >= 18000");
+  }
+  return (unixTimestampSeconds - 18000n) / 86400n;
+}
+
+const nowUnixSeconds = BigInt(Math.floor(Date.now() / 1000));
+const currentESTDay = toESTDay(nowUnixSeconds);
+const targetESTDay = toESTDay(1791781200n); // 20738n: 2026-10-12 EST
+```
+
+设置“当前日”时，建议用最新链上区块的 `timestamp` 换算，并与 Ledger 的 `currentESTDay()` 核对；服务器时间只用于辅助。`setQuota` 按传入的 `ESTDay` 写入，不会自动替换为交易执行当天。应提前设置下一日额度，避免跨 UTC 05:00 时新一天未配置额度。
+
+### 4. 编码与提交
+
+`values` 中的字段名保持 `ESTDay` 和 `amount`，日期及数量均用 `bigint`。
+
+```javascript
+function buildSetQuotaTransaction(volumeLedgerAddress, securityId, values, reasonCode) {
+  return {
+    to: volumeLedgerAddress,
+    data: volumeLedgerInterface.encodeFunctionData("setQuota", [securityId, values, reasonCode]),
+    value: 0n,
+  };
+}
+
+async function submitSetQuotaTransaction(oracleSigner, input) {
+  const { volumeLedgerAddress, securityId, values, reasonCode } = input;
+  const transaction = buildSetQuotaTransaction(volumeLedgerAddress, securityId, values, reasonCode);
+  const from = await oracleSigner.getAddress();
+  await oracleSigner.provider.call({ ...transaction, from });
+  const gasLimit = await oracleSigner.estimateGas(transaction);
+  const response = await oracleSigner.sendTransaction({ ...transaction, gasLimit });
+  return await response.wait();
+}
+
+// 示例批次；securityId、reasonCode、代理地址及 oracleSigner 由业务方提供。
+const values = [
+  { ESTDay: targetESTDay, amount: 1000n * 10n ** 18n },
+  { ESTDay: targetESTDay + 1n, amount: 1200n * 10n ** 18n },
+];
+```
+
+### 5. 覆盖语义与结果核对
+
+**`amount` 是当日总额度，不是追加额度或剩余额度。** 每项直接覆盖 `Quota[securityId][ESTDay]`，不会重置 `usedWad[securityId][ESTDay]`。例如已用 300 股、总额度 1,000 股，改为 1,200 股后剩余 900 股。合约允许将额度降至已用量以下，但之后的正成交量交易会因超额失败，直到额度足够或进入已配置的新一天。
+
+未配置的日期额度默认为 0；设置 `amount = 0` 也会阻止该证券该日的后续正成交量交易，不表示无限额或恢复默认额度。每日独立计数，额度不会自动结转；成交校验使用执行时 `block.timestamp` 对应的 EST day。
+
+合约允许空数组（不写入、不发事件）；同一批次重复日期会依次覆盖，以最后一项为准，每项均发出事件。后端应在提交前校验日期与数量，避免误写到错误日期。
+
+成功回执中，筛选 **Volume Ledger 代理地址**发出的 `QuotaSet`，核对 `securityId`、`ESTDay`、`amount`、`reasonCode`。可读取 `Quota(securityId, ESTDay)` 和 `usedWad(securityId, ESTDay)`，按 `max(Quota - usedWad, 0)` 计算剩余额度；后续交易或额度更新可能改变读取结果。
+
+`setQuota` 常见失败：`Unauthorized()` 为调用者没有 `VOLUME_ORACLE_ROLE`；`InvalidInput()` 为 `securityId` 为零。`QuotaExceeded(bytes32,uint256)` 出现在后续 Swap 的成交量记账阶段，第二个参数也是上述 EST day 整数；超额时整笔 Swap 回滚。
+
+### 6. Set Used WAD：后端修正当日累计量
+
+新增入口为 `setUsedWad(bytes32 securityId,DailyQuota[] values,bytes32 reasonCode)`；与 `setQuota` 共用 `DailyQuota` tuple、Registry 的 `VOLUME_ORACLE_ROLE` 以及 EST day 换算规则。nonpayable，无返回值。调用前确认目标链的 Ledger 实现已包含此新增接口。
+
+**此处 `values[i].amount` 是修正后的已累计总量（legal-share WAD），直接覆盖 `usedWad[securityId][ESTDay]`，不会修改 `Quota`。** 可以调高、调低或设为 0；也允许写入超过额度的累计量，此时后续正成交量交易将失败，直到额度或累计量被调整到足够容纳新成交量。后续成交在修正后的值上继续累加。
+
+例如总额度 1,000 股、累计量 300 股：`setUsedWad` 写入 200 股后，剩余变为 800 股；`setQuota` 写入 1,200 股则只改变总额度，累计量保持原值。两种写入不要混用。
+
+一次调用仅针对一个 `securityId`，可批量修正多个日期；空数组不写入，重复日期以最后一项为准，每项均发出 `UsedWadSet` 事件。`securityId` 为零时返回 `InvalidInput()`，调用者缺少角色时返回 `Unauthorized()`。历史、当前和未来日期均按传入值写入，合约不限制日期范围。
+
+```javascript
+function buildSetUsedWadTransaction(volumeLedgerAddress, securityId, values, reasonCode) {
+  return {
+    to: volumeLedgerAddress,
+    data: volumeLedgerInterface.encodeFunctionData("setUsedWad", [securityId, values, reasonCode]),
+    value: 0n,
+  };
+}
+
+async function submitSetUsedWadTransaction(oracleSigner, input) {
+  const { volumeLedgerAddress, securityId, values, reasonCode } = input;
+  const transaction = buildSetUsedWadTransaction(volumeLedgerAddress, securityId, values, reasonCode);
+  const from = await oracleSigner.getAddress();
+  await oracleSigner.provider.call({ ...transaction, from });
+  const gasLimit = await oracleSigner.estimateGas(transaction);
+  const response = await oracleSigner.sendTransaction({ ...transaction, gasLimit });
+  return await response.wait();
+}
+// 将目标日累计量修正为 200 股：values = [{ ESTDay: targetESTDay, amount: 200n * 10n ** 18n }]
+```
+
+成功回执中筛选 Ledger 代理发出的 `UsedWadSet`，核对证券、日期、新累计量及原因码，再用第 2 节查询回读。**这是绝对值覆盖，没有旧值或版本校验；基于旧查询结果构造修正值，可能覆盖查询后、修正交易执行前新增的成交量。** 后端须协调成交与修正操作的时序，并记录修正原因；单次模拟不能消除这一并发问题。
+
+### 7. Multicall：跨证券批量设置
+
+Ledger 继承 OpenZeppelin `Multicall`，提供 `multicall(bytes[] data) returns (bytes[] results)`。直接调用 Ledger 代理，`value = 0`；按数组顺序执行各子调用，保留原始 `msg.sender`，每个子调用仍检查自身权限。**任一子调用失败，整笔交易的状态及事件全部回滚。**
+
+单个 `setQuota` / `setUsedWad` 仍只处理一个证券，但可用 `multicall` 将不同 `securityId` 的写入合并为一笔交易，也可组合额度设置和累计量修正。`data` 的每项是完整函数 calldata（含 selector），不是仅包含参数的 ABI 编码；目标均为当前 Ledger，不接受外部合约目标地址。
+
+```javascript
+function buildVolumeMulticallTransaction(volumeLedgerAddress, updates) {
+  const calls = updates.map(({ method, securityId, values, reasonCode }) => {
+    if (!["setQuota", "setUsedWad"].includes(method)) {
+      throw new Error("Expected setQuota or setUsedWad");
+    }
+    return volumeLedgerInterface.encodeFunctionData(method, [securityId, values, reasonCode]);
+  });
+  return {
+    to: volumeLedgerAddress,
+    data: volumeLedgerInterface.encodeFunctionData("multicall", [calls]),
+    value: 0n,
+  };
+}
+
+async function submitVolumeMulticallTransaction(oracleSigner, volumeLedgerAddress, updates) {
+  const transaction = buildVolumeMulticallTransaction(volumeLedgerAddress, updates);
+  const from = await oracleSigner.getAddress();
+  await oracleSigner.provider.call({ ...transaction, from });
+  const gasLimit = await oracleSigner.estimateGas(transaction);
+  const response = await oracleSigner.sendTransaction({ ...transaction, gasLimit });
+  return await response.wait();
+}
+// updates 每项：{ method: "setQuota" 或 "setUsedWad", securityId, values, reasonCode }
+// 各项可以使用不同 securityId；values 的格式与前述单函数调用相同。
+```
+
+返回的 `results[i]` 为第 i 项的 ABI 编码返回值；两个写入函数均无返回值，对应 `0x`。交易回执应按 Ledger 代理地址解析 `QuotaSet` / `UsedWadSet` 事件。重复设置同一证券同一天的同一字段时，最后一次写入生效。该封装只允许两个后端写入方法；合约的 `multicall` 本身可组合其他公开入口，但不会绕过角色或 Hook 调用者检查。
+
 ## 源码依据
 
 - LP：[TSVLPManagerV1](../src/v1/periphery/TSVLPManagerV1.sol)、[校验与强退逻辑](../src/v1/libraries/TSVLPManagerLib.sol)、[继承的 PositionManager](../src/v1/vendor/permissionedPools/PositionManager.sol)。
 - Swap：[TSVSwapRouterV1](../src/v1/periphery/TSVSwapRouterV1.sol)、[SwapRequest](../src/v1/types/TSVTypes.sol)、[Hook](../src/v1/core/TSVHookV1.sol)。
+- Volume Ledger：[TSVVolumeLedgerV1](../src/v1/core/TSVVolumeLedgerV1.sol) 的 `setQuota`、`setUsedWad`、`currentESTDay` 与 `recordSwap`。

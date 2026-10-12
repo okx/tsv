@@ -3,10 +3,11 @@ pragma solidity 0.8.26;
 
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {Multicall} from "@openzeppelin/contracts/utils/Multicall.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 
 /// @notice Per-security daily volume limits in legal-share WAD, using fixed EST (UTC-5).
-contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
+contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable, Multicall {
     error Unauthorized();
     error InvalidInput();
     error QuotaExceeded(bytes32 securityId, uint256 ESTDay);
@@ -26,6 +27,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
     mapping(bytes32 securityId => mapping(uint256 ESTDay => uint256 amount)) public usedWad;
 
     event QuotaSet(bytes32 indexed securityId, uint256 indexed ESTDay, uint256 amount, bytes32 reasonCode);
+    event UsedWadSet(bytes32 indexed securityId, uint256 indexed ESTDay, uint256 amount, bytes32 reasonCode);
     event VolumeUsed(bytes32 indexed securityId, bytes32 indexed poolId, uint256 indexed ESTDay, uint256 amount);
 
     constructor() {
@@ -44,6 +46,17 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable {
         for (uint256 i; i < values.length; ++i) {
             Quota[securityId][values[i].ESTDay] = values[i].amount;
             emit QuotaSet(securityId, values[i].ESTDay, values[i].amount, reasonCode);
+        }
+    }
+
+    /// @notice Overwrites daily used volume without changing quotas.
+    /// @dev Uses legal-share WAD; zero and values above quota are allowed. Subsequent swaps enforce the quota.
+    function setUsedWad(bytes32 securityId, DailyQuota[] calldata values, bytes32 reasonCode) external {
+        if (!registry.hasRole(VOLUME_ORACLE_ROLE, msg.sender)) revert Unauthorized();
+        if (securityId == bytes32(0)) revert InvalidInput();
+        for (uint256 i; i < values.length; ++i) {
+            usedWad[securityId][values[i].ESTDay] = values[i].amount;
+            emit UsedWadSet(securityId, values[i].ESTDay, values[i].amount, reasonCode);
         }
     }
 
