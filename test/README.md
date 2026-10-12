@@ -1,75 +1,70 @@
-# 当前合约测试与迁移记录
+# 合约测试架构
 
-测试以当前合约实现为准。本次从历史版本恢复仍有效的业务场景，重写已变更接口的断言；已取消的机制保持移除。测试修复最初基于 `b8fb7a0fd32b2cd4482710ffb91072cb29d1cf23`，本 MR 对齐到 `643fb651020cc87fdcc304963d48aa7aeada11e2`，保留主分支中的非零 `reasonCode` 校验及已弃用 delta actions 拒绝逻辑。
+本文说明当前 Foundry 测试的组织方式、覆盖范围和运行入口。测试断言以仓库当前合约实现为准；历史功能已移除时，不应通过恢复旧测试来定义当前行为。
 
-## 可执行套件
+## 测试分层
 
-| 范围 | 文件与验证目标 |
-| --- | --- |
-| Registry 准入与配置 | `unit/v1/registry/Admission.t.sol`、`Environment.t.sol`、`FactoryChecker.t.sol`、`Configuration.t.sol`：一次性四组件绑定、Factory 验证与 TSV 准入分离、W/U/Q 隔离、同 U 多 W 的 canonical converter、精度、tier 容量、发行方 owner/checker 轮换、SBT 持证与权限并集。 |
-| Registry 状态与权限 | `unit/v1/registry/Lifecycle.t.sol`、`Pauses.t.sol`、`PauseBoundaries.t.sol`、`Permissions.t.sol`：LIST/PAUSE/DELIST、证券与池计数、历史池及 tier 快照、最终安全暂停模式、全局暂停标志、角色授予与撤销、固定 LP 调用者。 |
-| 计股转换及回调 | `unit/v1/registry/AdapterChanges.t.sol`、`Consumers.t.sol`：替换 converter 后保留历史使用量、实际股票 delta 转换、`int128.min`、必填 multiplier 快照、零股数与非法回调拒绝、当前 `VolumeUsed` 事件。此处的 delta 是单元测试注入值。 |
-| 直接额度与使用量更正 | `unit/v1/trading/VolumeLedgerAccounting.t.sol`、`VolumeLedgerSetUsedWad.t.sol`：oracle 角色、非零证券及原因码、任意日批量额度、重复日期最后写入生效、保留已用量、更正可归零或超过额度、跨池共享额度、失败回滚、multicall 原子性。 |
-| 固定 EST 与状态序列 | `unit/v1/trading/VolumeLedgerAccounting.t.sol`、`VolumeLedgerInvariant.t.sol`：05:00 UTC 日切、全年固定 UTC-5、两证券/四池/三日的额度与更正模型、oracle 撤销、正常/超额成交及失败 multicall。 |
-| 双向交易与余额 | `integration/local/trading/WrappedSwap.t.sol`、`WrappedInventory.t.sol`：U↔Q exact-input、完整成交、一次记账、W 供给与 PM 持有量一致、验证 dust/捐赠余额保留、共享额度、协议费提取、false-return 回滚与 no-return 支持、合约钱包、Adapter 白名单。 |
-| 交易边界与策略 | `integration/local/trading/WrappedBoundaries.t.sol`、`WrappedPolicy.t.sol`：滑点、部分成交回滚、过期及非法请求、真实 PM 回调、重入锁、交易期间禁止升级、混合精度、发行方资格与 SBT、暂停、U 授权、Router immutable 依赖。 |
-| DEX Adapter | `integration/local/trading/DexAdapter.t.sol`：真实上游 TSVAdapter、认证 trailer、签名重放/过期、签入 `expectedMultiplier` 与篡改/过期快照拒绝、双向收付、输出捐赠保留、独立收款人、部分成交整体回滚及 nonce/授权恢复。 |
-| 真实 LP 与 Hook | `integration/local/deployment/LPHook.t.sol`：真实 PM 的 mint/increase/decrease/零 delta collect/burn、NFT 计数、普通操作门禁、获授权退出、全局暂停、失败退出回滚、可选 multiplier 快照。 |
-| 初始化、链接库、升级 | `unit/v1/deployment/`、`unit/v1/governance/`、`unit/v1/trading/Initialization.t.sol`：Registry 角色、三组件升级权限与状态保留、LP 专属权限、代理初始化锁、UUPS 上下文、LP 库 delegatecall 状态/调用者、permit、订阅、支付与退出。 |
-| 单元转换 | `unit/v1/adapters/ERC8056DirectLegalShareAdapter.t.sol`：实时 multiplier、精度缩放、向下取整及接口/币种校验。 |
+| 层级 | 位置 | 内容 | 运行方式 |
+| --- | --- | --- | --- |
+| 单元测试 | `test/unit/` | Registry、交易账本、部署初始化、权限与升级、Adapter 等合约级行为 | `make test-unit` |
+| 本地集成 | `test/integration/local/` | 使用本地 PoolManager 验证 Wrapped Swap、DEX Adapter、LP Hook 等跨合约流程 | `make test-local` |
+| X Layer | `test/integration/xlayer/` | 当前保留部署清单和说明，尚无可执行的 `.t.sol` fork 套件 | `make test-xlayer`（不构成链上验收） |
 
-## 已移除的旧假设及替代方式
+默认 Foundry profile 执行 `test/` 下测试并排除 X Layer 目录，因此 `make test` 运行单元测试、本地集成和 invariant。`unit`、`local`、`xlayer` profile 可单独选择对应目录。
 
-| 历史测试内容 | 当前处理 |
-| --- | --- |
-| Inbox 报告时效、报告 ID 去重、报告分发 | Inbox 已删除；不恢复 `Ingress`、`PayloadValidation`、`Reports` 及旧报告构造器。以直接 setter 权限、事件和 multicall 原子性替代仍有效部分。 |
-| ADTV 月报、tierBps 推导上限、hard cap、更正下限 | 不恢复 `AdtvBatch`、`CapCorrections`。额度直接写入，不从 ADTV/tier 计算，不要求新额度大于已用量。 |
-| 拆并股报告、拆股分子分母、Backed adapter | 不恢复 `SplitFactor`、`SplitFactorBoundaries` 和旧 fixture。当前使用实时 ERC-8056 multiplier 与报价快照。 |
-| YYYYMMDD、可调整 UTC offset、日历 checkpoint、DST | 不恢复 `TradeDay`、`CalendarBoundaries`。以 EST epoch day、05:00 UTC 边界及固定偏移 fuzz 替代。 |
-| 旧报告/日历 stateful 模型 | 不恢复旧 `StatefulOperations`/`OperationsHandler`；改用 `VolumeLedgerHandler` 与当前直接额度 invariant。 |
-| Ledger.bindWriters、Inbox/offset 初始化 | 删除旧绑定断言；Ledger 初始化仅传 Registry，Hook 授权实时读取 `registry.hook()`。Registry 绑定及各代理初始化仍有测试。 |
-| HALT/RESUME 按位累加或清除 | `applySecurityStatus` 直接赋予最终 NONE/TRADE/LP/ALL 模式；重写暂停事件、角色和状态断言。 |
-| 证券级 LP 暂停禁止所有强制退出 | 改为普通 LP 操作被阻止，获授权退出仍可执行；全局暂停阻止两种退出，零流动性 NFT 同样检查。 |
-| exact-output、成功的部分成交退款 | 当前 Router 仅 exact-input 且要求全部输入成交。部分成交应整体回滚；DEX prefunding、nonce、授权与池/Ledger 状态不得改变。 |
-| `MINT_POSITION_FROM_DELTAS`、`INCREASE_LIQUIDITY_FROM_DELTAS` | 两个 delta-funded action 已由 LP Manager 禁止；主分支的 `LPLinkedLibraries.t.sol` 验证两种入口均拒绝。流动性 mint/increase 使用显式 liquidity 的 action。 |
-| SwapAccounted 和旧 Ledger 资产错误码 | 改查 `VolumeUsed`、`InvalidInput` 等当前事件/错误；W/U/Q 身份由 Registry 准入及 Hook 选腿覆盖，不恢复已删除的 Ledger 独立 U.securityId 校验断言。 |
-| 税费代币、额外 sender fee、交易中库存快照强制拒绝 | 当前实现已取消相应余额快照检查，删除旧拒绝断言。保留标准代币的余额保留、显式转账失败回滚与 no-return 路径；这些测试不证明税费代币的业务正确性。 |
-| 单纯 gas 输出用例 | 移除没有业务断言的 gas 日志测试。需要性能基准时另行建立固定环境。 |
+## 按功能查找测试
 
-## 容易误读的当前行为
+| 功能 | 测试位置 | 主要覆盖 |
+| --- | --- | --- |
+| Registry 准入、配置与生命周期 | `test/unit/v1/registry/` | 组件绑定、Factory 检查、W/U/Q 关系、证券与池状态、tier 快照、converter、角色和暂停边界 |
+| 使用量与额度 | `test/unit/v1/trading/VolumeLedger*.t.sol` | 额度写入、使用量更正、共享证券额度、UTC-5 日切、失败回滚与 Ledger invariant |
+| Wrapped Swap 与交易策略 | `test/integration/local/trading/Wrapped*.t.sol` | 双向 exact-input 交易、完整成交、滑点和过期边界、余额保留、暂停、授权、重入及升级边界 |
+| DEX Adapter | `test/integration/local/trading/DexAdapter.t.sol` | 认证 trailer、签名有效期与重放、multiplier 快照、双向收付及失败回滚 |
+| LP Hook | `test/integration/local/deployment/LPHook.t.sol` | mint、increase、decrease、collect、burn、NFT 计数、普通操作门禁和授权退出 |
+| LP 链接库与初始化 | `test/unit/v1/deployment/` | 代理初始化、链接库调用上下文、权限边界及 delta-funded action 拒绝 |
+| 治理、角色与升级 | `test/unit/v1/governance/` | 初始化权限、业务角色、组件升级授权及升级后的状态保留 |
+| 适配器换算 | `test/unit/v1/adapters/` | ERC-8056 multiplier、精度缩放、向下取整和输入校验 |
 
-- `isTradable`、`isLPAllowed` 返回池 lifecycle 与证券暂停的结果；全局暂停单独通过 `isPaused()` 暴露。Router、Hook、LP 的执行入口另外检查全局暂停，不能用两个 view 推断全局是否可操作。
-- `setQuota` 不清空 `usedWad`。`setUsedWad` 可以降低使用量、归零或写到额度以上；因此不能断言“所有时刻使用量单调递增”或“所有时刻 used≤quota”。后续成交才执行额度检查。
-- 额度批量允许空数组、未排序日期、重复日期、过去/未来日期及超过旧报告的 100 项限制；非零证券与非零原因码依然必需。
-- `tickCount` 计 NFT，不计价格 tick，也不等同于流动性。全部 decrease 后的零流动性 NFT 仍占一个计数，burn 才减少计数。
-- 关闭 quote/U 的新池注册不关闭既有池；证券 relist 不自动恢复旧池 LIST；证券换 tier 不修改旧池注册时的 tier 快照。
+## Fixture 与测试替身
 
-## 运行
+| Fixture / 套件 | 使用真实组件 | 测试替身及边界 |
+| --- | --- | --- |
+| `FoundationFixture` | Registry、Ledger、Factory、W | Registry 的 Hook/LP 调用身份由测试合约承担；适合验证基础组件交互，不代表真实部署角色配置 |
+| `VolumeLedgerFixture` | Ledger 存储、额度和 oracle 授权逻辑 | Hook 身份及池到证券的查询使用 mock；不覆盖真实 Hook/池集成 |
+| Wrapped 本地集成 | PoolManager、Factory、W、Registry、Hook、Ledger、Router 代理及 TSVAdapter | U/Q、发行方 multiplier/checker 和 SBT 使用替身；`V1WrappedLiquiditySeed` 只准备交易流动性 |
+| `LPHook` 集成 | PoolManager 与生产 LP/Hook 路径 | LP 生命周期与 Wrapped 交易准备流程分开验证；零流动性 NFT 仍参与 NFT 计数断言 |
+| `LPLinkedLibraries` 单元测试 | 被测 LP Manager 与链接库 | PoolManager 使用 mock，用于验证 delegatecall 上下文；不能代替真实 LP 集成 |
+
+共享 fixture 和 mock 用于设置状态或替代外部依赖；它们不是独立测试套件。`Consumers` 中直接注入的 Hook delta 只验证账本转换回调，不代表完成了资金交换。
+
+## 当前行为约定
+
+- `isTradable` 与 `isLPAllowed` 返回池生命周期及证券暂停相关状态；全局暂停由 `isPaused()` 单独暴露。Router、Hook 和 LP 执行入口也会检查全局暂停。
+- `setQuota` 不清空 `usedWad`。`setUsedWad` 可下调、归零或设置为高于额度；后续成交执行额度检查，因此不能假设使用量始终单调增加或永远不超过额度。
+- 批量额度写入接受空数组、未排序日期和重复日期；重复日期按最后一次写入生效。证券与原因码仍要求非零。
+- `tickCount` 统计 NFT 数量，不统计价格 tick 或流动性。全部 decrease 后，零流动性 NFT 仍计数；burn 后才减少。
+- 关闭 quote/U 的新池注册不会关闭既有池；证券 relist 不自动恢复旧池；证券换 tier 不会改写既有池保存的 tier 快照。
+- Router 使用 exact-input 并要求完整成交；部分成交整体回滚。LP Manager 禁止 `MINT_POSITION_FROM_DELTAS` 与 `INCREASE_LIQUIDITY_FROM_DELTAS` 两种 delta-funded action。
+- 获授权 LP 退出可越过证券级 LP 暂停；全局暂停仍会阻止退出。普通 LP 操作和强制退出的门禁应分别理解。
+
+## 运行命令
 
 ```sh
-make test                 # 全部离线单元/本地集成测试及 invariant
-make test-unit            # unit profile
-make test-local           # local profile
-make test-governance
-make test-trading
-make test-liquidity        # 当前 LP/Hook 套件
-make test-operations       # Registry 套件
-make test-invariants      # 当前 Ledger invariant
-python3 script/check-test-layout.py
-git diff --check
+make test                 # 默认完整套件：单元、本地集成及 invariant
+make test-unit            # 单元测试
+make test-local           # 本地集成测试
+make test-governance      # 治理测试
+make test-trading         # 交易相关单元与本地集成测试
+make test-liquidity       # LP / Hook 测试
+make test-operations      # Registry 测试
+make test-invariants      # Ledger invariant
+make test-xlayer          # X Layer profile；当前没有可执行 fork 测试
+make check                # 测试目录检查、forge fmt --check 和 git diff --check
+make coverage             # coverage profile 汇总
 ```
 
-默认每个普通 fuzz 用例运行 256 次；Ledger invariant 运行 64 轮 × 32 步。共享 helpers 不包含 `test*`/`invariant*`；套件不继承另一可执行套件，避免重复统计。viaIR 首次编译耗时较长。
+普通 fuzz 默认运行 256 次；Ledger invariant 配置为 64 轮、每轮最多 32 步，并启用 `fail_on_revert`。via-IR 首次编译可能较慢。若调整 profile、fuzz 参数或测试路径，请同步更新本说明和 `Makefile`。
 
-`FoundationFixture` 使用真实 Registry/Ledger/Factory/W，Registry 的 Hook/LP 身份由测试合约承担；`VolumeLedgerFixture` 仅 mock Hook 身份和池到证券的查询，oracle 角色和 Ledger 存储是真实合约。`Consumers` 中的 Hook delta 注入用于单元验证，不代表资金完成交换。
+## 覆盖范围限制
 
-Wrapped 集成使用真实 PM、Factory/W、Registry/Hook/Ledger/Router 代理及上游 TSVAdapter，U/Q、发行方 multiplier/checker、SBT 为行为替身。`V1WrappedLiquiditySeed` 仅准备交易流动性；生产 LP 行为单独由 `LPHook` 的真实 LPManager 验证。LPLinked 单元测试使用 mock PM 验证链接库上下文；不能与真实资金集成测试互相替代。
-
-X Layer 当前没有可执行 fork 套件，目录只保留历史部署清单，不计入通过数。测试不证明生产发行方、生产 SBT、多签或链上部署已验收。
-
-## 本次执行记录（2026-10-12）
-
-- `make test`：30 个套件，221 项通过，0 失败、0 跳过；包括 10 项普通 fuzz（每项 256 次）和 1 项 Ledger invariant（64 轮、2048 次 handler 调用、0 非预期 revert）。
-- `make test-liquidity`：52 项通过，0 失败；`make test-invariants`：1 项通过，实际命中 Ledger 模型。
-- 测试目录结构检查、改动测试 Solidity 文件的 `forge fmt --check` 与 `git diff --check` 通过。
-- 以上结果来自当前工作区，包括已有的 `setUsedWad` 原因码校验；未运行 X Layer fork 测试。
+测试验证仓库中的合约逻辑和本地集成，不证明生产发行方、生产 SBT、多签配置或任一链上部署已经验收。X Layer 目录当前没有可执行 fork 测试；税费代币等非标准 ERC-20 行为也不在 Wrapped 集成的正确性保证范围内。
