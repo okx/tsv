@@ -349,8 +349,8 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     function _handleAction(uint256 action, bytes calldata params) internal override {
         if (
             action == Actions.MINT_POSITION || action == Actions.MINT_POSITION_FROM_DELTAS
-                || action == Actions.INCREASE_LIQUIDITY || action == Actions.INCREASE_LIQUIDITY_FROM_DELTAS
-                || action == Actions.DECREASE_LIQUIDITY || action == Actions.BURN_POSITION
+                || action == Actions.INCREASE_LIQUIDITY || action == Actions.DECREASE_LIQUIDITY
+                || action == Actions.BURN_POSITION
         ) {
             _handlePositionAction(action, params);
             return;

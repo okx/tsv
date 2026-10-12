@@ -150,6 +150,22 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         assertEq(manager.delivered(address(this), Currency.unwrap(key.currency0)), 0);
     }
 
+    function testIncreaseLiquidityFromDeltasIsForbiddenThroughBothEntryPoints() public {
+        bytes memory actions = abi.encodePacked(uint8(Actions.INCREASE_LIQUIDITY_FROM_DELTAS));
+        bytes[] memory params = new bytes[](1);
+        params[0] = abi.encode(tokenId, type(uint128).max, type(uint128).max, bytes(""));
+        bytes memory expectedError =
+            abi.encodeWithSelector(TSVLPManagerLib.UnsupportedAction.selector, Actions.INCREASE_LIQUIDITY_FROM_DELTAS);
+
+        vm.startPrank(owner);
+        vm.expectRevert(expectedError);
+        lp.modifyLiquidities(abi.encode(actions, params), block.timestamp);
+        vm.expectRevert(expectedError);
+        lp.modifyLiquiditiesWithoutUnlock(actions, params);
+        vm.stopPrank();
+        assertEq(lp.ownerOf(tokenId), owner);
+    }
+
     function testNormalActionsCannotRedeemClaims() public {
         uint256 id = uint160(Currency.unwrap(key.currency1));
         manager.seedClaim(owner, id, 9);
