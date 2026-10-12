@@ -37,12 +37,14 @@ struct UnderlyingRecord {
     bytes32 securityId;
     address legalShareAdapter;
     uint8 rawDecimals;
+    /// @notice Whether this underlying may be used when registering new pools.
+    bool registered;
 }
 
 /// @notice An independently registered original quote ERC-20 (Q).
 struct QuoteTokenRecord {
     uint8 rawDecimals;
-    /// @dev Explicit presence is required because rawDecimals may be zero.
+    /// @notice Whether this quote token may be used when registering new pools.
     bool registered;
 }
 

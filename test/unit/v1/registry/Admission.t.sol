@@ -147,6 +147,35 @@ contract TSVAdmissionTest is FoundationFixture {
         }
     }
 
+    function testPoolRegisterDisableFlagsBlockOnlyNewPoolsAndPreserveExistingPool() public {
+        assertTrue(registry.getUnderlying(address(stockToken)).registered);
+        assertTrue(registry.getQuoteToken(address(quote)).registered);
+
+        registry.disableQuoteTokenPoolRegister(address(quote));
+        assertFalse(registry.getQuoteToken(address(quote)).registered);
+        _assertOperationGates(true, true);
+
+        PermissionedRegisterParam memory second = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        registry.registerPermissionedCurrency(second, 1);
+        vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
+        registry.registerPool(_poolKey(second.currency, address(quote)));
+
+        V1MockToken otherQuote = new V1MockToken("Q2", 6);
+        registry.registerQuoteToken(address(otherQuote));
+        registry.disableUnderlyingPoolRegister(address(stockToken));
+        assertFalse(registry.getUnderlying(address(stockToken)).registered);
+        _assertOperationGates(true, true);
+
+        vm.expectRevert(TSVRegistryV1.InvalidPool.selector);
+        registry.registerPool(_poolKey(second.currency, address(otherQuote)));
+
+        PermissionedRegisterParam memory third = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter));
+        registry.registerPermissionedCurrency(third, 1);
+        assertTrue(registry.getUnderlying(address(stockToken)).registered);
+        bytes32 newPoolId = registry.registerPool(_poolKey(third.currency, address(otherQuote)));
+        assertTrue(registry.isKnownPool(newPoolId));
+    }
+
     function testIssuerOwnerRotationDoesNotRequireRegistryUpdate() public {
         address next = makeAddr("next-issuer-owner");
         stock.transferOwnership(address(next));
@@ -154,5 +183,11 @@ contract TSVAdmissionTest is FoundationFixture {
         stock.acceptOwnership();
         assertEq(registry.getCurrencyUnderlying(address(stock)), address(stockToken));
         _assertOperationGates(true, true);
+    }
+
+    function _poolKey(address a, address b) private view returns (PoolKey memory) {
+        address currency0 = a < b ? a : b;
+        address currency1 = a < b ? b : a;
+        return PoolKey(Currency.wrap(currency0), Currency.wrap(currency1), 3000, 60, IHooks(address(this)));
     }
 }
