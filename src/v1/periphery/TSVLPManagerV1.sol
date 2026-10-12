@@ -140,6 +140,11 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     ///      Risk disclaimer (issue #6, item 4): a quote with receiver-controlled rejection lets the LP veto
     ///      delivery. This path has no quote custody/claim fallback; the NFT and pool count are restored on
     ///      revert, potentially blocking pool/security delisting. Quote admission must exclude this behavior.
+    ///      Risk disclaimer (issue #6, item 3): all liquidity is burned in one core call. Individually valid
+    ///      increases can accumulate raw principal whose withdrawal delta exceeds int128.max at the exit price.
+    ///      Accrued fees can independently exceed the core delta limit. Either failure reverts the entire exit,
+    ///      restoring the NFT and pool count and potentially blocking delisting; no authorized partial exit is
+    ///      provided by this entry point.
     function unwindPositionByOkx(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)
         external
         onlyRole(FORCE_EXIT_ADMIN_ROLE)
@@ -171,6 +176,10 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     ///      A quote with receiver-controlled rejection can therefore revert this entire exit, restoring the
     ///      NFT and pool count and potentially blocking pool/security delisting. Quote admission must exclude
     ///      this behavior; forced exit is not guaranteed if the quote token itself blocks transfers.
+    ///      Risk disclaimer (issue #6, item 3): this also burns the complete position in one core call. Cumulative
+    ///      raw principal or accrued fees exceeding the core int128 delta limit can revert and restore the NFT
+    ///      and pool count. Holder-authorized partial removals may avoid principal overflow, but this entry point
+    ///      provides no authorized chunking and cannot guarantee a full forced exit for such positions.
     function unwindPosition(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)
         public
         override
@@ -365,6 +374,10 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     }
 
     /// @dev Position actions check both executor and owner, then lifecycle, before execution and NFT accounting.
+    ///      Risk disclaimer (issue #6, item 3): per-increase delta checks and tick liquidity limits do not bound
+    ///      accumulated raw withdrawal amounts. No worst-price principal or accrued-fee bound is enforced here.
+    ///      Legal-share quotas, especially with small multipliers, cannot substitute for raw amount limits;
+    ///      admission and position policies must account for these bounds if full forced exits are required.
     function _handlePositionAction(uint256 action, bytes calldata params) private {
         PoolKey memory poolKey = TSVLPManagerLib.checkPositionAction(
             registry, action, params, msgSender(), _ownerOf, positionInfo, poolKeys
