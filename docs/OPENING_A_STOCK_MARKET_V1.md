@@ -51,7 +51,7 @@ TokenApproveProxy 还须将 LP Manager **proxy 地址**加入 caller allowlist�
 1. 组装排序后的 `PoolKey(currency0, currency1, fee, tickSpacing, hook)`；两种 Currency 必须是 W 和 Q，Hook 必须是绑定的 TSV Hook。
 2. 由 `POOL_CREATOR_ROLE` 调用 `LPManager.initializePool(key, sqrtPriceX96)`。Registry 注册池和 PoolManager 初始化在一个交易内完成。
 3. 通过标准显式流动性 action 注入 LP；股票腿 U 和 Q 的用户付款依赖 TokenApproveProxy。position owner 与 action executor 均需 TSV LP SBT 权限，W 和 Hook 的 issuer/hook allowlist 也需就绪。
-4. `VOLUME_ORACLE_ROLE` 在 Ledger 调用 `setQuota(securityId, [{ESTDay: currentESTDay(), amount}], reasonCode)`。quota 是 legal-share WAD 的直接值，不从 ADTV/tier 自动计算；默认 0 会阻止正成交量。
+4. `VOLUME_ORACLE_ROLE` 在 Ledger 调用 `setQuota(securityId, amount, reasonCode)`。quota 是 legal-share WAD 的直接值，不从 ADTV/tier 自动计算；设置后逐日沿用直到再次修改，默认 0 会阻止正成交量。
 5. 在 Router 上 allowlist 外部 Adapter。Adapter 请求提供 W/Q PoolKey、方向、raw input、最小 raw output、deadline 和 U Adapter 当前 multiplier 快照。
 
 Swap 必须全额消耗输入，且满足最小输出。Hook 用真实 W PoolManager delta 转换并记账；多个 W 和多个池共用该 securityId 的日额度。运营需监控 `VolumeUsed` 并使用 `setUsedWad` 修正时留存原因码和审计记录。

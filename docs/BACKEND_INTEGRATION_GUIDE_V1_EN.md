@@ -68,18 +68,18 @@ An account with Registry `VOLUME_ORACLE_ROLE` writes direct quota and usage valu
 ```solidity
 struct DailyQuota { uint256 ESTDay; uint256 amount; }
 
-ledger.setQuota(securityId, values, reasonCode);
+ledger.setQuota(securityId, amount, reasonCode);
 ledger.setUsedWad(securityId, values, reasonCode);
 ```
 
 - `amount` is legal-share WAD. There is no ADTV/tier-derived quota formula; each value is written directly.
-- All W adapters and pools for a security share its daily quota and usage.
+- Each security has one daily quota that remains in effect until changed. Usage is stored separately for each `securityId` and `ESTDay`. All W adapters and pools for a security share that quota and usage.
 - A missing quota defaults to zero, so positive-volume swaps require a quota first.
 - `setQuota` does not reset `usedWad`. `setUsedWad` may lower usage, set it to zero, or set it above quota; later swaps enforce the resulting state.
-- Both methods require nonzero `securityId` and `reasonCode`. Empty arrays do nothing; unsorted dates are accepted; a repeated day is overwritten by the last array item.
+- Both methods require nonzero `securityId` and `reasonCode`. `setQuota` takes effect immediately and cannot schedule a quota for a future day. For `setUsedWad`, empty arrays do nothing; unsorted dates are accepted; a repeated day is overwritten by the last array item.
 - Events are `QuotaSet`, `UsedWadSet`, and `VolumeUsed`.
 
-Read `Quota(securityId, ESTDay)`, `usedWad(securityId, ESTDay)`, and `currentESTDay()`. Confirm the capitalized `Quota` getter name in the deployed ABI.
+Read `Quota(securityId)`, `usedWad(securityId, ESTDay)`, and `currentESTDay()`. Confirm the capitalized `Quota` getter name in the deployed ABI.
 
 ## 6. Registry operations
 

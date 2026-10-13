@@ -90,12 +90,10 @@ contract TSVOperationsPermissionsTest is FoundationFixture {
         vm.expectRevert(_denied(operator, 0));
         vm.prank(operator);
         registry.setSbtConfig(1, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
-        TSVVolumeLedgerV1.DailyQuota[] memory values = new TSVVolumeLedgerV1.DailyQuota[](1);
-        values[0] = TSVVolumeLedgerV1.DailyQuota(DAY, 100e18);
         vm.expectRevert(TSVVolumeLedgerV1.Unauthorized.selector);
         vm.prank(operator);
-        ledger.setQuota(SECURITY, values, bytes32("TEST"));
-        assertEq(ledger.Quota(SECURITY, DAY), 0);
+        ledger.setQuota(SECURITY, 100e18, bytes32("TEST"));
+        assertEq(ledger.Quota(SECURITY), 0);
         assertEq(registry.getTierPolicy(2).maxListed, 0);
         assertEq(registry.sbtTokenIds().length, 0);
     }

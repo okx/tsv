@@ -68,18 +68,18 @@ struct SwapRequest {
 ```solidity
 struct DailyQuota { uint256 ESTDay; uint256 amount; }
 
-ledger.setQuota(securityId, values, reasonCode);
+ledger.setQuota(securityId, amount, reasonCode);
 ledger.setUsedWad(securityId, values, reasonCode);
 ```
 
 - `amount` 单位为 legal-share WAD；quota 没有 ADTV/Tier 派生公式，值直接覆盖。
-- 每个 security/day 独立存储；多个 W 和 pool 共用同一 securityId 的 quota/usedWad。
+- 每个 securityId 有一个每日 quota，设置后逐日沿用，直到再次修改；usedWad 按 securityId/ESTDay 独立存储。多个 W 和 pool 共用同一 securityId 的额度与用量。
 - quota 缺省为 0，正数成交必须先设置 quota。
 - `setQuota` 不改 `usedWad`；`setUsedWad` 可下调、清零或设置高于 quota 的值，之后的 swap 才按新状态检查。
-- 两个 setter 都要求 `securityId` 和 `reasonCode` 非零。空数组不写入；未排序值按数组顺序处理；重复 ESTDay 最后一次写入生效。
+- 两个 setter 都要求 `securityId` 和 `reasonCode` 非零。`setQuota` 立即生效，不能预设指定日期的额度。`setUsedWad` 的空数组不写入；未排序值按数组顺序处理；重复 ESTDay 最后一次写入生效。
 - 额度交易发出 `QuotaSet`，用量修正发出 `UsedWadSet`，成交记账发出 `VolumeUsed`。
 
-读取接口：`Quota(securityId, ESTDay)`、`usedWad(securityId, ESTDay)` 和 `currentESTDay()`。请使用部署 ABI 确认 `Quota` 大写 getter 名称。
+读取接口：`Quota(securityId)`、`usedWad(securityId, ESTDay)` 和 `currentESTDay()`。请使用部署 ABI 确认 `Quota` 大写 getter 名称。
 
 ## 6. 证券和资产配置
 

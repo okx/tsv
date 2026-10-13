@@ -35,8 +35,8 @@ contract TSVVolumeLedgerInvariantTest is VolumeLedgerFixture {
     function invariantQuotaAndUsageMatchModelAcrossSecuritiesPoolsAndDays() public view {
         for (uint256 security; security < 2; ++security) {
             bytes32 id = security == 0 ? SECURITY : OTHER_SECURITY;
+            assertEq(ledger.Quota(id), handler.modelQuota(security));
             for (uint256 day; day < 3; ++day) {
-                assertEq(ledger.Quota(id, DAY + day), handler.modelQuota(security, day));
                 assertEq(ledger.usedWad(id, DAY + day), handler.modelUsed(security, day));
             }
         }

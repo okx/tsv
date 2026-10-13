@@ -19,7 +19,7 @@
 
 | 入口 | 当前作用 | 测试位置 |
 | --- | --- | --- |
-| `setQuota(securityId, DailyQuota[], reasonCode)` | 对任意 EST epoch day 直接写 legal-share WAD quota，不重置 usage | `test/unit/v1/trading/VolumeLedgerAccounting.t.sol` |
+| `setQuota(securityId, amount, reasonCode)` | 设置逐日沿用的 legal-share WAD quota，不重置 usage | `test/unit/v1/trading/VolumeLedgerAccounting.t.sol` |
 | `setUsedWad(securityId, DailyQuota[], reasonCode)` | 覆盖 usage，可纠正到零或高于 quota | `test/unit/v1/trading/VolumeLedgerSetUsedWad.t.sol`、`VolumeLedgerAccounting.t.sol` |
 | Hook `recordSwap(...)` | 用 actual PoolManager delta 计算后校验当前额度 | `test/unit/v1/registry/Consumers.t.sol`、本地 Wrapped Swap tests |
 

@@ -96,12 +96,12 @@ contract TSVOperationsLifecycleTest is FoundationFixture {
         assertEq(registry.getTierPolicy(1).listedCount, 0);
         assertEq(registry.getTierPolicy(2).listedCount, 1);
         assertEq(ledger.usedWad(SECURITY, DAY), 1e18);
-        assertEq(ledger.Quota(SECURITY, DAY), 1000e18);
+        assertEq(ledger.Quota(SECURITY), 1000e18);
         assertEq(registry.getPool(poolId).tierId, 1); // Pool retains its registration-time tier.
         registry.setSecurityTier(SECURITY, 1, bytes32("TEST"));
         assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertEq(registry.getTierPolicy(2).listedCount, 0);
-        assertEq(ledger.Quota(SECURITY, DAY), 1000e18);
+        assertEq(ledger.Quota(SECURITY), 1000e18);
         assertEq(ledger.usedWad(SECURITY, DAY), 1e18);
     }
 

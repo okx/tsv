@@ -20,7 +20,7 @@ TSV V1 包含 Registry、Volume Ledger、Hook、Swap Router 和 LP Manager。它
 | `SecurityPauseMode` | `NONE`, `TRADE`, `LP`, `ALL` | 替换式证券操作暂停模式；数值同时作为 LP/TRADE 位掩码 |
 | `PoolLifecycle` | `DELIST`, `LIST`, `PAUSE` | 池自身的交易/普通 LP lifecycle |
 | `SwapRequest` | `PoolKey key`, `bool zeroForOne`, `uint128 amountSpecified`, `uint128 limitAmount`, `uint64 deadline`, `uint256 expectedMultiplier` | Router 单池 exact-input 请求；最后一个数值是当前 U Adapter multiplier 快照 |
-| `DailyQuota` | `uint256 ESTDay`, `uint256 amount` | Ledger 中任意 epoch day 的额度或 usedWad 写入值，金额为 WAD |
+| `DailyQuota` | `uint256 ESTDay`, `uint256 amount` | Ledger 中任意 epoch day 的 usedWad 写入值，金额为 WAD |
 | `SbtIdentityConfig` | `bool registered`, `PermissionFlag permissions` | SBT tokenId 到 TSV 操作权限的配置 |
 
 权威字段注释见 [`src/v1/types/TSVTypes.sol`](../src/v1/types/TSVTypes.sol) 和各合约源码。
@@ -68,12 +68,12 @@ Ledger 只保存调用方直接设定的值，没有 ADTV、tier 公式或拆并
 | ABI | 权限与规则 |
 | --- | --- |
 | `initialize(address registry)` | Registry 地址必须有代码 |
-| `setQuota(bytes32 securityId, DailyQuota[] values, bytes32 reasonCode)` | Registry 的 `VOLUME_ORACLE_ROLE`；证券与原因码非零；逐项直接覆盖 `Quota`，不清空 `usedWad` |
+| `setQuota(bytes32 securityId, uint256 amount, bytes32 reasonCode)` | Registry 的 `VOLUME_ORACLE_ROLE`；证券与原因码非零；直接覆盖逐日沿用的 `Quota`，不清空 `usedWad` |
 | `setUsedWad(bytes32 securityId, DailyQuota[] values, bytes32 reasonCode)` | 同一角色；逐项覆盖当日用量，允许 0 和高于额度 |
 | `currentESTDay()` | 返回 `(block.timestamp - 5 hours) / 1 days`，epoch day，固定 UTC-5 |
 | `recordSwap(poolId, delta0, delta1, legalShares0, legalShares1)` | 仅 Registry 配置的 Hook；验证 V4 delta 方向并要求恰有一个非零 legal-share leg，累加后检查 `usedWad <= Quota` |
 
-批量 setter 对空数组无操作；未排序日期和重复日期均按数组顺序写入，重复日期最后一次写入生效。Quota 默认为 0，正成交量需先设置足额当日 quota。用量修正可低于已记录量，或高于 quota；只影响之后的成交检查。事件为 `QuotaSet`、`UsedWadSet` 和 `VolumeUsed`。
+`setQuota` 立即生效，不能预设指定日期的额度。`setUsedWad` 对空数组无操作；未排序日期和重复日期均按数组顺序写入，重复日期最后一次写入生效。Quota 默认为 0，正成交量需先设置足额 quota。用量修正可低于已记录量，或高于 quota；只影响之后的成交检查。事件为 `QuotaSet`、`UsedWadSet` 和 `VolumeUsed`。
 
 ## 5. Router 请求
 

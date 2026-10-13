@@ -185,8 +185,6 @@ abstract contract FoundationFixture is Test {
     }
 
     function _submitQuota(uint256 value) internal {
-        TSVVolumeLedgerV1.DailyQuota[] memory values = new TSVVolumeLedgerV1.DailyQuota[](1);
-        values[0] = TSVVolumeLedgerV1.DailyQuota(DAY, value);
-        ledger.setQuota(SECURITY, values, bytes32("TEST"));
+        ledger.setQuota(SECURITY, value, bytes32("TEST"));
     }
 }
