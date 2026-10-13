@@ -21,9 +21,10 @@ Useful reads:
 
 ## 2. Participant permissions and DEX adapters
 
-Both Router swap write methods require `msg.sender` to be in the Router adapter allowlist. End users do not call the Router directly:
+End users may call the caller-bound entry point directly. The Router fixes the caller as participant, payer, and output recipient; the caller must approve the Router to spend input U or Q. External DEX adapters continue to use the allowlisted methods and pass the real participant:
 
-- `swapExactInputFromContractDirect(request, payer, participant, recipient)` is called by an allowlisted adapter. For U input, `payer` must be zero and U must already be deposited in W; for Q input, `payer` must be the calling adapter. Output goes to `recipient`.
+- `swapExactInput(request)` is called by a user or smart wallet; identity, input payer, and output recipient are all bound to `msg.sender`.
+- `swapExactInputFromContractDirect(request, payer, participant, recipient)` is called by an allowlisted adapter. For U input, `payer` must be zero and U must already be deposited in W; for Q input, `payer` must be the calling adapter. `recipient` must equal `participant`.
 - `swapExactInputFromContract(request, participant)` is called by an allowlisted adapter; the calling adapter is both payer and output recipient.
 
 For Q input, after `PoolManager.sync`, the Router transfers Q directly from the payer to PoolManager and then calls `settle`; the payer approves Q to the Router. U input is still transferred into W by the Router (or uses U already deposited in W on the Direct path), then W wraps it to PoolManager.

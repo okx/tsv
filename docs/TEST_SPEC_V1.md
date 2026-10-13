@@ -31,13 +31,13 @@
 
 交易集成应验证：
 
-- Router 调用者是 Adapter allowlist 中的合约，participant 单独作为 SBT/issuer 权限主体；
+- Adapter 路径的 Router 调用者是 allowlist 中的合约，participant 单独作为 SBT/issuer 权限主体；caller-bound 路径强制 `participant == payer == recipient == msg.sender` 且不依赖 Adapter allowlist；
 - exact-input 请求金额范围、deadline、最小输出和全额 input fill；部分成交整体回滚；
 - W 输入时 U→W→PoolManager；W 输出时 W→U；Q 直接作为 quote settlement；
 - `expectedMultiplier` 在 Hook beforeSwap/afterSwap 均有效；过期快照回滚；
 - actual pool delta 只记一次，quota 和失败回滚覆盖同一 security 的多个池。
 
-不要增加 exact-output、direct EOA Router 调用、multi-hop、ADTV report 或 partial-fill refund 成功断言，除非相应源码能力先被实现。
+不要增加 exact-output、multi-hop、ADTV report 或 partial-fill refund 成功断言，除非相应源码能力先被实现。
 
 ## 4. LP、升级和测试替身
 

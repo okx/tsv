@@ -79,12 +79,13 @@ Ledger 只保存调用方直接设定的值，没有 ADTV、tier 公式或拆并
 
 | 入口 | 调用者与结算 |
 | --- | --- |
-| `swapExactInputFromContractDirect(SwapRequest request, address payer, address participant, address recipient)` | 仅已 allowlist 的 Adapter；U 输入要求 payer 为零且 U 已存入 W；Q 输入要求 payer 为调用 Adapter；输出给 recipient |
+| `swapExactInputFromContractDirect(SwapRequest request, address payer, address participant, address recipient)` | 仅已 allowlist 的 Adapter；U 输入要求 payer 为零且 U 已存入 W；Q 输入要求 payer 为调用 Adapter；recipient 必须等于 participant |
 | `swapExactInputFromContract(SwapRequest request, address participant)` | 仅已 allowlist 的 Adapter；调用 Adapter 为 payer 和输出接收方 |
+| `swapExactInput(SwapRequest request)` | 任意调用者可直接调用；`msg.sender` 固定作为 participant、payer 和输出接收方；输入 U/Q 须授权 Router 扣款 |
 | `setAdapterAllowed(address adapter, bool allowed)` | Registry Default Admin；启用时地址必须有代码，且全局暂停时不可调用 |
 | `settlementCurrency(address currency)` | 若输入为已登记 W，返回 U；否则返回原地址 |
 
-`amountSpecified` 必须大于零且不超过 `int128.max`；`limitAmount` 必须非零；deadline 过期时拒绝。Router 构造单池 exact-input action，检查最终实际输入等于请求输入，V4 action 检查最小输出。用户身份由 `participant` 决定；Adapter 负责保证此地址与外部调用上下文一致。
+`amountSpecified` 必须大于零且不超过 `int128.max`；`limitAmount` 必须非零；deadline 过期时拒绝。Router 构造单池 exact-input action，检查最终实际输入等于请求输入，V4 action 检查最小输出。Adapter 路径由 Adapter 提供 participant；caller-bound 路径强制使用 `msg.sender`，调用者仍须具备 SBT `SWAP_ALLOWED` 和发行方 swap 权限。合约钱包也能调用，但只能使用自身身份。
 
 ## 6. Hook 与法律股数 Adapter
 

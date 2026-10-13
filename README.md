@@ -16,8 +16,9 @@ Every registered pool is a single **W/Q** V4 pool with exactly one registered st
 
 ```mermaid
 flowchart LR
-  User[Participant] --> Adapter[Approved adapter]
-  Adapter --> Router[TSVSwapRouterV1]
+  User[Participant] -->|Caller-bound swap| Router[TSVSwapRouterV1]
+  User --> Adapter[Approved adapter]
+  Adapter --> Router
   User --> LP[TSVLPManagerV1]
   Router --> PM[Uniswap V4 PoolManager]
   LP --> PM
@@ -39,7 +40,7 @@ The code has five TSV business contracts: `TSVRegistryV1`, `TSVVolumeLedgerV1`, 
 
 - **Admission:** the Registry verifies W provenance and metadata against the configured Factory, binds W to U and a security, validates the legal-share adapter, and separately registers Q. A pool can only be registered through the LP Manager and must contain one W and one Q.
 - **Participant access:** the Registry combines permissions from the participant's registered SBT identities. The Router requires `SWAP_ALLOWED`; ordinary position actions require `LIQUIDITY_ALLOWED` for both executor and position owner. W also applies its issuer-side `swappingEnabled` and allowlist checks.
-- **Swap execution:** approved adapters call one of the Router's exact-input entry points. The requested input must be fully spent and the minimum output must be met. The Hook rechecks the stock multiplier snapshot and records the actual stock-side PoolManager delta in the Ledger.
+- **Swap execution:** participants can call the Router's caller-bound exact-input entry point, or an approved adapter can call an adapter entry point. The caller-bound path uses the caller as participant, payer, and recipient; both paths retain SBT, issuer, pool, pause, and quota checks. The requested input must be fully spent and the minimum output must be met.
 - **Volume limits:** `setQuota` writes absolute WAD values by security and fixed EST epoch day. A missing quota is zero, so a positive-volume swap needs a quota set for the current day. `setUsedWad` is an explicit correction and may lower usage, set it to zero, or set it above quota; later swaps enforce the resulting quota.
 - **LP positions:** the LP Manager registers and initializes pools, processes supported position actions, and maintains an NFT count per pool. The two delta-funded mint/increase actions are rejected. `withdrawClaim` is disabled. Forced exits are full-position operations and can fail if token delivery is rejected or the PoolManager delta exceeds its `int128` range.
 - **Pauses:** security pause mode is assigned as a final `NONE`, `TRADE`, `LP`, or `ALL` value. Pool lifecycle is `LIST`, `PAUSE`, or `DELIST`. A separate global emergency pause blocks execution paths; `isTradable` and `isLPAllowed` do not include that global flag.
