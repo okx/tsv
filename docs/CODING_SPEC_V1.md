@@ -79,8 +79,8 @@ Ledger 只保存调用方直接设定的值，没有 ADTV、tier 公式或拆并
 
 | 入口 | 调用者与结算 |
 | --- | --- |
-| `swapExactInputFromContractDirect(SwapRequest request, address participant, address recipient)` | 仅已 allowlist 的 Adapter；从 participant 拉取输入，输出给 recipient |
-| `swapExactInputFromContract(SwapRequest request, address participant)` | 仅已 allowlist 的 Adapter；从 Adapter 预存余额拉取输入，输出给 Adapter |
+| `swapExactInputFromContractDirect(SwapRequest request, address payer, address participant, address recipient)` | 仅已 allowlist 的 Adapter；U 输入要求 payer 为零且 U 已存入 W；Q 输入要求 payer 为调用 Adapter；输出给 recipient |
+| `swapExactInputFromContract(SwapRequest request, address participant)` | 仅已 allowlist 的 Adapter；调用 Adapter 为 payer 和输出接收方 |
 | `setAdapterAllowed(address adapter, bool allowed)` | Registry Default Admin；启用时地址必须有代码，且全局暂停时不可调用 |
 | `settlementCurrency(address currency)` | 若输入为已登记 W，返回 U；否则返回原地址 |
 

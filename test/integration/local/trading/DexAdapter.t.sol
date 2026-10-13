@@ -67,6 +67,8 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
     }
 
     function testBothDirectionsConsumeInputBalanceAndPreserveExistingOutputDonations() public {
+        uint256 routerQuoteDonation = 333;
+        quote.mint(address(router), routerQuoteDonation);
         for (uint8 d; d < 2; d++) {
             bool direction = d == 0;
             IERC20 input = _settlementToken(direction ? key.currency0 : key.currency1);
@@ -88,6 +90,7 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
             );
             assertEq(input.allowance(address(adapter), address(router)), 0);
             assertEq(stock.balanceOf(address(adapter)), 0);
+            assertEq(quote.balanceOf(address(router)), routerQuoteDonation);
             assertEq(_inventory(), 17);
             assertEq(router.msgSender(), address(0));
             // Remove the output donation before it becomes the next direction's input.
@@ -227,7 +230,7 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         _swap(false, 1e16);
         SwapRequest memory request = _request(true, 1e16);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
-        router.swapExactInputFromContractDirect(request, alice, alice);
+        router.swapExactInputFromContractDirect(request, address(0), alice, alice);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
         router.swapExactInputFromContract(request, alice);
     }
