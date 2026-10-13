@@ -102,9 +102,9 @@ Registry 的管理事件和参数以 [`PERMISSIONED_REGISTRY_V1.md`](./PERMISSIO
 - 由 `POOL_CREATOR_ROLE` 调用 `initializePool(key, sqrtPriceX96)` 登记并初始化 V4 池。
 - 通过父类 ABI `modifyLiquidities(unlockData, deadline)` 或 `modifyLiquiditiesWithoutUnlock(actions, params)` 编码上游 V4 position actions。使用显式 `MINT_POSITION`/`INCREASE_LIQUIDITY`；`*_FROM_DELTAS` mint/increase 会被拒绝。
 - 普通 position operation 检查执行者与 position owner 的 TSV `LIQUIDITY_ALLOWED`，再检查池 `isLPAllowed` 和 W issuer 权限。
-- LP 用户付款经 immutable `TOKEN_APPROVE_PROXY.claimTokens`；用户授权地址是 `TOKEN_APPROVE_PROXY.tokenApprove()`，部署运维还需把 LP Manager proxy 加入 TokenApproveProxy allowlist。
+- LP 付款人需分别对 U 和 Q 的 ERC-20 合约授权实际 LP Manager proxy；LP Manager 直接从 payer 划转 U 到 W、Q 到 PoolManager。Swap 付款人（调用 Router 的已授权 Adapter）对需要 Router 划转的输入另行授权实际 Router proxy；预存于 W 的 U 不需此授权。
 - `withdrawClaim` 在 TSV LP Manager 中固定回滚。
-- `unwindPosition` 由池内任一经验证 W adapter 的 owner 调用；`unwindPositionByOkx` 需 `FORCE_EXIT_ADMIN_ROLE`。都对原 LP owner 执行一次全仓退出；全局暂停会阻止调用。
+- `unwindPosition` 由池内任一经验证 W adapter 的 owner 调用；`unwindPositionByTsv` 需 `FORCE_EXIT_ADMIN_ROLE`。都对原 LP owner 执行一次全仓退出；全局暂停会阻止调用。
 
 强退无法保证所有 Token/仓位都成功：Q 可拒收转账，完整本金/费用 delta 可能越过 V4 `int128` 范围。后端不能把强退接口描述为无条件可用。
 

@@ -47,12 +47,12 @@ contract LPRegistryRolesTest is LPLinkedFixture {
         bytes32 role = lp.FORCE_EXIT_ADMIN_ROLE();
         TSVRegistryV1(registry).revokeRole(role, address(this));
         _expectMissingRole(address(this), role);
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         assertEq(lp.ownerOf(tokenId), owner);
 
         TSVRegistryV1(registry).grantRole(role, address(this));
         vm.expectCall(registry, abi.encodeCall(ITSVPermissionedRegistry.hasRole, (role, address(this))));
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         assertEq(lp.balanceOf(owner), 0);
     }
 

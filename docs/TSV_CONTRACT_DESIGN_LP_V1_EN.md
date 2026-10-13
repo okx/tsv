@@ -40,7 +40,7 @@ TSV follows Uniswap v4 Permissioned Pools. **Uniswap v4 PoolManager, Permissions
 | PermissionsAdapterFactory | Permissionless creation and verification; PermissionsAdapter→CET mapping; verification requires Factory provenance and a nonzero CET balance in PermissionsAdapter | **No modifications**; deployed by OKX and bound to the same PoolManager; TSV admission checks are implemented separately in Registry |
 | BaseAllowlistChecker | IAllowlistChecker interface and ERC-165 support | **No modifications**; Securitize implements issuer eligibility in a derived checker; TSV SBT is checked independently in Registry |
 | PermissionedPositionManager | NFTs, ticks/salt, liquidity changes, slippage, settlement, nontransferable NFTs, owner-authorized unwind, and delivery fallbacks | Provides the inheritance base for TSVLPManagerV1; receives the necessary extension points |
-| TSVLPManagerV1 | Inherits PermissionedPositionManager and reuses liquidity algorithms and unwind delivery logic | Adds TSV SBT checks, including ordinary removal/burn; registers pools atomically before initialization; pays through TokenApproveProxy; adds Hook context and independent UNWIND_ALLOWED queries; authorized unwind may bypass the LP's SBT check |
+| TSVLPManagerV1 | Inherits PermissionedPositionManager and reuses liquidity algorithms and unwind delivery logic | Adds TSV SBT checks, including ordinary removal/burn; registers pools atomically before initialization; pulls U/Q directly from the payer; adds Hook context and independent UNWIND_ALLOWED queries; authorized unwind may bypass the LP's SBT check |
 | TSVRegistryV1 | Uses V4 PoolKey and PermissionFlags | Custom TSV component managing SBT permissions, security and asset admission, pool registration, and market pauses |
 | TSVHookV1 | Uses V4 callbacks and actual BalanceDelta | Custom TSV component validating pool state and LP context, rejecting donations, converting actual security-side executed volume to legal shares, and calling Ledger |
 | TSVVolumeLedgerV1 | Receives actual executed deltas and legal share quantities from Hook | Custom TSV component recording securities volume and enforcing quotas shared by a security; liquidity changes are not directly counted as swap volume |
@@ -63,7 +63,7 @@ The current `_decrease` and parameterized `_burn` functions do not provide direc
 | TSVRegistryV1 | OKX | Manage securities, PermissionsAdapter/CET/QuoteToken, SBT permissions, issuer owner admission, markets, and component bindings |
 | TSVLPManagerV1 | OKX | Manage pool creation roles and upgrades; handle LP entry points, SBT, issuer permissions, settlement, and unwind; unwind authority comes from PermissionsAdapter.owner, not an ordinary OKX administrator role |
 | TSVHookV1 | OKX | Manage bindings to the actual Router/LPManager; validate pools and LP context and enforce market controls |
-| TokenApproveProxy / TokenApprove | Administrators of the relevant OKX approval infrastructure | Authorize the actual LPManager proxy to call claimTokens; users approve TokenApprove to debit their tokens |
+| ERC-20 allowances | LP payer / swap Adapter | LP payer approves the actual LP Manager proxy for U/Q; swap Adapter separately approves the actual Router proxy for U/Q input |
 | TSVVolumeLedgerV1 / TSVDataInboxV1 | OKX | Executed-volume accounting, quotas, and report processing; no custody of the LP's CET |
 | PoolManager | Selected Uniswap v4 infrastructure | Holds PermissionsAdapter virtual tokens and QuoteToken; maintains pools and ERC-6909 balances; Factory does not grant the issuer management authority over the entire PoolManager |
 
@@ -195,7 +195,7 @@ Entry point: `MINT_POSITION` within `modifyLiquidities(unlockData, deadline)`, t
 - Pool is initialized; the security is listed; pool, global, security, and market LP pauses do not block the operation.
 - Owner and actual participant hold valid SBTs. Minting requires TSV `LIQUIDITY_ALLOWED` and issuer `LIQUIDITY_ALLOWED` on every permissioned asset leg.
 - PermissionsAdapter is Factory-verified, allows the pool's Hook, and lists the actual LPManager proxy as a wrapper.
-- User holds CET/QuoteToken and approves the TokenApprove returned by `TOKEN_APPROVE_PROXY.tokenApprove()`. The proxy authorizes LPManager to call claimTokens. Users are not required to approve LPManager/Permit2 for these payments.
+- The LP payer holds CET/QuoteToken and approves the actual LP Manager proxy for both ERC-20 tokens. The LP Manager pulls directly from the payer. The swap payer (allowlisted Adapter) separately approves the Router proxy for U/Q input.
 - Tick range, liquidity, amount0Max/amount1Max, and deadline are valid; hookData is empty.
 - LPManager supplies Hook context matching the operation: poolId, tickLower/tickUpper, salt, liquidityDelta, and OPEN mode.
 
@@ -565,7 +565,7 @@ This revision updates this design document only; it does not change contracts or
 
 ## 13. Code References
 
-- [TSVLPManagerV1](../src/v1/periphery/TSVLPManagerV1.sol): initializePool, unwindPosition, LP permissions, and TokenApproveProxy payments.
+- [TSVLPManagerV1](../src/v1/periphery/TSVLPManagerV1.sol): initializePool, unwindPosition, LP permissions, and direct ERC-20 payments.
 - [PermissionedPositionManager](../src/v1/vendor/permissionedPools/PermissionedPositionManager.sol): nontransferable NFTs, mint/increase validation, claims, and unwind delivery.
 - [PositionManager](../src/v1/vendor/permissionedPools/PositionManager.sol): action entry points, mint/increase/decrease/burn, slippage, and settlement.
 - [PermissionsAdapter](../src/v1/vendor/permissionedPools/PermissionsAdapter.sol), [Factory](../src/v1/vendor/permissionedPools/PermissionsAdapterFactory.sol), and [checker base](../src/v1/vendor/permissionedPools/BaseAllowListChecker.sol): issuer permissions, custody, and Factory verification.

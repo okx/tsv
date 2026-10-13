@@ -40,7 +40,7 @@ TSV 遵循 Uniswap v4 Permissioned Pools 架构。**Uniswap v4 PoolManager、Per
 | PermissionsAdapterFactory | permissionless create/verify；记录 PermissionsAdapter→CET；verify 要求工厂创建且 PermissionsAdapter 有非零 CET 余额 | **完全不修改**；由 OKX 部署并绑定同一 PoolManager；TSV 准入检查在 Registry 中另行实现 |
 | BaseAllowlistChecker | IAllowlistChecker 接口及 ERC-165 支持 | **完全不修改**；Securitize 在派生 checker 中实现发行方资格；TSV SBT 在 Registry 中独立检查 |
 | PermissionedPositionManager | NFT、tick/salt、增减流动性、滑点、结算、NFT 不可转让、owner 强退与交付兜底 | 为 TSVLPManagerV1 提供继承基础；增加必要的扩展点 |
-| TSVLPManagerV1 | 继承 PermissionedPositionManager，复用流动性算法及强退交付逻辑 | 增加 TSV SBT 门禁，覆盖普通移除/销毁；初始化前原子注册池；付款接 TokenApproveProxy；补充 Hook 上下文及独立 UNWIND_ALLOWED 强退标志查询；授权强退可不检查 LP 的 SBT |
+| TSVLPManagerV1 | 继承 PermissionedPositionManager，复用流动性算法及强退交付逻辑 | 增加 TSV SBT 门禁，覆盖普通移除/销毁；初始化前原子注册池；直接从 payer 划转 U/Q；补充 Hook 上下文及独立 UNWIND_ALLOWED 强退标志查询；授权强退可不检查 LP 的 SBT |
 | TSVRegistryV1 | 使用 V4 PoolKey 和 PermissionFlags | TSV 自定义组件，管理 SBT 权限、证券与资产准入、池注册及市场暂停 |
 | TSVHookV1 | 使用 V4 callback 和实际 BalanceDelta | TSV 自定义组件，校验池状态与 LP 上下文，拒绝 donate，将实际证券腿成交量换算为法律股数并调用 Ledger |
 | TSVVolumeLedgerV1 | 接收 Hook 提供的实际成交 delta 与法律股数 | TSV 自定义组件，记录证券成交量并执行共享证券额度检查；LP 加减不直接计为 swap 成交量 |
@@ -63,7 +63,7 @@ TSV 遵循 Uniswap v4 Permissioned Pools 架构。**Uniswap v4 PoolManager、Per
 | TSVRegistryV1 | OKX | 管理证券、PermissionsAdapter/CET/QuoteToken、SBT 权限、发行方 owner 准入、市场和组件绑定 |
 | TSVLPManagerV1 | OKX | 管理池创建角色及升级；处理 LP 入口、SBT、issuer 权限、结算及 unwind；强退授权来自 PermissionsAdapter.owner 而非普通 OKX 管理角色 |
 | TSVHookV1 | OKX | 管理实际 Router/LPManager 绑定；执行池和 LP 上下文校验、市场控制 |
-| TokenApproveProxy / TokenApprove | OKX 相关授权基础设施管理员 | 授权实际 LPManager 代理调用 claimTokens；用户授权 TokenApprove 扣款 |
+| ERC-20 授权 | LP 付款人 / Swap Adapter | LP 付款人对 U/Q 授权实际 LP Manager proxy；Swap Adapter 对输入 U/Q 另行授权实际 Router proxy |
 | TSVVolumeLedgerV1 / TSVDataInboxV1 | OKX | 成交记账、额度及报告处理；不托管 LP 的 CET |
 | PoolManager | 选用的 Uniswap v4 基础设施 | 持有 PermissionsAdapter/QuoteToken、维护池和 ERC-6909；发行方不通过 Factory 获得 PoolManager 的整体管理权 |
 
@@ -193,7 +193,7 @@ flowchart TD
 - 池已初始化；证券仍上市，池及全局/证券/市场 LP 暂停均不阻断本次操作。
 - owner 与实际参与者持有有效 SBT；新增要求 TSV `LIQUIDITY_ALLOWED`，每个受限资产侧还须通过发行方 `LIQUIDITY_ALLOWED`。
 - PermissionsAdapter 为 Factory verified，允许池 Hook；PermissionsAdapter 将实际 LPManager 代理列为 wrapper。
-- 用户持有 CET/QuoteToken，授权 `TOKEN_APPROVE_PROXY.tokenApprove()` 返回的 TokenApprove，代理允许 LPManager 调用 claimTokens；不是要求用户授权 LPManager/Permit2。
+- LP 付款人持有 CET/QuoteToken，对两种 ERC-20 分别授权实际 LP Manager proxy；LP Manager 直接从 payer 划转。Swap 付款人（已授权 Adapter）对输入 U/Q 另行授权 Router proxy。
 - tick 区间、liquidity、amount0Max/amount1Max、deadline 合法，hookData 为空。
 - LPManager 提供与本次参数一致的 Hook 上下文：poolId、tickLower/tickUpper、salt、liquidityDelta、OPEN 模式。
 
@@ -563,7 +563,7 @@ flowchart TD
 
 ## 13. 代码依据
 
-- [TSVLPManagerV1](../src/v1/periphery/TSVLPManagerV1.sol)：initializePool、unwindPosition、LP 权限与 TokenApproveProxy 支付。
+- [TSVLPManagerV1](../src/v1/periphery/TSVLPManagerV1.sol)：initializePool、unwindPosition、LP 权限与直接 ERC-20 支付。
 - [PermissionedPositionManager](../src/v1/vendor/permissionedPools/PermissionedPositionManager.sol)：NFT 不可转让、mint/increase validate、claim、unwind 交付。
 - [PositionManager](../src/v1/vendor/permissionedPools/PositionManager.sol)：action 入口、mint/increase/decrease/burn、滑点与结算。
 - [PermissionsAdapter](../src/v1/vendor/permissionedPools/PermissionsAdapter.sol)、[Factory](../src/v1/vendor/permissionedPools/PermissionsAdapterFactory.sol)、[checker 基类](../src/v1/vendor/permissionedPools/BaseAllowListChecker.sol)：issuer 权限、托管及工厂验证。

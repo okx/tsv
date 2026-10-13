@@ -26,8 +26,6 @@
     "poolManager": "",
     "permissionsAdapterFactory": "",
     "participantSbt": "",
-    "tokenApproveProxy": "",
-    "tokenApprove": "",
     "permit2": "",
     "positionDescriptor": "",
     "weth9": ""
@@ -63,7 +61,6 @@
     "ledgerRegistry": "",
     "lpPoolManager": "",
     "lpPermissionsAdapterFactory": "",
-    "lpTokenApproveProxy": "",
     "lpRegistry": ""
   },
   "roles": {

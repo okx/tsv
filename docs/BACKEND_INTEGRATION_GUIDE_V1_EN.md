@@ -102,9 +102,9 @@ All administrative write methods require a nonzero reason code. The `SecuritySta
 - `POOL_CREATOR_ROLE` calls `initializePool(key, sqrtPriceX96)` to register and initialize a V4 pool.
 - Encode upstream V4 position actions in `modifyLiquidities(unlockData, deadline)` or `modifyLiquiditiesWithoutUnlock(actions, params)`. Use explicit `MINT_POSITION` and `INCREASE_LIQUIDITY`; the two `*_FROM_DELTAS` actions are rejected.
 - Ordinary position actions check TSV `LIQUIDITY_ALLOWED` for both executor and position owner, then check the pool gate and issuer permissions.
-- LP user payments go through immutable `TOKEN_APPROVE_PROXY.claimTokens`. Users approve `TOKEN_APPROVE_PROXY.tokenApprove()`, and deployment ops must allowlist the LP Manager proxy in TokenApproveProxy.
+- LP payers approve the actual LP Manager proxy for U and Q on their respective ERC-20 contracts. The LP Manager pulls U directly into W and Q into PoolManager. The swap payer (the allowlisted Adapter calling Router) separately approves the actual Router proxy for input that Router pulls; U prefunded in W needs no such allowance.
 - `withdrawClaim` always reverts in the TSV LP Manager.
-- `unwindPosition` is available to the owner of either verified permissioned pool currency; `unwindPositionByOkx` requires `FORCE_EXIT_ADMIN_ROLE`. Both perform a full exit to the original NFT owner. The global pause blocks both entry points.
+- `unwindPosition` is available to the owner of either verified permissioned pool currency; `unwindPositionByTsv` requires `FORCE_EXIT_ADMIN_ROLE`. Both perform a full exit to the original NFT owner. The global pause blocks both entry points.
 
 Forced exit is not guaranteed for every asset or position: a quote can reject delivery, and the complete principal/fee delta can exceed V4's `int128` range. Do not describe it as unconditionally available.
 

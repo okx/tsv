@@ -20,7 +20,6 @@ import {PermissionsAdapter} from "tsv-v1/vendor/permissionedPools/PermissionsAda
 import {IERC20} from "tsv-v1/vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {IAllowlistChecker} from "tsv-v1/vendor/permissionedPools/interfaces/IAllowlistChecker.sol";
 import {ITSVPermissionedRegistry} from "tsv-v1/interfaces/ITSVPermissionedRegistry.sol";
-import {ITokenApproveProxy} from "tsv-v1/interfaces/ITokenApproveProxy.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -77,8 +76,7 @@ contract LPHookTest is Test {
             IWETH9(address(0)),
             IPermissionsAdapterFactory(address(factory)),
             500_000,
-            ITSVPermissionedRegistry(address(registry)),
-            ITokenApproveProxy(address(this))
+            ITSVPermissionedRegistry(address(registry))
         );
         lp = TSVLPManagerV1(
             payable(address(
@@ -133,18 +131,9 @@ contract LPHookTest is Test {
         underlying.mint(alice, 1e24);
         quote.mint(alice, 1e24);
         vm.startPrank(alice);
-        underlying.approve(address(this), type(uint256).max);
-        quote.approve(address(this), type(uint256).max);
+        underlying.approve(address(lp), type(uint256).max);
+        quote.approve(address(lp), type(uint256).max);
         vm.stopPrank();
-    }
-
-    function tokenApprove() external view returns (address) {
-        return address(this);
-    }
-
-    function claimTokens(address token, address payer, address recipient, uint256 amount) external {
-        require(msg.sender == address(lp));
-        require(IERC20(token).transferFrom(payer, recipient, amount));
     }
 
     function _mint(bytes memory hookData) private returns (uint256 tokenId) {
@@ -218,7 +207,7 @@ contract LPHookTest is Test {
         uint256 second = _mint("");
         _change(tokenId, Actions.DECREASE_LIQUIDITY, 0, "");
         _authorizeExit();
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         lp.unwindPosition(second, 0, 0, "");
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);
         registry.updatePoolLifeCycle(PoolId.unwrap(key.toId()), PoolLifecycle.DELIST, bytes32("TEST"));
@@ -239,7 +228,7 @@ contract LPHookTest is Test {
         vm.expectRevert();
         _change(first, Actions.DECREASE_LIQUIDITY, 0, "");
         _authorizeExit();
-        lp.unwindPositionByOkx(first, 0, 0, "");
+        lp.unwindPositionByTsv(first, 0, 0, "");
         lp.unwindPosition(second, 0, 0, "");
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);
         _setSecurityMode(SecurityPauseMode.NONE);
@@ -255,7 +244,7 @@ contract LPHookTest is Test {
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         _change(tokenId, Actions.DECREASE_LIQUIDITY, 0, "");
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.unwindPosition(tokenId, 0, 0, "");
     }
@@ -265,11 +254,11 @@ contract LPHookTest is Test {
         _authorizeExit();
         underlying.setBlockedRecipient(alice);
         vm.expectRevert();
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         assertEq(lp.ownerOf(tokenId), alice);
         assertEq(lp.getPositionLiquidity(tokenId), LIQUIDITY);
         underlying.setBlockedRecipient(address(0));
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
     }
 
     function testEmptyPositionAuthorizedUnwindBypassesSecurityPauseAndStillChecksGlobalPause() public {
@@ -281,10 +270,10 @@ contract LPHookTest is Test {
         _setSecurityMode(SecurityPauseMode.ALL);
         registry.setEmergencyPauseEnable(true, bytes32("TEST"));
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         assertEq(lp.ownerOf(tokenId), alice);
         registry.setEmergencyPauseEnable(false, bytes32("TEST"));
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         assertEq(lp.balanceOf(alice), 0);
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);
     }
@@ -319,8 +308,8 @@ contract LPHookTest is Test {
         _change(tokenId, Actions.DECREASE_LIQUIDITY, 1, "");
         _authorizeExit();
         vm.expectRevert();
-        lp.unwindPositionByOkx(tokenId, 0, 0, snapshot);
-        lp.unwindPositionByOkx(tokenId, 0, 0, abi.encode(issuer.multiplier()));
+        lp.unwindPositionByTsv(tokenId, 0, 0, snapshot);
+        lp.unwindPositionByTsv(tokenId, 0, 0, abi.encode(issuer.multiplier()));
     }
 
     function testAfterCallbacksRecheckOptionalSnapshotAndReturnZero() public {

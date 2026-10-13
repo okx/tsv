@@ -16,7 +16,7 @@ import {
     Actions
 } from "tsv-v1/periphery/TSVLPManagerV1.sol";
 import {ITSVPermissionedRegistry} from "tsv-v1/interfaces/ITSVPermissionedRegistry.sol";
-import {ITokenApproveProxy} from "tsv-v1/interfaces/ITokenApproveProxy.sol";
+import {V1LocalERC20} from "./LocalMocks.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {PositionInfo, PositionInfoLibrary} from "v4-periphery/libraries/PositionInfoLibrary.sol";
 import {IUnlockCallback} from "lib/v4-periphery/lib/v4-core/src/interfaces/callback/IUnlockCallback.sol";
@@ -24,26 +24,11 @@ import {IUnlockCallback} from "lib/v4-periphery/lib/v4-core/src/interfaces/callb
 contract LPLinkedDependencies {
     address public caller;
     address public payer;
-    address public recipient;
-    address public token;
-    uint256 public amount;
     bool public rejectPermit;
     error PermitRejected();
 
-    function tokenApprove() external view returns (address) {
-        return address(this);
-    }
-
     function setRejectPermit(bool reject) external {
         rejectPermit = reject;
-    }
-
-    function claimTokens(address token_, address payer_, address recipient_, uint256 amount_) external {
-        caller = msg.sender;
-        token = token_;
-        payer = payer_;
-        recipient = recipient_;
-        amount = amount_;
     }
 
     function permit(address owner, IAllowanceTransfer.PermitSingle calldata, bytes calldata) external {
@@ -145,8 +130,7 @@ contract LPLinkedHarness is TSVLPManagerV1 {
             IWETH9(address(0)),
             IPermissionsAdapterFactory(factory),
             500_000,
-            ITSVPermissionedRegistry(registry_),
-            ITokenApproveProxy(dependencies)
+            ITSVPermissionedRegistry(registry_)
         )
     {}
 
@@ -177,6 +161,8 @@ abstract contract LPLinkedFixture is Test {
     address internal owner;
     uint256 internal ownerKey;
     address internal underlying;
+    V1LocalERC20 internal underlyingToken;
+    V1LocalERC20 internal quoteToken;
     PoolKey internal key;
     uint256 internal tokenId;
 
@@ -184,7 +170,9 @@ abstract contract LPLinkedFixture is Test {
         (owner, ownerKey) = makeAddrAndKey("lp-owner");
         factory = makeAddr("factory");
         registry = _createRegistry();
-        underlying = makeAddr("underlying");
+        underlyingToken = new V1LocalERC20("underlying");
+        quoteToken = new V1LocalERC20("quote");
+        underlying = address(underlyingToken);
         vm.etch(factory, hex"00");
         manager = new LPLinkedPoolManager();
         deps = new LPLinkedDependencies();
@@ -198,9 +186,10 @@ abstract contract LPLinkedFixture is Test {
                     )
                 ))
         );
-        key = PoolKey(Currency.wrap(address(0x1000)), Currency.wrap(address(0x2000)), 3000, 60, IHooks(address(0x3000)));
+        key = PoolKey(
+            Currency.wrap(address(0x1000)), Currency.wrap(address(quoteToken)), 3000, 60, IHooks(address(0x3000))
+        );
         vm.etch(Currency.unwrap(key.currency0), hex"00");
-        vm.etch(Currency.unwrap(key.currency1), hex"00");
         vm.mockCall(
             factory,
             abi.encodeCall(IPermissionsAdapterFactory.verifiedPermissionsAdapterOf, (Currency.unwrap(key.currency0))),

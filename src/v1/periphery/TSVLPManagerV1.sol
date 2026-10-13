@@ -19,7 +19,6 @@ import {TSVLPManagerLib} from "../libraries/TSVLPManagerLib.sol";
 import {IStatusQuoter} from "../interfaces/IStatusQuoter.sol";
 import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.sol";
 import {PoolLifecycle} from "../types/TSVTypes.sol";
-import {ITokenApproveProxy} from "../interfaces/ITokenApproveProxy.sol";
 import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
 import {ERC721Permit_v4} from "../vendor/permissionedPools/base/ERC721Permit_v4.sol";
 import {PositionManager} from "../vendor/permissionedPools/PositionManager.sol";
@@ -50,7 +49,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     error RegistryPaused();
     error PoolTickCountUpdateFailed();
     error IncompatibleImplementation();
-    error InvalidApproveProxy();
     error WithdrawClaimForbidden();
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
@@ -61,9 +59,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     /// @dev Action bitset for authorized exit callbacks; BURN_POSITION has separate NFT accounting below.
     uint256 private constant EXIT_SETTLEMENT_ACTIONS = (uint256(1) << Actions.TAKE_PAIR)
         | (uint256(1) << Actions.MINT_6909) | (uint256(1) << Actions.UNWIND_WITH_FALLBACK);
-
-    /// @notice Shared approval proxy; users approve its TokenApprove, not this LP Manager.
-    ITokenApproveProxy public immutable TOKEN_APPROVE_PROXY;
 
     ITSVPermissionedRegistry public registry;
 
@@ -89,8 +84,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         IWETH9 _weth9,
         IPermissionsAdapterFactory _permissionsAdapterFactory,
         uint256 _deliveryGasLimit,
-        ITSVPermissionedRegistry _registry,
-        ITokenApproveProxy _tokenApproveProxy
+        ITSVPermissionedRegistry _registry
     )
         PermissionedPositionManager(
             _poolManager,
@@ -103,9 +97,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         )
     {
         if (address(_registry).code.length == 0) revert InvalidRegistry();
-        if (address(_tokenApproveProxy).code.length == 0) revert InvalidApproveProxy();
-        if (_tokenApproveProxy.tokenApprove().code.length == 0) revert InvalidApproveProxy();
-        TOKEN_APPROVE_PROXY = _tokenApproveProxy;
         registry = _registry;
         _disableInitializers();
     }
@@ -145,7 +136,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     ///      Accrued fees can independently exceed the core delta limit. Either failure reverts the entire exit,
     ///      restoring the NFT and pool count and potentially blocking delisting; no authorized partial exit is
     ///      provided by this entry point.
-    function unwindPositionByOkx(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)
+    function unwindPositionByTsv(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)
         external
         onlyRole(FORCE_EXIT_ADMIN_ROLE)
         whenRegistryNotPaused
@@ -153,7 +144,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     {
         (PoolKey memory poolKey,) = getPoolAndPositionInfo(tokenId);
         address lp = ownerOf(tokenId);
-        TSVLPManagerLib.unwindPositionByOkx(
+        TSVLPManagerLib.unwindPositionByTsv(
             TSVLPManagerLib.UnwindParams(
                 poolManager,
                 PERMISSIONS_ADAPTER_FACTORY,
@@ -412,9 +403,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
 
     /// @dev Delegatecall preserves the manager as payer/caller and the original action executor.
     function _pay(Currency currency, address payer, uint256 amount) internal virtual override {
-        TSVLPManagerLib.pay(
-            poolManager, PERMISSIONS_ADAPTER_FACTORY, TOKEN_APPROVE_PROXY, currency, payer, amount, msgSender()
-        );
+        TSVLPManagerLib.pay(poolManager, PERMISSIONS_ADAPTER_FACTORY, currency, payer, amount, msgSender());
     }
 
     function _validateLiquidityCurrency(Currency currency, IHooks hooks, address owner)

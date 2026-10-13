@@ -4,7 +4,7 @@
 
 ## 当前继承与状态边界
 
-`TSVLPManagerV1` 继承 `Initializable`、`UUPSUpgradeable` 和本地 `PermissionedPositionManager`。LP 业务角色通过 Registry 查询；代理 initializer 是 `initialize(registry)`。PoolManager、Permit2、Descriptor、WETH、Permissions Adapter Factory、TokenApproveProxy 及若干 gas 参数由实现构造器固定。升级前必须核对候选 implementation 与 proxy 部署环境匹配，不能仅凭 storage layout 相同就升级。
+`TSVLPManagerV1` 继承 `Initializable`、`UUPSUpgradeable` 和本地 `PermissionedPositionManager`。LP 业务角色通过 Registry 查询；代理 initializer 是 `initialize(registry)`。PoolManager、Permit2、Descriptor、WETH、Permissions Adapter Factory 及若干 gas 参数由实现构造器固定。升级前必须核对候选 implementation 与 proxy 部署环境匹配，不能仅凭 storage layout 相同就升级。
 
 `TSVLPManagerLib` 是无持久状态库，借助 Solidity 链接调用在 LP Manager 上下文执行，并从主合约接收必要的 mapping/storage 及 immutable 地址。`LPPositionMath` 提供上游 position 数学所需计算。修改库调用、继承链或数据传递会影响运行时大小、执行 gas 和链接字节码。
 
