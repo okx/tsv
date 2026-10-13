@@ -5,6 +5,7 @@ import {
     LPLinkedFixture,
     LPLinkedHarness,
     LPLinkedDependencies,
+    LPLinkedPoolManager,
     TSVLPManagerV1,
     ITSVPermissionedRegistry,
     IPermissionsAdapter,
@@ -22,8 +23,85 @@ import {LPPositionMath} from "tsv-v1/vendor/permissionedPools/libraries/LPPositi
 import {TickMath} from "lib/v4-periphery/lib/v4-core/src/libraries/TickMath.sol";
 import {LiquidityAmounts} from "v4-periphery/libraries/LiquidityAmounts.sol";
 import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
+import {Vm} from "forge-std/Vm.sol";
+
+contract LPObservedBalanceToken {
+    LPLinkedPoolManager private immutable manager;
+    address private immutable currency;
+
+    constructor(LPLinkedPoolManager _manager, address _currency) {
+        manager = _manager;
+        currency = _currency;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return manager.delivered(account, currency);
+    }
+}
 
 contract LPLinkedLibrariesTest is LPLinkedFixture {
+    function testUnwindCompletionEventsHaveDifferentIds() public {
+        bytes32 issuerEventId =
+            keccak256("IssuerPositionUnwound(uint256,address,address,address,address,uint256,uint256)");
+        bytes32 tsvEventId = keccak256("TsvPositionUnwound(uint256,address,address,address,address,uint256,uint256)");
+        assertNotEq(issuerEventId, tsvEventId);
+
+        vm.etch(
+            Currency.unwrap(key.currency0),
+            address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency0))).code
+        );
+        vm.etch(
+            Currency.unwrap(key.currency1),
+            address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency1))).code
+        );
+
+        manager.seedClaim(address(lp), uint160(Currency.unwrap(key.currency0)), 10);
+        vm.recordLogs();
+        lp.unwindPosition(tokenId, 0, 0, "");
+        Vm.Log[] memory issuerLogs = vm.getRecordedLogs();
+        Vm.Log memory issuerEvent = _findEvent(issuerLogs, issuerEventId);
+        assertEq(issuerEvent.emitter, address(lp));
+        assertEq(issuerEvent.topics[0], issuerEventId);
+        assertEq(issuerEvent.topics[1], bytes32(tokenId));
+        assertEq(issuerEvent.topics[2], bytes32(uint256(uint160(owner))));
+        assertEq(issuerEvent.topics[3], bytes32(uint256(uint160(address(this)))));
+        (address issuerToken0, address issuerToken1, uint256 issuerAmount0, uint256 issuerAmount1) =
+            abi.decode(issuerEvent.data, (address, address, uint256, uint256));
+        assertEq(issuerToken0, Currency.unwrap(key.currency0));
+        assertEq(issuerToken1, Currency.unwrap(key.currency1));
+        assertEq(issuerAmount0, 11);
+        assertEq(issuerAmount1, 1);
+        assertEq(manager.delivered(owner, Currency.unwrap(key.currency0)), 11);
+
+        uint256 nextTokenId = lp.seed(owner, key);
+        vm.recordLogs();
+        lp.unwindPositionByTsv(nextTokenId, 0, 0, "");
+        Vm.Log[] memory tsvLogs = vm.getRecordedLogs();
+        Vm.Log memory tsvEvent = _findEvent(tsvLogs, tsvEventId);
+        assertEq(tsvEvent.emitter, address(lp));
+        assertEq(tsvEvent.topics[0], tsvEventId);
+        assertEq(tsvEvent.topics[1], bytes32(nextTokenId));
+        assertEq(tsvEvent.topics[2], bytes32(uint256(uint160(owner))));
+        assertEq(tsvEvent.topics[3], bytes32(uint256(uint160(address(this)))));
+        (address tsvToken0, address tsvToken1, uint256 tsvAmount0, uint256 tsvAmount1) =
+            abi.decode(tsvEvent.data, (address, address, uint256, uint256));
+        assertEq(tsvToken0, Currency.unwrap(key.currency0));
+        assertEq(tsvToken1, Currency.unwrap(key.currency1));
+        assertEq(tsvAmount0, 1);
+        assertEq(tsvAmount1, 1);
+    }
+
+    function _findEvent(Vm.Log[] memory logs, bytes32 eventId) private pure returns (Vm.Log memory found) {
+        bool seen;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].topics.length == 0 || logs[i].topics[0] != eventId) continue;
+            assert(!seen);
+            found = logs[i];
+            seen = true;
+        }
+        assert(seen);
+    }
+
     function testNftPermitUsesProxyDomainAndStorageAndRejectsReplay() public {
         uint256 deadline = block.timestamp + 1 days;
         bytes memory sig = _sign(ERC721PermitHash.hashPermit(address(this), tokenId, 7, deadline));
