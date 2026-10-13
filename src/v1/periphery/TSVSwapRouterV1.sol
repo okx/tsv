@@ -199,7 +199,6 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         if (recipient == address(0)) revert InvalidRequest();
         _checkRequest(request);
         if (address(request.key.hooks) != registry.hook()) revert InvalidPool();
-        if (registry.getPoolLifeCycle(request.key) == PoolLifecycle.DELIST) revert PoolDelisted();
         if (!registry.isTradable(PoolId.unwrap(request.key.toId()))) revert PoolNotTradable();
         activeParticipant = participant;
         activeRecipient = recipient;
