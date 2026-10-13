@@ -23,7 +23,7 @@ Useful reads:
 
 Both Router swap write methods require `msg.sender` to be in the Router adapter allowlist. End users do not call the Router directly:
 
-- `swapExactInputFromAdapterDirect(request, participant, recipient)` is called by an allowlisted adapter, pulls settlement input from `participant`, and delivers output to `recipient`.
+- `swapExactInputFromContractDirect(request, participant, recipient)` is called by an allowlisted adapter, pulls settlement input from `participant`, and delivers output to `recipient`.
 - `swapExactInputFromContract(request, participant)` is called by an allowlisted adapter, spends input prefunded to the adapter, and returns output to it.
 
 The Router checks `registry.isSbtAllowed(SWAP_ALLOWED, participant)`. W independently checks issuer permissions and `swappingEnabled`. Check both layers. For a DEX integration, follow the marker, signature caller set, nonce, and refund-field rules in the [external DEX adapter guide](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md).

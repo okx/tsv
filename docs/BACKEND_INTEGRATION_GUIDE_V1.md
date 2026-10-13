@@ -23,7 +23,7 @@ PoolId 使用 Uniswap V4 对完整 PoolKey 的 hash。不要只以 token pair、
 
 TSV Router 的两个 Swap 写入口均要求 `msg.sender` 在 Router Adapter allowlist 中；普通用户不能直接作为 Router caller。外部 DEX Adapter 应将真实 participant 传给 Router：
 
-- `swapExactInputFromAdapterDirect(request, participant, recipient)` 由 allowlisted Adapter 调用，从 participant 拉取 settlement input，并向 `recipient` 交付 output。
+- `swapExactInputFromContractDirect(request, participant, recipient)` 由 allowlisted Adapter 调用，从 participant 拉取 settlement input，并向 `recipient` 交付 output。
 - `swapExactInputFromContract(request, participant)` 由 allowlisted Adapter 调用，从 Adapter 预存余额扣 input，并把 output 返回给 Adapter。
 
 Router 通过 `registry.isSbtAllowed(SWAP_ALLOWED, participant)` 校验 TSV 身份权限；W 再通过 issuer checker 和 `swappingEnabled` 校验发行方权限。后端需分别读取/检查这两层状态。使用外部 DEX 集成时，marker、签名 caller 列表、nonce 与退款字段请按 [`EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md`](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) 实现。

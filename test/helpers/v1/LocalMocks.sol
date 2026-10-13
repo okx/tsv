@@ -164,7 +164,7 @@ contract V1TestExternalAdapter {
         address participant,
         address recipient
     ) external returns (uint256 actualIn, uint256 actualOut) {
-        return router.swapExactInputFromAdapterDirect(request, participant, recipient);
+        return router.swapExactInputFromContractDirect(request, participant, recipient);
     }
 }
 

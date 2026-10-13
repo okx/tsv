@@ -227,7 +227,7 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         _swap(false, 1e16);
         SwapRequest memory request = _request(true, 1e16);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
-        router.swapExactInputFromAdapterDirect(request, alice, alice);
+        router.swapExactInputFromContractDirect(request, alice, alice);
         vm.expectRevert(ReentrancyLock.ContractLocked.selector);
         router.swapExactInputFromContract(request, alice);
     }

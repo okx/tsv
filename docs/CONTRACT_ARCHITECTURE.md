@@ -30,7 +30,7 @@ Registry 保存 W/U/Q、证券、tier、池、SBT 身份及暂停状态。它链
 
 Router 只有单池 exact-input 入口，并要求输入全额成交与最小输出。Adapter 地址必须由 Registry Default Admin 配入 Router allowlist。participant 是独立参数：Router 用它检查 TSV SBT 权限，W 用同一用户执行 issuer permission 检查；Adapter 必须根据可信外部调用上下文确定该地址。
 
-`swapExactInputFromAdapterDirect` 从 participant 拉取输入；`swapExactInputFromContract` 从调用 Adapter 的余额付款并将输出返回给 Adapter。Router 不实现多跳、exact-output、外部 DEX 的 caller-marker 认证，也不判定 Adapter 是否可信；这些责任属于 Adapter 部署、Router allowlist 与后端路由配置。
+`swapExactInputFromContractDirect` 从 participant 拉取输入并将输出交给指定 recipient；`swapExactInputFromContract` 从调用 Adapter 的余额付款并将输出返回给 Adapter。Router 不实现多跳、exact-output、外部 DEX 的 caller-marker 认证，也不判定 Adapter 是否可信；这些责任属于 Adapter 部署、Router allowlist 与后端路由配置。
 
 ## 6. LP 位置与退出
 
