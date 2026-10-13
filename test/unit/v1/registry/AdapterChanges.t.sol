@@ -30,13 +30,13 @@ contract TSVOperationsAdapterChangesTest is FoundationFixture {
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(replacement), bytes32("TEST"));
         assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(replacement));
 
-        _setSecurityMode(SecurityPauseMode.TRADE);
+        _setSecurityMode(SecurityPauseMode.TRADE, true);
         ERC8056DirectLegalShareAdapter tradePausedReplacement = new ERC8056DirectLegalShareAdapter(address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(
             address(stockToken), address(tradePausedReplacement), bytes32("TEST")
         );
 
-        _setSecurityMode(SecurityPauseMode.LP);
+        _setSecurityMode(SecurityPauseMode.LP, true);
         ERC8056DirectLegalShareAdapter allPausedReplacement = new ERC8056DirectLegalShareAdapter(address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(allPausedReplacement), bytes32("TEST"));
         assertEq(registry.getUnderlying(address(stockToken)).legalShareAdapter, address(allPausedReplacement));

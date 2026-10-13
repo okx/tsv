@@ -191,8 +191,8 @@ abstract contract WrappedSwapFixture is Test {
         return swapAdapter.swapExactInputDirect(router, request, payer, alice, alice);
     }
 
-    function _setSecurityMode(SecurityPauseMode mode) internal {
-        registry.applySecurityStatus(SECURITY, mode, bytes32("TEST"));
+    function _setSecurityMode(SecurityPauseMode mode, bool enable) internal {
+        registry.applySecurityStatus(SECURITY, mode, enable, bytes32("TEST"));
     }
 
     function _setQuota(uint256 amount) internal {

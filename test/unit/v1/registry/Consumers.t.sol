@@ -88,10 +88,10 @@ contract TSVPermissionedConsumersTest is FoundationFixture {
     }
 
     function testHookUsesReplacementAdapterAndLedgerAccountsOnce() public {
-        _setSecurityMode(SecurityPauseMode.ALL);
+        _setSecurityMode(SecurityPauseMode.ALL, true);
         ERC8056DirectLegalShareAdapter next = new ERC8056DirectLegalShareAdapter(address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next), bytes32("TEST"));
-        _setSecurityMode(SecurityPauseMode.NONE);
+        _setSecurityMode(SecurityPauseMode.ALL, false);
         vm.expectCall(
             address(next), abi.encodeCall(IDirectLegalShareAdapter.toLegalShares, (address(stockToken), 1e18))
         );

@@ -44,7 +44,8 @@ interface ITSVPermissionedRegistry {
     /// @return Stored pool record; unknown pools return a default record.
     function getPool(bytes32 id) external view returns (PoolRecord memory);
 
-    /// @notice Returns the stored listing, tier, and operation state for a security.
+    /// @notice Returns listing/tier state and the mode derived from TRADE/LP pause bits.
+    /// @dev Both bits set means ALL (3); both cleared means unpaused (0). No extra aggregate bits are stored.
     /// @param id Security identifier to query.
     /// @return Stored security record; unknown IDs return a default record.
     function getSecurity(bytes32 id) external view returns (SecurityRecord memory);
@@ -172,8 +173,18 @@ interface ITSVPermissionedRegistry {
 
     /// @notice Returns the current operation pause mode for a security.
     /// @param id Security identifier to query.
-    /// @return Current security pause mode.
-    function getSecurityPauseMode(bytes32 id) external view returns (SecurityPauseMode);
+    /// @return Pause bitmask: 0=unpaused, 1=TRADE, 2=LP, 3=ALL; not an enum ordinal.
+    function getSecurityPauseMode(bytes32 id) external view returns (uint8);
+
+    /// @notice Sets or clears selected security pause bits, preserving unselected bits.
+    /// @dev ALL/true pauses both; ALL/false resumes both.
+    ///      Only HALT_REPORTER_ROLE; listed securities only; no-op updates revert.
+    /// @param securityId Listed security identifier.
+    /// @param mode TRADE, LP or ALL operation selector.
+    /// @param enable True to pause selected operations; false to resume them.
+    /// @param reasonCode Nonzero operational reason code.
+    function applySecurityStatus(bytes32 securityId, SecurityPauseMode mode, bool enable, bytes32 reasonCode) external;
+
 
     /// @notice Lists a new security with its first stock W, or adds a W to an existing listed security.
     /// @param registerParam Permissioned stock registration payload for the W/U/security binding.

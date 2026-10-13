@@ -169,8 +169,8 @@ abstract contract FoundationFixture is Test {
         return PermissionedRegisterParam(w, securityId, adapter);
     }
 
-    function _setSecurityMode(SecurityPauseMode mode) internal {
-        registry.applySecurityStatus(SECURITY, mode, bytes32("TEST"));
+    function _setSecurityMode(SecurityPauseMode mode, bool enable) internal {
+        registry.applySecurityStatus(SECURITY, mode, enable, bytes32("TEST"));
     }
 
     function _charge(uint256 shares) internal {

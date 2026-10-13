@@ -12,7 +12,6 @@ import {
     TierPolicyRecord,
     SecurityRecord,
     PoolRecord,
-    SecurityStateRecord,
     PoolLifecycle,
     SecurityPauseMode,
     SecurityOperationCheckType
@@ -180,7 +179,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param oldPauseMode Previous operation pause mask.
     /// @param newPauseMode New operation pause mask.
     event SecurityStatusChanged(
-        bytes32 indexed securityId, SecurityPauseMode oldPauseMode, SecurityPauseMode newPauseMode
+        bytes32 indexed securityId, uint8 oldPauseMode, uint8 newPauseMode
     );
     /// @notice Emitted when the global emergency pause is enabled or disabled.
     /// @param enabled Whether ordinary trade and LP operations are globally paused.
@@ -337,7 +336,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param reasonCode Nonzero operational reason code for the policy change.
     function setTierPolicy(uint8 tierId, uint32 maxListed, bytes32 reasonCode)
         external
-        onlyRole(DEFAULT_ADMIN_ROLE)
+        onlyRole(SYMBOL_ADMIN_ROLE)
     {
         _requireReasonCode(reasonCode);
         TierPolicyRecord storage tier = tiers[tierId];
@@ -400,6 +399,8 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @return record Stored security record; unknown IDs return a default record.
     function getSecurity(bytes32 securityId) external view returns (SecurityRecord memory record) {
         record = securities[securityId];
+        // Derive the public mode from the two operation bits. No NONE/ALL flag is stored.
+        record.pauseMode = _getSecurityPauseMode(securityId);
     }
 
     // W, U, and Q registration and configuration.
@@ -644,25 +645,49 @@ contract TSVRegistryV1 is TSVGoverned {
     }
 
     // Security operation state and emergency pause.
-    /// @notice Returns the current security operation pause mask for a security.
-    /// @param securityId Security identifier to query.
-    /// @return mode Current security operation pause mode.
-    function getSecurityPauseMode(bytes32 securityId) external view returns (SecurityPauseMode mode) {
-        return securities[securityId].securityState.pauseMode;
+    /// @notice Returns the aggregate pause mask derived from the TRADE and LP bits.
+    /// @param securityId Security identifier; unknown IDs have both bits cleared.
+    /// @return mode 0=unpaused, 1=TRADE, 2=LP, 3=ALL. This is NOT an enum ordinal.
+    function getSecurityPauseMode(bytes32 securityId) external view returns (uint8 mode) {
+        return _getSecurityPauseMode(securityId);
     }
 
-    /// @notice Applies the next valid security operation transition.
-    /// @param securityId Listed security whose operation state changes.
-    /// @param mode Target pause mask: NONE opens all operations, TRADE/LP/ALL pause the selected operations.
-    function applySecurityStatus(bytes32 securityId, SecurityPauseMode mode, bytes32 reasonCode) external onlyRole(HALT_REPORTER_ROLE) {
+    /// @notice Sets or clears selected pause bits while preserving unselected operations.
+    /// @dev Only HALT_REPORTER_ROLE may pause or resume a listed security.
+    ///      Enum values select operations: TRADE selects mask 1, LP selects mask 2,
+    ///      ALL selects mask 3. There is no independent ALL bit or NONE selector.
+    ///      TRADE/true on LP produces ALL; TRADE/false on ALL leaves only LP paused.
+    ///      ALL/false resumes both operations. No-op requests revert with InvalidStatus.
+    ///      Events contain complete old/new masks, not the requested enum selector.
+    /// @param securityId Listed security whose operation pause bits change.
+    /// @param mode TRADE, LP or ALL operation selector (enum ordinals 0, 1, 2).
+    /// @param enable True sets selected bits (pause); false clears selected bits (resume).
+    /// @param reasonCode Nonzero operational reason code, checked before any state write.
+    function applySecurityStatus(bytes32 securityId, SecurityPauseMode mode, bool enable, bytes32 reasonCode)
+        external
+        onlyRole(HALT_REPORTER_ROLE)
+    {
         if (reasonCode == 0) revert InvalidConfig();
         SecurityRecord storage security = securities[securityId];
         if (securityId == 0 || !security.listed) revert InvalidStatus();
-        SecurityStateRecord storage state = security.securityState;
-        SecurityPauseMode previousPauseMode = state.pauseMode;
-        if (mode == previousPauseMode) revert InvalidStatus();
-        state.pauseMode = mode;
-        emit SecurityStatusChanged(securityId, previousPauseMode, mode);
+        uint8 previousPauseMode = _getSecurityPauseMode(securityId);
+
+        // 参数枚举与存储掩码分离：TRADE=0 -> 0b01，LP=1 -> 0b10，ALL=2 -> 0b11。
+        // ALL 仅选择现有的两个位，不额外分配 ALL 位；非法枚举由 Solidity ABI 解码拒绝。
+        uint8 selectedBits = mode == SecurityPauseMode.ALL ? 3 : uint8(1 << uint8(mode));
+        // enable=true：按位 OR 置位；enable=false：与选中位的取反掩码 AND 清位。
+        // 例如原状态 0b11，恢复 TRADE：0b11 & ~0b01 = 0b10，LP 暂停仍然保留。
+        // ALL/true 得到 0b11；ALL/false 得到 0b00。未选择的操作位始终保持原值。
+        uint8 nextBits = enable ? previousPauseMode | selectedBits : previousPauseMode & ~selectedBits;
+        if (nextBits == previousPauseMode) revert InvalidStatus();
+        security.pauseMode = nextBits;
+        emit SecurityStatusChanged(securityId, previousPauseMode, _getSecurityPauseMode(securityId));
+    }
+
+    /// @dev Both set => ALL (3); both clear => unpaused (0); otherwise return the one set bit.
+    ///      Query callers receive operation bits, not SecurityPauseMode enum ordinals.
+    function _getSecurityPauseMode(bytes32 securityId) private view returns (uint8) {
+        return securities[securityId].pauseMode & 3;
     }
 
     /// @notice Enables or disables the protocol-wide emergency pause.
@@ -804,7 +829,9 @@ contract TSVRegistryV1 is TSVGoverned {
     {
         SecurityPauseMode operation =
             checkType == SecurityOperationCheckType.LP ? SecurityPauseMode.LP : SecurityPauseMode.TRADE;
-        return (uint8(securities[securityId].securityState.pauseMode) & uint8(operation)) == 0;
+        // Enum ordinals select operations; actual masks are TRADE=1 and LP=2.
+        uint8 operationBit = uint8(1 << uint8(operation));
+        return (securities[securityId].pauseMode & operationBit) == 0;
     }
 
     /// @dev Returns whether the global emergency pause is active.

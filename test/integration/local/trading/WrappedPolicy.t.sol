@@ -87,13 +87,13 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
     }
 
     function testOnlyTradingPauseBlocksSwapsAndPreservesAccounting() public {
-        _setSecurityMode(SecurityPauseMode.LP);
+        _setSecurityMode(SecurityPauseMode.LP, true);
         for (uint256 i; i < 2; ++i) {
             _swap(i == 0, 1e16);
         }
         assertGt(ledger.usedWad(SECURITY, DAY), 0);
 
-        _setSecurityMode(SecurityPauseMode.TRADE);
+        _setSecurityMode(SecurityPauseMode.TRADE, true);
         bytes32 before_ = _digest();
         for (uint256 i; i < 2; ++i) {
             vm.expectRevert();
@@ -115,7 +115,7 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         } else if (fault == 4) {
             registry.setEmergencyPauseEnable(true, keccak256("stop"));
         } else if (fault == 5) {
-            _setSecurityMode(SecurityPauseMode.TRADE);
+            _setSecurityMode(SecurityPauseMode.TRADE, true);
         } else if (fault == 6) {
             sbt.setPaused(true);
         } else if (fault == 7) {

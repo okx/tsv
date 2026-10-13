@@ -154,10 +154,10 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
             )
         );
         assertEq(ledger.usedWad(SECURITY, DAY), alreadyUsed + paid);
-        _setSecurityMode(SecurityPauseMode.ALL);
+        _setSecurityMode(SecurityPauseMode.ALL, true);
         ERC8056DirectLegalShareAdapter next = new ERC8056DirectLegalShareAdapter(address(underlying));
         registry.replaceUnderlyingLegalShareAdapter(address(underlying), address(next), bytes32("TEST"));
-        _setSecurityMode(SecurityPauseMode.NONE);
+        _setSecurityMode(SecurityPauseMode.ALL, false);
         vm.expectCall(
             address(next), abi.encodeCall(ERC8056DirectLegalShareAdapter.toLegalShares, (address(underlying), 1e16)), 2
         );
