@@ -18,7 +18,7 @@ import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
 import {IPermissionsAdapter} from "../vendor/permissionedPools/interfaces/IPermissionsAdapter.sol";
 import {IPermissionsAdapterFactory} from "../vendor/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
-/// @notice One-pool exact-input W/Q swaps submitted by approved adapters.
+/// @notice One-pool exact-input W/Q swaps submitted directly by participants or approved adapters.
 contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router, ReentrancyLock {
     using PoolIdLibrary for PoolKey;
 
@@ -50,7 +50,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     uint256 private activeAmountIn;
     /// @dev Actual TAKE_ALL credit, returned after unlock.
     uint256 private activeAmountOut;
-    /// @dev Adapter-selected output destination; TAKE_ALL otherwise defaults to the participant.
+    /// @dev Entry-point-selected output destination; TAKE_ALL otherwise defaults to the participant.
     address private activeRecipient;
     /// @dev Expected input PoolKey currency; checked against the currency settled by PoolManager.
     address private activeInputCurrency;
@@ -90,6 +90,11 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         _;
     }
 
+    modifier onlyAllowedAdapter() {
+        if (!isAdapterAllowed[msg.sender]) revert AdapterNotAllowed();
+        _;
+    }
+
     /// @notice Authorizes or revokes a contract adapter that can submit swaps for a participant.
     function setAdapterAllowed(address adapter, bool allowed)
         external
@@ -102,7 +107,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     }
 
     // Approved-adapter direct-settlement entry point.
-    /// @notice Adapter path with caller-prefunded U or caller-paid Q; output is delivered to `recipient`.
+    /// @notice Adapter path with caller-prefunded U or caller-paid Q; output goes to the participant.
     /// @dev U input must already be deposited in W, so `payer` is zero. For Q input, `payer` must be this
     ///      adapter; Q is transferred to PoolManager during settlement.
     function swapExactInputFromContractDirect(
@@ -110,7 +115,14 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         address payer,
         address participant,
         address recipient
-    ) external whenRegistryNotPaused isNotLocked returns (uint256 actualIn, uint256 actualOut) {
+    )
+        external
+        whenRegistryNotPaused
+        isNotLocked
+        onlyAllowedAdapter
+        returns (uint256 actualIn, uint256 actualOut)
+    {
+        if (recipient != participant) revert InvalidRequest();
         address inputCurrency = Currency.unwrap(
             request.zeroForOne ? request.key.currency0 : request.key.currency1
         );
@@ -128,9 +140,21 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         external
         whenRegistryNotPaused
         isNotLocked
+        onlyAllowedAdapter
         returns (uint256 actualIn, uint256 actualOut)
     {
         return _swap(request, msg.sender, participant, msg.sender);
+    }
+
+    /// @notice Executes a caller-bound exact-input swap, paying from and sending output to the caller.
+    /// @dev The caller is also the TSV SBT and issuer-permission subject; no participant can be selected.
+    function swapExactInput(SwapRequest calldata request)
+        external
+        whenRegistryNotPaused
+        isNotLocked
+        returns (uint256 actualIn, uint256 actualOut)
+    {
+        return _swap(request, msg.sender, msg.sender, msg.sender);
     }
 
     // Router views.
@@ -208,7 +232,6 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         private
         returns (uint256 actualIn, uint256 actualOut)
     {
-        if (!isAdapterAllowed[msg.sender]) revert AdapterNotAllowed();
         if (recipient == address(0)) revert InvalidRequest();
         _checkRequest(request);
         if (address(request.key.hooks) != registry.hook()) revert InvalidPool();

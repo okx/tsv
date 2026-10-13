@@ -32,7 +32,7 @@ flowchart LR
   Pool --- Q[Q quote token]
 ```
 
-Router 入口仅允许已登记的 Adapter 调用。Adapter 提供 participant 身份，由 Registry 和 W 分别检查该 participant 当前持有的权限。LP 用户通过 action 接口直接调用 LP Manager。
+Router 提供 caller-bound 直接交易入口和 Adapter 交易入口。直接调用时 `msg.sender` 同时是 participant、payer 和收款方；Adapter 入口仍要求 allowlist，并由 Adapter 提供 participant 身份。Registry 和 W 分别检查 participant 的权限。LP 用户通过 action 接口直接调用 LP Manager。
 
 ## 2. W/U/Q 与池身份
 
@@ -60,9 +60,9 @@ Pool lifecycle is stored in `PoolRecord`:
 
 ## 4. Swap 流程与成交量记账
 
-1. 已登记的 Adapter 调用 `swapExactInputFromContractDirect(request, payer, participant, recipient)` 或 `swapExactInputFromContract(request, participant)`。Direct 的 U 输入使用 W 中预存的 U；Q 输入使用调用 Adapter 作为 payer。普通入口以调用 Adapter 作为 payer，输出返回 Adapter。
-2. Router 检查 Adapter allowlist、participant 的 SBT 权限、deadline、输入范围、池登记、lifecycle 和最小输出。请求只支持单池 exact-input，且必须结算全部请求输入。
-3. U 输入由 W 包装为 PoolManager 的 W；普通入口先从 Adapter 拉 U 到 W，Direct 入口使用调用前存入 W 的 U。Q 输入在 `PoolManager.sync` 后由 Router 直接从 payer 转给 PoolManager 并结算，不经过 Router 余额。W 输出会解封为 U，Q 输出仍为 Q。
+1. 用户可直接调用 `swapExactInput(request)`，Router 将调用者绑定为 participant、payer 和收款方；或者已登记的 Adapter 调用 `swapExactInputFromContractDirect(request, payer, participant, recipient)` / `swapExactInputFromContract(request, participant)`。Direct Adapter 的 U 输入使用 W 中预存的 U；Q 输入使用调用 Adapter 作为 payer；输出交给 participant。普通 Adapter 入口以调用 Adapter 作为 payer，输出返回 Adapter。
+2. Router 对 Adapter 路径检查 allowlist；所有路径都检查 participant 的 SBT 权限、deadline、输入范围、池登记、lifecycle 和最小输出。请求只支持单池 exact-input，且必须结算全部请求输入。
+3. 直接用户和普通 Adapter 路径的 U 输入由 Router 转入 W，再由 W 包装为 PoolManager 的 W；Direct Adapter 路径使用调用前存入 W 的 U。Q 输入在 `PoolManager.sync` 后由 Router 直接从 payer 转给 PoolManager 并结算，不经过 Router 余额。W 输出会解封为 U，Q 输出仍为 Q。
 4. Hook 仅接受已配置 Router 和 PoolManager 的 swap 回调。Swap 前后均检查 `isTradable`、global pause，以及请求中的 32-byte `expectedMultiplier` 是否与 canonical U adapter 当前值相符。
 5. `afterSwap` 将 PoolManager 返回的 W 侧 delta 绝对值转换成 legal-share WAD，并调用 `recordSwap`。Ledger 根据已登记池找到其 security，检查更新后的当日 `usedWad` 是否超过该 security 的 quota。检查失败会回滚整笔 swap。
 
