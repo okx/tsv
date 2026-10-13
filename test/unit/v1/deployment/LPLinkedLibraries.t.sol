@@ -42,18 +42,12 @@ contract LPObservedBalanceToken {
 contract LPLinkedLibrariesTest is LPLinkedFixture {
     function testUnwindCompletionEventsHaveDifferentIds() public {
         bytes32 issuerEventId =
-            keccak256("IssuerPositionUnwound(uint256,address,address,address,address,uint256,uint256)");
-        bytes32 tsvEventId = keccak256("TsvPositionUnwound(uint256,address,address,address,address,uint256,uint256)");
+            keccak256("IssuerPositionUnwound(uint256,address,address,address,address,uint256,uint256,uint256,uint256)");
+        bytes32 tsvEventId =
+            keccak256("TsvPositionUnwound(uint256,address,address,address,address,uint256,uint256,uint256,uint256)");
         assertNotEq(issuerEventId, tsvEventId);
 
-        vm.etch(
-            Currency.unwrap(key.currency0),
-            address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency0))).code
-        );
-        vm.etch(
-            Currency.unwrap(key.currency1),
-            address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency1))).code
-        );
+        _mockObservedBalances();
 
         manager.seedClaim(address(lp), uint160(Currency.unwrap(key.currency0)), 10);
         vm.recordLogs();
@@ -65,16 +59,31 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         assertEq(issuerEvent.topics[1], bytes32(tokenId));
         assertEq(issuerEvent.topics[2], bytes32(uint256(uint160(owner))));
         assertEq(issuerEvent.topics[3], bytes32(uint256(uint160(address(this)))));
-        (address issuerToken0, address issuerToken1, uint256 issuerAmount0, uint256 issuerAmount1) =
-            abi.decode(issuerEvent.data, (address, address, uint256, uint256));
+        (
+            address issuerToken0,
+            address issuerToken1,
+            uint256 issuerLpAmount0,
+            uint256 issuerAdminAmount0,
+            uint256 issuerLpAmount1,
+            uint256 issuerAdminAmount1
+        ) = abi.decode(issuerEvent.data, (address, address, uint256, uint256, uint256, uint256));
         assertEq(issuerToken0, Currency.unwrap(key.currency0));
         assertEq(issuerToken1, Currency.unwrap(key.currency1));
-        assertEq(issuerAmount0, 11);
-        assertEq(issuerAmount1, 1);
+        assertEq(issuerLpAmount0, 11);
+        assertEq(issuerAdminAmount0, 0);
+        assertEq(issuerLpAmount1, 1);
+        assertEq(issuerAdminAmount1, 0);
         assertEq(manager.delivered(owner, Currency.unwrap(key.currency0)), 11);
 
         uint256 nextTokenId = lp.seed(owner, key);
+        address tsvCaller = makeAddr("tsv-caller");
+        vm.mockCall(
+            registry,
+            abi.encodeCall(ITSVPermissionedRegistry.hasRole, (lp.FORCE_EXIT_ADMIN_ROLE(), tsvCaller)),
+            abi.encode(true)
+        );
         vm.recordLogs();
+        vm.prank(tsvCaller);
         lp.unwindPositionByTsv(nextTokenId, 0, 0, "");
         Vm.Log[] memory tsvLogs = vm.getRecordedLogs();
         Vm.Log memory tsvEvent = _findEvent(tsvLogs, tsvEventId);
@@ -83,12 +92,53 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         assertEq(tsvEvent.topics[1], bytes32(nextTokenId));
         assertEq(tsvEvent.topics[2], bytes32(uint256(uint160(owner))));
         assertEq(tsvEvent.topics[3], bytes32(uint256(uint160(address(this)))));
-        (address tsvToken0, address tsvToken1, uint256 tsvAmount0, uint256 tsvAmount1) =
-            abi.decode(tsvEvent.data, (address, address, uint256, uint256));
+        assertNotEq(tsvCaller, address(this));
+        (
+            address tsvToken0,
+            address tsvToken1,
+            uint256 tsvLpAmount0,
+            uint256 tsvIssuerAmount0,
+            uint256 tsvLpAmount1,
+            uint256 tsvIssuerAmount1
+        ) = abi.decode(tsvEvent.data, (address, address, uint256, uint256, uint256, uint256));
         assertEq(tsvToken0, Currency.unwrap(key.currency0));
         assertEq(tsvToken1, Currency.unwrap(key.currency1));
-        assertEq(tsvAmount0, 1);
-        assertEq(tsvAmount1, 1);
+        assertEq(tsvLpAmount0, 1);
+        assertEq(tsvIssuerAmount0, 0);
+        assertEq(tsvLpAmount1, 1);
+        assertEq(tsvIssuerAmount1, 0);
+    }
+
+    function testIssuerUnwindEventReportsFallbackAmounts() public {
+        _mockObservedBalances();
+        manager.setRejectedCurrency(owner, key.currency0, true);
+
+        vm.recordLogs();
+        lp.unwindPosition(tokenId, 0, 0, "");
+        Vm.Log memory eventLog = _findEvent(
+            vm.getRecordedLogs(),
+            keccak256("IssuerPositionUnwound(uint256,address,address,address,address,uint256,uint256,uint256,uint256)")
+        );
+        (,, uint256 lpAmount0, uint256 issuerAmount0, uint256 lpAmount1, uint256 issuerAmount1) =
+            abi.decode(eventLog.data, (address, address, uint256, uint256, uint256, uint256));
+        assertEq(lpAmount0, 0);
+        assertEq(issuerAmount0, 1);
+        assertEq(lpAmount1, 1);
+        assertEq(issuerAmount1, 0);
+        assertEq(manager.delivered(owner, Currency.unwrap(key.currency0)), 0);
+        assertEq(manager.delivered(address(this), Currency.unwrap(key.currency0)), 1);
+        assertEq(manager.delivered(owner, Currency.unwrap(key.currency1)), 1);
+    }
+
+    function _mockObservedBalances() private {
+        vm.etch(
+            Currency.unwrap(key.currency0),
+            address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency0))).code
+        );
+        vm.etch(
+            Currency.unwrap(key.currency1),
+            address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency1))).code
+        );
     }
 
     function _findEvent(Vm.Log[] memory logs, bytes32 eventId) private pure returns (Vm.Log memory found) {

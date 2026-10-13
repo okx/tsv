@@ -45,21 +45,25 @@ library TSVLPManagerLib {
     event IssuerPositionUnwound(
         uint256 indexed tokenId,
         address indexed lpOwner,
-        address indexed caller,
+        address indexed issuer,
         address token0,
         address token1,
-        uint256 amount0,
-        uint256 amount1
+        uint256 lpReceivedAmount0,
+        uint256 issuerReceivedAmount0,
+        uint256 lpReceivedAmount1,
+        uint256 issuerReceivedAmount1
     );
 
     event TsvPositionUnwound(
         uint256 indexed tokenId,
         address indexed lpOwner,
-        address indexed caller,
+        address indexed issuer,
         address token0,
         address token1,
-        uint256 amount0,
-        uint256 amount1
+        uint256 lpReceivedAmount0,
+        uint256 issuerReceivedAmount0,
+        uint256 lpReceivedAmount1,
+        uint256 issuerReceivedAmount1
     );
 
     event CurrencyUnwound(
@@ -88,6 +92,13 @@ library TSVLPManagerLib {
         bytes hookData;
     }
 
+    struct RecipientBalances {
+        uint256 lp0;
+        uint256 issuer0;
+        uint256 lp1;
+        uint256 issuer1;
+    }
+
     function requireRole(ITSVPermissionedRegistry registry, bytes32 role) external view {
         if (!registry.hasRole(role, msg.sender)) revert AccessControlUnauthorizedAccount(msg.sender, role);
     }
@@ -112,8 +123,9 @@ library TSVLPManagerLib {
         bool isUnwindable0 = _getLpStatus(p.factory, poolKey.currency0, lp);
         bool isUnwindable1 = _getLpStatus(p.factory, poolKey.currency1, lp);
         if (!isUnwindable0 && !isUnwindable1) revert LpUnWindable();
-        uint256 balance0Before = poolKey.currency0.balanceOf(lp);
-        uint256 balance1Before = poolKey.currency1.balanceOf(lp);
+        address issuer = _getPoolIssuer(p.factory, poolKey);
+        uint256 lpBalance0Before = poolKey.currency0.balanceOf(lp);
+        uint256 lpBalance1Before = poolKey.currency1.balanceOf(lp);
         // Unsubscribe with the PoolManager locked so notifyUnsubscribe can't strand a delta and brick the unlock.
         if (positionInfo[tokenId].hasSubscriber()) {
             unsubscribe(positionInfo, subscriber, tokenId, p.unsubscribeGasLimit);
@@ -140,11 +152,13 @@ library TSVLPManagerLib {
         emit TsvPositionUnwound(
             tokenId,
             lp,
-            msg.sender,
+            issuer,
             Currency.unwrap(poolKey.currency0),
             Currency.unwrap(poolKey.currency1),
-            poolKey.currency0.balanceOf(lp) - balance0Before,
-            poolKey.currency1.balanceOf(lp) - balance1Before
+            poolKey.currency0.balanceOf(lp) - lpBalance0Before,
+            0,
+            poolKey.currency1.balanceOf(lp) - lpBalance1Before,
+            0
         );
     }
 
@@ -164,8 +178,8 @@ library TSVLPManagerLib {
         bool isUnwindable0 = _getLpStatus(p.factory, poolKey.currency0, lp);
         bool isUnwindable1 = _getLpStatus(p.factory, poolKey.currency1, lp);
         if (!isUnwindable0 && !isUnwindable1) revert LpUnWindable();
-        uint256 balance0Before = poolKey.currency0.balanceOf(lp);
-        uint256 balance1Before = poolKey.currency1.balanceOf(lp);
+        address issuer = _getPoolIssuer(p.factory, poolKey);
+        RecipientBalances memory beforeBalances = _recipientBalances(poolKey, lp, issuer);
         // Unsubscribe with the PoolManager locked so notifyUnsubscribe can't strand a delta and brick the unlock.
         if (positionInfo[tokenId].hasSubscriber()) {
             unsubscribe(positionInfo, subscriber, tokenId, p.unsubscribeGasLimit);
@@ -198,17 +212,40 @@ library TSVLPManagerLib {
         uint256 amount1 = p.poolManager.balanceOf(address(this), poolKey.currency1.toId());
 
         // Deliver the real asset to the LP, then the adapter owner; revert the unwind if neither accepts it.
-        _deliverCurrency(p, poolKey.currency0, amount0);
-        _deliverCurrency(p, poolKey.currency1, amount1);
+        bool issuerReceived0 = _deliverCurrency(p, poolKey.currency0, amount0);
+        bool issuerReceived1 = _deliverCurrency(p, poolKey.currency1, amount1);
+        RecipientBalances memory afterBalances = _recipientBalances(poolKey, lp, issuer);
         emit IssuerPositionUnwound(
             tokenId,
             lp,
-            msg.sender,
+            issuer,
             Currency.unwrap(poolKey.currency0),
             Currency.unwrap(poolKey.currency1),
-            poolKey.currency0.balanceOf(lp) - balance0Before,
-            poolKey.currency1.balanceOf(lp) - balance1Before
+            issuerReceived0 ? 0 : afterBalances.lp0 - beforeBalances.lp0,
+            issuerReceived0 ? afterBalances.issuer0 - beforeBalances.issuer0 : 0,
+            issuerReceived1 ? 0 : afterBalances.lp1 - beforeBalances.lp1,
+            issuerReceived1 ? afterBalances.issuer1 - beforeBalances.issuer1 : 0
         );
+    }
+
+    function _recipientBalances(PoolKey memory poolKey, address lp, address issuer)
+        private
+        view
+        returns (RecipientBalances memory balances)
+    {
+        balances.lp0 = poolKey.currency0.balanceOf(lp);
+        balances.issuer0 = poolKey.currency0.balanceOf(issuer);
+        balances.lp1 = poolKey.currency1.balanceOf(lp);
+        balances.issuer1 = poolKey.currency1.balanceOf(issuer);
+    }
+
+    function _getPoolIssuer(IPermissionsAdapterFactory factory, PoolKey memory poolKey)
+        private
+        view
+        returns (address issuer)
+    {
+        issuer = _getOwner(factory, poolKey.currency0);
+        if (issuer == address(0)) issuer = _getOwner(factory, poolKey.currency1);
     }
 
     function _unlockWithAuthorizedCallback(IPoolManager poolManager, bytes memory data) private {
@@ -221,21 +258,24 @@ library TSVLPManagerLib {
     ///      Risk disclaimer (issue #6, item 4): an ordinary quote has no adapter owner and no delivery fallback.
     ///      If its LP recipient can reject a transfer, delivery failure reverts the burn and NFT count update.
     ///      Quote admission must exclude receiver-controlled rejection; this routine does not enforce it.
-    function _deliverCurrency(UnwindParams memory p, Currency currency, uint256 amount) private {
+    function _deliverCurrency(UnwindParams memory p, Currency currency, uint256 amount)
+        private
+        returns (bool issuerReceived)
+    {
         address lp = p.lp;
         uint256 tokenId = p.tokenId;
-        if (amount == 0) return;
+        if (amount == 0) return false;
 
         // Real asset to the LP.
         if (tryDeliverAsset(p.poolManager, p.deliveryGasLimit, currency, lp, amount)) {
             emit CurrencyUnwound(tokenId, currency, lp, msg.sender, lp, amount, false);
-            return;
+            return false;
         }
         // Then the admin (permissioned currencies only; renounce is disabled, so a permissioned admin is never zero).
         address admin = _getOwner(p.factory, currency);
         if (admin != address(0) && tryDeliverAsset(p.poolManager, p.deliveryGasLimit, currency, admin, amount)) {
             emit CurrencyUnwound(tokenId, currency, admin, msg.sender, lp, amount, false);
-            return;
+            return true;
         }
         revert UnAcceptableScenario();
     }

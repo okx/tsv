@@ -48,12 +48,17 @@ contract LPLinkedDependencies {
 contract LPLinkedPoolManager {
     bool public unlocked;
     mapping(address => bool) public rejected;
+    mapping(address => mapping(address => bool)) public rejectedCurrency;
     mapping(address => mapping(uint256 => uint256)) public balanceOf;
     mapping(address => mapping(address => uint256)) public delivered;
     bytes32 private constant IS_UNLOCKED_SLOT = 0xc090fc4683624cfc3884e9d8de5eca132f2d0ec062aff75d43c0465d5ceeab23;
 
     function setRejected(address recipient, bool value) external {
         rejected[recipient] = value;
+    }
+
+    function setRejectedCurrency(address recipient, Currency currency, bool value) external {
+        rejectedCurrency[recipient][Currency.unwrap(currency)] = value;
     }
 
     function seedClaim(address owner, uint256 id, uint256 amount) external {
@@ -84,7 +89,7 @@ contract LPLinkedPoolManager {
     }
 
     function take(Currency currency, address to, uint256 amount) external {
-        require(!rejected[to], "REJECTED");
+        require(!rejected[to] && !rejectedCurrency[to][Currency.unwrap(currency)], "REJECTED");
         delivered[to][Currency.unwrap(currency)] += amount;
     }
 

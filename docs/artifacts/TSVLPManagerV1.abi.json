@@ -1360,7 +1360,7 @@
         "internalType": "address"
       },
       {
-        "name": "caller",
+        "name": "issuer",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -1378,13 +1378,25 @@
         "internalType": "address"
       },
       {
-        "name": "amount0",
+        "name": "lpReceivedAmount0",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
       },
       {
-        "name": "amount1",
+        "name": "issuerReceivedAmount0",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "lpReceivedAmount1",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "issuerReceivedAmount1",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1496,7 +1508,7 @@
         "internalType": "address"
       },
       {
-        "name": "caller",
+        "name": "issuer",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -1514,13 +1526,25 @@
         "internalType": "address"
       },
       {
-        "name": "amount0",
+        "name": "lpReceivedAmount0",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
       },
       {
-        "name": "amount1",
+        "name": "issuerReceivedAmount0",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "lpReceivedAmount1",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "issuerReceivedAmount1",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"

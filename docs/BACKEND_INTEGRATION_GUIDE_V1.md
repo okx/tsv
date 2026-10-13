@@ -105,7 +105,7 @@ Registry 的管理事件和参数以 [`PERMISSIONED_REGISTRY_V1.md`](./PERMISSIO
 - LP 付款人需分别对 U 和 Q 的 ERC-20 合约授权实际 LP Manager proxy；LP Manager 直接从 payer 划转 U 到 W、Q 到 PoolManager。Swap 付款人（调用 Router 的已授权 Adapter）对需要 Router 划转的输入另行授权实际 Router proxy；预存于 W 的 U 不需此授权。
 - `withdrawClaim` 在 TSV LP Manager 中固定回滚。
 - `unwindPosition` 由池内任一经验证 W adapter 的 owner 调用；`unwindPositionByTsv` 需 `FORCE_EXIT_ADMIN_ROLE`。都对原 LP owner 执行一次全仓退出；全局暂停会阻止调用。
-- 成功完成后，`unwindPosition` 发出 `IssuerPositionUnwound`，`unwindPositionByTsv` 发出 `TsvPositionUnwound`。两个事件的 topic0/event ID 不同；均包含 indexed `tokenId`、`lpOwner`、`caller`，以及池内 `token0`、`token1` 和退出前后 LP 地址对应币种余额的增量 `amount0`、`amount1`。发行方路径仍会逐币种发出 `CurrencyUnwound`；若资产交给 adapter owner，则该币种的 LP 余额增量为 0；若 LP Manager 有残留 claim 一并交给 LP，增量会包含这部分。
+- 成功完成后，`unwindPosition` 发出 `IssuerPositionUnwound`，`unwindPositionByTsv` 发出 `TsvPositionUnwound`。两者的 topic0/event ID 不同，均包含 indexed `tokenId`、`lpOwner`、权限资产 adapter owner `issuer`，以及池内 `token0`、`token1` 和 `lpReceivedAmount0`、`issuerReceivedAmount0`、`lpReceivedAmount1`、`issuerReceivedAmount1`。金额按 LP、issuer 地址退出前后的币种余额差计算；TSV 路径只向 LP 交付，因此 issuer 金额为 0。发行方路径仍逐币种发出含实际 recipient 的 `CurrencyUnwound`；一并交付的残留 claim 会计入对应收款方的余额差。`issuer` 不一定是调用者。
 
 强退无法保证所有 Token/仓位都成功：Q 可拒收转账，完整本金/费用 delta 可能越过 V4 `int128` 范围。后端不能把强退接口描述为无条件可用。
 
