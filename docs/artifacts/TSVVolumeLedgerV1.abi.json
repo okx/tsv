@@ -12,11 +12,6 @@
         "name": "securityId",
         "type": "bytes32",
         "internalType": "bytes32"
-      },
-      {
-        "name": "ESTDay",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -181,21 +176,9 @@
         "internalType": "bytes32"
       },
       {
-        "name": "values",
-        "type": "tuple[]",
-        "internalType": "struct TSVVolumeLedgerV1.DailyQuota[]",
-        "components": [
-          {
-            "name": "ESTDay",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "amount",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
         "name": "reasonCode",
@@ -305,12 +288,6 @@
         "type": "bytes32",
         "indexed": true,
         "internalType": "bytes32"
-      },
-      {
-        "name": "ESTDay",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
       },
       {
         "name": "amount",

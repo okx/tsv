@@ -42,7 +42,7 @@ contract TSVVolumeLedgerSetUsedWadTest is VolumeLedgerFixture {
     }
 
     function testBatchOverwritesUsageEmitsEventsAndPreservesOtherState() public {
-        ledger.setQuota(SECURITY, _value(DAY, 1000e18), REASON);
+        ledger.setQuota(SECURITY, 1000e18, REASON);
         _swap(300e18);
         ledger.setUsedWad(OTHER_SECURITY, _value(DAY, 20e18), REASON);
         ledger.setUsedWad(SECURITY, _value(DAY + 2, 40e18), REASON);
@@ -59,12 +59,12 @@ contract TSVVolumeLedgerSetUsedWadTest is VolumeLedgerFixture {
         assertEq(ledger.usedWad(SECURITY, DAY + 1), 200e18);
         assertEq(ledger.usedWad(SECURITY, DAY + 2), 40e18);
         assertEq(ledger.usedWad(OTHER_SECURITY, DAY), 20e18);
-        assertEq(ledger.Quota(SECURITY, DAY), 1000e18);
-        assertEq(ledger.Quota(SECURITY, DAY + 1), 0);
+        assertEq(ledger.Quota(SECURITY), 1000e18);
+        assertEq(ledger.Quota(OTHER_SECURITY), 0);
     }
 
     function testCorrectionControlsNextSwapAndFailedSwapPreservesUsage() public {
-        ledger.setQuota(SECURITY, _value(DAY, 1000e18), REASON);
+        ledger.setQuota(SECURITY, 1000e18, REASON);
         _swap(300e18);
         ledger.setUsedWad(SECURITY, _value(DAY, 900e18), REASON);
         _swap(100e18);
@@ -79,12 +79,12 @@ contract TSVVolumeLedgerSetUsedWadTest is VolumeLedgerFixture {
     }
 
     function testUsageAboveQuotaBlocksSwapsUntilQuotaIncreases() public {
-        ledger.setQuota(SECURITY, _value(DAY, 1000e18), REASON);
+        ledger.setQuota(SECURITY, 1000e18, REASON);
         ledger.setUsedWad(SECURITY, _value(DAY, 1200e18), REASON);
         vm.expectRevert(abi.encodeWithSelector(TSVVolumeLedgerV1.QuotaExceeded.selector, SECURITY, DAY));
         _swap(1e18);
         assertEq(ledger.usedWad(SECURITY, DAY), 1200e18);
-        ledger.setQuota(SECURITY, _value(DAY, 1300e18), REASON);
+        ledger.setQuota(SECURITY, 1300e18, REASON);
         assertEq(ledger.usedWad(SECURITY, DAY), 1200e18);
         _swap(100e18);
         assertEq(ledger.usedWad(SECURITY, DAY), 1300e18);
@@ -103,13 +103,13 @@ contract TSVVolumeLedgerSetUsedWadTest is VolumeLedgerFixture {
     }
 
     function testCorrectionForAnotherDayDoesNotChangeCurrentDay() public {
-        ledger.setQuota(SECURITY, _value(DAY, 1000e18), REASON);
+        ledger.setQuota(SECURITY, 1000e18, REASON);
         _swap(300e18);
         ledger.setUsedWad(SECURITY, _value(DAY + 1, 900e18), REASON);
         _swap(100e18);
         assertEq(ledger.usedWad(SECURITY, DAY), 400e18);
         vm.warp(1791867600);
-        ledger.setQuota(SECURITY, _value(DAY + 1, 1000e18), REASON);
+        ledger.setQuota(SECURITY, 1000e18, REASON);
         _swap(100e18);
         assertEq(ledger.usedWad(SECURITY, DAY + 1), 1000e18);
         assertEq(ledger.usedWad(SECURITY, DAY), 400e18);
@@ -119,10 +119,10 @@ contract TSVVolumeLedgerSetUsedWadTest is VolumeLedgerFixture {
         address oracle = makeAddr("batch-oracle");
         registry.grantRole(ledger.VOLUME_ORACLE_ROLE(), oracle);
         bytes[] memory calls = new bytes[](5);
-        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, _value(DAY, 1000e18), REASON));
+        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, 1000e18, REASON));
         calls[1] = abi.encodeCall(ledger.setUsedWad, (SECURITY, _value(DAY, 300e18), REASON));
-        calls[2] = abi.encodeCall(ledger.setQuota, (OTHER_SECURITY, _value(DAY, 2000e18), REASON));
-        calls[3] = abi.encodeCall(ledger.Quota, (OTHER_SECURITY, DAY));
+        calls[2] = abi.encodeCall(ledger.setQuota, (OTHER_SECURITY, 2000e18, REASON));
+        calls[3] = abi.encodeCall(ledger.Quota, (OTHER_SECURITY));
         calls[4] = abi.encodeCall(ledger.usedWad, (SECURITY, DAY));
         vm.prank(oracle);
         bytes[] memory results = ledger.multicall(calls);
@@ -133,15 +133,15 @@ contract TSVVolumeLedgerSetUsedWadTest is VolumeLedgerFixture {
         }
         assertEq(abi.decode(results[3], (uint256)), 2000e18);
         assertEq(abi.decode(results[4], (uint256)), 300e18);
-        assertEq(ledger.Quota(SECURITY, DAY), 1000e18);
-        assertEq(ledger.Quota(OTHER_SECURITY, DAY), 2000e18);
+        assertEq(ledger.Quota(SECURITY), 1000e18);
+        assertEq(ledger.Quota(OTHER_SECURITY), 2000e18);
         assertEq(ledger.usedWad(SECURITY, DAY), 300e18);
         assertEq(ledger.usedWad(OTHER_SECURITY, DAY), 0);
     }
 
     function testMulticallRejectsUnauthorizedCallerForEachSetter() public {
         bytes[] memory calls = new bytes[](1);
-        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, _value(DAY, 1000e18), REASON));
+        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, 1000e18, REASON));
         address unauthorized = makeAddr("unauthorized-batch-caller");
         vm.expectRevert(TSVVolumeLedgerV1.Unauthorized.selector);
         vm.prank(unauthorized);
@@ -151,20 +151,20 @@ contract TSVVolumeLedgerSetUsedWadTest is VolumeLedgerFixture {
         vm.expectRevert(TSVVolumeLedgerV1.Unauthorized.selector);
         vm.prank(unauthorized);
         ledger.multicall(calls);
-        assertEq(ledger.Quota(SECURITY, DAY), 0);
+        assertEq(ledger.Quota(SECURITY), 0);
         assertEq(ledger.usedWad(SECURITY, DAY), 0);
     }
 
     function testMulticallFailureRollsBackEarlierQuotaAndUsageWrites() public {
-        ledger.setQuota(SECURITY, _value(DAY, 1000e18), REASON);
+        ledger.setQuota(SECURITY, 1000e18, REASON);
         ledger.setUsedWad(SECURITY, _value(DAY, 300e18), REASON);
         bytes[] memory calls = new bytes[](3);
-        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, _value(DAY, 2000e18), REASON));
+        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, 2000e18, REASON));
         calls[1] = abi.encodeCall(ledger.setUsedWad, (SECURITY, _value(DAY, 500e18), REASON));
         calls[2] = abi.encodeCall(ledger.setUsedWad, (bytes32(0), _value(DAY, 1), REASON));
         vm.expectRevert(TSVVolumeLedgerV1.InvalidInput.selector);
         ledger.multicall(calls);
-        assertEq(ledger.Quota(SECURITY, DAY), 1000e18);
+        assertEq(ledger.Quota(SECURITY), 1000e18);
         assertEq(ledger.usedWad(SECURITY, DAY), 300e18);
     }
 
@@ -172,12 +172,12 @@ contract TSVVolumeLedgerSetUsedWadTest is VolumeLedgerFixture {
         address oracle = makeAddr("non-hook-oracle");
         registry.grantRole(ledger.VOLUME_ORACLE_ROLE(), oracle);
         bytes[] memory calls = new bytes[](2);
-        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, _value(DAY, 1000e18), REASON));
+        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, 1000e18, REASON));
         calls[1] = abi.encodeCall(ledger.recordSwap, (POOL, -1, 1, 1e18, 0));
         vm.expectRevert(TSVVolumeLedgerV1.Unauthorized.selector);
         vm.prank(oracle);
         ledger.multicall(calls);
-        assertEq(ledger.Quota(SECURITY, DAY), 0);
+        assertEq(ledger.Quota(SECURITY), 0);
         assertEq(ledger.usedWad(SECURITY, DAY), 0);
     }
 }

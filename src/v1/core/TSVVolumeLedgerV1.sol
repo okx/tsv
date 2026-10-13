@@ -23,11 +23,11 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable, Multicall {
 
     TSVRegistryV1 public registry;
 
-    /// @dev ESTDay is an epoch day number, not YYYYMMDD. Amounts are daily quotas in WAD.
-    mapping(bytes32 securityId => mapping(uint256 ESTDay => uint256 amount)) public Quota;
+    /// @dev The quota applies to each EST day until changed. Amounts are legal-share WAD.
+    mapping(bytes32 securityId => uint256 amount) public Quota;
     mapping(bytes32 securityId => mapping(uint256 ESTDay => uint256 amount)) public usedWad;
 
-    event QuotaSet(bytes32 indexed securityId, uint256 indexed ESTDay, uint256 amount, bytes32 reasonCode);
+    event QuotaSet(bytes32 indexed securityId, uint256 amount, bytes32 reasonCode);
     event UsedWadSet(bytes32 indexed securityId, uint256 indexed ESTDay, uint256 amount, bytes32 reasonCode);
     event VolumeUsed(bytes32 indexed securityId, bytes32 indexed poolId, uint256 indexed ESTDay, uint256 amount);
 
@@ -41,14 +41,12 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable, Multicall {
     }
 
     /// @notice Sets daily quotas without resetting volume already used.
-    function setQuota(bytes32 securityId, DailyQuota[] calldata values, bytes32 reasonCode) external {
+    function setQuota(bytes32 securityId, uint256 amount, bytes32 reasonCode) external {
         if (reasonCode == 0) revert InvalidConfig();
         if (!registry.hasRole(VOLUME_ORACLE_ROLE, msg.sender)) revert Unauthorized();
         if (securityId == bytes32(0)) revert InvalidInput();
-        for (uint256 i; i < values.length; ++i) {
-            Quota[securityId][values[i].ESTDay] = values[i].amount;
-            emit QuotaSet(securityId, values[i].ESTDay, values[i].amount, reasonCode);
-        }
+        Quota[securityId] = amount;
+        emit QuotaSet(securityId, amount, reasonCode);
     }
 
     /// @notice Overwrites daily used volume without changing quotas.
@@ -82,7 +80,7 @@ contract TSVVolumeLedgerV1 is Initializable, UUPSUpgradeable, Multicall {
         if (securityId == bytes32(0)) revert InvalidInput();
 
         uint256 ESTDay = currentESTDay();
-        uint256 quota = Quota[securityId][ESTDay];
+        uint256 quota = Quota[securityId];
         usedWad[securityId][ESTDay] += swapVolume;
         if (usedWad[securityId][ESTDay] > quota) revert QuotaExceeded(securityId, ESTDay);
         emit VolumeUsed(securityId, poolId, ESTDay, swapVolume);

@@ -10,7 +10,7 @@ import {
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 
 contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
-    event QuotaSet(bytes32 indexed securityId, uint256 indexed ESTDay, uint256 amount, bytes32 reasonCode);
+    event QuotaSet(bytes32 indexed securityId, uint256 amount, bytes32 reasonCode);
 
     function testInitializerRejectsRegistryWithoutCode() public {
         address implementation = address(new TSVVolumeLedgerV1());
@@ -22,74 +22,58 @@ contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
         }
     }
 
-    function testDirectQuotaBatchHasNoFormerReportLimitOfOneHundred() public {
-        TSVVolumeLedgerV1.DailyQuota[] memory values = new TSVVolumeLedgerV1.DailyQuota[](128);
-        for (uint256 i; i < values.length; ++i) {
-            values[i] = TSVVolumeLedgerV1.DailyQuota(DAY + i, i + 1);
-        }
-        ledger.setQuota(SECURITY, values, REASON);
-        for (uint256 i; i < values.length; ++i) {
-            assertEq(ledger.Quota(SECURITY, DAY + i), i + 1);
-        }
+    function testQuotaPersistsUntilChanged() public {
+        ledger.setQuota(SECURITY, 10, REASON);
+        uint256 boundary = (DAY + 1) * 1 days + 5 hours;
+        vm.warp(boundary - 1);
+        _swap(10);
+        vm.warp(boundary);
+        _swap(10);
+        assertEq(ledger.Quota(SECURITY), 10);
+        assertEq(ledger.usedWad(SECURITY, DAY), 10);
+        assertEq(ledger.usedWad(SECURITY, DAY + 1), 10);
     }
 
     function testQuotaRequiresOracleRoleAndNonzeroSecurityAndReason() public {
-        TSVVolumeLedgerV1.DailyQuota[] memory values = _value(DAY, 100e18);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidInput.selector);
-        ledger.setQuota(bytes32(0), values, REASON);
+        ledger.setQuota(bytes32(0), 100e18, REASON);
         vm.expectRevert(TSVVolumeLedgerV1.InvalidConfig.selector);
-        ledger.setQuota(SECURITY, values, bytes32(0));
+        ledger.setQuota(SECURITY, 100e18, bytes32(0));
         registry.revokeRole(ledger.VOLUME_ORACLE_ROLE(), address(this));
         vm.expectRevert(TSVVolumeLedgerV1.Unauthorized.selector);
-        ledger.setQuota(SECURITY, values, REASON);
-        assertEq(ledger.Quota(SECURITY, DAY), 0);
+        ledger.setQuota(SECURITY, 100e18, REASON);
+        assertEq(ledger.Quota(SECURITY), 0);
         registry.grantRole(ledger.VOLUME_ORACLE_ROLE(), address(this));
-        ledger.setQuota(SECURITY, values, REASON);
-        assertEq(ledger.Quota(SECURITY, DAY), 100e18);
+        ledger.setQuota(SECURITY, 100e18, REASON);
+        assertEq(ledger.Quota(SECURITY), 100e18);
     }
 
-    function testQuotaBatchPreservesUsageAndOtherSecuritiesAndDays() public {
+    function testQuotaChangePreservesUsageAndOtherSecurities() public {
         ledger.setUsedWad(SECURITY, _value(DAY, 50e18), REASON);
-        ledger.setQuota(OTHER_SECURITY, _value(DAY, 17e18), REASON);
-        TSVVolumeLedgerV1.DailyQuota[] memory values = new TSVVolumeLedgerV1.DailyQuota[](3);
-        values[0] = TSVVolumeLedgerV1.DailyQuota(DAY - 1, 10e18);
-        values[1] = TSVVolumeLedgerV1.DailyQuota(DAY, 100e18);
-        values[2] = TSVVolumeLedgerV1.DailyQuota(DAY + 1, 200e18);
-        for (uint256 i; i < values.length; ++i) {
-            vm.expectEmit(true, true, false, true, address(ledger));
-            emit QuotaSet(SECURITY, values[i].ESTDay, values[i].amount, REASON);
-        }
-        ledger.setQuota(SECURITY, values, REASON);
-        assertEq(ledger.Quota(SECURITY, DAY - 1), 10e18);
-        assertEq(ledger.Quota(SECURITY, DAY), 100e18);
-        assertEq(ledger.Quota(SECURITY, DAY + 1), 200e18);
-        assertEq(ledger.Quota(OTHER_SECURITY, DAY), 17e18);
+        ledger.setQuota(OTHER_SECURITY, 17e18, REASON);
+        vm.expectEmit(true, false, false, true, address(ledger));
+        emit QuotaSet(SECURITY, 100e18, REASON);
+        ledger.setQuota(SECURITY, 100e18, REASON);
+        assertEq(ledger.Quota(SECURITY), 100e18);
+        assertEq(ledger.Quota(OTHER_SECURITY), 17e18);
         assertEq(ledger.usedWad(SECURITY, DAY), 50e18);
     }
 
-    function testQuotaAllowsEmptyBatchUnsortedDaysAndLastDuplicateWins() public {
-        TSVVolumeLedgerV1.DailyQuota[] memory values = new TSVVolumeLedgerV1.DailyQuota[](3);
-        values[0] = TSVVolumeLedgerV1.DailyQuota(DAY + 100, 10);
-        values[1] = TSVVolumeLedgerV1.DailyQuota(0, 20);
-        values[2] = TSVVolumeLedgerV1.DailyQuota(DAY + 100, 30);
-        ledger.setQuota(SECURITY, values, REASON);
-        assertEq(ledger.Quota(SECURITY, 0), 20);
-        assertEq(ledger.Quota(SECURITY, DAY + 100), 30);
-        vm.recordLogs();
-        ledger.setQuota(SECURITY, new TSVVolumeLedgerV1.DailyQuota[](0), REASON);
-        assertEq(vm.getRecordedLogs().length, 0);
-        assertEq(ledger.Quota(SECURITY, DAY + 100), 30);
+    function testLatestQuotaOverwritesPreviousValue() public {
+        ledger.setQuota(SECURITY, 20, REASON);
+        ledger.setQuota(SECURITY, 30, REASON);
+        assertEq(ledger.Quota(SECURITY), 30);
     }
 
     function testQuotaCanBeReducedBelowUsageWithoutResettingIt() public {
-        ledger.setQuota(SECURITY, _value(DAY, 100), REASON);
+        ledger.setQuota(SECURITY, 100, REASON);
         _swap(50);
-        ledger.setQuota(SECURITY, _value(DAY, 0), REASON);
+        ledger.setQuota(SECURITY, 0, REASON);
         assertEq(ledger.usedWad(SECURITY, DAY), 50);
         vm.expectRevert(abi.encodeWithSelector(TSVVolumeLedgerV1.QuotaExceeded.selector, SECURITY, DAY));
         _swap(1);
         assertEq(ledger.usedWad(SECURITY, DAY), 50);
-        ledger.setQuota(SECURITY, _value(DAY, 51), REASON);
+        ledger.setQuota(SECURITY, 51, REASON);
         _swap(1);
         assertEq(ledger.usedWad(SECURITY, DAY), 51);
     }
@@ -101,7 +85,7 @@ contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
     }
 
     function testRecordSwapOnlyAcceptsBoundHook() public {
-        ledger.setQuota(SECURITY, _value(DAY, 100), REASON);
+        ledger.setQuota(SECURITY, 100, REASON);
         vm.expectRevert(TSVVolumeLedgerV1.Unauthorized.selector);
         vm.prank(makeAddr("not-hook"));
         ledger.recordSwap(POOL, -1, 1, 10, 0);
@@ -109,7 +93,7 @@ contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
     }
 
     function testInvalidDeltasAndLegalShareLegsNeverChargeVolume() public {
-        ledger.setQuota(SECURITY, _value(DAY, 100), REASON);
+        ledger.setQuota(SECURITY, 100, REASON);
         int128[6] memory delta0 = [int128(0), -1, 1, -1, -1, -1];
         int128[6] memory delta1 = [int128(1), 0, 1, -1, 1, 1];
         for (uint256 i; i < 6; ++i) {
@@ -122,7 +106,7 @@ contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
     }
 
     function testOppositeDirectionsAndEitherStockLegConsumeSameSecurityQuota() public {
-        ledger.setQuota(SECURITY, _value(DAY, 100), REASON);
+        ledger.setQuota(SECURITY, 100, REASON);
         ledger.recordSwap(POOL, type(int128).min, 1, 20, 0);
         ledger.recordSwap(POOL, 1, type(int128).min, 0, 30);
         assertEq(ledger.usedWad(SECURITY, DAY), 50);
@@ -136,8 +120,8 @@ contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
         vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.getPool, (secondPool)), abi.encode(pool));
         pool.securityId = OTHER_SECURITY;
         vm.mockCall(address(registry), abi.encodeCall(TSVRegistryV1.getPool, (otherPool)), abi.encode(pool));
-        ledger.setQuota(SECURITY, _value(DAY, 100), REASON);
-        ledger.setQuota(OTHER_SECURITY, _value(DAY, 50), REASON);
+        ledger.setQuota(SECURITY, 100, REASON);
+        ledger.setQuota(OTHER_SECURITY, 50, REASON);
         _swap(60);
         ledger.recordSwap(secondPool, 1, -1, 0, 40);
         ledger.recordSwap(otherPool, -1, 1, 50, 0);
@@ -147,18 +131,18 @@ contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
         assertEq(ledger.usedWad(OTHER_SECURITY, DAY), 50);
     }
 
-    function testESTMidnightStartsSeparateQuotaAtFiveUTC() public {
+    function testESTMidnightResetsUsageAtFiveUTC() public {
         uint256 boundary = (DAY + 1) * 1 days + 5 hours;
-        ledger.setQuota(SECURITY, _value(DAY, 10), REASON);
-        ledger.setQuota(SECURITY, _value(DAY + 1, 20), REASON);
+        ledger.setQuota(SECURITY, 10, REASON);
         vm.warp(boundary - 1);
         assertEq(ledger.currentESTDay(), DAY);
         _swap(10);
         vm.warp(boundary);
         assertEq(ledger.currentESTDay(), DAY + 1);
-        _swap(20);
+        _swap(10);
+        assertEq(ledger.Quota(SECURITY), 10);
         assertEq(ledger.usedWad(SECURITY, DAY), 10);
-        assertEq(ledger.usedWad(SECURITY, DAY + 1), 20);
+        assertEq(ledger.usedWad(SECURITY, DAY + 1), 10);
     }
 
     function testFixedESTHasNoSummerOrWinterOffsetChanges() public {
@@ -183,7 +167,7 @@ contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
     function testFuzzExactQuotaBoundaryAndExcessRollback(uint128 quota, uint128 first) public {
         quota = uint128(bound(quota, 2, type(uint128).max));
         first = uint128(bound(first, 1, quota - 1));
-        ledger.setQuota(SECURITY, _value(DAY, quota), REASON);
+        ledger.setQuota(SECURITY, quota, REASON);
         _swap(first);
         _swap(uint256(quota) - first);
         assertEq(ledger.usedWad(SECURITY, DAY), quota);
@@ -194,12 +178,12 @@ contract TSVVolumeLedgerAccountingTest is VolumeLedgerFixture {
 
     function testMulticallZeroReasonRollsBackEarlierQuotaAndUsage() public {
         bytes[] memory calls = new bytes[](3);
-        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, _value(DAY, 100), REASON));
+        calls[0] = abi.encodeCall(ledger.setQuota, (SECURITY, 100, REASON));
         calls[1] = abi.encodeCall(ledger.setUsedWad, (SECURITY, _value(DAY, 20), REASON));
         calls[2] = abi.encodeCall(ledger.setUsedWad, (SECURITY, _value(DAY, 30), bytes32(0)));
         vm.expectRevert(TSVVolumeLedgerV1.InvalidConfig.selector);
         ledger.multicall(calls);
-        assertEq(ledger.Quota(SECURITY, DAY), 0);
+        assertEq(ledger.Quota(SECURITY), 0);
         assertEq(ledger.usedWad(SECURITY, DAY), 0);
     }
 }

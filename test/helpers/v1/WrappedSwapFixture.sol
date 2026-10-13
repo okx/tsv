@@ -183,9 +183,7 @@ abstract contract WrappedSwapFixture is Test {
     }
 
     function _setQuota(uint256 amount) internal {
-        TSVVolumeLedgerV1.DailyQuota[] memory values = new TSVVolumeLedgerV1.DailyQuota[](1);
-        values[0] = TSVVolumeLedgerV1.DailyQuota(ledger.currentESTDay(), amount);
-        ledger.setQuota(SECURITY, values, bytes32("TEST"));
+        ledger.setQuota(SECURITY, amount, bytes32("TEST"));
     }
 
     function _inventory() internal view returns (uint256) {

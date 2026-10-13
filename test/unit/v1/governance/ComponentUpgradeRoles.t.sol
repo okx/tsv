@@ -86,14 +86,13 @@ contract TSVComponentUpgradeRolesTest is Test {
     function testLedgerUpgradePreservesQuotaUsageAndRegistry() public {
         bytes32 security = keccak256("upgrade-security");
         registry.grantRole(ledger.VOLUME_ORACLE_ROLE(), address(this));
+        ledger.setQuota(security, 100e18, bytes32("TEST"));
         TSVVolumeLedgerV1.DailyQuota[] memory values = new TSVVolumeLedgerV1.DailyQuota[](1);
-        values[0] = TSVVolumeLedgerV1.DailyQuota(20738, 100e18);
-        ledger.setQuota(security, values, bytes32("TEST"));
-        values[0].amount = 40e18;
+        values[0] = TSVVolumeLedgerV1.DailyQuota(20738, 40e18);
         ledger.setUsedWad(security, values, bytes32("TEST"));
         ledger.upgradeToAndCall(address(new TSVVolumeLedgerV1()), "");
         assertEq(address(ledger.registry()), address(registry));
-        assertEq(ledger.Quota(security, 20738), 100e18);
+        assertEq(ledger.Quota(security), 100e18);
         assertEq(ledger.usedWad(security, 20738), 40e18);
     }
 

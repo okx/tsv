@@ -14,7 +14,7 @@ contract VolumeLedgerHandler {
     uint256 public immutable firstDay;
     bytes32[2] private securities;
     bytes32[4] private pools;
-    mapping(uint256 => mapping(uint256 => uint256)) public modelQuota;
+    mapping(uint256 => uint256) public modelQuota;
     mapping(uint256 => mapping(uint256 => uint256)) public modelUsed;
     bool public oracleAllowed = true;
     uint256 public acceptedSwaps;
@@ -34,18 +34,16 @@ contract VolumeLedgerHandler {
         pools = pools_;
     }
 
-    function setQuota(uint256 securitySeed, uint256 daySeed, uint256 amountSeed) external {
+    function setQuota(uint256 securitySeed, uint256 amountSeed) external {
         uint256 security = securitySeed % 2;
-        uint256 day = daySeed % 3;
         uint256 amount = amountSeed % 1001;
-        bytes memory callData =
-            abi.encodeCall(ledger.setQuota, (securities[security], _value(day, amount), bytes32("MODEL")));
+        bytes memory callData = abi.encodeCall(ledger.setQuota, (securities[security], amount, bytes32("MODEL")));
         if (!oracleAllowed) {
             _expectRevert(callData, TSVVolumeLedgerV1.Unauthorized.selector);
             return;
         }
-        ledger.setQuota(securities[security], _value(day, amount), bytes32("MODEL"));
-        modelQuota[security][day] = amount;
+        ledger.setQuota(securities[security], amount, bytes32("MODEL"));
+        modelQuota[security] = amount;
     }
 
     function correctUsage(uint256 securitySeed, uint256 daySeed, uint256 amountSeed) external {
@@ -71,7 +69,7 @@ contract VolumeLedgerHandler {
         uint256 nextUsed = modelUsed[security][day] + amount;
         bytes memory callData =
             abi.encodeCall(ledger.recordSwap, (pools[pool], int128(-1), int128(1), amount, uint256(0)));
-        if (nextUsed > modelQuota[security][day]) {
+        if (nextUsed > modelQuota[security]) {
             (bool ok, bytes memory reason) = address(ledger).call(callData);
             require(
                 !ok
@@ -99,7 +97,7 @@ contract VolumeLedgerHandler {
         uint256 quota = amountSeed % 1001;
         uint256 usage = quota / 2;
         bytes[] memory calls = new bytes[](2);
-        calls[0] = abi.encodeCall(ledger.setQuota, (securities[security], _value(day, quota), bytes32("MODEL")));
+        calls[0] = abi.encodeCall(ledger.setQuota, (securities[security], quota, bytes32("MODEL")));
         calls[1] = abi.encodeCall(
             ledger.setUsedWad, (securities[security], _value(day, usage), invalidReason ? bytes32(0) : bytes32("MODEL"))
         );
@@ -111,7 +109,7 @@ contract VolumeLedgerHandler {
             return;
         }
         ledger.multicall(calls);
-        modelQuota[security][day] = quota;
+        modelQuota[security] = quota;
         modelUsed[security][day] = usage;
     }
 
