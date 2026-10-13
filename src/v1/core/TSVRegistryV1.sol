@@ -672,12 +672,12 @@ contract TSVRegistryV1 is TSVGoverned {
         if (securityId == 0 || !security.listed) revert InvalidStatus();
         uint8 previousPauseMode = _getSecurityPauseMode(securityId);
 
-        // 参数枚举与存储掩码分离：TRADE=0 -> 0b01，LP=1 -> 0b10，ALL=2 -> 0b11。
-        // ALL 仅选择现有的两个位，不额外分配 ALL 位；非法枚举由 Solidity ABI 解码拒绝。
+        // Map enum values to storage masks: TRADE=0 -> 0b01, LP=1 -> 0b10, ALL=2 -> 0b11.
+        // ALL selects both existing bits; it has no dedicated bit. Solidity ABI decoding rejects invalid enum values.
         uint8 selectedBits = mode == SecurityPauseMode.ALL ? 3 : uint8(1 << uint8(mode));
-        // enable=true：按位 OR 置位；enable=false：与选中位的取反掩码 AND 清位。
-        // 例如原状态 0b11，恢复 TRADE：0b11 & ~0b01 = 0b10，LP 暂停仍然保留。
-        // ALL/true 得到 0b11；ALL/false 得到 0b00。未选择的操作位始终保持原值。
+        // enable=true sets the selected bits with OR; enable=false clears them with AND against the inverted mask.
+        // For example, resuming TRADE from 0b11 yields 0b11 & ~0b01 = 0b10, leaving LP paused.
+        // ALL/true yields 0b11; ALL/false yields 0b00. Unselected operation bits retain their previous values.
         uint8 nextBits = enable ? previousPauseMode | selectedBits : previousPauseMode & ~selectedBits;
         if (nextBits == previousPauseMode) revert InvalidStatus();
         security.pauseMode = nextBits;
