@@ -189,7 +189,7 @@ abstract contract LPLinkedFixture is Test {
         key = PoolKey(
             Currency.wrap(address(0x1000)), Currency.wrap(address(quoteToken)), 3000, 60, IHooks(address(0x3000))
         );
-        vm.etch(Currency.unwrap(key.currency0), hex"00");
+        vm.etch(Currency.unwrap(key.currency0), address(underlyingToken).code);
         vm.mockCall(
             factory,
             abi.encodeCall(IPermissionsAdapterFactory.verifiedPermissionsAdapterOf, (Currency.unwrap(key.currency0))),

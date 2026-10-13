@@ -42,6 +42,26 @@ library TSVLPManagerLib {
     error RegistryPaused();
     error UnAcceptableScenario();
 
+    event IssuerPositionUnwound(
+        uint256 indexed tokenId,
+        address indexed lpOwner,
+        address indexed caller,
+        address token0,
+        address token1,
+        uint256 amount0,
+        uint256 amount1
+    );
+
+    event TsvPositionUnwound(
+        uint256 indexed tokenId,
+        address indexed lpOwner,
+        address indexed caller,
+        address token0,
+        address token1,
+        uint256 amount0,
+        uint256 amount1
+    );
+
     event CurrencyUnwound(
         uint256 indexed tokenId,
         Currency indexed currency,
@@ -92,6 +112,8 @@ library TSVLPManagerLib {
         bool isUnwindable0 = _getLpStatus(p.factory, poolKey.currency0, lp);
         bool isUnwindable1 = _getLpStatus(p.factory, poolKey.currency1, lp);
         if (!isUnwindable0 && !isUnwindable1) revert LpUnWindable();
+        uint256 balance0Before = poolKey.currency0.balanceOf(lp);
+        uint256 balance1Before = poolKey.currency1.balanceOf(lp);
         // Unsubscribe with the PoolManager locked so notifyUnsubscribe can't strand a delta and brick the unlock.
         if (positionInfo[tokenId].hasSubscriber()) {
             unsubscribe(positionInfo, subscriber, tokenId, p.unsubscribeGasLimit);
@@ -115,6 +137,15 @@ library TSVLPManagerLib {
         params[0] = abi.encode(tokenId, amount0Min, amount1Min, hookData);
         params[1] = abi.encode(poolKey.currency0, poolKey.currency1, lp);
         _unlockWithAuthorizedCallback(p.poolManager, abi.encode(actions, params));
+        emit TsvPositionUnwound(
+            tokenId,
+            lp,
+            msg.sender,
+            Currency.unwrap(poolKey.currency0),
+            Currency.unwrap(poolKey.currency1),
+            poolKey.currency0.balanceOf(lp) - balance0Before,
+            poolKey.currency1.balanceOf(lp) - balance1Before
+        );
     }
 
     /// @dev Original TSV exit body; state mappings and immutable dependencies are explicit parameters.
@@ -133,6 +164,8 @@ library TSVLPManagerLib {
         bool isUnwindable0 = _getLpStatus(p.factory, poolKey.currency0, lp);
         bool isUnwindable1 = _getLpStatus(p.factory, poolKey.currency1, lp);
         if (!isUnwindable0 && !isUnwindable1) revert LpUnWindable();
+        uint256 balance0Before = poolKey.currency0.balanceOf(lp);
+        uint256 balance1Before = poolKey.currency1.balanceOf(lp);
         // Unsubscribe with the PoolManager locked so notifyUnsubscribe can't strand a delta and brick the unlock.
         if (positionInfo[tokenId].hasSubscriber()) {
             unsubscribe(positionInfo, subscriber, tokenId, p.unsubscribeGasLimit);
@@ -167,6 +200,15 @@ library TSVLPManagerLib {
         // Deliver the real asset to the LP, then the adapter owner; revert the unwind if neither accepts it.
         _deliverCurrency(p, poolKey.currency0, amount0);
         _deliverCurrency(p, poolKey.currency1, amount1);
+        emit IssuerPositionUnwound(
+            tokenId,
+            lp,
+            msg.sender,
+            Currency.unwrap(poolKey.currency0),
+            Currency.unwrap(poolKey.currency1),
+            poolKey.currency0.balanceOf(lp) - balance0Before,
+            poolKey.currency1.balanceOf(lp) - balance1Before
+        );
     }
 
     function _unlockWithAuthorizedCallback(IPoolManager poolManager, bytes memory data) private {

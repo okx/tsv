@@ -105,6 +105,7 @@ All administrative write methods require a nonzero reason code. The `SecuritySta
 - LP payers approve the actual LP Manager proxy for U and Q on their respective ERC-20 contracts. The LP Manager pulls U directly into W and Q into PoolManager. The swap payer (the allowlisted Adapter calling Router) separately approves the actual Router proxy for input that Router pulls; U prefunded in W needs no such allowance.
 - `withdrawClaim` always reverts in the TSV LP Manager.
 - `unwindPosition` is available to the owner of either verified permissioned pool currency; `unwindPositionByTsv` requires `FORCE_EXIT_ADMIN_ROLE`. Both perform a full exit to the original NFT owner. The global pause blocks both entry points.
+- On success, `unwindPosition` emits `IssuerPositionUnwound` and `unwindPositionByTsv` emits `TsvPositionUnwound`. They have distinct topic0/event IDs. Each includes indexed `tokenId`, `lpOwner`, and `caller`, plus pool `token0`, `token1`, and `amount0` and `amount1` measured as the LP address's currency balance increases over the exit. The issuer path retains its per-currency `CurrencyUnwound` events. A currency delivered to the adapter owner gives a zero LP balance increase; any stray claims delivered to the LP are included in the increase.
 
 Forced exit is not guaranteed for every asset or position: a quote can reject delivery, and the complete principal/fee delta can exceed V4's `int128` range. Do not describe it as unconditionally available.
 
