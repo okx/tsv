@@ -15,7 +15,6 @@ import {
 } from "tsv-v1/periphery/TSVLPManagerV1.sol";
 import {PermissionedPositionManager} from "tsv-v1/vendor/permissionedPools/PermissionedPositionManager.sol";
 import {ITSVPermissionedRegistry} from "tsv-v1/interfaces/ITSVPermissionedRegistry.sol";
-import {ITokenApproveProxy} from "tsv-v1/interfaces/ITokenApproveProxy.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
 import {LPPositionMath} from "tsv-v1/vendor/permissionedPools/libraries/LPPositionMath.sol";
@@ -33,12 +32,9 @@ contract TSVLPInitializationTest is Test {
         factory = makeAddr("factory");
         manager = makeAddr("manager");
         registry = makeAddr("registry");
-        address approveProxy = makeAddr("approve-proxy");
         vm.etch(factory, hex"00");
         vm.etch(manager, hex"00");
         vm.etch(registry, hex"00");
-        vm.etch(approveProxy, hex"00");
-        vm.mockCall(approveProxy, abi.encodeCall(ITokenApproveProxy.tokenApprove, ()), abi.encode(approveProxy));
         TSVLPManagerV1 implementation = new TSVLPManagerV1(
             IPoolManager(manager),
             IAllowanceTransfer(address(0)),
@@ -47,8 +43,7 @@ contract TSVLPInitializationTest is Test {
             IWETH9(address(0)),
             IPermissionsAdapterFactory(factory),
             100_000,
-            ITSVPermissionedRegistry(registry),
-            ITokenApproveProxy(approveProxy)
+            ITSVPermissionedRegistry(registry)
         );
         implementationAddress = address(implementation);
         lp = TSVLPManagerV1(

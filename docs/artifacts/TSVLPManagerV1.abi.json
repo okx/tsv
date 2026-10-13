@@ -41,11 +41,6 @@
         "name": "_registry",
         "type": "address",
         "internalType": "contract ITSVPermissionedRegistry"
-      },
-      {
-        "name": "_tokenApproveProxy",
-        "type": "address",
-        "internalType": "contract ITokenApproveProxy"
       }
     ],
     "stateMutability": "nonpayable"
@@ -128,19 +123,6 @@
         "name": "",
         "type": "bytes32",
         "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "TOKEN_APPROVE_PROXY",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract ITokenApproveProxy"
       }
     ],
     "stateMutability": "view"
@@ -1151,7 +1133,7 @@
   },
   {
     "type": "function",
-    "name": "unwindPositionByOkx",
+    "name": "unwindPositionByTsv",
     "inputs": [
       {
         "name": "tokenId",
@@ -1616,11 +1598,6 @@
   {
     "type": "error",
     "name": "InsufficientBalance",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "InvalidApproveProxy",
     "inputs": []
   },
   {

@@ -36,7 +36,7 @@ Router 只有单池 exact-input 入口，并要求输入全额成交与最小输
 
 LP Manager 复用 permissioned V4 position manager，在 action 分发处增加 Registry SBT 和 lifecycle 门禁，并在成功 mint/burn 后更新 Registry 的 NFT 数量。两个基于 V4 currency delta 的 mint/increase actions 不受支持。普通 `withdrawClaim` 禁用。
 
-强退通过独立入口生成一次性、受限的 unlock callback，只允许对应仓位的 burn 和退出结算。`unwindPosition` 以 Factory 验证的 permissioned currency owner 授权，`unwindPositionByOkx` 使用 `FORCE_EXIT_ADMIN_ROLE`。二者均向 NFT 原 owner 交付，并执行完整 burn。因为完整本金/费用可能超过 V4 单次 `int128` delta，或者 quote Token 可拒绝收款，强退不是对所有池资产行为和任意仓位规模的无条件保证；准入与仓位政策必须处理这些限制。
+强退通过独立入口生成一次性、受限的 unlock callback，只允许对应仓位的 burn 和退出结算。`unwindPosition` 以 Factory 验证的 permissioned currency owner 授权，`unwindPositionByTsv` 使用 `FORCE_EXIT_ADMIN_ROLE`。二者均向 NFT 原 owner 交付，并执行完整 burn。因为完整本金/费用可能超过 V4 单次 `int128` delta，或者 quote Token 可拒绝收款，强退不是对所有池资产行为和任意仓位规模的无条件保证；准入与仓位政策必须处理这些限制。
 
 ## 7. UUPS 与 V4 Hook 地址
 

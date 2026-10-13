@@ -98,17 +98,34 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         assertEq(address(lp.subscriber(tokenId)), address(0));
     }
 
-    function testPaymentsKeepManagerCallerAndUserPayer() public {
+    function testPaymentsRequireDirectAllowanceToManager() public {
+        underlyingToken.mint(owner, 9);
+        quoteToken.mint(owner, 9);
         vm.prank(owner);
+        vm.expectRevert();
         lp.payForTest(key.currency1, owner, 9);
-        assertEq(deps.caller(), address(lp));
-        assertEq(deps.payer(), owner);
-        assertEq(deps.recipient(), address(manager));
-        assertEq(deps.amount(), 9);
-        vm.prank(owner);
+        vm.startPrank(owner);
+        quoteToken.approve(address(deps), 9);
+        vm.expectRevert();
+        lp.payForTest(key.currency1, owner, 9);
+        quoteToken.approve(address(lp), 9);
+        lp.payForTest(key.currency1, owner, 9);
+        assertEq(quoteToken.balanceOf(owner), 0);
+        assertEq(quoteToken.balanceOf(address(manager)), 9);
+        vm.expectRevert();
         lp.payForTest(key.currency0, owner, 9);
-        assertEq(deps.token(), underlying);
-        assertEq(deps.recipient(), Currency.unwrap(key.currency0));
+        underlyingToken.approve(address(lp), 9);
+        lp.payForTest(key.currency0, owner, 9);
+        vm.stopPrank();
+        assertEq(underlyingToken.balanceOf(owner), 0);
+        assertEq(underlyingToken.balanceOf(Currency.unwrap(key.currency0)), 9);
+    }
+
+    function testPaymentsUseManagerBalanceWithoutUserAllowance() public {
+        quoteToken.mint(address(lp), 9);
+        vm.prank(owner);
+        lp.payForTest(key.currency1, address(lp), 9);
+        assertEq(quoteToken.balanceOf(address(manager)), 9);
     }
 
     function testIssuerUnwindDeliversFullClaimsToLp() public {
@@ -198,14 +215,14 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         assertEq(manager.delivered(owner, Currency.unwrap(key.currency1)), 0);
     }
 
-    function testOkxUnwindIsDirectAndDeliveryFailureRollsBackBurn() public {
+    function testTsvUnwindIsDirectAndDeliveryFailureRollsBackBurn() public {
         manager.setRejected(owner, true);
         vm.expectRevert(bytes("REJECTED"));
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         assertEq(lp.ownerOf(tokenId), owner);
         assertEq(lp.getApproved(tokenId), address(0));
         manager.setRejected(owner, false);
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         assertEq(manager.delivered(owner, Currency.unwrap(key.currency0)), 1);
     }
 
@@ -226,7 +243,7 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
             registry, abi.encodeCall(ITSVPermissionedRegistry.updatePoolTickCount, (key, int256(-1))), abi.encode(false)
         );
         vm.expectRevert(TSVLPManagerV1.PoolTickCountUpdateFailed.selector);
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         assertEq(lp.ownerOf(tokenId), owner);
         assertEq(manager.delivered(owner, Currency.unwrap(key.currency0)), 0);
     }
@@ -242,7 +259,7 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
     function testRegistryPausePrecedesLinkedOperations() public {
         vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(true));
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
-        lp.unwindPositionByOkx(tokenId, 0, 0, "");
+        lp.unwindPositionByTsv(tokenId, 0, 0, "");
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.subscribe(tokenId, address(sub), "");
         bytes[] memory calls = new bytes[](0);

@@ -6,7 +6,7 @@
 
 - 固定 Git commit、submodule gitlink、Solidity 0.8.26、Cancun、via-IR、optimizer 200 及依赖解析结果。
 - 部署前构建并记录链接库地址。Registry 需要链接 `PermissionedValidationLib`；LP Manager 及其上游位置数学逻辑依赖 `TSVLPManagerLib`、`LPPositionMath`。
-- 核对目标链 PoolManager、Permissions Adapter Factory、SBT、TokenApproveProxy、TokenApprove、Permit2、Position Descriptor、WETH 和 quote/stock token 地址及 codehash。
+- 核对目标链 PoolManager、Permissions Adapter Factory、SBT、Permit2、Position Descriptor、WETH 和 quote/stock token 地址及 codehash。
 - 测试配置 `test/integration/xlayer/deployment.json` 是外部 DexRouter 的历史固定区块清单，不是 TSV 合约部署清单。
 
 不得从旧 `docs/artifacts/*` 中带有 `dataInbox` 的 ABI/storage-layout 文件推断当前接口。当前接口以源码编译产物为准；部署前应重建 ABI/layout 并纳入审阅。
@@ -20,16 +20,16 @@
 | `TSVRegistryV1` | Proxy initializer：`initialize(admin)`；稍后 `bindComponents(hook, lpManager, factory, sbt)` |
 | `TSVVolumeLedgerV1` | Proxy initializer：`initialize(registry)` |
 | `TSVSwapRouterV1` | Implementation constructor：`(poolManager, permissionsAdapterFactory)`；Proxy initializer：`initialize(poolManager, registry)` |
-| `TSVLPManagerV1` | Implementation constructor：`(poolManager, permit2, unsubscribeGasLimit, tokenDescriptor, weth9, factory, deliveryGasLimit, registry, tokenApproveProxy)`；Proxy initializer：`initialize(registry)` |
+| `TSVLPManagerV1` | Implementation constructor：`(poolManager, permit2, unsubscribeGasLimit, tokenDescriptor, weth9, factory, deliveryGasLimit, registry)`；Proxy initializer：`initialize(registry)` |
 | `TSVHookV1` | CREATE2 Hook proxy；initializer：`initialize(poolManager, registry, ledger, router, lpManager)`；proxy 地址低 14 位须与 `0x3FFF` 相符 |
 
-Router constructor 要求 Factory 的 `POOL_MANAGER()` 与传入 PM 相同；其 implementation immutable 参数在升级时应保持一致。LP Manager 的 PM、Factory、TokenApproveProxy、Descriptor、WETH 和 gas limits 同样是 implementation 级固定配置。
+Router constructor 要求 Factory 的 `POOL_MANAGER()` 与传入 PM 相同；其 implementation immutable 参数在升级时应保持一致。LP Manager 的 PM、Factory、Descriptor、WETH 和 gas limits 同样是 implementation 级固定配置。
 
 ## 3. 组件顺序和地址绑定
 
 当前代码没有 Registry/Router/LPManager 循环地址的一站式发布脚本。部署自动化须基于最终 proxy 地址、immutable 参数和 Hook initializer calldata 做地址预计算，再按以下约束编排：
 
-1. 部署外部 PM、Factory、SBT、TokenApproveProxy 等依赖以及所需链接库和 implementations。
+1. 部署外部 PM、Factory、SBT 等依赖以及所需链接库和 implementations。
 2. 部署 Registry proxy 并初始化 admin。
 3. 部署 Ledger、Router、LP Manager proxies，initializer 均指向最终 Registry；Router/LP implementation constructors 使用最终外部地址。
 4. 使用 `TSVHookProxyFactoryV1.predict/deploy` 部署 permission bits 正确的 Hook proxy；其 initializer 使用最终 Registry、Ledger、Router 和 LP Manager 地址。
@@ -50,7 +50,7 @@ Default Admin 在 Registry 上管理 `grantRole`/`revokeRole`。按职责最小�
 | `VOLUME_ORACLE_ROLE` | Ledger `setQuota` 和 `setUsedWad` |
 | `EMERGENCY_PAUSER_ROLE` / `EMERGENCY_RESUMER_ROLE` | 分别启用/解除 global pause |
 | `POOL_CREATOR_ROLE` | LP Manager `initializePool` |
-| `FORCE_EXIT_ADMIN_ROLE` | LP Manager `unwindPositionByOkx` |
+| `FORCE_EXIT_ADMIN_ROLE` | LP Manager `unwindPositionByTsv` |
 | `UPGRADE_ADMIN_ROLE` | Registry 自身及其他代理的 UUPS 升级授权 |
 
 确认组件在目标环境中实际查询 Registry role root。不要配置旧治理 Anchor、Council、DataInbox role 或已删除的 report executor。`REVOKE_EXIT_EXECUTOR_ROLE` 和 `WITHDRAW_CLAIM_ROLE` 当前没有合约消费者。
@@ -60,7 +60,7 @@ Default Admin 在 Registry 上管理 `grantRole`/`revokeRole`。按职责最小�
 - 将 W 的 Registry address、U、securityId、decimals 和 legal-share adapter 核对一致；Factory `verifiedPermissionsAdapterOf(W)` 必须指向 U。
 - Registry 登记 Q 和 W；tier policy 在首次 security listing 前配置。每个新池必须是一侧 W、一侧 Q，Hook 为本 TSV Hook。
 - 在 W 配置 issuer checker、`swappingEnabled`、Router/LP wrapper 和 Hook allowlist；在 Registry 配置 SBT tokenId 与 TSV permission flags。
-- 将 LP Manager **proxy**加入 TokenApproveProxy 的 caller allowlist；用户授权 `TokenApproveProxy.tokenApprove()`。对真实 U/Q 验证 TokenApproveProxy 划转语义。
+- LP 付款人对 U/Q 分别授权 LP Manager **proxy**；Swap 付款人（已授权 Adapter）对输入 U/Q 另行授权 Router **proxy**。对真实 U/Q 验证直接 `transferFrom` 划转语义。
 - Router allowlist 中只加入经过审核的 DEX Adapter；adapter signer/caller 认证与此链上 allowlist 是两套配置。
 - 为目标 `currentESTDay()` 和 security 设置直接 legal-share WAD quota。quota 默认 0；旧 ADTV/tier 公式不存在。
 - 由 Pool Creator 用 LP Manager 初始化 PoolKey，再通过显式 liquidity action 提供流动性。

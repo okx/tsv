@@ -78,7 +78,7 @@ LP Manager 复用 permissioned V4 position manager，并在 action dispatch 中�
 - 普通 position action 和 settlement action 均要求 action executor 具有 `LIQUIDITY_ALLOWED`；position action 还会检查 NFT owner。显式 recipient 在解析 sentinel 地址后检查。
 - `MINT_POSITION_FROM_DELTAS` 和 `INCREASE_LIQUIDITY_FROM_DELTAS` 会被拒绝。标准 `MINT_POSITION` 和 `INCREASE_LIQUIDITY` 使用显式 liquidity 数量。
 - `withdrawClaim` 被禁用。成功 mint/burn 后更新池 position 计数；若 Registry 更新失败，整个 action 一并回滚。
-- `unwindPosition` 允许任一 Factory 验证过的 permissioned currency adapter 的 owner 请求全仓退出。`unwindPositionByOkx` 使用 `FORCE_EXIT_ADMIN_ROLE`。两条路径都将资产交付给 LP owner，并创建仅供本次退出 action 使用的受限 callback。
+- `unwindPosition` 允许任一 Factory 验证过的 permissioned currency adapter 的 owner 请求全仓退出。`unwindPositionByTsv` 使用 `FORCE_EXIT_ADMIN_ROLE`。两条路径都将资产交付给 LP owner，并创建仅供本次退出 action 使用的受限 callback。
 - 两个 unwind 入口都在一次操作中退出全部仓位。若 quote Token 拒绝转账，或原始本金/费用超出 PoolManager `int128` delta 范围，退出可能回滚。代码没有授权的部分退出入口，也没有 quote-token claim fallback。
 
 global emergency pause 会阻止普通 action 和 unwind 入口。security 级 LP pause 会阻止普通 LP 操作；Hook 允许正在进行且已授权的 unwind 通过该 security 级检查。
@@ -103,7 +103,7 @@ Registry 为每个 SBT identity token ID 保存权限 bitmask。对 participant�
 | `VOLUME_ORACLE_ROLE` | 设置 quota 和覆盖已用成交量 |
 | `EMERGENCY_PAUSER_ROLE` / `EMERGENCY_RESUMER_ROLE` | 启用/解除 global pause |
 | `POOL_CREATOR_ROLE` | 通过 LP Manager 初始化已登记 V4 池 |
-| `FORCE_EXIT_ADMIN_ROLE` | 调用 `unwindPositionByOkx` |
+| `FORCE_EXIT_ADMIN_ROLE` | 调用 `unwindPositionByTsv` |
 | `UPGRADE_ADMIN_ROLE` | 授权 UUPS 升级；Hook 在 global pause 时也会拒绝升级 |
 
 共享基类仍定义 `REVOKE_EXIT_EXECUTOR_ROLE` 和 `WITHDRAW_CLAIM_ROLE` 常量，但当前 TSV 合约没有消费者；`withdrawClaim` 会回滚。分配角色前应先核对当前源码中的实际调用点，不能仅凭常量名称赋予运营含义。

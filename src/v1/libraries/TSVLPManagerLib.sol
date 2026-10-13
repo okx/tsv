@@ -18,7 +18,7 @@ import {ActionConstants} from "v4-periphery/libraries/ActionConstants.sol";
 import {ISubscriber} from "v4-periphery/interfaces/ISubscriber.sol";
 import {INotifier} from "v4-periphery/interfaces/INotifier.sol";
 import {CustomRevert} from "../vendor/permissionedPools/base/Notifier.sol";
-import {ITokenApproveProxy} from "../interfaces/ITokenApproveProxy.sol";
+import {TSVPermissionedSettlementLib} from "./TSVPermissionedSettlementLib.sol";
 import {PoolId} from "lib/v4-periphery/lib/v4-core/src/types/PoolId.sol";
 
 /// @notice Linked copies of TSV LP and inherited periphery routines, executed in the manager's context.
@@ -77,7 +77,7 @@ library TSVLPManagerLib {
     }
 
     /// @dev Original TSV exit body; state mappings and immutable dependencies are explicit parameters.
-    function unwindPositionByOkx(
+    function unwindPositionByTsv(
         UnwindParams memory p,
         mapping(uint256 => PositionInfo) storage positionInfo,
         mapping(uint256 => ISubscriber) storage subscriber,
@@ -228,12 +228,11 @@ library TSVLPManagerLib {
         assembly ("memory-safe") { callbackHash := tload(slot) }
     }
 
-    /// @dev User-funded ERC20 payments use the same TokenApproveProxy chain as DexRouter.
+    /// @dev User-funded ERC20 payments pull directly using an allowance to the LP Manager.
     ///      Permissioned underlyings are paid to their adapter and wrapped; quotes are paid to PoolManager.
     function pay(
         IPoolManager poolManager,
         IPermissionsAdapterFactory factory,
-        ITokenApproveProxy approveProxy,
         Currency currency,
         address payer,
         uint256 amount,
@@ -244,7 +243,9 @@ library TSVLPManagerLib {
             if (payer == address(this)) {
                 currency.transfer(address(poolManager), amount);
             } else {
-                approveProxy.claimTokens(Currency.unwrap(currency), payer, address(poolManager), amount);
+                TSVPermissionedSettlementLib.transferFromPayer(
+                    Currency.unwrap(currency), payer, address(poolManager), amount
+                );
             }
             return;
         }
@@ -257,7 +258,9 @@ library TSVLPManagerLib {
         if (payer == address(this)) {
             Currency.wrap(permissionedToken).transfer(address(permissionsAdapter), amount);
         } else {
-            approveProxy.claimTokens(permissionedToken, payer, address(permissionsAdapter), amount);
+            TSVPermissionedSettlementLib.transferFromPayer(
+                permissionedToken, payer, address(permissionsAdapter), amount
+            );
         }
         permissionsAdapter.wrapToPoolManager(amount);
     }

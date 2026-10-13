@@ -96,9 +96,9 @@ Swap 的 hookData 必须是一个 ABI 编码 `uint256 expectedMultiplier`。Hook
 
 ## 7. LP Manager
 
-LP Manager 构造器把 PoolManager、Permit2、订阅 gas limit、Position Descriptor、WETH、Permissions Adapter Factory、交付 gas limit、Registry 和 TokenApproveProxy 固定在实现参数/immutable 中；代理 initializer 为 `initialize(registry)`。
+LP Manager 构造器把 PoolManager、Permit2、订阅 gas limit、Position Descriptor、WETH、Permissions Adapter Factory、交付 gas limit 和 Registry 固定在实现参数/immutable 中；代理 initializer 为 `initialize(registry)`。
 
-对外关键入口为 `initializePool`、继承的 `modifyLiquidities`/`modifyLiquiditiesWithoutUnlock`、`unwindPosition`、`unwindPositionByOkx`、ERC-721 `ownerOf/approve/permit` 等父类接口。各 action 的权限及结算行为由 [`TSVLPManagerLib.sol`](../src/v1/libraries/TSVLPManagerLib.sol) 与 permissioned position manager 共同实现。
+对外关键入口为 `initializePool`、继承的 `modifyLiquidities`/`modifyLiquiditiesWithoutUnlock`、`unwindPosition`、`unwindPositionByTsv`、ERC-721 `ownerOf/approve/permit` 等父类接口。各 action 的权限及结算行为由 [`TSVLPManagerLib.sol`](../src/v1/libraries/TSVLPManagerLib.sol) 与 permissioned position manager 共同实现。
 
 `MINT_POSITION_FROM_DELTAS` 和 `INCREASE_LIQUIDITY_FROM_DELTAS` 被拒绝。普通 action 校验调用者及仓位 owner 的 SBT LP 权限；强退使用受限回调上下文。`withdrawClaim` 固定回滚。强退一次性销毁完整 position，可能受收款 Token 行为和 `int128` delta 边界影响。
 
@@ -116,6 +116,6 @@ Registry 继承 AccessControl/UUPS。`initialize(admin)` 授予调用配置使�
 | Volume Ledger | `initialize(registry)` | quota/upgrade 角色从 Registry 查询 |
 | Hook | `initialize(poolManager, registry, ledger, router, lpManager)` | CREATE2 代理地址须满足 V4 Hook flags |
 | Swap Router | `initialize(poolManager, registry)` | 实现构造参数固定 PoolManager 和 Factory，initializer 必须与之匹配 |
-| LP Manager | `initialize(registry)` | 实现构造时已固定 PoolManager、Factory、TokenApproveProxy 等依赖 |
+| LP Manager | `initialize(registry)` | 实现构造时已固定 PoolManager、Factory 等依赖 |
 
 `TSVERC1967Proxy` 要求初始化 calldata 非空，并提供 `tsvImplementation()`。实现构造器禁用 implementation 自身初始化。该表描述代码入口，不代表仓库已经包含可用于目标链的完整部署脚本或实际部署状态。

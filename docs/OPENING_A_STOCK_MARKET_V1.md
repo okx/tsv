@@ -16,13 +16,13 @@
 
 ## 2. 部署当前组件
 
-按目标链发布流程先确定 PM、Permissions Adapter Factory、SBT 和 TokenApproveProxy，再部署 Registry、Ledger、Router、LP Manager、Hook 及实现合约。Registry proxy 必须通过 `initialize(admin)` 创建；其余 proxy 也须带正确 initializer。
+按目标链发布流程先确定 PM、Permissions Adapter Factory 和 SBT，再部署 Registry、Ledger、Router、LP Manager、Hook 及实现合约。Registry proxy 必须通过 `initialize(admin)` 创建；其余 proxy 也须带正确 initializer。
 
 注意以下代码约束：
 
 - Hook proxy 地址低 14 位须为 `0x3FFF`。使用 `TSVHookProxyFactoryV1.predict/deploy` 与最终 initializer calldata 一起预计算地址。
 - Router implementation constructor 固定 PoolManager 和 Factory；`initialize(pm, registry)` 中的 PM 必须一致。
-- LP Manager implementation constructor 固定 PM、Factory、TokenApproveProxy、Registry 等集成参数；proxy 使用 `initialize(registry)`。
+- LP Manager implementation constructor 固定 PM、Factory、Registry 等集成参数；proxy 使用 `initialize(registry)`。
 - Hook initializer 绑定 PM、Registry、Ledger、Router 和 LP Manager。
 - Registry 使用 `bindComponents(hook, lpManager, factory, sbt)` 一次绑定 Hook、LP Manager、Factory、Factory 的 PM 和 SBT。该函数不绑定 Router 或 Ledger。
 
@@ -34,7 +34,7 @@
 
 由发行方 owner 配置 W 的 allowlist checker、`swappingEnabled`、Router wrapper 和 Hook allowlist。LP Manager 需要被 W 允许作为 wrapper；用户的发行方 checker 需允许 swap/LP 对应权限。发行方侧设置与 Registry 的 TSV SBT 权限彼此独立。
 
-TokenApproveProxy 还须将 LP Manager **proxy 地址**加入 caller allowlist。用户按该 Proxy 的 `tokenApprove()` 地址授权；LP Manager 使用 `claimTokens` 将 U 送入 W 并 wrap，或将 Q 送入 PoolManager。不要只给 implementation 授权，也不要把此授权链误写成 LP Manager/Permit2 allowance。
+LP 付款人须对 U 和 Q 直接授权 LP Manager **proxy 地址**；LP Manager 使用 `transferFrom` 将 U 送入 W 并 wrap，或将 Q 送入 PoolManager。Swap 付款人（调用 Router 的已授权 Adapter）对输入 U/Q 另行授权 Router **proxy 地址**。不要只给 implementation 授权。
 
 ## 4. 登记 SBT、Tier 和资产
 
@@ -50,7 +50,7 @@ TokenApproveProxy 还须将 LP Manager **proxy 地址**加入 caller allowlist�
 
 1. 组装排序后的 `PoolKey(currency0, currency1, fee, tickSpacing, hook)`；两种 Currency 必须是 W 和 Q，Hook 必须是绑定的 TSV Hook。
 2. 由 `POOL_CREATOR_ROLE` 调用 `LPManager.initializePool(key, sqrtPriceX96)`。Registry 注册池和 PoolManager 初始化在一个交易内完成。
-3. 通过标准显式流动性 action 注入 LP；股票腿 U 和 Q 的用户付款依赖 TokenApproveProxy。position owner 与 action executor 均需 TSV LP SBT 权限，W 和 Hook 的 issuer/hook allowlist 也需就绪。
+3. 通过标准显式流动性 action 注入 LP；股票腿 U 和 Q 的用户付款依赖对 LP Manager proxy 的直接 ERC-20 allowance。position owner 与 action executor 均需 TSV LP SBT 权限，W 和 Hook 的 issuer/hook allowlist 也需就绪。
 4. `VOLUME_ORACLE_ROLE` 在 Ledger 调用 `setQuota(securityId, amount, reasonCode)`。quota 是 legal-share WAD 的直接值，不从 ADTV/tier 自动计算；设置后逐日沿用直到再次修改，默认 0 会阻止正成交量。
 5. 在 Router 上 allowlist 外部 Adapter。Adapter 请求提供 W/Q PoolKey、方向、raw input、最小 raw output、deadline 和 U Adapter 当前 multiplier 快照。
 
@@ -61,7 +61,7 @@ Swap 必须全额消耗输入，且满足最小输出。Hook 用真实 W PoolMan
 - 证券操作暂停使用 `applySecurityStatus(securityId, NONE/TRADE/LP/ALL, reasonCode)`，每次写入最终模式。
 - 全局暂停使用 `setEmergencyPauseEnable(true, reasonCode)`；解除由单独的 `EMERGENCY_RESUMER_ROLE` 执行。
 - 池 lifecycle 由 Symbol Admin 改成 `PAUSE`、`LIST` 或 `DELIST`。新建池默认 `LIST`；DELlST 需先退出并 burn 所有 position NFT，使 `tickCount == 0`。
-- `unwindPosition` 由 W/Q permissioned adapter owner 发起；`unwindPositionByOkx` 由 `FORCE_EXIT_ADMIN_ROLE` 发起。两者均全仓退出并把资产交回原 NFT owner；quote 收款拒绝或 `int128` delta 溢出可能使退出回滚。全局暂停会阻止两条强退入口。
+- `unwindPosition` 由 W/Q permissioned adapter owner 发起；`unwindPositionByTsv` 由 `FORCE_EXIT_ADMIN_ROLE` 发起。两者均全仓退出并把资产交回原 NFT owner；quote 收款拒绝或 `int128` delta 溢出可能使退出回滚。全局暂停会阻止两条强退入口。
 
 ## 7. 验收记录
 
