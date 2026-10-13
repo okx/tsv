@@ -103,7 +103,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     /// @dev The participant must approve this router for the input token. Before the PoolManager swap,
     ///      U is transferred directly from the participant into W, or Q into this router. The input is
     ///      then settled from that prefunded balance, and output is taken directly to `recipient`.
-    function swapExactInputFromAdapterDirect(
+    function swapExactInputFromContractDirect(
         SwapRequest calldata request,
         address participant,
         address recipient
