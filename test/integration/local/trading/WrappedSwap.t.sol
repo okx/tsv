@@ -219,11 +219,11 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         bytes32 before_ = _digest();
         SwapRequest memory request;
         vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
-        router.swapExactInputFromAdapterDirect(request, alice, alice);
+        router.swapExactInputFromContractDirect(request, alice, alice);
         request = _request(true, 1e16);
         vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
         vm.prank(alice);
-        router.swapExactInputFromAdapterDirect(request, alice, alice);
+        router.swapExactInputFromContractDirect(request, alice, alice);
         assertEq(_digest(), before_);
         assertEq(router.msgSender(), address(0));
     }

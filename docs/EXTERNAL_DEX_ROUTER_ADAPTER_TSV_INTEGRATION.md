@@ -48,7 +48,7 @@ Router ABI 中的结构为 `SwapRequest(key, zeroForOne, amountSpecified, limitA
 
 Adapter 调用 `swapExactInputFromContract(request, participant)`。只有 `isAdapterAllowed(adapter) == true` 的合约能调用；Router 从 Adapter 余额扣输入，将输出返回 Adapter，再由 Adapter 将本次输出增量交给 `to`。Router 要求 `actualIn == amountSpecified`，所以 TSV 路径必须全额成交；不足额不是成功退款场景，而是整笔回滚。Adapter 还核对输出余额 delta 和输入剩余余额，避免发送历史 dust。
 
-Router 另有 `swapExactInputFromAdapterDirect(request, participant, recipient)`，该入口从 participant 拉输入；一般外部 DexRouter hop 使用预存模式。两者都依赖 Router Adapter allowlist、TSV SBT 权限、W issuer 权限、池 lifecycle、暂停和当日 quota。
+Router 另有 `swapExactInputFromContractDirect(request, participant, recipient)`，该入口从 participant 拉输入；一般外部 DexRouter hop 使用预存模式。两者都依赖 Router Adapter allowlist、TSV SBT 权限、W issuer 权限、池 lifecycle、暂停和当日 quota。
 
 ## 管理与验收
 
