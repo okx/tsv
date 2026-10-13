@@ -175,8 +175,8 @@ contract LPHookTest is Test {
         checker.setPermissions(alice, address(underlying), PermissionFlag.wrap(0x0004));
     }
 
-    function _setSecurityMode(SecurityPauseMode mode) private {
-        registry.applySecurityStatus(SECURITY, mode, bytes32("TEST"));
+    function _setSecurityMode(SecurityPauseMode mode, bool enable) private {
+        registry.applySecurityStatus(SECURITY, mode, enable, bytes32("TEST"));
     }
 
     function testRealManagerMintIncreaseDecreaseCollectAndBurnWithoutLegacyContext() public {
@@ -220,7 +220,7 @@ contract LPHookTest is Test {
     function testSecurityLpPauseBlocksOrdinaryChangesAndAllowsBothAuthorizedUnwinds() public {
         uint256 first = _mint("");
         uint256 second = _mint("");
-        _setSecurityMode(SecurityPauseMode.LP);
+        _setSecurityMode(SecurityPauseMode.LP, true);
         vm.expectRevert();
         _change(first, Actions.INCREASE_LIQUIDITY, 1, "");
         vm.expectRevert();
@@ -231,7 +231,7 @@ contract LPHookTest is Test {
         lp.unwindPositionByTsv(first, 0, 0, "");
         lp.unwindPosition(second, 0, 0, "");
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);
-        _setSecurityMode(SecurityPauseMode.NONE);
+        _setSecurityMode(SecurityPauseMode.ALL, false);
         sbt.setHolder(alice, 1, true);
         checker.setPermissions(alice, address(underlying), PermissionFlags.LIQUIDITY_ALLOWED);
         _mint("");
@@ -267,7 +267,7 @@ contract LPHookTest is Test {
         assertEq(lp.getPositionLiquidity(tokenId), 0);
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 1);
         _authorizeExit();
-        _setSecurityMode(SecurityPauseMode.ALL);
+        _setSecurityMode(SecurityPauseMode.ALL, true);
         registry.setEmergencyPauseEnable(true, bytes32("TEST"));
         vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
         lp.unwindPositionByTsv(tokenId, 0, 0, "");
@@ -281,7 +281,7 @@ contract LPHookTest is Test {
     function testUnwindCannotBeAuthorizedByUserHookDataOrUnapprovedCaller() public {
         uint256 tokenId = _mint("");
         bytes memory snapshot = abi.encode(issuer.multiplier());
-        _setSecurityMode(SecurityPauseMode.LP);
+        _setSecurityMode(SecurityPauseMode.LP, true);
         vm.expectRevert();
         _change(tokenId, Actions.DECREASE_LIQUIDITY, 1, snapshot);
         _authorizeExit();

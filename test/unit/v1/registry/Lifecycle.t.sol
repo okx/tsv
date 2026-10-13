@@ -28,7 +28,7 @@ contract TSVOperationsLifecycleTest is FoundationFixture {
         bytes32 secondPool = registry.registerPool(secondKey);
         assertEq(registry.getTierPolicy(1).listedCount, 1);
         assertTrue(registry.isTradable(secondPool));
-        _setSecurityMode(SecurityPauseMode.TRADE);
+        _setSecurityMode(SecurityPauseMode.TRADE, true);
         assertFalse(registry.isTradable(secondPool));
         assertTrue(registry.isLPAllowed(secondPool));
         assertEq(registry.getListPoolCountBySecurity(SECURITY), 2);
@@ -63,7 +63,7 @@ contract TSVOperationsLifecycleTest is FoundationFixture {
         assertFalse(registry.isTradable(secondPool));
         assertTrue(registry.isLPAllowed(secondPool));
         assertEq(keccak256(abi.encode(registry.getPool(secondPool).key)), keccak256(abi.encode(secondKey)));
-        _setSecurityMode(SecurityPauseMode.NONE);
+        _setSecurityMode(SecurityPauseMode.ALL, false);
         assertTrue(registry.isTradable(secondPool));
         assertTrue(registry.isLPAllowed(secondPool));
     }

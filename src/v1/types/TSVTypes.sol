@@ -4,13 +4,16 @@ pragma solidity 0.8.26;
 import {PermissionFlag} from "../vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 
-/// @notice Operations affected by a security pause; values also form the operation pause bitmask.
+/// @notice Selects which operation pause bits applySecurityStatus updates.
+/// @dev These enum ordinals are API selectors, NOT the stored mask values:
+///      TRADE=0 selects bit 0 (mask 1), LP=1 selects bit 1 (mask 2), ALL=2 selects both (mask 3).
+///      Resume both operations with ALL/false; there is no NONE selector.
 enum SecurityPauseMode {
-    NONE, // No operation pause; setting this mode opens all security operations.
-    TRADE, // Blocks swaps only.
-    LP, // Blocks all ordinary LP actions only.
-    ALL // Blocks swaps and all ordinary LP actions.
+    TRADE,
+    LP,
+    ALL
 }
+
 /// @notice Operation type checked by Registry operation gates.
 enum SecurityOperationCheckType {
     LP, // Ordinary LP operations.
@@ -53,12 +56,6 @@ struct TierPolicyRecord {
     uint32 listedCount;
 }
 
-/// @notice Security operation state for one security.
-struct SecurityStateRecord {
-    /// @notice Current security operation pause mask.
-    SecurityPauseMode pauseMode;
-}
-
 /// @notice Aggregates one security's listing state, pool counters, and operation state.
 struct SecurityRecord {
     /// @notice Unique internal security identifier.
@@ -71,8 +68,13 @@ struct SecurityRecord {
     bytes32[] poolIds;
     /// @notice Number of associated pools whose lifecycle is not DELIST.
     uint32 listedPoolCount;
-    /// @notice Operation pause state for this security.
-    SecurityStateRecord securityState;
+    /// @notice Two-bit pause mask: 0=unpaused, 1=TRADE, 2=LP, 3=ALL.
+    /// @dev Only bit 0 (TRADE) and bit 1 (LP) are stored; a set bit blocks its operation.
+    ///      ALL is the combination of both bits, not an extra stored flag.
+    ///      SecurityPauseMode is a setter selector, so do not cast this mask to that enum.
+    ///      Flattening the former nested state changes storage packing; existing proxy
+    ///      deployments must migrate their old pause state before using this layout.
+    uint8 pauseMode;
 }
 
 /// @notice Stores one registered V4 pool's identity and lifecycle-owned state.

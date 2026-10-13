@@ -94,7 +94,7 @@ contract TSVAdmissionTest is FoundationFixture {
     }
 
     function testNewWrapperUsesCurrentCanonicalAdapter() public {
-        _setSecurityMode(SecurityPauseMode.ALL);
+        _setSecurityMode(SecurityPauseMode.ALL, true);
         ERC8056DirectLegalShareAdapter next = new ERC8056DirectLegalShareAdapter(address(stockToken));
         registry.replaceUnderlyingLegalShareAdapter(address(stockToken), address(next), bytes32("TEST"));
         PermissionedRegisterParam memory second = _prepareCurrency(address(stockToken), SECURITY, address(next));
