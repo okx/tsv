@@ -60,9 +60,9 @@ Pool lifecycle is stored in `PoolRecord`:
 
 ## 4. Swap 流程与成交量记账
 
-1. 已登记的 Adapter 调用 `swapExactInputFromContractDirect(request, participant, recipient)` 或 `swapExactInputFromContract(request, participant)`。前者从 participant 拉取输入并向 recipient 输出；后者使用预存于 Adapter 的输入资产，并将输出返回 Adapter。
+1. 已登记的 Adapter 调用 `swapExactInputFromContractDirect(request, payer, participant, recipient)` 或 `swapExactInputFromContract(request, participant)`。Direct 的 U 输入使用 W 中预存的 U；Q 输入使用调用 Adapter 作为 payer。普通入口以调用 Adapter 作为 payer，输出返回 Adapter。
 2. Router 检查 Adapter allowlist、participant 的 SBT 权限、deadline、输入范围、池登记、lifecycle 和最小输出。请求只支持单池 exact-input，且必须结算全部请求输入。
-3. 输入为 W 时，Router 从付款方转出 U 给 W，再由 W 将其封装为 PoolManager 的 W；输入为 Q 时，Router 收取 Q 并结算给 PoolManager。W 输出会解封为 U，Q 输出仍为 Q。
+3. U 输入由 W 包装为 PoolManager 的 W；普通入口先从 Adapter 拉 U 到 W，Direct 入口使用调用前存入 W 的 U。Q 输入在 `PoolManager.sync` 后由 Router 直接从 payer 转给 PoolManager 并结算，不经过 Router 余额。W 输出会解封为 U，Q 输出仍为 Q。
 4. Hook 仅接受已配置 Router 和 PoolManager 的 swap 回调。Swap 前后均检查 `isTradable`、global pause，以及请求中的 32-byte `expectedMultiplier` 是否与 canonical U adapter 当前值相符。
 5. `afterSwap` 将 PoolManager 返回的 W 侧 delta 绝对值转换成 legal-share WAD，并调用 `recordSwap`。Ledger 根据已登记池找到其 security，检查更新后的当日 `usedWad` 是否超过该 security 的 quota。检查失败会回滚整笔 swap。
 

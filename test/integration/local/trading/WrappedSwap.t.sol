@@ -33,16 +33,27 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         bool faultUnderlying,
         bool noReturn
     ) public {
+        uint128 amount = 1e16;
+        SwapRequest memory request = _request(stockInput, amount);
+        address payer;
+        if (stockInput) {
+            underlying.mint(address(stock), amount);
+        } else {
+            quote.mint(address(swapAdapter), amount);
+            swapAdapter.approveToken(address(quote), address(router));
+            payer = address(swapAdapter);
+        }
         uint8 mode = noReturn ? 4 : 2;
         if (faultUnderlying) underlying.setTransferMode(mode);
         else quote.setTransferMode(mode);
         bytes32 beforeState = _digest();
-        if (noReturn) {
-            _swap(stockInput, 1e16);
+        bool faultTokenIsTransferred = !faultUnderlying || !stockInput;
+        if (noReturn || !faultTokenIsTransferred) {
+            swapAdapter.swapExactInputDirect(router, request, payer, alice, alice);
             assertEq(_inventory(), 17);
         } else {
             vm.expectRevert();
-            _swap(stockInput, 1e16);
+            swapAdapter.swapExactInputDirect(router, request, payer, alice, alice);
             assertEq(_digest(), beforeState);
             assertEq(router.msgSender(), address(0));
         }
@@ -208,7 +219,6 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         V1TestParticipantWallet wallet = new V1TestParticipantWallet(address(this));
         sbt.setHolder(address(wallet), 1, true);
         quote.mint(address(wallet), 1e20);
-        wallet.approveToken(address(quote), address(router));
         (, uint256 received) = wallet.swapExactInput(router, swapAdapter, _request(false, 1e16));
         assertEq(underlying.balanceOf(address(wallet)), received);
         assertEq(stock.balanceOf(address(wallet)), 0);
@@ -219,11 +229,11 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         bytes32 before_ = _digest();
         SwapRequest memory request;
         vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
-        router.swapExactInputFromContractDirect(request, alice, alice);
+        router.swapExactInputFromContractDirect(request, address(this), alice, alice);
         request = _request(true, 1e16);
         vm.expectRevert(TSVSwapRouterV1.AdapterNotAllowed.selector);
         vm.prank(alice);
-        router.swapExactInputFromContractDirect(request, alice, alice);
+        router.swapExactInputFromContractDirect(request, address(0), alice, alice);
         assertEq(_digest(), before_);
         assertEq(router.msgSender(), address(0));
     }

@@ -350,6 +350,11 @@
         ]
       },
       {
+        "name": "payer",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
         "name": "participant",
         "type": "address",
         "internalType": "address"
@@ -559,6 +564,11 @@
   {
     "type": "error",
     "name": "InvalidAdapter",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidPayer",
     "inputs": []
   },
   {

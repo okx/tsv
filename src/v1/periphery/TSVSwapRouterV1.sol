@@ -34,6 +34,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     error SettlementMismatch();
     error InvalidAdapter();
     error AdapterNotAllowed();
+    error InvalidPayer();
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
     bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
@@ -53,6 +54,8 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     address private activeRecipient;
     /// @dev Expected input PoolKey currency; checked against the currency settled by PoolManager.
     address private activeInputCurrency;
+    /// @dev Token payer used by _settle for quote-token inputs; appended to preserve prior storage slots.
+    address private activePayer;
 
     event AdapterAuthorizationUpdated(address indexed adapter, bool allowed);
 
@@ -99,16 +102,23 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     }
 
     // Approved-adapter direct-settlement entry point.
-    /// @notice Adapter path that settles directly from the participant and delivers output to `recipient`.
-    /// @dev The participant must approve this router for the input token. Before the PoolManager swap,
-    ///      U is transferred directly from the participant into W, or Q into this router. The input is
-    ///      then settled from that prefunded balance, and output is taken directly to `recipient`.
+    /// @notice Adapter path with caller-prefunded U or caller-paid Q; output is delivered to `recipient`.
+    /// @dev U input must already be deposited in W, so `payer` is zero. For Q input, `payer` must be this
+    ///      adapter; Q is transferred to PoolManager during settlement.
     function swapExactInputFromContractDirect(
         SwapRequest calldata request,
+        address payer,
         address participant,
         address recipient
     ) external whenRegistryNotPaused isNotLocked returns (uint256 actualIn, uint256 actualOut) {
-        return _swap(request, participant, participant, recipient);
+        address inputCurrency = Currency.unwrap(
+            request.zeroForOne ? request.key.currency0 : request.key.currency1
+        );
+        bool isUnderlyingInput = registry.getCurrencyUnderlying(inputCurrency) != address(0);
+        if ((isUnderlyingInput && payer != address(0)) || (!isUnderlyingInput && payer != msg.sender)) {
+            revert InvalidPayer();
+        }
+        return _swap(request, payer, participant, recipient);
     }
 
     /// @notice Executes an exact-input swap using an allowlisted contract's prefunded input.
@@ -144,7 +154,10 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         poolManager.sync(currency);
         address underlying = registry.getCurrencyUnderlying(currencyAddress);
         if (underlying == address(0)) {
-            TSVPermissionedSettlementLib.transferFromSelf(currencyAddress, address(poolManager), amount);
+            if (activePayer == address(0)) revert InvalidPayer();
+            TSVPermissionedSettlementLib.transferFromPayer(
+                currencyAddress, activePayer, address(poolManager), amount
+            );
         } else {
             if (PERMISSIONS_ADAPTER_FACTORY.verifiedPermissionsAdapterOf(currencyAddress) != underlying) {
                 revert InvalidAdapter();
@@ -181,11 +194,11 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
 
     // Private swap execution and request helpers.
     /// @param request Pool key, direction, amount, slippage limit, deadline, and expected multiplier.
-    /// @param payer Address supplying the settlement-token input.
+    /// @param payer Address supplying Q, or zero when U is already deposited in W.
     /// @param participant Identity checked for swap permission and reported to the permissioned token.
     /// @param recipient Address that receives the swap output.
-    /// @dev Input is transferred from payer into W or this router before unlocking PoolManager;
-    ///      it is settled from that prefunded balance and must fill completely.
+    /// @dev U is transferred from a nonzero payer into W before unlocking; Q is transferred from payer
+    ///      directly to PoolManager after sync. A zero payer means U was prefunded in W. Swaps must fill fully.
     function _swap(
         SwapRequest memory request,
         address payer,
@@ -203,19 +216,21 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         activeParticipant = participant;
         activeRecipient = recipient;
         activeInputCurrency = Currency.unwrap(request.zeroForOne ? request.key.currency0 : request.key.currency1);
+        activePayer = payer;
         if (participant == address(0) || !registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, participant)) {
             revert Unauthorized();
         }
         address inputCurrency = activeInputCurrency;
         address inputUnderlying = registry.getCurrencyUnderlying(inputCurrency);
-        address inputToken = inputUnderlying == address(0) ? inputCurrency : inputUnderlying;
-        address inputRecipient = inputUnderlying == address(0) ? address(this) : inputCurrency;
-        TSVPermissionedSettlementLib.transferFromPayer(
-            inputToken, payer, inputRecipient, request.amountSpecified
-        );
+        if (inputUnderlying != address(0) && payer != address(0)) {
+            TSVPermissionedSettlementLib.transferFromPayer(
+                inputUnderlying, payer, inputCurrency, request.amountSpecified
+            );
+        }
         bytes memory payload = _payload(request);
         // PoolManager forwards payload unchanged; SafeCallback restricts callbacks to that immutable PM.
         poolManager.unlock(payload);
+        activePayer = address(0);
         actualIn = activeAmountIn;
         actualOut = activeAmountOut;
         if (actualIn != request.amountSpecified) revert SlippageExceeded();

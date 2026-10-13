@@ -146,7 +146,19 @@ contract V1TestParticipantWallet {
         returns (uint256 actualIn, uint256 actualOut)
     {
         require(msg.sender == admin);
-        return adapter.swapExactInputDirect(router, request, address(this), address(this));
+        address inputCurrency = Currency.unwrap(
+            request.zeroForOne ? request.key.currency0 : request.key.currency1
+        );
+        address inputToken = router.settlementCurrency(inputCurrency);
+        address payer;
+        if (inputToken == inputCurrency) {
+            require(IERC20(inputToken).transfer(address(adapter), request.amountSpecified));
+            adapter.approveToken(inputToken, address(router));
+            payer = address(adapter);
+        } else {
+            require(IERC20(inputToken).transfer(inputCurrency, request.amountSpecified));
+        }
+        return adapter.swapExactInputDirect(router, request, payer, address(this), address(this));
     }
 }
 
@@ -161,10 +173,11 @@ contract V1TestExternalAdapter {
     function swapExactInputDirect(
         TSVSwapRouterV1 router,
         SwapRequest calldata request,
+        address payer,
         address participant,
         address recipient
     ) external returns (uint256 actualIn, uint256 actualOut) {
-        return router.swapExactInputFromContractDirect(request, participant, recipient);
+        return router.swapExactInputFromContractDirect(request, payer, participant, recipient);
     }
 }
 
