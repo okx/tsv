@@ -50,7 +50,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     uint256 private activeAmountIn;
     /// @dev Actual TAKE_ALL credit, returned after unlock.
     uint256 private activeAmountOut;
-    /// @dev Entry-point-selected output destination; TAKE_ALL otherwise defaults to the participant.
+    /// @dev Adapter-selected output destination; TAKE_ALL otherwise defaults to the participant.
     address private activeRecipient;
     /// @dev Expected input PoolKey currency; checked against the currency settled by PoolManager.
     address private activeInputCurrency;
@@ -107,7 +107,8 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     }
 
     // Approved-adapter direct-settlement entry point.
-    /// @notice Adapter path with caller-prefunded U or caller-paid Q; output goes to the participant.
+    /// @notice Adapter path with caller-prefunded U or caller-paid Q; stock output goes to the participant,
+    ///         while quote output may go to the participant or this adapter.
     /// @dev U input must already be deposited in W, so `payer` is zero. For Q input, `payer` must be this
     ///      adapter; Q is transferred to PoolManager during settlement.
     function swapExactInputFromContractDirect(
@@ -122,10 +123,18 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         onlyAllowedAdapter
         returns (uint256 actualIn, uint256 actualOut)
     {
-        if (recipient != participant) revert InvalidRequest();
         address inputCurrency = Currency.unwrap(
             request.zeroForOne ? request.key.currency0 : request.key.currency1
         );
+        address outputCurrency = Currency.unwrap(
+            request.zeroForOne ? request.key.currency1 : request.key.currency0
+        );
+        bool isStockOutput = registry.getCurrencyUnderlying(outputCurrency) != address(0);
+        bool recipientAllowed = isStockOutput
+            ? recipient == participant
+            : registry.getQuoteToken(outputCurrency).registered
+                && (recipient == participant || recipient == msg.sender);
+        if (!recipientAllowed) revert InvalidRequest();
         bool isUnderlyingInput = registry.getCurrencyUnderlying(inputCurrency) != address(0);
         if ((isUnderlyingInput && payer != address(0)) || (!isUnderlyingInput && payer != msg.sender)) {
             revert InvalidPayer();
