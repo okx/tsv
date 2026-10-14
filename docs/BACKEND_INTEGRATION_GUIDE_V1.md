@@ -24,7 +24,7 @@ PoolId 使用 Uniswap V4 对完整 PoolKey 的 hash。不要只以 token pair、
 普通用户可直接调用 caller-bound 入口；Router 固定使用调用者作为 participant、payer 和输出接收方。该调用者需要先授权 Router 扣取输入 U 或 Q。外部 DEX Adapter 则继续使用以下 allowlist 入口，并传入真实 participant：
 
 - `swapExactInput(request)` 由用户或智能钱包直接调用；身份与资金/输出地址均绑定到 `msg.sender`，不能代填其他 participant。
-- `swapExactInputFromContractDirect(request, payer, participant, recipient)` 由 allowlisted Adapter 调用；U 输入时 `payer` 必须为零且 U 已预存于 W，Q 输入时 `payer` 必须是调用 Adapter；`recipient` 必须等于 `participant`。
+- `swapExactInputFromContractDirect(request, payer, participant, recipient)` 由 allowlisted Adapter 调用；U 输入时 `payer` 必须为零且 U 已预存于 W，Q 输入时 `payer` 必须是调用 Adapter；输出为 stock/W 时 `recipient` 必须等于 `participant`，输出为已登记 quoteToken/Q 时可为 `participant` 或调用 Adapter（`msg.sender`）。
 - `swapExactInputFromContract(request, participant)` 由 allowlisted Adapter 调用，payer 和 output recipient 均为调用 Adapter。
 
 Q 输入在 `PoolManager.sync` 后由 Router 直接从 payer 转到 PoolManager，再调用 `settle`；payer 对 Router 授权 Q。U 输入仍由 Router 转入 W（或 Direct 路径使用已预存于 W 的 U），再由 W 包装给 PoolManager。

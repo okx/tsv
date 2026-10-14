@@ -60,7 +60,7 @@ Pool lifecycle is stored in `PoolRecord`:
 
 ## 4. Swap 流程与成交量记账
 
-1. 用户可直接调用 `swapExactInput(request)`，Router 将调用者绑定为 participant、payer 和收款方；或者已登记的 Adapter 调用 `swapExactInputFromContractDirect(request, payer, participant, recipient)` / `swapExactInputFromContract(request, participant)`。Direct Adapter 的 U 输入使用 W 中预存的 U；Q 输入使用调用 Adapter 作为 payer；输出交给 participant。普通 Adapter 入口以调用 Adapter 作为 payer，输出返回 Adapter。
+1. 用户可直接调用 `swapExactInput(request)`，Router 将调用者绑定为 participant、payer 和收款方；或者已登记的 Adapter 调用 `swapExactInputFromContractDirect(request, payer, participant, recipient)` / `swapExactInputFromContract(request, participant)`。Direct Adapter 的 U 输入使用 W 中预存的 U；Q 输入使用调用 Adapter 作为 payer；stock/W 输出交给 participant，quoteToken/Q 输出可交给 participant 或调用 Adapter。普通 Adapter 入口以调用 Adapter 作为 payer，输出返回 Adapter。
 2. Router 对 Adapter 路径检查 allowlist；所有路径都检查 participant 的 SBT 权限、deadline、输入范围、池登记、lifecycle 和最小输出。请求只支持单池 exact-input，且必须结算全部请求输入。
 3. 直接用户和普通 Adapter 路径的 U 输入由 Router 转入 W，再由 W 包装为 PoolManager 的 W；Direct Adapter 路径使用调用前存入 W 的 U。Q 输入在 `PoolManager.sync` 后由 Router 直接从 payer 转给 PoolManager 并结算，不经过 Router 余额。W 输出会解封为 U，Q 输出仍为 Q。
 4. Hook 仅接受已配置 Router 和 PoolManager 的 swap 回调。Swap 前后均检查 `isTradable`、global pause，以及请求中的 32-byte `expectedMultiplier` 是否与 canonical U adapter 当前值相符。

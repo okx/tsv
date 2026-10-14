@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
 import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
+import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {WrappedSwapFixture} from "../../../helpers/v1/WrappedSwapFixture.sol";
 
 contract TSVContractDirectSwapTest is WrappedSwapFixture {
@@ -13,7 +14,7 @@ contract TSVContractDirectSwapTest is WrappedSwapFixture {
         uint256 aliceBefore = underlying.balanceOf(alice);
         uint256 backingBefore = underlying.balanceOf(address(stock));
         uint256 supplyBefore = stock.totalSupply();
-        address recipient = makeAddr("direct-quote-recipient");
+        address recipient = address(swapAdapter);
         // Even a failing transfer implementation cannot affect this entry's already funded U input.
         underlying.setTransferMode(2);
         (uint256 paid, uint256 received) =
@@ -28,26 +29,69 @@ contract TSVContractDirectSwapTest is WrappedSwapFixture {
         assertEq(_inventory(), 17);
     }
 
-    function testQuoteInputPullsCallerFundsAndPaysCustomRecipient() public {
+    function testStockOutputMustGoToParticipant() public {
+        uint128 amount = 1e16;
+        quote.mint(address(swapAdapter), amount);
+        swapAdapter.approveToken(address(quote), address(router));
+        SwapRequest memory request = _request(false, amount);
+        bytes32 beforeState = _digest();
+
+        vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
+        swapAdapter.swapExactInputDirect(router, request, address(swapAdapter), alice, address(swapAdapter));
+
+        assertEq(_digest(), beforeState);
+        assertEq(router.msgSender(), address(0));
+    }
+
+    function testQuoteOutputMayGoToParticipant() public {
+        uint128 amount = 1e16;
+        vm.prank(alice);
+        underlying.transfer(address(stock), amount);
+        uint256 quoteBefore = quote.balanceOf(alice);
+
+        (uint256 paid, uint256 received) =
+            swapAdapter.swapExactInputDirect(router, _request(true, amount), address(0), alice, alice);
+
+        assertEq(paid, amount);
+        assertGt(received, 0);
+        assertEq(quote.balanceOf(alice), quoteBefore + received);
+    }
+
+    function testQuoteOutputRejectsUnrelatedRecipient() public {
+        uint128 amount = 1e16;
+        vm.prank(alice);
+        underlying.transfer(address(stock), amount);
+        SwapRequest memory request = _request(true, amount);
+        bytes32 beforeState = _digest();
+
+        vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
+        swapAdapter.swapExactInputDirect(
+            router, request, address(0), alice, makeAddr("unrelated-quote-recipient")
+        );
+
+        assertEq(_digest(), beforeState);
+        assertEq(router.msgSender(), address(0));
+    }
+
+    function testQuoteInputPaysStockOutputToParticipant() public {
         uint128 amount = 1e16;
         quote.mint(address(swapAdapter), amount + 123);
         quote.mint(address(router), 77);
         swapAdapter.approveToken(address(quote), address(router));
-        address recipient = makeAddr("direct-stock-recipient");
+        uint256 underlyingBefore = underlying.balanceOf(alice);
         uint256 aliceBefore = quote.balanceOf(alice);
         (uint256 paid, uint256 received) =
             swapAdapter.swapExactInputDirect(
-                router, _request(false, amount), address(swapAdapter), alice, recipient
+                router, _request(false, amount), address(swapAdapter), alice, alice
             );
         assertEq(paid, amount);
         assertGt(received, 0);
         assertEq(quote.balanceOf(address(swapAdapter)), 123);
         assertEq(quote.balanceOf(alice), aliceBefore);
         assertEq(quote.balanceOf(address(router)), 77);
-        assertEq(underlying.balanceOf(recipient), received);
+        assertEq(underlying.balanceOf(alice), underlyingBefore + received);
         assertEq(underlying.balanceOf(address(swapAdapter)), 0);
         assertEq(_inventory(), 17);
-        assertFalse(registry.hasCredential(recipient));
         assertFalse(registry.hasCredential(address(swapAdapter)));
     }
 

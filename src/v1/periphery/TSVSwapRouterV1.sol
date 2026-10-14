@@ -50,7 +50,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     uint256 private activeAmountIn;
     /// @dev Actual TAKE_ALL credit, returned after unlock.
     uint256 private activeAmountOut;
-    /// @dev Entry-point-selected output destination; TAKE_ALL otherwise defaults to the participant.
+    /// @dev Adapter-selected output destination; TAKE_ALL otherwise defaults to the participant.
     address private activeRecipient;
     /// @dev Expected input PoolKey currency; checked against the currency settled by PoolManager.
     address private activeInputCurrency;
@@ -107,7 +107,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     }
 
     // Approved-adapter direct-settlement entry point.
-    /// @notice Adapter path with caller-prefunded U or caller-paid Q; output goes to the participant.
+    /// @notice Adapter path with caller-prefunded U or caller-paid Q; output is delivered to `recipient`.
     /// @dev U input must already be deposited in W, so `payer` is zero. For Q input, `payer` must be this
     ///      adapter; Q is transferred to PoolManager during settlement.
     function swapExactInputFromContractDirect(
