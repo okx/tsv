@@ -1,0 +1,42 @@
+{
+  "network": "X Layer Mainnet",
+  "chainId": 196,
+  "deployer": "0x7f559367E0cF2D1808Edd27A50F447356af7863C",
+  "sourceVerification": false,
+  "assets": {
+    "mock8056": "0xad090F3FcAC8237A600DDf3cc87651d55a5A5d6e",
+    "usdt0": "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
+    "legacyUsdt": "0x1E4a5963aBFD975d8c9021ce480b42188849D41d",
+    "wrappedMock8056": "0xf60aD4D2ef8f6D812Df752646A3A3683800BAE43",
+    "legalShareAdapter": "0xc21c79F20d202Fe3eBb7DB00c12075f3D9AbF3F0"
+  },
+  "proxies": {
+    "registry": "0x2233EA2044FFA04CccEeEf0b9AdFe0799505a908",
+    "ledger": "0x4FBFfBe7CA5CE0FC3Af30c9F305E0F6365fF3bC2",
+    "router": "0xE5DF3Ab010Bb20094F490DFCF61B6e2D9A3311C8",
+    "lpManager": "0xF73D8683B948564D2795C62A2A909012eA168D29",
+    "hook": "0xbC6D8c8A8b681872a93554116F01268F80C9fFfF"
+  },
+  "supportingContracts": {
+    "smokeSbt": "0xe357DDeE1c18437441777c250959e557cd5F5fa2",
+    "lpManagerLibrary": "0x7f23e01b7372eacd928dc7e6c45cb6844e6a7284",
+    "permissionedValidationLibrary": "0xB60E6270370334727e03694D4bb842C4319F0dc1",
+    "lpPositionMathLibrary": "0x70Df85A68Bc948496dfCAC1750f9f68135D1DAd2"
+  },
+  "transactions": {
+    "mock8056Deploy": "0x690e3349b479f19563972280d5eae9ae9ab5e7872595f40370f8bbc35c5fa815",
+    "registerUsdt0": "0x94827652465838c588834bb7546c10755bc98634112d925985587db2a2a6de98",
+    "initializeUsdt0Pool": "0x8657109b0834c8e01c11d38d9e34bb7198eb412b4f7641b311035ccbe55c37e2",
+    "addLiquidity": "0x9ab79d9a5d94d1679afd4f84af5adcab8428568d27e737d122ec316d22f628f6",
+    "swap": "0x210af9ecf1b7029614db38b75e9d69daa2cbb2701bce36fead7d060a7289dd54",
+    "collect": "0xaca7ab56dce35a6755d4c22beaef88c9de248359f67a813b7c3f50938978e113",
+    "removeLiquidity": "0x0c655d431a9595be223d5af58953c7c470c220839d37d22a905cc1d87b2fb7a8"
+  },
+  "testResults": {
+    "swapInput": "0.001 USDT0",
+    "swapOutputRaw": "993955918777186",
+    "lpPositionId": 1,
+    "lpLiquidityAfterRemove": 0,
+    "allTransactionReceiptsSuccessful": true
+  }
+}
