@@ -5,7 +5,7 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {SwapRequest, PoolLifecycle, QuoteTokenRecord} from "tsv-v1/types/TSVTypes.sol";
+import {SwapRequest, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -129,15 +129,12 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         address outputCurrency = Currency.unwrap(
             request.zeroForOne ? request.key.currency1 : request.key.currency0
         );
-        address outputUnderlying = registry.getCurrencyUnderlying(outputCurrency);
-        if (outputUnderlying != address(0)) {
-            if (recipient != participant) revert InvalidRequest();
-        } else {
-            QuoteTokenRecord memory outputQuote = registry.getQuoteToken(outputCurrency);
-            if (!outputQuote.registered || (recipient != participant && recipient != msg.sender)) {
-                revert InvalidRequest();
-            }
-        }
+        bool isStockOutput = registry.getCurrencyUnderlying(outputCurrency) != address(0);
+        bool recipientAllowed = isStockOutput
+            ? recipient == participant
+            : registry.getQuoteToken(outputCurrency).registered
+                && (recipient == participant || recipient == msg.sender);
+        if (!recipientAllowed) revert InvalidRequest();
         bool isUnderlyingInput = registry.getCurrencyUnderlying(inputCurrency) != address(0);
         if ((isUnderlyingInput && payer != address(0)) || (!isUnderlyingInput && payer != msg.sender)) {
             revert InvalidPayer();
