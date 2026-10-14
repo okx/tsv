@@ -5,7 +5,7 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {SwapRequest, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
+import {SwapRequest, PoolLifecycle, QuoteTokenRecord} from "tsv-v1/types/TSVTypes.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -107,7 +107,8 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     }
 
     // Approved-adapter direct-settlement entry point.
-    /// @notice Adapter path with caller-prefunded U or caller-paid Q; output is delivered to `recipient`.
+    /// @notice Adapter path with caller-prefunded U or caller-paid Q; stock output goes to the participant,
+    ///         while quote output may go to the participant or this adapter.
     /// @dev U input must already be deposited in W, so `payer` is zero. For Q input, `payer` must be this
     ///      adapter; Q is transferred to PoolManager during settlement.
     function swapExactInputFromContractDirect(
@@ -122,10 +123,21 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         onlyAllowedAdapter
         returns (uint256 actualIn, uint256 actualOut)
     {
-        if (recipient != participant) revert InvalidRequest();
         address inputCurrency = Currency.unwrap(
             request.zeroForOne ? request.key.currency0 : request.key.currency1
         );
+        address outputCurrency = Currency.unwrap(
+            request.zeroForOne ? request.key.currency1 : request.key.currency0
+        );
+        address outputUnderlying = registry.getCurrencyUnderlying(outputCurrency);
+        if (outputUnderlying != address(0)) {
+            if (recipient != participant) revert InvalidRequest();
+        } else {
+            QuoteTokenRecord memory outputQuote = registry.getQuoteToken(outputCurrency);
+            if (!outputQuote.registered || (recipient != participant && recipient != msg.sender)) {
+                revert InvalidRequest();
+            }
+        }
         bool isUnderlyingInput = registry.getCurrencyUnderlying(inputCurrency) != address(0);
         if ((isUnderlyingInput && payer != address(0)) || (!isUnderlyingInput && payer != msg.sender)) {
             revert InvalidPayer();
