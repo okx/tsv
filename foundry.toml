@@ -7,6 +7,7 @@ libs = ["lib", "dependencies"]
 solc_version = "0.8.26"
 evm_version = "cancun"
 auto_detect_solc = false
+fs_permissions = [{ access = "read-write", path = "./dployment" }]
 optimizer = true
 optimizer_runs = 200
 via_ir = true

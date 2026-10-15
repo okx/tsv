@@ -1,0 +1,98 @@
+{
+  "network": "X Layer Mainnet",
+  "chainId": 196,
+  "deploymentDate": "2026-10-14",
+  "deploymentStatus": "confirmed",
+  "sourceVerification": false,
+  "proxies": {
+    "TSVRegistryV1": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+    "TSVVolumeLedgerV1": "0x4fbffbe7ca5ce0fc3af30c9f305e0f6365ff3bc2",
+    "TSVSwapRouterV1": "0xe5df3ab010bb20094f490dfcf61b6e2d9a3311c8",
+    "TSVLPManagerV1": "0xf73d8683b948564d2795c62a2a909012ea168d29",
+    "TSVHookV1": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+  },
+  "factories": {
+    "PermissionsAdapterFactory": "0x038b77f3355afe8aea10c6c2b7be9312d8148e3f",
+    "TSVHookProxyFactoryV1": "0x3c3e76f4beb314713901183ed6e511928e1d2a99",
+    "SmartWalletFactory": "0x1eb8d87d616f31591cfd21f30458c8168b1c1b80"
+  },
+  "dependencies": {
+    "PoolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+    "Permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
+    "PositionDescriptor": "0x9e9fbbef0e1bd752e83de5acff3d0c936a9e5a4b",
+    "WOKB": "0xe538905cf8410324e03a5a23c1c177a474d59b2b"
+  },
+  "assets": {
+    "ERC8056TestToken": "0xad090f3fcac8237a600ddf3cc87651d55a5a5d6e",
+    "USDT0": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    "PermissionsAdapter": "0xf60ad4d2ef8f6d812df752646a3a3683800bae43",
+    "ERC8056DirectLegalShareAdapter": "0xc21c79f20d202fe3ebb7db00c12075f3d9abf3f0"
+  },
+  "sbt": {
+    "address": "0x053ecef8ccb8844322bee86290dae016b9843b6d",
+    "tokenId": "0xfeb8f7a2d260241fea015286fede6aeceee45bb911b64de0d6105a7fbd0e7a38",
+    "issuerRole": "0x29076c22c58df1b92016e29d27616ab6f4ed4d26165244781b49c58b7a75839d",
+    "revokerRole": "0x7253c0164d4037992c353308831bf1eba8a3ccbd4222b6f74a924fe94f633a14"
+  },
+  "allowlistChecker": "0xb4110157542283aecacb7483b7029d2216507525",
+  "securityId": "0x2d78039578887e1e6be9e4e7a05eb190ae9ae70c407c6e9411add8b341c3a91d",
+  "pool": {
+    "currency0": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    "currency1": "0xf60ad4d2ef8f6d812df752646a3a3683800bae43",
+    "fee": 3000,
+    "tickSpacing": 60,
+    "hooks": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+  },
+  "aa": {
+    "SmartWalletEntry": "0x4607f4b82fa1b1a84bd705a9e6b627225dc530c9",
+    "EntryPoint": "0x0000000071727de22e5e9d8baf0edac6f37da032"
+  },
+  "aaTests": {
+    "requiredOperationsSuccessful": true,
+    "positionId": 2,
+    "liquidityAfterRemove": "0",
+    "swapInput": {
+      "token": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+      "decimals": 6,
+      "amountRaw": "1000"
+    },
+    "swapOutput": {
+      "token": "0xad090f3fcac8237a600ddf3cc87651d55a5a5d6e",
+      "decimals": 18,
+      "amountRaw": "987919494778663"
+    },
+    "transactions": {
+      "addLiquidity": {
+        "transactionHash": "0x502828cb9e72e1a2a5a8966bbd340e3783b4c6c40b7addc29fae658d76498544",
+        "userOperationSuccess": true
+      },
+      "swap": {
+        "transactionHash": "0xd8582235f164b4d5d495021fe7ae061c380e263b5d396d367c9358bd6158618a",
+        "userOperationSuccess": true,
+        "userOpHash": "0x7eeb1de9bc6d26025b7174e720ae429965a81fce43141ef57376f5159a07a358"
+      },
+      "reverseSwap": {
+        "transactionHash": "0x8627642e79fae26dade334ab2375a389f79aa7acf3d116e7d330839c40f88a03",
+        "userOperationSuccess": true,
+        "userOpHash": "0x7c6bb9e4d15397dd27750bfe06c27b45d235bdcd4111ba9a426ee7c3a245647b"
+      },
+      "collect": {
+        "transactionHash": "0x003e4a3280b048fa94ed980986ab5795fcf60a06f993bc40622bace0937e0f05",
+        "userOperationSuccess": true,
+        "userOpHash": "0xafa9ce0270e61c5d5c2589a9b4b363610069275cabf4d7e50608d80aec8331c0"
+      },
+      "removeLiquidity": {
+        "transactionHash": "0x852d0772635f6bc26e3e13cc81d8bdbcedbec0549182978c97209419db27ef8d",
+        "userOperationSuccess": true,
+        "userOpHash": "0x95bb42cbfc294c659d60eecff93040a04708936498af5b57ae1ba4c7bda60b50"
+      }
+    },
+    "failedAttempts": [
+      {
+        "transactionHash": "0x71ccdfe5fd353c9aa3d14695041746d55865bbd96dfc889739abb63f868de5d6",
+        "userOperationSuccess": false,
+        "reason": "V4TooLittleReceived(990000000000000,987919494778663)"
+      }
+    ]
+  }
+}

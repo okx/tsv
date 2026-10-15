@@ -17,3 +17,7 @@ lib/v4-core/test/js-scripts/dist/
 
 # Optional upstream DEX checkout; reproducible tests use the committed thin ABI.
 lib/dexrouter/
+
+# Local deployment artifacts and historical manifests
+dployment/aa/
+dployment/history/
