@@ -22,9 +22,16 @@
 
 ## Factories
 
-- `PermissionsAdapterFactory`: `0x038b77f3355afe8aea10c6c2b7be9312d8148e3f`
+- `PermissionsAdapterFactory` (currently bound): `0x038b77f3355afe8aea10c6c2b7be9312d8148e3f`
+- `PermissionsAdapterFactory` (new standalone deployment): `0x92cdb229613dA8ca45E375cf69dF4b3b645FF48D`
 - `TSVHookProxyFactoryV1`: `0x3c3e76f4beb314713901183ed6e511928e1d2a99`
 - `SmartWalletFactory`: `0x1eb8d87d616f31591cfd21f30458c8168b1c1b80`
+
+The new standalone `PermissionsAdapterFactory` is bound to PoolManager
+`0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32`, but the Registry, Swap Router,
+and LP Manager still reference the currently bound Factory above. Its deployment
+transaction is `0x37bc142199016be5e476f632308bde2fe869216f64eefa607fe008b2267f40b2`
+(`status 0x1`). Source verification was not performed.
 
 ## Assets and Operation-Specific Contracts
 
