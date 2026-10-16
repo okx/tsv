@@ -9,7 +9,14 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "sdk/python"))
-from tsv_xlayer_sdk import ExecutionClient, Operation, Target
+from tsv_xlayer_sdk import (
+    DexRouterTradeRequest,
+    ExecutionClient,
+    Operation,
+    PoolKey,
+    Target,
+    TradeSide,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -200,6 +207,48 @@ def configure_add_liquidity(env: dict[str, str]) -> None:
         raise ValueError("最大投入数量和 Tick 区间宽度都必须大于 0")
 
 
+def configure_dexrouter_trade(env: dict[str, str]) -> None:
+    values = env.copy()
+    ask_pool_key(values, prefix="TSV_DEX_", existing_pool_default=True)
+    values["TSV_DEX_ADAPTER"] = ask_address(
+        "签名版 TSVAdapter", values.get("TSV_DEX_ADAPTER")
+    )
+    pool = PoolKey(
+        values["TSV_DEX_CURRENCY0"],
+        values["TSV_DEX_CURRENCY1"],
+        int(values["TSV_DEX_FEE"]),
+        int(values["TSV_DEX_TICK_SPACING"]),
+        values["TSV_DEX_HOOK"],
+    )
+    side_raw = ask("DexRouter 方向（1=买入股票，2=卖出股票）")
+    if side_raw not in ("1", "2"):
+        raise ValueError("DexRouter 方向只能输入 1 或 2")
+    side = TradeSide.BUY_STOCK if side_raw == "1" else TradeSide.SELL_STOCK
+    default_stock = values.get("TSV_EXISTING_POOL_CURRENCY1")
+    stock_currency = ask_address("股票/W 的 PoolKey currency", default_stock)
+    stock_underlying = ask_address("股票/W 对应的底层 U", values.get("TSV_INSPECT_U_0"))
+    amount_in = int(ask_uint("签名精确输入 amountIn（raw units）"))
+    min_return = int(ask_uint("DexRouter 最小输出（raw units）"))
+    expected_multiplier = int(ask_uint("报价时的 legal-share multiplier（WAD）"))
+    nonce = int(ask_uint("本 Adapter 未使用过的签名 nonce"))
+    deadline_seconds = int(ask_uint("授权有效秒数", "300", maximum=(1 << 64) - 1))
+    request = DexRouterTradeRequest(
+        adapter=values["TSV_DEX_ADAPTER"],
+        dex_router=values["DEX_ROUTER"],
+        tsv_router=values["TSV_ROUTER"],
+        pool=pool,
+        stock_currency=stock_currency,
+        stock_underlying=stock_underlying,
+        side=side,
+        amount_in=amount_in,
+        min_return=min_return,
+        expected_multiplier=expected_multiplier,
+        nonce=nonce,
+        deadline_seconds=deadline_seconds,
+    )
+    env.update(request.env())
+
+
 def configure_verify_stock_adapters(env: dict[str, str]) -> None:
     count = ask_count("本次要 Factory 验证的 W 数量", "1", 50)
     if count < 1:
@@ -348,6 +397,9 @@ def prepare_action(choice: str, env: dict[str, str]) -> tuple[str, str, bool]:
     if choice == "13":
         configure_add_liquidity(env)
         return "AddLiquidityTSV.s.sol:AddLiquidityTSV", "TSV_ADD_LIQUIDITY", True
+    if choice == "14":
+        configure_dexrouter_trade(env)
+        return "TradeDexRouterTSV.s.sol:TradeDexRouterTSV", "TSV_DEX_ROUTER_TRADE", True
     raise ValueError("无效选项")
 
 
@@ -382,6 +434,7 @@ def main() -> int:
     print("11. 为已有 U 部署 Legal-share Adapter")
     print("12. 给当前操作钱包发行已配置的 TSV SBT")
     print("13. 为已初始化的 W/Q 池添加流动性")
+    print("14. 通过 DexRouter + TSVAdapter 买入或卖出股票")
     print("0. 退出")
 
     try:
@@ -391,12 +444,18 @@ def main() -> int:
         return 130
     if choice == "0":
         return 0
-    if choice not in {str(value) for value in range(1, 14)}:
+    if choice not in {str(value) for value in range(1, 15)}:
         print("参数错误：无效选项", file=sys.stderr)
         return 2
     writes = choice not in ("1", "2")
     if writes and not env.get("XLAYER_PRIVATE_KEY", "").strip():
         print(f"写操作需要私钥；请在 {LOCAL_ENV_FILE} 填写 XLAYER_PRIVATE_KEY。未执行任何交易。", file=sys.stderr)
+        return 2
+    if choice == "14" and not env.get("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "").strip():
+        print(
+            f"DexRouter + TSVAdapter 交易还需要在 {LOCAL_ENV_FILE} 填写 TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY；未执行任何交易。",
+            file=sys.stderr,
+        )
         return 2
 
     try:

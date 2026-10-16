@@ -14,7 +14,7 @@ import subprocess
 from typing import Mapping
 
 
-_LOCAL_ENV_KEYS = frozenset({"XLAYER_PRIVATE_KEY", "XLAYER_RPC_URL"})
+_LOCAL_ENV_KEYS = frozenset({"XLAYER_PRIVATE_KEY", "TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "XLAYER_RPC_URL"})
 
 
 class Target(Enum):
@@ -31,6 +31,7 @@ class Target(Enum):
     DEPLOY_LEGAL_ADAPTER = ("DeployLegalShareAdapter.s.sol:DeployLegalShareAdapter", True)
     ISSUE_OPERATOR_SBT = ("IssueOperatorSbt.s.sol:IssueOperatorSbt", True)
     ADD_LIQUIDITY = ("AddLiquidityTSV.s.sol:AddLiquidityTSV", True)
+    DEX_ROUTER_TRADE = ("TradeDexRouterTSV.s.sol:TradeDexRouterTSV", True)
 
     def __init__(self, script: str, writes: bool) -> None:
         self.script = script
@@ -132,12 +133,17 @@ class ExecutionClient:
             raise ValueError("XLAYER_RPC_URL is missing from deployment config or local environment")
         if operation.target.writes and not env.get("XLAYER_PRIVATE_KEY", "").strip():
             raise ValueError(f"write operations require XLAYER_PRIVATE_KEY in {self.local_env_file} or the process environment")
+        if operation.target is Target.DEX_ROUTER_TRADE and not env.get("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "").strip():
+            raise ValueError(
+                "DexRouter TSV trades require TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY in "
+                f"{self.local_env_file} or the process environment"
+            )
         # Keep the endpoint in the child environment for scripts that read it, too.
         env["ETH_RPC_URL"] = rpc_url
         return env
 
     def _fingerprint(self, operation: Operation, env: Mapping[str, str]) -> str:
-        names = {"XLAYER_RPC_URL", "XLAYER_PRIVATE_KEY", "ETH_RPC_URL"}
+        names = {"XLAYER_RPC_URL", "XLAYER_PRIVATE_KEY", "TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "ETH_RPC_URL"}
         names.update(key for key in env if key.startswith("TSV_"))
         payload = {
             "target": operation.target.name,
@@ -150,7 +156,11 @@ class ExecutionClient:
 
     @staticmethod
     def _redact(text: str, env: Mapping[str, str]) -> str:
-        secrets = {env.get("XLAYER_RPC_URL", ""), env.get("XLAYER_PRIVATE_KEY", "")}
+        secrets = {
+            env.get("XLAYER_RPC_URL", ""),
+            env.get("XLAYER_PRIVATE_KEY", ""),
+            env.get("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", ""),
+        }
         for value in list(secrets):
             if value:
                 text = text.replace(value, "[REDACTED]")

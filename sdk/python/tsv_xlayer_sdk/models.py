@@ -84,40 +84,53 @@ class TradeSide(Enum):
 
 @dataclass(frozen=True)
 class DexRouterTradeRequest:
-    """One TSVAdapter hop formatted for DexRouter.dagSwapTo."""
+    """One signed TSVAdapter hop for the X Layer DexRouter trade script."""
 
     adapter: str
+    dex_router: str
     tsv_router: str
     pool: PoolKey
     stock_currency: str
-    settlement_currency0: str
-    settlement_currency1: str
+    stock_underlying: str
     side: TradeSide
     amount_in: int
     min_return: int
-    deadline: int
-    more_info: bytes
-    receiver: str
+    expected_multiplier: int
+    nonce: int
+    deadline_seconds: int
+    participant: str | None = None
+    receiver: str | None = None
 
     def __post_init__(self) -> None:
         _address(self.adapter, "adapter")
+        _address(self.dex_router, "dex_router")
         _address(self.tsv_router, "tsv_router")
         _address(self.stock_currency, "stock_currency")
-        _address(self.settlement_currency0, "settlement_currency0")
-        _address(self.settlement_currency1, "settlement_currency1")
-        _address(self.receiver, "receiver")
+        _address(self.stock_underlying, "stock_underlying")
+        if self.participant is not None:
+            _address(self.participant, "participant")
+        if self.receiver is not None:
+            _address(self.receiver, "receiver")
         if self.stock_currency.lower() not in (self.pool.currency0.lower(), self.pool.currency1.lower()):
             raise ValueError("stock_currency must be one of the PoolKey currencies")
-        if self.settlement_currency0.lower() == self.settlement_currency1.lower():
-            raise ValueError("pool settlement currencies must differ")
+        if self.stock_underlying.lower() in (self.pool.currency0.lower(), self.pool.currency1.lower()):
+            raise ValueError("stock_underlying must be the settlement token behind the stock W")
         if not isinstance(self.side, TradeSide):
             raise TypeError("side must be TradeSide.BUY_STOCK or TradeSide.SELL_STOCK")
-        if self.amount_in <= 0 or self.min_return <= 0 or self.deadline <= 0:
-            raise ValueError("amount_in, min_return, and deadline must be greater than zero")
-        if self.amount_in >= 1 << 128:
-            raise ValueError("amount_in must fit the TSVAdapter's int128-compatible range")
-        if not isinstance(self.more_info, bytes) or not self.more_info:
-            raise ValueError("more_info must be ABI-encoded TSVAdapter.MoreInfo (PoolKey, expectedMultiplier)")
+        if self.amount_in <= 0 or self.amount_in > ((1 << 127) - 1):
+            raise ValueError("amount_in must be in 1..int128.max")
+        if self.min_return <= 0 or self.min_return >= 1 << 128:
+            raise ValueError("min_return must fit a positive uint128")
+        if self.expected_multiplier <= 0 or self.expected_multiplier >= 1 << 256:
+            raise ValueError("expected_multiplier must fit a positive uint256")
+        if self.nonce < 0 or self.nonce >= 1 << 256:
+            raise ValueError("nonce must fit uint256")
+        if self.deadline_seconds <= 0 or self.deadline_seconds >= 1 << 64:
+            raise ValueError("deadline_seconds must fit a positive uint64")
+        if (self.participant is None) != (self.receiver is None):
+            raise ValueError("participant and receiver must either both be set or both default to the operator wallet")
+        if self.participant is not None and self.receiver is not None and self.receiver.lower() != self.participant.lower():
+            raise ValueError("single-hop TSV trades must send output to the authenticated participant")
 
     @property
     def zero_for_one(self) -> bool:
@@ -128,34 +141,43 @@ class DexRouterTradeRequest:
 
     @property
     def token_in(self) -> str:
-        return self.settlement_currency0 if self.zero_for_one else self.settlement_currency1
+        if self.side is TradeSide.SELL_STOCK:
+            return self.stock_underlying
+        return self.pool.currency1 if self.stock_currency.lower() == self.pool.currency0.lower() else self.pool.currency0
 
     @property
     def token_out(self) -> str:
-        return self.settlement_currency1 if self.zero_for_one else self.settlement_currency0
+        if self.side is TradeSide.BUY_STOCK:
+            return self.stock_underlying
+        return self.pool.currency1 if self.stock_currency.lower() == self.pool.currency0.lower() else self.pool.currency0
 
-    def dag_swap_to_arguments(self, order_id: int = 0) -> tuple[int, str, dict[str, object], list[dict[str, object]]]:
-        """Return (orderId, receiver, BaseRequest, paths) for the IDexRouter ABI."""
-        if order_id < 0 or order_id >= 1 << 256:
-            raise ValueError("order_id must fit uint256")
-        weight_100_percent = 10_000 << 160
-        output_index_one = 1 << 176
-        reverse = 0 if self.zero_for_one else 1 << 255
-        raw_data = int(self.tsv_router, 16) | weight_100_percent | output_index_one | reverse
-        base_request: dict[str, object] = {
-            "fromToken": int(self.token_in, 16),
-            "toToken": self.token_out,
-            "fromTokenAmount": self.amount_in,
-            "minReturnAmount": self.min_return,
-            "deadLine": self.deadline,
+    @property
+    def asset_to(self) -> str:
+        """DexRouter pre-funds W for sells and the Adapter for buys."""
+        return self.stock_currency if self.side is TradeSide.SELL_STOCK else self.adapter
+
+    def env(self) -> dict[str, str]:
+        """Return public operation inputs; signing keys are loaded separately from the local env file."""
+        values = {
+            "TSV_DEX_ADAPTER": self.adapter,
+            "TSV_DEX_ROUTER": self.dex_router,
+            "TSV_DEX_TSV_ROUTER": self.tsv_router,
+            "TSV_DEX_CURRENCY0": self.pool.currency0,
+            "TSV_DEX_CURRENCY1": self.pool.currency1,
+            "TSV_DEX_FEE": str(self.pool.fee),
+            "TSV_DEX_TICK_SPACING": str(self.pool.tick_spacing),
+            "TSV_DEX_HOOK": self.pool.hook,
+            "TSV_DEX_STOCK_CURRENCY": self.stock_currency,
+            "TSV_DEX_STOCK_UNDERLYING": self.stock_underlying,
+            "TSV_DEX_SIDE": self.side.name,
+            "TSV_DEX_AMOUNT_IN": str(self.amount_in),
+            "TSV_DEX_MIN_RETURN": str(self.min_return),
+            "TSV_DEX_EXPECTED_MULTIPLIER": str(self.expected_multiplier),
+            "TSV_DEX_NONCE": str(self.nonce),
+            "TSV_DEX_DEADLINE_SECONDS": str(self.deadline_seconds),
         }
-        path: dict[str, object] = {
-            "mixAdapters": [self.adapter],
-            # Sales pre-transfer underlying U directly into the wrapped stock W.
-            # Purchases pre-transfer quote Q into the adapter.
-            "assetTo": [self.stock_currency if self.side is TradeSide.SELL_STOCK else self.adapter],
-            "rawData": [raw_data],
-            "extraData": ["0x" + self.more_info.hex()],
-            "fromToken": int(self.token_in, 16),
-        }
-        return order_id, self.receiver, base_request, [path]
+        if self.participant is not None:
+            values["TSV_DEX_PARTICIPANT"] = self.participant
+        if self.receiver is not None:
+            values["TSV_DEX_RECEIVER"] = self.receiver
+        return values

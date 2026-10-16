@@ -17,7 +17,11 @@ abstract contract TSVAdapterFixture is Test {
         TSVAdapter adapter,
         address trustedCaller,
         PoolKey memory poolKey,
-        uint256 expectedMultiplier
+        uint256 expectedMultiplier,
+        uint256 amountIn,
+        bool zeroForOne,
+        address participant,
+        address to
     ) internal returns (bytes memory) {
         ITSVSwapRouter.PoolKey memory externalKey = ITSVSwapRouter.PoolKey(
             Currency.unwrap(poolKey.currency0),
@@ -26,18 +30,19 @@ abstract contract TSVAdapterFixture is Test {
             poolKey.tickSpacing,
             address(poolKey.hooks)
         );
-        uint64 expiry = uint64(block.timestamp + 100);
+        uint256 deadline = block.timestamp + 100;
         address[] memory allowed = new address[](1);
         allowed[0] = trustedCaller;
         uint256 nonce = authNonce++;
-        bytes32 payloadHash = keccak256(abi.encode(externalKey, expectedMultiplier, expiry));
-        bytes32 inner = keccak256(abi.encode(address(adapter), payloadHash, allowed, nonce, block.chainid));
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(TEST_AUTH_KEY, keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", inner)));
-        bytes32 vs = bytes32(uint256(s) | (uint256(v - 27) << 255));
-        return abi.encode(
-            TSVAdapter.MoreInfo(externalKey, expectedMultiplier, expiry, allowed, nonce, abi.encodePacked(r, vs))
+        bytes32 payloadHash = keccak256(
+            abi.encode(externalKey, expectedMultiplier, amountIn, zeroForOne, participant, to, deadline)
         );
+        bytes32 inner = keccak256(abi.encode(address(adapter), payloadHash, allowed, nonce, block.chainid));
+        (bytes32 r, bytes32 vs) = vm.signCompact(
+            TEST_AUTH_KEY,
+            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", inner))
+        );
+        return abi.encode(TSVAdapter.MoreInfo(externalKey, expectedMultiplier, amountIn, allowed, nonce, deadline, abi.encodePacked(r, vs)));
     }
 
     function _adapterPayload(

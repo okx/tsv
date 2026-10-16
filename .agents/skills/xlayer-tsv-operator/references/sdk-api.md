@@ -4,9 +4,9 @@ The package is in `sdk/python/tsv_xlayer_sdk` and requires Python 3.10+. Add `sd
 
 ## Foundry operations
 
-`Target` enumerates the existing XLayer scripts: asset and pool inspection, quote registration, stock adapter creation and verification, stock registration, pool initialization, direct TSV trade, Registry and Ledger operations, Legal-share Adapter deployment, SBT issuance, and liquidity addition.
+`Target` enumerates the XLayer scripts: asset and pool inspection, quote registration, stock adapter creation and verification, stock registration, pool initialization, direct TSV trade, Registry and Ledger operations, Legal-share Adapter deployment, SBT issuance, liquidity addition, and signed DexRouter + TSVAdapter swaps.
 
-Create an immutable `Operation(target, label, inputs)` using script environment variables as `inputs`. Keep signing credentials out of `inputs`; the client reads `XLAYER_PRIVATE_KEY` from `script/xlayer/.env.xlayer` or the process environment and loads the fixed mainnet RPC/deployment values from `script/xlayer/deployment.json`. `XLAYER_RPC_URL` is an optional override.
+Create an immutable `Operation(target, label, inputs)` using script environment variables as `inputs`. Keep signing credentials out of `inputs`; the client reads `XLAYER_PRIVATE_KEY` and, for DexRouter swaps, `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY` from `script/xlayer/.env.xlayer` or the process environment. Public mainnet RPC/deployment values load from `script/xlayer/deployment.json`. `XLAYER_RPC_URL` is an optional override.
 
 ```python
 simulation = client.simulate(operation)
@@ -18,10 +18,10 @@ if simulation.result.succeeded:
 
 `PoolKey` validates nonzero sorted currencies, fee, tick spacing, and hook. `TradeRequest` validates raw input/minimum output/deadline and creates the `TSV_*` environment values for `Target.TRADE`.
 
-## DexRouter + TSVAdapter route formatting
+## DexRouter + signed TSVAdapter trade
 
-`DexRouterTradeRequest` returns the four ABI arguments for `IDexRouter.dagSwapTo`: order ID, receiver, `BaseRequest`, and one-entry `RouterPath[]`. It requires the TSVAdapter address, TSV Router, registered PoolKey, stock currency, both settlement currencies, side, raw amount, minimum return, absolute deadline, receiver, and ABI-encoded `MoreInfo(PoolKey, expectedMultiplier)`. The current external repository `main` does not sign `MoreInfo` and does not use `AUTH_SIGNER`.
+`DexRouterTradeRequest.env()` returns operation inputs for `Target.DEX_ROUTER_TRADE`; the Foundry script builds the `dagSwapTo` ABI arguments and signs `MoreInfo` from the local auth signer key. The request requires the configured Adapter, DEX Router, TSV Router, PoolKey, stock W and underlying U, buy/sell side, raw `amountIn`, minimum return, expected multiplier, nonce, and validity period. The participant and receiver default to the `XLAYER_PRIVATE_KEY` wallet; an explicit override must match that wallet for this one-hop script.
 
-The builder routes purchases with `assetTo = adapter` and sales with `assetTo = stock W`, so the DexRouter pre-transfers Q to the Adapter or U to W as required. The request builder does not approve user tokens or execute the DEX trade. Verify both Adapter allowlists and SBT/pool state first. See `docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md` for caller markers, settlement, quota, identity, and deployment requirements.
+The signed MoreInfo order is `(key, expectedMultiplier, amountIn, allowedCallers, nonce, deadline, authSig)`. `authSig` is a 64-byte EIP-2098 personal-sign signature over the pool, multiplier, exact amount, direction, participant, `to`, deadline, Adapter address, allowed callers, nonce, and chain ID. The signer key must derive the deployed Adapter's `AUTH_SIGNER()` address. The operation wallet is the participant and receiver for this single-hop route.
 
-The local `testDexRouterAdapterBuy` and `testDexRouterAdapterSell` cases exercise the production TSVAdapter and TSV router through a test-only single-hop callback harness. A successful local run does not prove the XLayer DexRouter deployment is compatible or that a live adapter is configured.
+The route pre-funds Q to the Adapter for buys and U to W for sells. Before simulation/broadcast, the script checks Adapter `isDexRouter`, TSV Router `isAdapterAllowed`, TokenApproveProxy wiring, the Adapter's `AUTH_SIGNER()`, and `isNonceUsed`. If TokenApprove allowance is insufficient, the broadcast includes an exact-amount approval before the swap. The new constructor is incompatible with old immutable Adapter deployments; replace the address in `deployment.json` only after a signed Adapter has been deployed and both allowlists are configured. See `docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md` for full constraints.
