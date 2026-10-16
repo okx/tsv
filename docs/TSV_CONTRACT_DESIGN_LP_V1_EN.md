@@ -95,7 +95,7 @@ The target query is:
 permissionsAdapter.isAllowed(lp, UNWIND_ALLOWED);
 ```
 
-`UNWIND_ALLOWED` is a planned independent, nonzero PermissionFlag. It can be declared in an extended permission definition shared by TSV and Securitize, with a proposed value of `0x0004` (existing swap and LP bits are `0x0001` and `0x0002`). The current source contains only a commented definition of this constant; it is not enabled. This example describes the target call, not an existing usable constant or completed integration.
+`UNWIND_ALLOWED` is a planned independent, nonzero PermissionFlag. It can be declared in an extended permission definition shared by TSV and Securitize, with a proposed value of `0x8000` (existing swap and LP bits are `0x0001` and `0x0002`). The current source contains only a commented definition of this constant; it is not enabled. This example describes the target call, not an existing usable constant or completed integration.
 
 PermissionsAdapter retains its original interface. Securitize's derived checker supplies this flag in the permission set returned by `checkAllowlist(lp, CET)`. **PermissionsAdapter, PermissionsAdapterFactory, and BaseAllowlistChecker remain unchanged.** `NONE` is no longer used to determine invalidity, and the absence of ordinary operation permissions does not substitute for independent unwind authorization.
 
