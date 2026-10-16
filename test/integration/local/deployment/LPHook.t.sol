@@ -172,7 +172,7 @@ contract LPHookTest is Test {
 
     function _authorizeExit() private {
         sbt.setHolder(alice, 1, false);
-        checker.setPermissions(alice, address(underlying), PermissionFlag.wrap(0x0004));
+        checker.setPermissions(alice, address(underlying), PermissionFlag.wrap(0x8000));
     }
 
     function _setSecurityMode(SecurityPauseMode mode, bool enable) private {

@@ -120,9 +120,6 @@ library TSVLPManagerLib {
         uint128 amount0Min = p.amount0Min;
         uint128 amount1Min = p.amount1Min;
         bytes memory hookData = p.hookData;
-        bool isUnwindable0 = _getLpStatus(p.factory, poolKey.currency0, lp);
-        bool isUnwindable1 = _getLpStatus(p.factory, poolKey.currency1, lp);
-        if (!isUnwindable0 && !isUnwindable1) revert LpUnWindable();
         address issuer = _getPoolIssuer(p.factory, poolKey);
         uint256 lpBalance0Before = poolKey.currency0.balanceOf(lp);
         uint256 lpBalance1Before = poolKey.currency1.balanceOf(lp);

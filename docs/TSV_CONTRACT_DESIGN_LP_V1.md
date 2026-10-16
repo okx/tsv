@@ -93,7 +93,7 @@ TSV 遵循 Uniswap v4 Permissioned Pools 架构。**Uniswap v4 PoolManager、Per
 permissionsAdapter.isAllowed(lp, UNWIND_ALLOWED);
 ```
 
-这里的 `UNWIND_ALLOWED` 是计划使用的独立、非零 PermissionFlag；可在 TSV 与 Securitize 共用的扩展权限定义中声明，拟用 `0x0004`（现有 swap 和 LP 位分别为 `0x0001`、`0x0002`）。当前源码仅有该常量的注释，尚未启用。此示例表示目标调用，不表示目前已存在可用常量或已完成接入。
+这里的 `UNWIND_ALLOWED` 是计划使用的独立、非零 PermissionFlag；可在 TSV 与 Securitize 共用的扩展权限定义中声明，拟用 `0x8000`（现有 swap 和 LP 位分别为 `0x0001`、`0x0002`）。当前源码仅有该常量的注释，尚未启用。此示例表示目标调用，不表示目前已存在可用常量或已完成接入。
 
 PermissionsAdapter 继续使用原版接口，Securitize 的派生 checker 在 `checkAllowlist(lp, CET)` 返回的权限集合中提供该标志。**PermissionsAdapter、PermissionsAdapterFactory、BaseAllowlistChecker 均不修改。** 不再使用 `NONE` 判断失效，也不以“缺少普通操作权限”替代独立强退授权。
 
