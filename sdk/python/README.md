@@ -1,40 +1,25 @@
 # XLayer TSV Python SDK
 
-This repository-native SDK wraps the existing Foundry operator scripts and formats a thin external DEX route request. It does not store wallet credentials or execute an on-chain DEX router locally.
+This repository-native SDK runs the allowlisted Foundry operations through a shared simulate-then-broadcast flow. Public X Layer addresses are fixed in `script/xlayer/deployment.json`; private keys stay in the local environment file.
 
 ## Use
 
-From the repository root, create the local key file once. The SDK reads it automatically:
+Create the local key file once and set the operator key:
 
 ```sh
 test -f script/xlayer/.env.xlayer || cp script/xlayer/.env.xlayer.example script/xlayer/.env.xlayer
 # Edit script/xlayer/.env.xlayer and set XLAYER_PRIVATE_KEY.
-PYTHONPATH=sdk/python python3 - <<'PY'
-from tsv_xlayer_sdk import ExecutionClient, Operation, Target, TradeRequest, PoolKey
-
-# Replace these valid placeholders with the registered, address-sorted PoolKey.
-pool = PoolKey(
-    "0x0000000000000000000000000000000000000001",
-    "0x0000000000000000000000000000000000000002",
-    3000,
-    60,
-    "0x0000000000000000000000000000000000000003",
-)
-trade = TradeRequest(pool, zero_for_one=True, amount_in=100_000, min_amount_out=1)
-client = ExecutionClient()
-simulation = client.simulate(Operation(Target.TRADE, "Trade TSV", trade.env()))
-print(simulation.result.stdout, end="")
-if simulation.result.succeeded:
-    typed = input("Type BROADCAST to send the simulated write: ")
-    result = client.broadcast(simulation, typed)
-    print(result.stdout, end="")
-PY
+python3 script/xlayer/operate.py
 ```
 
-Amounts are raw token units. The SDK loads `XLAYER_PRIVATE_KEY` from `script/xlayer/.env.xlayer` or the process environment; it never accepts credentials as operation inputs or prints them. The mainnet RPC defaults to the public endpoint and deployment inventory in `script/xlayer/deployment.json`. `XLAYER_RPC_URL` may be set as an optional override.
+Amounts are raw token units. `XLAYER_PRIVATE_KEY` signs and pays for operations. For DexRouter + TSVAdapter swaps, also set `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY`; its derived address must equal `AUTH_SIGNER()` on the signed-amount Adapter. The operator never accepts either key through `Operation.inputs`, and redacts both from Forge output. `XLAYER_RPC_URL` is an optional override.
 
-`Target` covers the inspect, registration, adapter deployment, pool, trade, liquidity, SBT, Registry, and Ledger scripts used by `script/xlayer/operate.py`. `operate.py` is the interactive front end; the SDK is its shared simulation/broadcast execution layer.
+`Target` covers the inspect, registration, adapter deployment, pool, direct trade, liquidity, SBT, Registry, Ledger, and DexRouter trade scripts. `operate.py` collects operation-specific values; the SDK owns the script allowlist, signing environment, simulation fingerprint, and explicit broadcast gate.
 
-For an external DEX hop, `DexRouterTradeRequest` builds the `dagSwapTo` ABI arguments from a typed pool, direction, amount, receiver, and ABI-encoded `MoreInfo(PoolKey, expectedMultiplier)`. The current adapter `main` does not use `AUTH_SIGNER` or signed `MoreInfo`. The builder does not approve tokens or broadcast to DexRouter. Both the Adapter's DexRouter allowlist and the TSV Router's Adapter allowlist must be configured. It sends purchase Q to the Adapter and sale U directly to the stock W. See [the adapter integration note](../../docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md).
+## DexRouter + TSVAdapter
 
-The two `DexAdapter.t.sol` buy/sell cases use a local single-hop DexRouter harness to exercise the current-main TSVAdapter and TSV router. They are local integration coverage; they do not certify the deployed XLayer DexRouter or submit live trades.
+`DexRouterTradeRequest` validates and formats a one-hop request for `Target.DEX_ROUTER_TRADE`. Its `env()` method returns only public operation inputs; the Solidity script builds the current signed `MoreInfo` using the local auth signer key, checks both TSV/Adapter allowlists and TokenApproveProxy wiring, then calls `IDexRouter.dagSwapTo`.
+
+The route signs the exact input amount, PoolKey, direction, multiplier, participant, receiver, allowed caller, nonce, and deadline. Buys pre-transfer Q to the Adapter (`assetTo = adapter`); sells pre-transfer U directly to W (`assetTo = W`). If the TokenApprove allowance is below the trade amount, the script includes an exact-amount approval before the swap. Both writes are simulated first; the operator only broadcasts after `BROADCAST`.
+
+The local callback integration fixture tracks the current upstream `MoreInfo` ABI. It does not certify live X Layer deployment state. See [the adapter integration note](../../docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) for the signature, funding, deployment, and authorization requirements.
