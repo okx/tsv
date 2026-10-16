@@ -1,0 +1,4 @@
+interface:
+  display_name: "XLayer TSV Operator"
+  short_description: "Use the TSV Python SDK to inspect and operate XLayer contracts."
+  default_prompt: "Help me operate TSV contracts on XLayer. Gather missing parameters, simulate writes, and only broadcast after confirmation."
