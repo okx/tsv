@@ -133,11 +133,15 @@ class ExecutionClient:
             raise ValueError("XLAYER_RPC_URL is missing from deployment config or local environment")
         if operation.target.writes and not env.get("XLAYER_PRIVATE_KEY", "").strip():
             raise ValueError(f"write operations require XLAYER_PRIVATE_KEY in {self.local_env_file} or the process environment")
-        if operation.target is Target.DEX_ROUTER_TRADE and not env.get("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "").strip():
-            raise ValueError(
-                "DexRouter TSV trades require TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY in "
-                f"{self.local_env_file} or the process environment"
-            )
+        if operation.target is Target.DEX_ROUTER_TRADE:
+            side = env.get("TSV_DEX_SIDE", "")
+            if side not in {"BUY_STOCK", "SELL_STOCK"}:
+                raise ValueError("TSV_DEX_SIDE must be BUY_STOCK or SELL_STOCK")
+            if side == "SELL_STOCK" and not env.get("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "").strip():
+                raise ValueError(
+                    "DexRouter TSV stock sales require TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY in "
+                    f"{self.local_env_file} or the process environment"
+                )
         # Keep the endpoint in the child environment for scripts that read it, too.
         env["ETH_RPC_URL"] = rpc_url
         return env

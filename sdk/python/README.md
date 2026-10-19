@@ -12,14 +12,24 @@ test -f script/xlayer/.env.xlayer || cp script/xlayer/.env.xlayer.example script
 python3 script/xlayer/operate.py
 ```
 
-Amounts are raw token units. `XLAYER_PRIVATE_KEY` signs and pays for operations. For DexRouter + TSVAdapter swaps, also set `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY`; its derived address must equal `AUTH_SIGNER()` on the signed-amount Adapter. The operator never accepts either key through `Operation.inputs`, and redacts both from Forge output. `XLAYER_RPC_URL` is an optional override.
+Amounts are raw token units. `XLAYER_PRIVATE_KEY` signs and pays for operations. For DexRouter + TSVAdapter stock sales only, also set `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY`; its derived address must equal `AUTH_SIGNER()` on the signed-amount Adapter. The operator never accepts either key through `Operation.inputs`, and redacts both from Forge output. `XLAYER_RPC_URL` is an optional override.
 
 `Target` covers the inspect, registration, adapter deployment, pool, direct trade, liquidity, SBT, Registry, Ledger, and DexRouter trade scripts. `operate.py` collects operation-specific values; the SDK owns the script allowlist, signing environment, simulation fingerprint, and explicit broadcast gate.
 
 ## DexRouter + TSVAdapter
 
-`DexRouterTradeRequest` validates and formats a one-hop request for `Target.DEX_ROUTER_TRADE`. Its `env()` method returns only public operation inputs; the Solidity script builds the current signed `MoreInfo` using the local auth signer key, checks both TSV/Adapter allowlists and TokenApproveProxy wiring, then calls `IDexRouter.dagSwapTo`.
+`DexRouterTradeRequest` validates and formats a one-hop request for `Target.DEX_ROUTER_TRADE`. Its `env()` method returns only public operation inputs; the Solidity script builds `MoreInfo`, checks both TSV/Adapter allowlists and TokenApproveProxy wiring, then calls `IDexRouter.dagSwapTo`. Stock sales require the local auth signer; purchases do not read it.
 
-The route signs the exact input amount, PoolKey, direction, multiplier, participant, receiver, allowed caller, nonce, and deadline. Buys pre-transfer Q to the Adapter (`assetTo = adapter`); sells pre-transfer U directly to W (`assetTo = W`). If the TokenApprove allowance is below the trade amount, the script includes an exact-amount approval before the swap. Both writes are simulated first; the operator only broadcasts after `BROADCAST`.
+Stock sales sign the exact input amount, PoolKey, direction, multiplier, participant, allowed caller, nonce, and deadline. The Adapter receiver (`to`) is chosen by DexRouter at execution and is not signed. Buys pre-transfer Q to the Adapter (`assetTo = adapter`) and swap its live Q balance. Buy `MoreInfo` encodes `amountIn = nonce = deadline = 0`, `allowedCallers = []`, and `authSig = 0x`; the operator does not ask for a buy nonce. Sells pre-transfer U directly to W (`assetTo = W`) and consume only the signed amount, preserving surplus U. **The SDK request `amount_in` / `TSV_DEX_AMOUNT_IN` is still the positive DexRouter funding amount for either side, not the zero buy `MoreInfo.amountIn`.** `deadline_seconds` still controls the outer DexRouter transaction for purchases. If the TokenApprove allowance is below the trade amount, the script includes an exact-amount approval before the swap. Both writes are simulated first; the operator only broadcasts after `BROADCAST`.
 
 The local callback integration fixture tracks the current upstream `MoreInfo` ABI. It does not certify live X Layer deployment state. See [the adapter integration note](../../docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) for the signature, funding, deployment, and authorization requirements.
+
+## Validation
+
+```sh
+python3 -m unittest discover -s sdk/python/tests -v
+TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY="0x$(openssl rand -hex 32)" \
+  forge test --match-path test/integration/local/trading/DexAdapter.t.sol -vv
+```
+
+The test key is ephemeral and is not used for live transactions. The Adapter submodule is pinned to `5be1e7f8963979c637adae9f21077a6c4100c5a8`; its OpenZeppelin 4 dependency uses a scoped remapping, leaving TSV's OpenZeppelin 5 dependency unchanged.
