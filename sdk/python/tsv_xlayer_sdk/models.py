@@ -84,7 +84,7 @@ class TradeSide(Enum):
 
 @dataclass(frozen=True)
 class DexRouterTradeRequest:
-    """One signed TSVAdapter hop for the X Layer DexRouter trade script."""
+    """One TSVAdapter hop: amount_in funds DexRouter; only stock sales need authorization."""
 
     adapter: str
     dex_router: str
@@ -173,7 +173,7 @@ class DexRouterTradeRequest:
             "TSV_DEX_AMOUNT_IN": str(self.amount_in),
             "TSV_DEX_MIN_RETURN": str(self.min_return),
             "TSV_DEX_EXPECTED_MULTIPLIER": str(self.expected_multiplier),
-            "TSV_DEX_NONCE": str(self.nonce),
+            "TSV_DEX_NONCE": str(self.nonce if self.side is TradeSide.SELL_STOCK else 0),
             "TSV_DEX_DEADLINE_SECONDS": str(self.deadline_seconds),
         }
         if self.participant is not None:

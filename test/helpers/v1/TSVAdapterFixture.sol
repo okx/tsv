@@ -8,9 +8,11 @@ import {TSVAdapter} from "dex-adapters/adapters/uniswap-v4/TSVAdapter.sol";
 import {ITSVSwapRouter} from "dex-adapters/interfaces/ITSVSwapRouter.sol";
 import {DEX_ROUTER_CALLER_MARKER, ORIGIN_PAYER} from "dex-adapters/libraries/Constants.sol";
 
-/// @dev Uses the upstream Adapter with W-to-U settlement currency resolution. The fixed key below is test-only.
+/// @dev Uses the upstream Adapter with W-to-U settlement currency resolution. Test signing material is supplied through the process environment.
 abstract contract TSVAdapterFixture is Test {
-    uint256 internal constant TEST_AUTH_KEY = 0xA11CE;
+    function _testAuthKey() internal view returns (uint256) {
+        return vm.envUint("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY");
+    }
     uint256 internal authNonce;
 
     function _adapterRoute(
@@ -20,8 +22,7 @@ abstract contract TSVAdapterFixture is Test {
         uint256 expectedMultiplier,
         uint256 amountIn,
         bool zeroForOne,
-        address participant,
-        address to
+        address participant
     ) internal returns (bytes memory) {
         ITSVSwapRouter.PoolKey memory externalKey = ITSVSwapRouter.PoolKey(
             Currency.unwrap(poolKey.currency0),
@@ -30,19 +31,25 @@ abstract contract TSVAdapterFixture is Test {
             poolKey.tickSpacing,
             address(poolKey.hooks)
         );
+        address inputCurrency = Currency.unwrap(zeroForOne ? poolKey.currency0 : poolKey.currency1);
+        if (ITSVSwapRouter(adapter.TSV_ROUTER()).settlementCurrency(inputCurrency) == inputCurrency) {
+            return
+                abi.encode(TSVAdapter.MoreInfo(externalKey, expectedMultiplier, 0, new address[](0), 0, 0, bytes("")));
+        }
         uint256 deadline = block.timestamp + 100;
         address[] memory allowed = new address[](1);
         allowed[0] = trustedCaller;
         uint256 nonce = authNonce++;
-        bytes32 payloadHash = keccak256(
-            abi.encode(externalKey, expectedMultiplier, amountIn, zeroForOne, participant, to, deadline)
-        );
+        bytes32 payloadHash =
+            keccak256(abi.encode(externalKey, expectedMultiplier, amountIn, zeroForOne, participant, deadline));
         bytes32 inner = keccak256(abi.encode(address(adapter), payloadHash, allowed, nonce, block.chainid));
-        (bytes32 r, bytes32 vs) = vm.signCompact(
-            TEST_AUTH_KEY,
-            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", inner))
+        (bytes32 r, bytes32 vs) =
+            vm.signCompact(_testAuthKey(), keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", inner)));
+        return abi.encode(
+            TSVAdapter.MoreInfo(
+                externalKey, expectedMultiplier, amountIn, allowed, nonce, deadline, abi.encodePacked(r, vs)
+            )
         );
-        return abi.encode(TSVAdapter.MoreInfo(externalKey, expectedMultiplier, amountIn, allowed, nonce, deadline, abi.encodePacked(r, vs)));
     }
 
     function _adapterPayload(

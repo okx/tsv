@@ -227,11 +227,11 @@ def configure_dexrouter_trade(env: dict[str, str]) -> None:
     default_stock = values.get("TSV_EXISTING_POOL_CURRENCY1")
     stock_currency = ask_address("股票/W 的 PoolKey currency", default_stock)
     stock_underlying = ask_address("股票/W 对应的底层 U", values.get("TSV_INSPECT_U_0"))
-    amount_in = int(ask_uint("签名精确输入 amountIn（raw units）"))
+    amount_in = int(ask_uint("DexRouter 实际输入 amountIn（raw units，卖出时也用于签名）"))
     min_return = int(ask_uint("DexRouter 最小输出（raw units）"))
     expected_multiplier = int(ask_uint("报价时的 legal-share multiplier（WAD）"))
-    nonce = int(ask_uint("本 Adapter 未使用过的签名 nonce"))
-    deadline_seconds = int(ask_uint("授权有效秒数", "300", maximum=(1 << 64) - 1))
+    nonce = int(ask_uint("本 Adapter 未使用过的签名 nonce")) if side is TradeSide.SELL_STOCK else 0
+    deadline_seconds = int(ask_uint("交易有效秒数（卖出同时作为签名有效期）", "300", maximum=(1 << 64) - 1))
     request = DexRouterTradeRequest(
         adapter=values["TSV_DEX_ADAPTER"],
         dex_router=values["DEX_ROUTER"],
@@ -451,13 +451,6 @@ def main() -> int:
     if writes and not env.get("XLAYER_PRIVATE_KEY", "").strip():
         print(f"写操作需要私钥；请在 {LOCAL_ENV_FILE} 填写 XLAYER_PRIVATE_KEY。未执行任何交易。", file=sys.stderr)
         return 2
-    if choice == "14" and not env.get("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "").strip():
-        print(
-            f"DexRouter + TSVAdapter 交易还需要在 {LOCAL_ENV_FILE} 填写 TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY；未执行任何交易。",
-            file=sys.stderr,
-        )
-        return 2
-
     try:
         target_script, label, _ = prepare_action(choice, env)
         target = next(item for item in Target if item.script == target_script)
