@@ -21,6 +21,19 @@ import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
 import {PermissionedValidationLib} from "tsv-v1/libraries/PermissionedValidationLib.sol";
 import {IPermissionsAdapterFactory} from "../vendor/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
 
+interface IFactoryBoundTSVComponent {
+    function PERMISSIONS_ADAPTER_FACTORY() external view returns (address);
+    function poolManager() external view returns (address);
+    function registry() external view returns (address);
+}
+
+interface IHookFactoryReplacementView {
+    function poolManager() external view returns (address);
+    function registry() external view returns (address);
+    function router() external view returns (address);
+    function lpManager() external view returns (address);
+}
+
 /// @dev Defines the SBT pause and credential-verification views required by the Registry.
 interface ISmartWalletSbtV1 {
     /// @notice Checks whether `user` holds the configured credential token.
@@ -111,6 +124,9 @@ contract TSVRegistryV1 is TSVGoverned {
         address factory,
         address poolManager,
         address sbt
+    );
+    event PermissionsAdapterFactoryReplaced(
+        address indexed previousFactory, address indexed newFactory, address indexed poolManager, bytes32 reasonCode
     );
     /// @notice Emitted when a security was added to the Registry with its listing tier.
     /// @param securityId TSV security identifier that is now listed.
@@ -253,6 +269,45 @@ contract TSVRegistryV1 is TSVGoverned {
         permissionedPoolManager = poolManager;
         participantSbt = sbt_;
         emit ComponentsBound(hook_, lpManager_, factory, poolManager, sbt_);
+    }
+
+    /// @notice Replaces the adapter Factory after LP Manager and Router have been upgraded to use it.
+    /// @dev Run while emergency paused; the replacement must use the bound PoolManager and match both components.
+    function replacePermissionsAdapterFactory(address newFactory, bytes32 reasonCode)
+        external
+        onlyRole(UPGRADE_ADMIN_ROLE)
+    {
+        _requireReasonCode(reasonCode);
+        if (!emergencyPauseEnable || newFactory.code.length == 0 || newFactory == permissionsAdapterFactory) {
+            revert InvalidStatus();
+        }
+        if (IPermissionsAdapterFactory(newFactory).POOL_MANAGER() != permissionedPoolManager) {
+            revert InvalidConfig();
+        }
+
+        address hookAddress = hook;
+        address lpManagerAddress = lpManager;
+        if (hookAddress.code.length == 0 || lpManagerAddress.code.length == 0) revert InvalidConfig();
+
+        IHookFactoryReplacementView hookComponent = IHookFactoryReplacementView(hookAddress);
+        address routerAddress = hookComponent.router();
+        if (routerAddress.code.length == 0) revert InvalidConfig();
+
+        IFactoryBoundTSVComponent lpManagerComponent = IFactoryBoundTSVComponent(lpManagerAddress);
+        IFactoryBoundTSVComponent routerComponent = IFactoryBoundTSVComponent(routerAddress);
+        if (
+            hookComponent.poolManager() != permissionedPoolManager
+                || hookComponent.registry() != address(this) || hookComponent.lpManager() != lpManagerAddress
+                || lpManagerComponent.PERMISSIONS_ADAPTER_FACTORY() != newFactory
+                || routerComponent.PERMISSIONS_ADAPTER_FACTORY() != newFactory
+                || lpManagerComponent.poolManager() != permissionedPoolManager
+                || routerComponent.poolManager() != permissionedPoolManager
+                || lpManagerComponent.registry() != address(this) || routerComponent.registry() != address(this)
+        ) revert InvalidConfig();
+
+        address previousFactory = permissionsAdapterFactory;
+        permissionsAdapterFactory = newFactory;
+        emit PermissionsAdapterFactoryReplaced(previousFactory, newFactory, permissionedPoolManager, reasonCode);
     }
 
     /// @notice Returns the stateless validator address linked into this implementation.
