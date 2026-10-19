@@ -18,6 +18,8 @@ if simulation.result.succeeded:
 
 The `MIGRATE_PERMISSIONS_ADAPTER_FACTORY` Registry operation permanently grants the signer `EMERGENCY_PAUSER_ROLE` and `EMERGENCY_RESUMER_ROLE`, upgrades LP Manager, moves Router through an old-Factory bridge implementation to the new Factory implementation, pauses the Registry, upgrades Registry, replaces its Factory pointer, then resumes the Registry. It requires the configured securities to have no listed pools and asks for three distinct reason codes. A W not recognized by the replacement Factory will stop passing Factory validation.
 
+`PermissionsAdapterFactoryMigrationRequest` formats the action, replacement Factory address, and distinct pause/replacement/resume reason codes for `Operation(Target.REGISTRY_OPERATION, ..., request.env())`. The security and W inventories remain in the public deployment configuration; signing keys are loaded separately by `ExecutionClient`.
+
 `PoolKey` validates nonzero sorted currencies, fee, tick spacing, and hook. `TradeRequest` validates raw input/minimum output/deadline and creates the `TSV_*` environment values for `Target.TRADE`.
 
 ## DexRouter + signed TSVAdapter trade
