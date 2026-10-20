@@ -86,6 +86,171 @@ const tsvIndexEventAbi = [
 
 建议按 `(chainId, contractAddress, blockHash, transactionHash, logIndex)` 去重，并按区块 hash 处理链重组回滚。同一笔 `initializePool` 交易先由 Registry 发出 `PoolRegistered`，再由 PoolManager 发出 `Initialize`；Factory 的创建 / 验证可能在更早的**其他交易**。索引池时，用 `Initialize.id` 联结 `PoolRegistered.poolId`，再用 `registry.getPool(poolId).key` 校验完整 Key；不要仅凭 Hook 地址或 Factory 事件认定准入。对 `currency0/1` 各调用 `registry.getCurrencyUnderlying(currency)`：非零的一侧是 PermissionsAdapter 代币，返回值才是发行方底层股票代币；另一侧结合 `QuoteTokenRegistered` 历史和 `registry.getQuoteToken(currency)` 确认报价代币；后续 `registered=false` 只表示暂停新池准入，不抹去已有池的资产身份。再由 `registry.getUnderlying(underlyingToken)` 取 `securityId`、`legalShareAdapter` 和精度，并与池的 `securityId` 对齐。Factory 的 `verifiedPermissionsAdapterOf(wrapToken)` 和 wrapper 的 `PERMISSIONED_TOKEN()` 可交叉核验映射；它们不能替代 Registry 准入。
 
+**TSV 池中的 CET 识别步骤分为事件追踪和 Getter 查询：**
+
+**事件追踪：**监听对应 PoolManager 的 Uniswap v4 `Initialize`，并与同笔交易 Registry 的 `PoolRegistered` 按 `poolId` 配对，以确认这是 TSV 已注册池。读取 `Initialize.currency0/1`，逐个调用该 TSV Registry 的 `getCurrencyUnderlying(currency)`：返回非零 `underlyingToken` 的池币地址是 WCET（池内 PermissionsAdapter / wrapper），返回值是 CET（发行方底层股票代币）。调用 `getUnderlying(CET)` 取得 `securityId` 等信息，并与 `getPool(poolId).securityId` 核对。返回零表示不是已登记的 TSV WCET；不可用 symbol、名称或 Factory 创建事件推断 CET。另一个池币应通过报价代币注册记录确认。
+
+以下 ethers.js v6 脚本用于**事件追踪**。先配置 `provider`、`poolManagerAddress`、`registryAddress` 和有界区块范围；脚本将 `Initialize` 与同笔交易的 `PoolRegistered` 配对，再校验 PoolKey 并解析币种。Uniswap v4 的池通过单一 PoolManager 初始化，`Initialize` 事件提供完整 PoolKey，参见[Uniswap v4 PoolManager 文档](https://developers.uniswap.org/docs/protocols/v4/concepts/poolmanager)和[读取池储备指南](https://developers.uniswap.org/docs/protocols/v4/guides/reading-pool-reserves)。
+
+```JavaScript
+import { Contract, ZeroAddress, ZeroHash } from "ethers";
+
+const poolManager = new Contract(poolManagerAddress, [
+  "event Initialize(bytes32 indexed id,address indexed currency0,address indexed currency1,uint24 fee,int24 tickSpacing,address hooks,uint160 sqrtPriceX96,int24 tick)",
+], provider);
+const registry = new Contract(registryAddress, [
+  "event PoolRegistered(bytes32 indexed poolId,bytes32 indexed securityId,uint8 indexed tierId,uint8 lifecycle)",
+  "function getPool(bytes32) view returns (tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,bytes32 securityId,uint8 tierId,uint8 lifecycle,uint256 tickCount,uint256 poolSecurityIndex))",
+  "function getCurrencyUnderlying(address currency) view returns (address underlying)",
+  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals,bool registered))",
+  "function getQuoteToken(address quote) view returns (tuple(uint8 rawDecimals,bool registered))",
+], provider);
+
+const [registeredLogs, initializeLogs] = await Promise.all([
+  registry.queryFilter(registry.filters.PoolRegistered(), fromBlock, toBlock),
+  poolManager.queryFilter(poolManager.filters.Initialize(), fromBlock, toBlock),
+]);
+const registrationTxByPoolId = new Map(registeredLogs.map(log => [log.args.poolId.toLowerCase(), log.transactionHash.toLowerCase()]));
+
+for (const log of initializeLogs) {
+  const poolId = log.args.id;
+  if (registrationTxByPoolId.get(poolId.toLowerCase()) !== log.transactionHash.toLowerCase()) continue;
+
+  // Pin reads to the Initialize block and verify the registered PoolKey.
+  const pool = await registry.getPool(poolId, { blockTag: log.blockNumber });
+  const key = pool.key;
+  if (pool.securityId === ZeroHash ||
+      key.currency0.toLowerCase() !== log.args.currency0.toLowerCase() ||
+      key.currency1.toLowerCase() !== log.args.currency1.toLowerCase() ||
+      key.hooks.toLowerCase() !== log.args.hooks.toLowerCase() ||
+      Number(key.fee) !== Number(log.args.fee) ||
+      Number(key.tickSpacing) !== Number(log.args.tickSpacing)) continue;
+
+  const [underlying0, underlying1] = await Promise.all([
+    registry.getCurrencyUnderlying(log.args.currency0, { blockTag: log.blockNumber }),
+    registry.getCurrencyUnderlying(log.args.currency1, { blockTag: log.blockNumber }),
+  ]);
+  // A valid TSV pool has exactly one registered stock-side WCET.
+  if ((underlying0 === ZeroAddress) === (underlying1 === ZeroAddress)) continue;
+
+  const wcet = underlying0 !== ZeroAddress ? log.args.currency0 : log.args.currency1;
+  const cet = underlying0 !== ZeroAddress ? underlying0 : underlying1;
+  const quote = underlying0 === ZeroAddress ? log.args.currency0 : log.args.currency1;
+  const [underlyingRecord, quoteRecord] = await Promise.all([
+    registry.getUnderlying(cet, { blockTag: log.blockNumber }),
+    registry.getQuoteToken(quote, { blockTag: log.blockNumber }),
+  ]);
+  if (!quoteRecord.registered || underlyingRecord.securityId !== pool.securityId) continue;
+  console.log({ poolId, wcet, cet, quote, securityId: pool.securityId, blockNumber: log.blockNumber });
+}
+```
+
+**Getter 查询：**如果已经有 `poolId`，不必回扫创建事件。先读 `registry.getPool(poolId).key` 取 `currency0/1`，再分别调用 `getCurrencyUnderlying`；唯一返回非零底层代币地址的一侧为 WCET，该返回地址为 CET。用 `getUnderlying(CET).securityId` 与 PoolRecord 的 `securityId` 对照，并用 `getQuoteToken` 核对另一侧报价币。报价币的 `registered=false` 仅表示不能用于新建池，不会抹去已建池的资产身份。
+
+以下 ethers.js v6 脚本**只负责按已知 poolId 查询并解析 WCET → CET**：
+
+```JavaScript
+import { Contract, ZeroAddress, ZeroHash } from "ethers";
+
+const registry = new Contract(registryAddress, [
+  "function getPool(bytes32) view returns (tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,bytes32 securityId,uint8 tierId,uint8 lifecycle,uint256 tickCount,uint256 poolSecurityIndex))",
+  "function getCurrencyUnderlying(address currency) view returns (address underlying)",
+  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals,bool registered))",
+  "function getQuoteToken(address quote) view returns (tuple(uint8 rawDecimals,bool registered))",
+], provider);
+
+const pool = await registry.getPool(poolId);
+if (pool.securityId === ZeroHash) throw new Error("Unknown TSV pool");
+const { currency0, currency1 } = pool.key;
+const [underlying0, underlying1] = await Promise.all([
+  registry.getCurrencyUnderlying(currency0),
+  registry.getCurrencyUnderlying(currency1),
+]);
+if ((underlying0 === ZeroAddress) === (underlying1 === ZeroAddress)) {
+  throw new Error("Pool must have exactly one registered TSV WCET");
+}
+
+const wcet = underlying0 !== ZeroAddress ? currency0 : currency1;
+const cet = underlying0 !== ZeroAddress ? underlying0 : underlying1;
+const quote = underlying0 === ZeroAddress ? currency0 : currency1;
+const [underlyingRecord, quoteRecord] = await Promise.all([
+  registry.getUnderlying(cet),
+  registry.getQuoteToken(quote),
+]);
+if (underlyingRecord.securityId !== pool.securityId) {
+  throw new Error("Pool token mapping does not match its TSV Registry records");
+}
+console.log({ poolId, wcet, cet, quote, quoteCurrentlyRegistered: quoteRecord.registered, securityId: pool.securityId });
+```
+
+**市场暂停 / 恢复状态有两种查询方式：**
+
+- **事件追踪：**`applySecurityStatus(...)` 成功执行后，Registry 发出 `SecurityStatusChanged(securityId, oldPauseMode, newPauseMode)`；这是事件名，不是函数调用事件。事件提供证券 ID 和变更前后的完整状态码，但不包含 `poolId`。用 `registry.getSecurity(securityId).poolIds` 取得该证券关联的池 ID，再按需要读取各池状态。`poolIds` 是该证券关联池的累积列表，可能包含已退市池。
+- **Getter 查询：**已知 `poolId` 时，直接调用 `registry.isTradable(poolId)` 和 `registry.isLPAllowed(poolId)` 判断该池当前是否允许 Swap / 普通 LP 操作。若需要证券级暂停状态，先从 `registry.getPool(poolId).securityId` 取得 `securityId`，再调用 `registry.getSecurity(securityId)` 读取 `pauseMode`。也可直接按已知 `securityId` 调用 `getSecurity(securityId)`。
+
+`SecurityRecord.pauseMode` / `SecurityStatusChanged` 的状态码是两位掩码：`0 (00)` 未暂停，`1 (01)` TRADE 暂停，`2 (10)` LP 暂停，`3 (11)` TRADE 与 LP 均暂停。它不是 `SecurityPauseMode` 枚举序号；事件里的 `oldPauseMode` 和 `newPauseMode` 都是完整掩码。池级是否可操作以 `isTradable` / `isLPAllowed` 的返回值为准。
+
+`applySecurityStatus(securityId, mode, enable, reasonCode)` 中，`mode` 选择要修改的操作，`enable=true` 暂停（置位），`enable=false` 恢复（清位）。枚举与掩码对应关系是 `TRADE=0 → 0001`、`LP=1 → 0010`、`ALL=2 → 0011`。例如当前仅 LP 暂停（`0010`），调用 `TRADE, true` 后为 `0010 | 0001 = 0011`；再调用 `TRADE, false` 后为 `0011 & ~0001 = 0010`，只恢复交易，LP 仍暂停。调用 `ALL, false` 清除两位（`0010 & ~0011 = 0000`）；`ALL, true` 则同时暂停两项，结果为 `0011`。
+
+调用者必须具有 `HALT_REPORTER_ROLE`，目标证券必须已上市，`reasonCode` 必须非零；若所选位已经是目标状态、调用不会改变任何位，合约以 `InvalidStatus` 回滚。每次成功调用后应以回执中的 `SecurityStatusChanged` 和 `getSecurity` 回读确认。
+
+以下 ethers.js v6 脚本**只负责市场暂停 / 恢复状态**：监听 `SecurityStatusChanged` 后用 `getSecurity(securityId).poolIds` 关联证券的池；也可输入 `poolId`，先查 `getPool` 再查 `getSecurity`。状态码解析为 `0=未暂停、1=仅 TRADE 暂停、2=仅 LP 暂停、3=TRADE 与 LP 均暂停`。
+
+```JavaScript
+import { Contract, ZeroHash } from "ethers";
+
+const registry = new Contract(registryAddress, [
+  "event SecurityStatusChanged(bytes32 indexed securityId,uint8 oldPauseMode,uint8 newPauseMode)",
+  "function getPool(bytes32) view returns (tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,bytes32 securityId,uint8 tierId,uint8 lifecycle,uint256 tickCount,uint256 poolSecurityIndex))",
+  "function getSecurity(bytes32) view returns (tuple(bytes32 securityId,uint8 tierId,bool listed,bytes32[] poolIds,uint32 listedPoolCount,uint8 pauseMode))",
+  "function isTradable(bytes32 poolId) view returns (bool)",
+  "function isLPAllowed(bytes32 poolId) view returns (bool)",
+], provider);
+
+function decodePauseMode(value) {
+  const code = Number(value);
+  return {
+    code,
+    tradePaused: (code & 1) !== 0,
+    lpPaused: (code & 2) !== 0,
+    label: ["UNPAUSED", "TRADE_PAUSED", "LP_PAUSED", "TRADE_AND_LP_PAUSED"][code] ?? "INVALID",
+  };
+}
+
+async function readPoolStatus(poolId, blockTag = "latest") {
+  const pool = await registry.getPool(poolId, { blockTag });
+  if (pool.securityId === ZeroHash) throw new Error("Unknown TSV pool");
+  const security = await registry.getSecurity(pool.securityId, { blockTag });
+  const [swapAllowed, lpAllowed] = await Promise.all([
+    registry.isTradable(poolId, { blockTag }),
+    registry.isLPAllowed(poolId, { blockTag }),
+  ]);
+  return {
+    poolId,
+    securityId: pool.securityId,
+    status: decodePauseMode(security.pauseMode),
+    securityPoolIds: security.poolIds,
+    swapAllowed,
+    lpAllowed,
+  };
+}
+
+// Query a known poolId.
+console.log(await readPoolStatus(poolId));
+
+// applySecurityStatus emits this event after a successful pause / resume update.
+registry.on("SecurityStatusChanged", async (securityId, oldPauseMode, newPauseMode, event) => {
+  const security = await registry.getSecurity(securityId, { blockTag: event.log.blockNumber });
+  console.log({
+    securityId,
+    oldStatus: decodePauseMode(oldPauseMode),
+    newStatus: decodePauseMode(newPauseMode),
+    poolIds: security.poolIds,
+    blockNumber: event.log.blockNumber,
+  });
+});
+```
+
 LP 索引请监听 **TSV LP Manager 代理地址**，而不是原版 Uniswap PositionManager 地址。普通 Mint 的 `Transfer` 零地址 → 接收人给出 `tokenId`；`ModifyPosition.salt` 关联同一仓位，增减流动性看 `liquidityDelta`，收手续费时它可能为零；Burn / 强退的 `Transfer` 持有人 → 零地址表示 NFT 销毁。强退类型还要看第 6 节的 `IssuerPositionUnwound` / `TsvPositionUnwound`，发行方强退的逐资产接收人看 `CurrencyUnwound`；不能只看 v4 的 `ModifyLiquidity`。用户余额、付款授权及资产标签应关注**底层股票代币**和报价代币；wrapper 是池内记账资产，用户通常不持有。最终以交易回执及仓位 / Registry 回读为准。
 
 ### 1\. 入口与查询 ABI
@@ -979,6 +1144,167 @@ const tsvIndexEventAbi = [
 
 Deduplicate using `(chainId, contractAddress, blockHash, transactionHash, logIndex)` and roll back orphaned block hashes after chain reorganizations\. In one `initializePool` transaction, Registry emits `PoolRegistered` before PoolManager emits `Initialize`; Factory creation / verification can occur in **earlier, separate transactions**\. Join `Initialize.id` to `PoolRegistered.poolId`, then verify the full key with `registry.getPool(poolId).key`\. Neither the Hook address alone nor Factory events prove TSV admission\. For each `currency0/1`, call `registry.getCurrencyUnderlying(currency)`: a nonzero result marks the PermissionsAdapter token, and that result is the issuer's underlying stock token\. Identify the other side from historical `QuoteTokenRegistered` events and `registry.getQuoteToken(currency)`; a later `registered=false` only blocks new pool admission and does not erase an existing pool's asset identity\. Then read `registry.getUnderlying(underlyingToken)` for `securityId`, `legalShareAdapter`, and decimals, and match the security to the pool\. Factory's `verifiedPermissionsAdapterOf(wrapToken)` and the wrapper's `PERMISSIONED_TOKEN()` can cross\-check the mapping; they do not replace Registry admission\.
 
+**CET identification in a TSV pool has two paths: event tracking and Getter queries:**
+
+**Event tracking:** Listen for Uniswap v4 `Initialize` from the relevant PoolManager and pair it with the Registry `PoolRegistered` event from the same transaction by `poolId` to confirm TSV admission\. Read `Initialize.currency0/1` and call `getCurrencyUnderlying(currency)` on the TSV Registry for each\. The pool currency whose call returns a nonzero `underlyingToken` address is WCET (the in\-pool PermissionsAdapter / wrapper); that returned address is CET (the issuer's underlying stock token)\. Call `getUnderlying(CET)` for its `securityId` and match it to `getPool(poolId).securityId`\. A zero return means the currency is not a registered TSV WCET; do not infer CET from its symbol, name, or a Factory creation event\. Confirm the other currency as the quote token from Registry records\.
+
+This ethers.js v6 script is for **event tracking**\. Configure `provider`, `poolManagerAddress`, `registryAddress`, and a bounded block range; it pairs `Initialize` with `PoolRegistered` from the same transaction, verifies the PoolKey, and resolves the token mapping\. Uniswap v4 initializes pools through a singleton PoolManager, and `Initialize` provides the full PoolKey; see the [Uniswap v4 PoolManager docs](https://developers.uniswap.org/docs/protocols/v4/concepts/poolmanager) and [Reading Pool Reserves guide](https://developers.uniswap.org/docs/protocols/v4/guides/reading-pool-reserves)\.
+
+```JavaScript
+import { Contract, ZeroAddress, ZeroHash } from "ethers";
+
+const poolManager = new Contract(poolManagerAddress, [
+  "event Initialize(bytes32 indexed id,address indexed currency0,address indexed currency1,uint24 fee,int24 tickSpacing,address hooks,uint160 sqrtPriceX96,int24 tick)",
+], provider);
+const registry = new Contract(registryAddress, [
+  "event PoolRegistered(bytes32 indexed poolId,bytes32 indexed securityId,uint8 indexed tierId,uint8 lifecycle)",
+  "function getPool(bytes32) view returns (tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,bytes32 securityId,uint8 tierId,uint8 lifecycle,uint256 tickCount,uint256 poolSecurityIndex))",
+  "function getCurrencyUnderlying(address currency) view returns (address underlying)",
+  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals,bool registered))",
+  "function getQuoteToken(address quote) view returns (tuple(uint8 rawDecimals,bool registered))",
+], provider);
+
+const [registeredLogs, initializeLogs] = await Promise.all([
+  registry.queryFilter(registry.filters.PoolRegistered(), fromBlock, toBlock),
+  poolManager.queryFilter(poolManager.filters.Initialize(), fromBlock, toBlock),
+]);
+const registrationTxByPoolId = new Map(registeredLogs.map(log => [log.args.poolId.toLowerCase(), log.transactionHash.toLowerCase()]));
+
+for (const log of initializeLogs) {
+  const poolId = log.args.id;
+  if (registrationTxByPoolId.get(poolId.toLowerCase()) !== log.transactionHash.toLowerCase()) continue;
+
+  const pool = await registry.getPool(poolId, { blockTag: log.blockNumber });
+  const key = pool.key;
+  if (pool.securityId === ZeroHash ||
+      key.currency0.toLowerCase() !== log.args.currency0.toLowerCase() ||
+      key.currency1.toLowerCase() !== log.args.currency1.toLowerCase() ||
+      key.hooks.toLowerCase() !== log.args.hooks.toLowerCase() ||
+      Number(key.fee) !== Number(log.args.fee) ||
+      Number(key.tickSpacing) !== Number(log.args.tickSpacing)) continue;
+
+  const [underlying0, underlying1] = await Promise.all([
+    registry.getCurrencyUnderlying(log.args.currency0, { blockTag: log.blockNumber }),
+    registry.getCurrencyUnderlying(log.args.currency1, { blockTag: log.blockNumber }),
+  ]);
+  if ((underlying0 === ZeroAddress) === (underlying1 === ZeroAddress)) continue;
+
+  const wcet = underlying0 !== ZeroAddress ? log.args.currency0 : log.args.currency1;
+  const cet = underlying0 !== ZeroAddress ? underlying0 : underlying1;
+  const quote = underlying0 === ZeroAddress ? log.args.currency0 : log.args.currency1;
+  const [underlyingRecord, quoteRecord] = await Promise.all([
+    registry.getUnderlying(cet, { blockTag: log.blockNumber }),
+    registry.getQuoteToken(quote, { blockTag: log.blockNumber }),
+  ]);
+  if (!quoteRecord.registered || underlyingRecord.securityId !== pool.securityId) continue;
+  console.log({ poolId, wcet, cet, quote, securityId: pool.securityId, blockNumber: log.blockNumber });
+}
+```
+
+**Getter queries:** If you already have a `poolId`, you do not need to scan creation events. Read `registry.getPool(poolId).key` for `currency0/1`, then call `getCurrencyUnderlying` for each. The only side returning a nonzero underlying token is WCET, and the returned address is CET. Match `getUnderlying(CET).securityId` with the PoolRecord security and verify the other side with `getQuoteToken`. A quote token's `registered=false` only blocks new pool creation; it does not erase the identity of an existing pool\.
+
+This ethers.js v6 script **only resolves WCET → CET from a known poolId**:
+
+```JavaScript
+import { Contract, ZeroAddress, ZeroHash } from "ethers";
+
+const registry = new Contract(registryAddress, [
+  "function getPool(bytes32) view returns (tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,bytes32 securityId,uint8 tierId,uint8 lifecycle,uint256 tickCount,uint256 poolSecurityIndex))",
+  "function getCurrencyUnderlying(address currency) view returns (address underlying)",
+  "function getUnderlying(address underlyingToken) view returns (tuple(bytes32 securityId,address legalShareAdapter,uint8 rawDecimals,bool registered))",
+  "function getQuoteToken(address quote) view returns (tuple(uint8 rawDecimals,bool registered))",
+], provider);
+
+const pool = await registry.getPool(poolId);
+if (pool.securityId === ZeroHash) throw new Error("Unknown TSV pool");
+const { currency0, currency1 } = pool.key;
+const [underlying0, underlying1] = await Promise.all([
+  registry.getCurrencyUnderlying(currency0),
+  registry.getCurrencyUnderlying(currency1),
+]);
+if ((underlying0 === ZeroAddress) === (underlying1 === ZeroAddress)) {
+  throw new Error("Pool must have exactly one registered TSV WCET");
+}
+
+const wcet = underlying0 !== ZeroAddress ? currency0 : currency1;
+const cet = underlying0 !== ZeroAddress ? underlying0 : underlying1;
+const quote = underlying0 === ZeroAddress ? currency0 : currency1;
+const [underlyingRecord, quoteRecord] = await Promise.all([
+  registry.getUnderlying(cet),
+  registry.getQuoteToken(quote),
+]);
+if (underlyingRecord.securityId !== pool.securityId) {
+  throw new Error("Pool token mapping does not match its TSV Registry records");
+}
+console.log({ poolId, wcet, cet, quote, quoteCurrentlyRegistered: quoteRecord.registered, securityId: pool.securityId });
+```
+
+**Market pause / resume can be checked in two ways:**
+
+- **Event tracking:** After a successful `applySecurityStatus(...)` call, the Registry emits `SecurityStatusChanged(securityId, oldPauseMode, newPauseMode)`. That is the event name, not a function-call event. It contains the security ID and complete before / after status codes, but no `poolId`. Call `registry.getSecurity(securityId).poolIds` to obtain the pools associated with the security, then query each pool as needed. `poolIds` is an append-only association list and may include delisted pools.
+- **Getter queries:** Given a `poolId`, call `registry.isTradable(poolId)` and `registry.isLPAllowed(poolId)` directly to determine whether that pool currently permits swaps / ordinary LP operations. To read the security-level pause status, first get `securityId` from `registry.getPool(poolId).securityId`, then call `registry.getSecurity(securityId)` and read `pauseMode`. If `securityId` is already known, call `getSecurity(securityId)` directly.
+
+The status code in `SecurityRecord.pauseMode` and `SecurityStatusChanged` is a two\-bit mask: `0 (00)` means unpaused, `1 (01)` means TRADE paused, `2 (10)` means LP paused, and `3 (11)` means both TRADE and LP paused. It is not a `SecurityPauseMode` enum ordinal; event fields `oldPauseMode` and `newPauseMode` are complete masks. Use `isTradable` / `isLPAllowed` results as the pool\-level permission checks\.
+
+In `applySecurityStatus(securityId, mode, enable, reasonCode)`, `mode` selects the operation to update, and `enable=true` pauses (sets bits) while `enable=false` resumes (clears bits)\. The enum to mask mapping is `TRADE=0 → 0001`, `LP=1 → 0010`, and `ALL=2 → 0011`\. For example, if only LP is paused (`0010`), calling `TRADE, true` results in `0010 | 0001 = 0011`; then calling `TRADE, false` results in `0011 & ~0001 = 0010`, resuming only trading while LP stays paused\. Calling `ALL, false` clears both bits (`0010 & ~0011 = 0000`); `ALL, true` pauses both and results in `0011`\.
+
+The caller must have `HALT_REPORTER_ROLE`, the target security must be listed, and `reasonCode` must be nonzero\. If the selected bits are already in the requested state and the call changes no bits, the contract reverts with `InvalidStatus`\. After a successful call, confirm the receipt's `SecurityStatusChanged` event and read back `getSecurity`\.
+
+This ethers.js v6 script **only tracks market pause / resume status**\. It associates the event's `securityId` with its `poolIds` and also supports querying a known `poolId`:
+
+```JavaScript
+import { Contract, ZeroHash } from "ethers";
+
+const registry = new Contract(registryAddress, [
+  "event SecurityStatusChanged(bytes32 indexed securityId,uint8 oldPauseMode,uint8 newPauseMode)",
+  "function getPool(bytes32) view returns (tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,bytes32 securityId,uint8 tierId,uint8 lifecycle,uint256 tickCount,uint256 poolSecurityIndex))",
+  "function getSecurity(bytes32) view returns (tuple(bytes32 securityId,uint8 tierId,bool listed,bytes32[] poolIds,uint32 listedPoolCount,uint8 pauseMode))",
+  "function isTradable(bytes32 poolId) view returns (bool)",
+  "function isLPAllowed(bytes32 poolId) view returns (bool)",
+], provider);
+
+function decodePauseMode(value) {
+  const code = Number(value);
+  return {
+    code,
+    tradePaused: (code & 1) !== 0,
+    lpPaused: (code & 2) !== 0,
+    label: ["UNPAUSED", "TRADE_PAUSED", "LP_PAUSED", "TRADE_AND_LP_PAUSED"][code] ?? "INVALID",
+  };
+}
+
+async function readPoolStatus(poolId, blockTag = "latest") {
+  const pool = await registry.getPool(poolId, { blockTag });
+  if (pool.securityId === ZeroHash) throw new Error("Unknown TSV pool");
+  const security = await registry.getSecurity(pool.securityId, { blockTag });
+  const [swapAllowed, lpAllowed] = await Promise.all([
+    registry.isTradable(poolId, { blockTag }),
+    registry.isLPAllowed(poolId, { blockTag }),
+  ]);
+  return {
+    poolId,
+    securityId: pool.securityId,
+    status: decodePauseMode(security.pauseMode),
+    securityPoolIds: security.poolIds,
+    swapAllowed,
+    lpAllowed,
+  };
+}
+
+console.log(await readPoolStatus(poolId));
+
+registry.on("SecurityStatusChanged", async (securityId, oldPauseMode, newPauseMode, event) => {
+  const security = await registry.getSecurity(securityId, { blockTag: event.log.blockNumber });
+  console.log({
+    securityId,
+    oldStatus: decodePauseMode(oldPauseMode),
+    newStatus: decodePauseMode(newPauseMode),
+    poolIds: security.poolIds,
+    blockNumber: event.log.blockNumber,
+  });
+});
+```
+
 For LP indexing, monitor the **TSV LP Manager proxy**, not the original Uniswap PositionManager address\. On ordinary Mint, `Transfer` from the zero address gives the new `tokenId`; `ModifyPosition.salt` joins it to the position\. `liquidityDelta` distinguishes increases and decreases, and may be zero for fee collection\. On Burn / forced exit, `Transfer` to the zero address shows NFT destruction\. Also read `IssuerPositionUnwound` / `TsvPositionUnwound` in Section 6 to identify the forced\-exit path, and `CurrencyUnwound` for each recipient on the issuer path; a v4 `ModifyLiquidity` event alone is insufficient\. For user balances, payment approvals, and asset labels, focus on the **underlying stock token** and quote token; users normally do not hold the wrapper\. Confirm results from the receipt and current position / Registry reads\.
 
 ### 1\. Entry\-Point and Query ABIs
@@ -1787,4 +2113,3 @@ This algorithm scales stored WAD aggregates\. It can differ by rounding units fr
 - LP: TSVLPManagerV1, validation and unwind logic, and the inherited PositionManager\.
 
 - Swap: TSVSwapRouterV1, SwapRequest, and Hook\.
-
