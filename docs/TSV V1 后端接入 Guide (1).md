@@ -10,6 +10,28 @@
 
 # 测试合约地址：
 
+```json
+{
+  "network": "X Layer Mainnet",
+  "chainId": 196,
+  "deploymentDate": "2026-10-14",
+  "deploymentStatus": "confirmed",
+  "sourceVerification": false,
+  "proxies": {
+    "TSVRegistryV1": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+    "TSVVolumeLedgerV1": "0x4fbffbe7ca5ce0fc3af30c9f305e0f6365ff3bc2",
+    "TSVSwapRouterV1": "0xe5df3ab010bb20094f490dfcf61b6e2d9a3311c8",
+    "TSVLPManagerV1": "0xf73d8683b948564d2795c62a2a909012ea168d29",
+    "TSVHookV1": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+  },
+  "factories": {
+    "PermissionsAdapterFactory": "0x92cdb229613da8ca45e375cf69df4b3b645ff48d",
+    "TSVHookProxyFactoryV1": "0x3c3e76f4beb314713901183ed6e511928e1d2a99",
+    "SmartWalletFactory": "0x1eb8d87d616f31591cfd21f30458c8168b1c1b80"
+  }
+}
+```
+
 可以申请仓库阅读权限：https://gitlab\.okg\.com/web3\-dex/tsv
 
 [TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd?from=vcFollow)
@@ -1193,6 +1215,28 @@ This guide follows the structure of Uniswap's [Managing Liquidity](https://devel
 This document uses three distinct terms: the **PermissionsAdapter token** is the stock\-side asset held in the pool; the **underlying stock token** is the stock asset that users actually hold; and the **quote token** is the other asset in the pool\. PermissionsAdapter tokens and underlying stock tokens have a 1:1 relationship in their smallest units\. All examples below apply to ERC\-20 pools, with transaction `value = 0`\.
 
 # Test Contract Addresses:
+
+```json
+{
+  "network": "X Layer Mainnet",
+  "chainId": 196,
+  "deploymentDate": "2026-10-14",
+  "deploymentStatus": "confirmed",
+  "sourceVerification": false,
+  "proxies": {
+    "TSVRegistryV1": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+    "TSVVolumeLedgerV1": "0x4fbffbe7ca5ce0fc3af30c9f305e0f6365ff3bc2",
+    "TSVSwapRouterV1": "0xe5df3ab010bb20094f490dfcf61b6e2d9a3311c8",
+    "TSVLPManagerV1": "0xf73d8683b948564d2795c62a2a909012ea168d29",
+    "TSVHookV1": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+  },
+  "factories": {
+    "PermissionsAdapterFactory": "0x92cdb229613da8ca45e375cf69df4b3b645ff48d",
+    "TSVHookProxyFactoryV1": "0x3c3e76f4beb314713901183ed6e511928e1d2a99",
+    "SmartWalletFactory": "0x1eb8d87d616f31591cfd21f30458c8168b1c1b80"
+  }
+}
+```
 
 [TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd?from=vcFollow)
 
