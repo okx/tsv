@@ -4,7 +4,7 @@
 
 本指南按 Uniswap [Managing Liquidity](https://developers.uniswap.org/docs/protocols/v4/guides/managing-liquidity/overview) 的方式组织：前置条件、ABI、编码、提交。**LP 与 Swap 的调用入口不同，以下分别说明。**
 
-> 本文接口以 `main@7f7e23c1` 源码及本分支明确标注的修复为依据；下方地址来自接入方指定的测试地址文档，不证明链上已部署本分支实现。所有业务调用使用代理地址。示例使用 ethers.js v6；报价及签名授权由接入方负责。发布前必须核对目标链实现和对应构建产物。
+> 本文接口以仓库源码及对应发布构建为依据，强退事件金额问题已修复。下方地址来自接入方指定的测试地址文档。所有业务调用使用代理地址。示例使用 ethers.js v6；报价及签名授权由接入方负责。
 
 本文使用三个完整名称：**PermissionsAdapter 代币**是池内股票侧资产；**底层股票代币**是用户实际持有的股票资产；**报价代币**是池内另一侧资产。PermissionsAdapter 代币与底层股票代币的最小单位数量为 1:1。以下均针对 ERC\-20 池，交易 `value = 0`。
 
@@ -41,8 +41,8 @@
 - 地址来源：[TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd)，正文核对日期 **2026-10-21**。这是 X Layer **主网测试/预发**，不是测试网；`deploymentStatus` 等元数据为来源文档记录，不代表本次链上验证结果。
 - 本文沿用该文档指定的 Factory；仓库旧部署记录可能属于其他阶段。使用前回读 `registry.permissionsAdapterFactory()`、Router/LP Manager 的 `PERMISSIONS_ADAPTER_FACTORY()` 和 PoolManager 绑定，不能混用不同环境。AA 业务入口与 TSV 部署清单中的 SmartWalletFactory 分列如下，不假定两者可互换。
 - **ABI artifacts 存在版本滞后**：当前源码为 `applySecurityStatus(bytes32,uint8,bool,bytes32)`，`getSecurity` 返回顶层 `pauseMode`；审阅基准的 `docs/artifacts/TSVRegistryV1.abi.json` 仍为三参数 setter 和嵌套 `securityState.pauseMode`，Registry 接口 artifact 也保留旧返回结构。不要混用。应从目标发布构建重新导出 ABI，并核对代理实现、部署区块、编译参数及链接库地址；本次文档修订未重新生成 artifacts。
-- **强退事件金额修复尚未确认部署**：本分支改为观察实际结算代币余额，见 Unwind 小节。不能因为代理地址相同就认定修复已生效；历史事件不会被修复回填。
-- 不从地址文档复制私钥、签名密钥或其他凭证到仓库。以下仅列非敏感测试配置；TokenApprove 地址仍须独立确认，不可用 DexRouter 地址代替。
+- **强退事件金额已修复**：股票侧观察底层代币 U 的余额差，报价币侧观察 Q 的余额差，见 Unwind 小节。事件签名不变；历史事件不会被修复回填。
+- 不从地址文档复制私钥、签名密钥或其他凭证到仓库。以下仅列非敏感测试配置。本接入不需要 TokenApprove；需要支付资产的调用者仍须按对应入口直接授权 LP Manager 或 Swap Router。
 
 ```json
 {
@@ -481,7 +481,7 @@ const lpInterface = new Interface(lpAbi);
 |`multicall(bytes[])`|同一调用者执行多项 LP Manager 调用；任一失败全部回滚|各子调用返回的 `bytes[]`|
 |`modifyLiquiditiesWithoutUnlock(bytes,bytes[])`|仅供已有 PoolManager unlock 上下文的组合调用；不负责 unlock，也不检查 deadline|无|
 
-普通交易用 `modifyLiquidities`，不要直接调用 `unlockCallback`。代理初始化、升级、订阅及 Permit2 转发不在本指南范围内；普通 LP 付款须直接授权 LP Manager 代理，Permit2 / TokenApprove 授权不能替代。
+普通交易用 `modifyLiquidities`，不要直接调用 `unlockCallback`。代理初始化、升级、订阅及 Permit2 转发不在本指南范围内；普通 LP 付款须直接授权 LP Manager 代理，Permit2 授权不能替代。
 
 ### 2\. 前置条件与授权
 
@@ -717,7 +717,7 @@ function buildTsvUnwindTransaction(input) {
 
 发行方强退发出 `IssuerPositionUnwound`，每种非零资产的最终接收人由 `CurrencyUnwound` 给出；TSV 管理员强退发出 `TsvPositionUnwound`，资产直接交付 LP，不走 `CurrencyUnwound` 路径。汇总事件中的 `token0/token1` 是池内 currency 地址；股票侧实际到账应核对底层股票代币的 `Transfer` 和余额。当前版本 `withdrawClaim(address,uint256,address)` 已禁用；普通 LP 入口不能提交 `MINT_6909` 或 `UNWIND_WITH_FALLBACK`。
 
-**事件金额版本说明：**未包含本次修复的实现使用池内 W 的接收人余额差，股票实际已到账时汇总字段仍可能为零。本分支 `TSVLPManagerLib` 修复通过 Factory 将 W 解析为 U，在交付前后观察同一 U；报价币仍观察 Q。修复后的 `lpReceivedAmount0/1`、`issuerReceivedAmount0/1` 表示对应接收人的实际结算代币 raw 余额增量，不是股数 WAD；`token0/token1` 仍保持 PoolKey 的 W/Q 地址，事件签名不变。发行方兜底收到股票时记入 issuer 字段；TSV 路径的 issuer 金额为零。此修复尚未确认部署，历史/未修复版本须以底层股票 Transfer 与余额对账，不能仅凭汇总事件入账。
+**事件金额语义（已修复）：**`TSVLPManagerLib` 通过 Factory 将 W 解析为 U，在交付前后观察同一 U；报价币仍观察 Q。`lpReceivedAmount0/1`、`issuerReceivedAmount0/1` 表示对应接收人的实际结算代币 raw 余额增量，不是股数 WAD；`token0/token1` 仍保持 PoolKey 的 W/Q 地址，事件签名不变。发行方兜底收到股票时记入 issuer 字段；TSV 路径的 issuer 金额为零。旧实现的股票汇总金额可能为零，历史事件不会回填，历史数据仍须结合底层股票 Transfer 与余额对账。
 
 
 ### 7\. LP 交易提交
@@ -791,7 +791,7 @@ const swapInterface = new Interface(swapRouterAbi);
 |`swapExactInputFromContract(request, participant)`|调用 Router 的已授权合约先持有输入代币，并授权 **Swap Router 代理地址**；Router 从该合约拉取输入，`participant` 只接受权限检查|同一调用合约；外部 Adapter 可再交付给 `to`|
 |`swapExactInputFromContractDirect(request, payer, participant, recipient)`|输入 SET：先由 AA wallet 将 SET 存入 PermissionsAdapter，`payer = address(0)`，Router 不再拉 SET；输入报价代币：`payer = msg.sender`，调用 Adapter 持币并授权 **Swap Router 代理地址**，Router 在结算时直接划给 PoolManager|SET 输出：`recipient == participant`，设为接收 SET 的 AA wallet；报价币输出：允许 `participant` 或调用 Adapter，且报价币须当前 registered|
 
-三个入口在 Router 内都不调用 TokenApprove；若外部 DexRouter 通过 TokenApprove 从用户收取输入，那是 Router 之前的上游步骤，不能替代调用者或 Adapter 对 Router 的授权。Router 检查实际权限主体的 SBT；直结算入口仅在股票输出时强制 `recipient == participant`；报价币输出可给 participant 或调用 Adapter，且报价币须当前 registered。输出 SET 时，底层代币的转账合规检查仍可能拒绝接收人。
+本接入不需要 TokenApprove。三个入口按上表执行直接付款授权或原子预存；调用者或 Adapter 对 Router 的必要授权仍须完成。Router 检查实际权限主体的 SBT；直结算入口仅在股票输出时强制 `recipient == participant`；报价币输出可给 participant 或调用 Adapter，且报价币须当前 registered。输出 SET 时，底层代币的转账合规检查仍可能拒绝接收人。
 
 查询和 Token 授权 ABI：
 
@@ -819,7 +819,7 @@ const swapLegalShareAdapterAbi = [
 ];
 ```
 
-对池 currency 调用 `router.settlementCurrency(currency)` 可取得实际结算代币地址：股票侧返回底层股票代币地址，报价侧返回报价代币自身。预付款入口要求 Adapter 先收到实际输入代币，再由 Adapter 对 Router 授权；若外部 DexRouter 要求用户授权 TokenApprove，该上游授权不能替代 Adapter 对 Router 的授权。
+对池 currency 调用 `router.settlementCurrency(currency)` 可取得实际结算代币地址：股票侧返回底层股票代币地址，报价侧返回报价代币自身。预付款入口要求 Adapter 先收到实际输入代币，再由 Adapter 对 Router 授权。
 
 #### Swap 资金流（SET）
 
@@ -1252,7 +1252,7 @@ function buildMultiplierSyncUpdates(input) {
 
 This guide follows the structure of Uniswap's [Managing Liquidity](https://developers.uniswap.org/docs/protocols/v4/guides/managing-liquidity/overview) guide: prerequisites, ABI, encoding, and submission\. **LP operations and swaps use different entry points and are described separately below\.**
 
-> Interfaces follow `main@7f7e23c1` source and explicitly identified fixes on this branch. Addresses below come from the integration owner's designated test-address document; they do not prove this branch is deployed. Use proxy addresses for business calls. Examples use ethers.js v6; integrators supply quotes and signed authorizations. Verify the target implementation and matching build artifacts before release.
+> Interfaces follow repository source and the corresponding release build. The unwind event-amount issue is fixed. Addresses below come from the integration owner's designated test-address document. Use proxy addresses for business calls. Examples use ethers.js v6; integrators supply quotes and signed authorizations.
 
 This document uses three distinct terms: the **PermissionsAdapter token** is the stock\-side asset held in the pool; the **underlying stock token** is the stock asset that users actually hold; and the **quote token** is the other asset in the pool\. PermissionsAdapter tokens and underlying stock tokens have a 1:1 relationship in their smallest units\. All examples below apply to ERC\-20 pools, with transaction `value = 0`\.
 
@@ -1287,8 +1287,8 @@ This document uses three distinct terms: the **PermissionsAdapter token** is the
 - Address source: [TSV contract addresses (mainnet testing / staging)](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd), body reviewed on **2026-10-21**. This is X Layer **mainnet testing / staging**, not testnet. Deployment metadata is copied from that document, not independently verified on-chain in this revision.
 - Use the designated Factory rather than silently substituting an older repository deployment record. Before use, read `registry.permissionsAdapterFactory()`, Router/LP Manager `PERMISSIONS_ADAPTER_FACTORY()`, and their PoolManager bindings. The external AA entry and the TSV manifest's SmartWalletFactory are listed separately; do not assume interchangeability.
 - **ABI artifacts lag source**: current source uses `applySecurityStatus(bytes32,uint8,bool,bytes32)` and a top-level `getSecurity().pauseMode`. At the review baseline, `docs/artifacts/TSVRegistryV1.abi.json` still has the three-argument setter and nested `securityState.pauseMode`; the Registry interface artifact also retains the old return shape. Do not mix versions. Regenerate ABIs from the target release build and verify proxy implementation, deployment block, compiler settings and linked libraries. This documentation revision does not regenerate artifacts.
-- **Deployment of the unwind event-amount fix is unconfirmed**. This branch observes actual settlement-token balances; see Unwind below. An unchanged proxy address does not prove the fix is active. Historical logs are not backfilled.
-- Never copy private keys, signing keys or credentials into the repository. Only non-sensitive test configuration is listed below. Independently confirm TokenApprove; do not substitute the DexRouter address.
+- **Unwind event amounts are fixed**: stock receipts use underlying-token U balance deltas; quote receipts use Q balance deltas. See Unwind below. Event signatures are unchanged; historical logs are not backfilled.
+- Never copy private keys, signing keys or credentials into the repository. Only non-sensitive test configuration is listed below. This integration does not require TokenApprove; paying callers must still approve LP Manager or Swap Router directly as required by the selected entry point.
 
 ```json
 {
@@ -1725,7 +1725,7 @@ const lpInterface = new Interface(lpAbi);
 |`multicall(bytes[])`|Executes multiple LP Manager calls from the same caller; any failure reverts the entire transaction|`bytes[]` containing the return data of each subcall|
 |`modifyLiquiditiesWithoutUnlock(bytes,bytes[])`|Only for composed calls within an existing PoolManager unlock context; neither performs an unlock nor checks a deadline|None|
 
-Use `modifyLiquidities` for ordinary transactions; do not call `unlockCallback` directly\. Proxy initialization, upgrades, subscriptions, and Permit2 forwarding are outside the scope of this guide\. Ordinary LP payments require direct approval to the LP Manager proxy; Permit2 / TokenApprove approval does not replace it\.
+Use `modifyLiquidities` for ordinary transactions; do not call `unlockCallback` directly\. Proxy initialization, upgrades, subscriptions, and Permit2 forwarding are outside the scope of this guide\. Ordinary LP payments require direct approval to the LP Manager proxy; Permit2 approval does not replace it\.
 
 ### 2\. Prerequisites and Approvals
 
@@ -1961,7 +1961,7 @@ function buildTsvUnwindTransaction(input) {
 
 Issuer\-initiated unwinds emit `IssuerPositionUnwound`, with `CurrencyUnwound` identifying the final recipient of each nonzero asset\. TSV\-administrator unwinds emit `TsvPositionUnwound` and deliver assets directly to the LP without `CurrencyUnwound`\. The aggregate events' `token0/token1` are pool currency addresses; confirm actual stock delivery from underlying stock token `Transfer` logs and balances\. In this version, `withdrawClaim(address,uint256,address)` is disabled, and ordinary LP entry points cannot submit `MINT_6909` or `UNWIND_WITH_FALLBACK`\.
 
-**Event-amount version note:** implementations without this fix measure recipient W balances, so aggregate stock amounts can be zero despite successful U delivery. This branch's `TSVLPManagerLib` resolves W to U through the Factory and observes the same U before and after delivery; quotes continue to observe Q. After the fix, `lpReceivedAmount0/1` and `issuerReceivedAmount0/1` represent actual settlement-token raw balance increases, not legal-share WAD. `token0/token1` retain PoolKey W/Q addresses and event signatures are unchanged. Issuer fallback stock receipts populate issuer fields; TSV-path issuer amounts remain zero. Deployment is unconfirmed. Reconcile historical/unfixed releases against underlying transfers and balances, not aggregate events alone.
+**Event-amount semantics (fixed):** `TSVLPManagerLib` resolves W to U through the Factory and observes the same U before and after delivery; quotes continue to observe Q. `lpReceivedAmount0/1` and `issuerReceivedAmount0/1` represent actual settlement-token raw balance increases, not legal-share WAD. `token0/token1` retain PoolKey W/Q addresses and event signatures are unchanged. Issuer fallback stock receipts populate issuer fields; TSV-path issuer amounts remain zero. Old implementations may report zero stock amounts; historical logs are not backfilled and must be reconciled against underlying transfers and balances.
 
 
 ### 7\. Submitting LP Transactions
@@ -2035,7 +2035,7 @@ The three entry points differ in who pays and where Router delivers output:
 |`swapExactInputFromContract(request, participant)`|The approved calling contract already holds the input token and approves the **Swap Router proxy address**\. Router pulls input from that contract; `participant` is checked only for permission|The same calling contract; an external adapter may forward output to `to`|
 |`swapExactInputFromContractDirect(request, payer, participant, recipient)`|SET input: the AA wallet deposits SET in PermissionsAdapter first, `payer = address(0)`, and Router does not pull SET again\. Quote\-token input: `payer = msg.sender`; the calling adapter holds the tokens and approves the **Swap Router proxy address**, which transfers them directly to PoolManager during settlement|SET output: `recipient == participant`, the receiving AA wallet; quote output: participant or calling Adapter, with the quote currently registered|
 
-None of the three entry points calls TokenApprove inside Router\. If the external DexRouter uses TokenApprove to collect a user's input, that upstream step occurs before Router execution and does not replace the caller's or adapter's approval to Router\. Router checks the actual permission subject's SBT; the direct-settlement entry point requires `recipient == participant` for stock output only; registered quote output may also go to the calling Adapter. Delivery of SET can still fail the underlying token's transfer compliance checks\.
+This integration does not require TokenApprove. Follow the direct payment approvals or atomic prefunding requirements in the table above; required caller or adapter approvals to Router still apply. Router checks the actual permission subject's SBT; the direct-settlement entry point requires `recipient == participant` for stock output only; registered quote output may also go to the calling Adapter. Delivery of SET can still fail the underlying token's transfer compliance checks\.
 
 Query and token\-approval ABIs:
 
@@ -2063,7 +2063,7 @@ const swapLegalShareAdapterAbi = [
 ];
 ```
 
-Call `router.settlementCurrency(currency)` for a pool currency to obtain the actual settlement token address\. For the stock side, it returns the underlying stock token address; for the quote side, it returns the quote token itself\. The prefunded entry point requires the adapter to receive the actual input token first and approve Router\. If the external DexRouter requires the user to approve TokenApprove, that upstream approval does not replace the adapter's approval to Router\.
+Call `router.settlementCurrency(currency)` for a pool currency to obtain the actual settlement token address\. For the stock side, it returns the underlying stock token address; for the quote side, it returns the quote token itself\. The prefunded entry point requires the adapter to receive the actual input token first and approve Router\.
 
 #### Swap Fund Flow \(SET\)
 
