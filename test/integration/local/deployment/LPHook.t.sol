@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {PoolManager} from "lib/v4-periphery/lib/v4-core/src/PoolManager.sol";
 import {
     TSVLPManagerV1,
@@ -198,6 +199,98 @@ contract LPHookTest is Test {
             block.timestamp
         );
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);
+    }
+
+    function testTsvUnwindSummaryReportsUnderlyingReceivedByLp() public {
+        _assertUnwindSummary(true, false, false);
+    }
+
+    function testIssuerUnwindSummaryReportsUnderlyingReceivedByLp() public {
+        _assertUnwindSummary(false, false, false);
+    }
+
+    function testIssuerUnwindSummaryReportsUnderlyingReceivedByIssuer() public {
+        _assertUnwindSummary(false, true, false);
+    }
+
+    function testTsvEmptyUnwindSummaryReportsZeroReceived() public {
+        _assertUnwindSummary(true, false, true);
+    }
+
+    function testIssuerEmptyUnwindSummaryReportsZeroReceived() public {
+        _assertUnwindSummary(false, false, true);
+    }
+
+    /// @dev Uses real W unwrapping, not a mock that credits W balances to the recipient.
+    function _assertUnwindSummary(bool tsv, bool fallbackToIssuer, bool empty) private {
+        uint256 tokenId = _mint("");
+        if (empty) _change(tokenId, Actions.DECREASE_LIQUIDITY, LIQUIDITY, "");
+        _authorizeExit();
+        if (fallbackToIssuer) underlying.setBlockedRecipient(alice);
+
+        // Existing balances must not be included in this position's received amounts.
+        underlying.mint(address(this), 123);
+        quote.mint(address(this), 456);
+        uint256 lpStockBefore = underlying.balanceOf(alice);
+        uint256 issuerStockBefore = underlying.balanceOf(address(this));
+        uint256 lpQuoteBefore = quote.balanceOf(alice);
+        uint256 issuerQuoteBefore = quote.balanceOf(address(this));
+        assertEq(stock.balanceOf(alice), 0);
+        assertEq(stock.balanceOf(address(this)), 0);
+
+        vm.recordLogs();
+        if (tsv) lp.unwindPositionByTsv(tokenId, 0, 0, "");
+        else lp.unwindPosition(tokenId, 0, 0, "");
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 eventId = tsv
+            ? keccak256("TsvPositionUnwound(uint256,address,address,address,address,uint256,uint256,uint256,uint256)")
+            : keccak256("IssuerPositionUnwound(uint256,address,address,address,address,uint256,uint256,uint256,uint256)");
+        uint256 matched;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != address(lp) || logs[i].topics.length == 0 || logs[i].topics[0] != eventId) {
+                continue;
+            }
+            ++matched;
+            assertEq(logs[i].topics.length, 4);
+            assertEq(logs[i].topics[1], bytes32(tokenId));
+            assertEq(logs[i].topics[2], bytes32(uint256(uint160(alice))));
+            assertEq(logs[i].topics[3], bytes32(uint256(uint160(address(this)))));
+            (
+                address token0,
+                address token1,
+                uint256 lpAmount0,
+                uint256 issuerAmount0,
+                uint256 lpAmount1,
+                uint256 issuerAmount1
+            ) = abi.decode(logs[i].data, (address, address, uint256, uint256, uint256, uint256));
+            // Event identity stays in pool-currency order; amounts track actual U/Q balances.
+            assertEq(token0, Currency.unwrap(key.currency0));
+            assertEq(token1, Currency.unwrap(key.currency1));
+            bool stockIs0 = token0 == address(stock);
+            assertEq(stockIs0 ? lpAmount0 : lpAmount1, underlying.balanceOf(alice) - lpStockBefore);
+            assertEq(
+                stockIs0 ? issuerAmount0 : issuerAmount1, underlying.balanceOf(address(this)) - issuerStockBefore
+            );
+            assertEq(stockIs0 ? lpAmount1 : lpAmount0, quote.balanceOf(alice) - lpQuoteBefore);
+            assertEq(
+                stockIs0 ? issuerAmount1 : issuerAmount0, quote.balanceOf(address(this)) - issuerQuoteBefore
+            );
+            if (empty) {
+                assertEq(lpAmount0 + issuerAmount0 + lpAmount1 + issuerAmount1, 0);
+            } else {
+                uint256 stockReceived = fallbackToIssuer
+                    ? (stockIs0 ? issuerAmount0 : issuerAmount1)
+                    : (stockIs0 ? lpAmount0 : lpAmount1);
+                assertGt(stockReceived, 0);
+                assertGt(stockIs0 ? lpAmount1 : lpAmount0, 0);
+            }
+        }
+        assertEq(matched, 1);
+        assertEq(stock.balanceOf(alice), 0);
+        assertEq(stock.balanceOf(address(this)), 0);
+        assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);
+        vm.expectRevert(bytes("NOT_MINTED"));
+        lp.ownerOf(tokenId);
     }
 
     function testLPAndUnwindFollowRegistryGateForLifecyclePause() public {

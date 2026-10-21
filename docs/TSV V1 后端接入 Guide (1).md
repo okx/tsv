@@ -4,7 +4,7 @@
 
 本指南按 Uniswap [Managing Liquidity](https://developers.uniswap.org/docs/protocols/v4/guides/managing-liquidity/overview) 的方式组织：前置条件、ABI、编码、提交。**LP 与 Swap 的调用入口不同，以下分别说明。**
 
-> 基于下方 X Layer 部署清单及 `docs/artifacts/` 中对应的合约 ABI。所有业务调用使用代理地址，ABI 须与目标链部署版本一致。示例使用 ethers\.js v6，编码函数生成 calldata；提交示例复用业务方提供的 Signer。报价及签名授权由接入方负责。
+> 本文接口以 `main@7f7e23c1` 源码及本分支明确标注的修复为依据；下方地址来自接入方指定的测试地址文档，不证明链上已部署本分支实现。所有业务调用使用代理地址。示例使用 ethers.js v6；报价及签名授权由接入方负责。发布前必须核对目标链实现和对应构建产物。
 
 本文使用三个完整名称：**PermissionsAdapter 代币**是池内股票侧资产；**底层股票代币**是用户实际持有的股票资产；**报价代币**是池内另一侧资产。PermissionsAdapter 代币与底层股票代币的最小单位数量为 1:1。以下均针对 ERC\-20 池，交易 `value = 0`。
 
@@ -35,6 +35,39 @@
 可以申请仓库阅读权限：https://gitlab\.okg\.com/web3\-dex/tsv
 
 [TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd?from=vcFollow)
+
+### 版本与测试环境边界
+
+- 地址来源：[TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd)，正文核对日期 **2026-10-21**。这是 X Layer **主网测试/预发**，不是测试网；`deploymentStatus` 等元数据为来源文档记录，不代表本次链上验证结果。
+- 本文沿用该文档指定的 Factory；仓库旧部署记录可能属于其他阶段。使用前回读 `registry.permissionsAdapterFactory()`、Router/LP Manager 的 `PERMISSIONS_ADAPTER_FACTORY()` 和 PoolManager 绑定，不能混用不同环境。AA 业务入口与 TSV 部署清单中的 SmartWalletFactory 分列如下，不假定两者可互换。
+- **ABI artifacts 存在版本滞后**：当前源码为 `applySecurityStatus(bytes32,uint8,bool,bytes32)`，`getSecurity` 返回顶层 `pauseMode`；审阅基准的 `docs/artifacts/TSVRegistryV1.abi.json` 仍为三参数 setter 和嵌套 `securityState.pauseMode`，Registry 接口 artifact 也保留旧返回结构。不要混用。应从目标发布构建重新导出 ABI，并核对代理实现、部署区块、编译参数及链接库地址；本次文档修订未重新生成 artifacts。
+- **强退事件金额修复尚未确认部署**：本分支改为观察实际结算代币余额，见 Unwind 小节。不能因为代理地址相同就认定修复已生效；历史事件不会被修复回填。
+- 不从地址文档复制私钥、签名密钥或其他凭证到仓库。以下仅列非敏感测试配置；TokenApprove 地址仍须独立确认，不可用 DexRouter 地址代替。
+
+```json
+{
+  "external": {
+    "DexRouter": "0xF473911594c987848b09437D39f3fd6A4c74cf5C",
+    "TSVAdapter": "0x30C18593fADE94859D03776AE9A00C5b16A6f27C",
+    "AA_SmartWalletFactory": "0xDd3FEa01cD550C9EFfC893f346690b9A649f35EF",
+    "AA_SmartWallet": "0xe40ccB2D94975c51bff0C004eFDfd9B3a5796fA4",
+    "SBT": "0x053Ecef8cCB8844322BeE86290Dae016b9843b6D"
+  },
+  "tokens": {
+    "USDT0": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    "USDC": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+    "MockUSDC": "0xb0A8640210A0dA1a59d95Bd51E39b3FA488c244e",
+    "VOLOROSTOCK": {
+      "underlying": "0x5eA384EA0eDefAF7317999328949798EF05A96A3",
+      "permissionsAdapter": "0x811d7F406f11D2252917Db84EfCF0de52d350FBF"
+    },
+    "RWT": {
+      "underlying": "0x28Ccb07e804c6541634C07f1809f7Eaae3B523B0",
+      "permissionsAdapter": "0xf6bb667b55d0cacdb9d2bb9d75d78b4ebe1f1b6c"
+    }
+  }
+}
+```
 
 ## 0、系统中的 Token 与准入
 
@@ -67,7 +100,7 @@ PermissionsAdapter 已收到 `n` 个可用的底层股票代币最小单位后�
 #### 前置条件
 
 - 已连接目标网络，并配置对应的 Registry 代理地址。
-- 事件追踪还需要 PoolManager 地址和可由 RPC 支持的区块范围。PoolManager 地址可从目标链 Registry 代理的 `permissionedPoolManager()` Getter 获取；也可从该链部署清单的 `dependencies.poolManager` 读取，并核对 `chainId` 与 Registry 地址。Getter 查询需要已知 `poolId`。
+- 事件追踪还需要 PoolManager 地址和可由 RPC 支持的区块范围。PoolManager 地址可从目标链 Registry 代理的 `permissionedPoolManager()` Getter 获取；也可从该链部署清单的 `dependencies.poolManager` 读取，并核对 `chainId` 与 Registry 地址。`permissionedPoolManager()` 不需要 poolId；下方按池查询资产的 Getter 示例需要已知 `poolId`。
 
 #### 方式一：事件追踪
 
@@ -229,7 +262,7 @@ const tsvIndexEventAbi = [
 
 #### 方式一：事件追踪
 
-`applySecurityStatus(...)` 成功执行后，Registry 发出 `SecurityStatusChanged(securityId, oldPauseMode, newPauseMode)`。事件提供证券 ID 和变更前后的完整状态码，但不包含 `poolId`。用 `registry.getSecurity(securityId).poolIds` 取得该证券关联的池 ID；暂停位保存在证券记录而非单个池记录中，因此该 `securityId` 下所有 `poolIds` 共用同一 `pauseMode`，这是证券级暂停 / 恢复，不是单池操作。`poolIds` 是累积列表，可能包含已退市池；各池的有效 `isTradable` / `isLPAllowed` 结果仍可能因池生命周期或全局紧急暂停等其他条件不同。
+`applySecurityStatus(...)` 成功执行后，Registry 发出 `SecurityStatusChanged(securityId, oldPauseMode, newPauseMode)`。事件提供证券 ID 和变更前后的完整状态码，但不包含 `poolId`。用 `registry.getSecurity(securityId).poolIds` 取得该证券关联的池 ID；暂停位保存在证券记录而非单个池记录中，因此该 `securityId` 下所有 `poolIds` 共用同一 `pauseMode`，这是证券级暂停 / 恢复，不是单池操作。`poolIds` 是累积列表，可能包含已退市池；各池的有效 `isTradable` / `isLPAllowed` 结果仍可能因池生命周期或池级条件不同；全局紧急暂停须另读 `isPaused()` 合并。
 
 协议级全局紧急暂停是另一项独立状态：监听 Registry 的 `EmergencyPauseChanged(enabled, operator, reasonCode)` 追踪它；它不属于某个 `securityId`，也不会修改任何证券的 `pauseMode`。
 
@@ -256,7 +289,7 @@ function decodePauseMode(value, globalPaused = false) {
 registry.on("SecurityStatusChanged", async (securityId, _oldPauseMode, newPauseMode, event) => {
   const [security, globalPaused] = await Promise.all([
     registry.getSecurity(securityId, { blockTag: event.log.blockNumber }),
-    registry.isPaused(),
+    registry.isPaused({ blockTag: event.log.blockNumber }),
   ]);
   const pauseStatus = decodePauseMode(newPauseMode, globalPaused);
   console.log({
@@ -281,7 +314,7 @@ registry.on("EmergencyPauseChanged", (enabled, operator, reasonCode, event) => {
 
 ##### 情况一：已知 `poolId`
 
-调用 `getPool(poolId)` 确认池已注册后，直接调用 `isTradable(poolId)` / `isLPAllowed(poolId)` 查询该池当前是否允许 Swap / 普通 LP，并以这两个池级 Getter 的结果生成最终 `pauseStatus`。它们已反映池生命周期、全局暂停等条件，无需再用证券级 `pauseMode` 覆盖。
+调用 `getPool(poolId)` 确认池已注册后，在同一区块读取 `isPaused()`、`isTradable(poolId)` 和 `isLPAllowed(poolId)`。当前源码的两个池级 Getter 只合并池生命周期和证券暂停位，**不包含全局紧急暂停**；必须分别计算 `!globalPaused && tradable` / `!globalPaused && lpAllowed`。这只是协议状态门控，不代表身份、发行方、余额、授权、倍率和额度检查都已通过。
 
 ```JavaScript
 import { Contract, ZeroHash } from "ethers";
@@ -290,24 +323,28 @@ const registry = new Contract(registryAddress, [
   "function getPool(bytes32) view returns (tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,bytes32 securityId,uint8 tierId,uint8 lifecycle,uint256 tickCount,uint256 poolSecurityIndex))",
   "function isTradable(bytes32 poolId) view returns (bool)",
   "function isLPAllowed(bytes32 poolId) view returns (bool)",
+  "function isPaused() view returns (bool)",
 ], provider);
 
-const pool = await registry.getPool(poolId);
+const blockTag = await provider.getBlockNumber();
+const atBlock = { blockTag };
+const pool = await registry.getPool(poolId, atBlock);
 if (pool.securityId === ZeroHash) throw new Error("Unknown TSV pool");
-const [swapAllowed, lpAllowed] = await Promise.all([
-  registry.isTradable(poolId),
-  registry.isLPAllowed(poolId),
+const [globalPaused, tradable, lpAllowed] = await Promise.all([
+  registry.isPaused(atBlock),
+  registry.isTradable(poolId, atBlock),
+  registry.isLPAllowed(poolId, atBlock),
 ]);
 const pauseStatus = {
-  swap: swapAllowed ? "UNPAUSED" : "PAUSED",
-  addRemoveLP: lpAllowed ? "UNPAUSED" : "PAUSED",
+  swap: !globalPaused && tradable ? "UNPAUSED" : "PAUSED",
+  addRemoveLP: !globalPaused && lpAllowed ? "UNPAUSED" : "PAUSED",
 };
 console.log(pauseStatus);
 ```
 
 ##### 情况二：已知 `securityId`
 
-直接调用 `getSecurity(securityId)` 读取证券级 `pauseMode` 和该证券关联的全部 `poolIds`。此场景最终以 `decodePauseMode(pauseMode, globalPaused)` 得到的证券级 `pauseStatus` 为准；同一证券下的所有 `poolIds` 共用该证券级暂停状态。若要判断某个池当前是否实际允许 Swap / 普通 LP，则以该池的 `isTradable(poolId)` / `isLPAllowed(poolId)` 返回值为准，它们还反映池生命周期等池级条件。
+直接调用 `getSecurity(securityId)` 读取证券级 `pauseMode` 和该证券关联的全部 `poolIds`。此场景最终以 `decodePauseMode(pauseMode, globalPaused)` 得到的证券级 `pauseStatus` 为准；同一证券下的所有 `poolIds` 共用该证券级暂停状态。若要判断某个池当前是否实际允许 Swap / 普通 LP，则分别合并 `!registry.isPaused()` 与该池的 `isTradable(poolId)` / `isLPAllowed(poolId)` 返回值，它们还反映池生命周期等池级条件。
 
 ```JavaScript
 import { Contract } from "ethers";
@@ -327,8 +364,9 @@ function decodePauseMode(value, globalPaused = false) {
   };
 }
 
-const security = await registry.getSecurity(securityId);
-const globalPaused = await registry.isPaused();
+const atBlock = { blockTag: await provider.getBlockNumber() };
+const security = await registry.getSecurity(securityId, atBlock);
+const globalPaused = await registry.isPaused(atBlock);
 const pauseStatus = decodePauseMode(security.pauseMode, globalPaused);
 console.log({
   securityId,
@@ -340,7 +378,7 @@ console.log({
 
 ##### 情况三：已知 CET 地址
 
-CET 是发行方底层股票代币地址。先调用 `getUnderlying(cetAddress)` 取其 `securityId`，再调用 `getSecurity(securityId)` 查询共享的暂停状态和关联池。此场景最终以 `decodePauseMode(pauseMode, globalPaused)` 得到的证券级 `pauseStatus` 为准；该证券下的所有 `poolIds` 共用此证券级暂停状态。若要判断某个池当前是否实际允许 Swap / 普通 LP，则以该池的 `isTradable(poolId)` / `isLPAllowed(poolId)` 返回值为准。不要把池内 WCET 地址传给此路径。
+CET 是发行方底层股票代币地址。先调用 `getUnderlying(cetAddress)` 取其 `securityId`，再调用 `getSecurity(securityId)` 查询共享的暂停状态和关联池。此场景最终以 `decodePauseMode(pauseMode, globalPaused)` 得到的证券级 `pauseStatus` 为准；该证券下的所有 `poolIds` 共用此证券级暂停状态。若要判断某个池当前是否实际允许 Swap / 普通 LP，则分别合并 `!registry.isPaused()` 与该池的 `isTradable(poolId)` / `isLPAllowed(poolId)` 返回值。不要把池内 WCET 地址传给此路径。
 
 ```JavaScript
 import { Contract, ZeroHash } from "ethers";
@@ -361,10 +399,11 @@ function decodePauseMode(value, globalPaused = false) {
   };
 }
 
-const underlying = await registry.getUnderlying(cetAddress);
+const atBlock = { blockTag: await provider.getBlockNumber() };
+const underlying = await registry.getUnderlying(cetAddress, atBlock);
 if (underlying.securityId === ZeroHash) throw new Error("Unknown CET address");
-const security = await registry.getSecurity(underlying.securityId);
-const globalPaused = await registry.isPaused();
+const security = await registry.getSecurity(underlying.securityId, atBlock);
+const globalPaused = await registry.isPaused(atBlock);
 const pauseStatus = decodePauseMode(security.pauseMode, globalPaused);
 console.log({
   cetAddress,
@@ -383,9 +422,9 @@ console.log({
 - `ADD_REMOVE_LP_PAUSED`（`10`）：设置 LP 位，`isLPAllowed(poolId)` 会因该证券暂停位而拒绝普通 LP 仓位操作；不设置 TRADE 暂停位。
 - `TRADE_AND_ADD_REMOVE_LP_PAUSED`（`11`）：两个暂停位都设置，Swap 和普通 LP 仓位操作都会被证券级暂停位拦截。
 
-`pauseMode` 表示证券级暂停位，不等同于单池最终是否可操作；池生命周期、全局紧急暂停等其他条件仍可能影响结果。池级判断以 `isTradable` / `isLPAllowed` 的返回值为准。
+`pauseMode` 表示证券级暂停位，不等同于单池最终是否可操作；池生命周期、全局紧急暂停等其他条件仍可能影响结果。池级状态判断须将 `isTradable` / `isLPAllowed` 与 `!isPaused()` 合并。
 
-按位判断当前证券暂停状态：`tradePaused = (pauseMode & 0b01) != 0`，`addRemoveLpPaused = (pauseMode & 0b10) != 0`；只有 `pauseMode == 0` 时，这两个证券级暂停位都未暂停。全局暂停单独读取 `globalPaused = registry.isPaused()`，是布尔值而不是 `pauseMode` 的第三个位。合并两种暂停来源时，对 Swap 和普通 LP 操作分别使用逻辑或：`swapPaused = globalPaused || tradePaused`，`addRemoveLpPaused = globalPaused || addRemoveLpPaused`；未暂停则分别是 `!globalPaused && !tradePaused` 和 `!globalPaused && !addRemoveLpPaused`。示例中的 `decodePauseMode(pauseMode, globalPaused)` 将这些结果合并成一个 `pauseStatus`，其中分别标出 `swap` 和 `addRemoveLP` 当前是 `PAUSED` 还是 `UNPAUSED`。这些公式只表示暂停门控；池能否实际操作仍以 `isTradable(poolId)` / `isLPAllowed(poolId)` 为准。
+按位判断当前证券暂停状态：`tradePaused = (pauseMode & 0b01) != 0`，`addRemoveLpPaused = (pauseMode & 0b10) != 0`；只有 `pauseMode == 0` 时，这两个证券级暂停位都未暂停。全局暂停单独读取 `globalPaused = registry.isPaused()`，是布尔值而不是 `pauseMode` 的第三个位。合并两种暂停来源时，对 Swap 和普通 LP 操作分别使用逻辑或：`swapPaused = globalPaused || tradePaused`，`addRemoveLpPaused = globalPaused || addRemoveLpPaused`；未暂停则分别是 `!globalPaused && !tradePaused` 和 `!globalPaused && !addRemoveLpPaused`。示例中的 `decodePauseMode(pauseMode, globalPaused)` 将这些结果合并成一个 `pauseStatus`，其中分别标出 `swap` 和 `addRemoveLP` 当前是 `PAUSED` 还是 `UNPAUSED`。这些公式只表示暂停门控；池级状态仍须将 `isTradable(poolId)` / `isLPAllowed(poolId)` 与 `!isPaused()` 合并，并另行校验账户权限及交易条件。
 
 全局状态不在这四个 `pauseMode` 标签内：`isPaused() == true` 表示 `GLOBAL_PAUSED`，协议级紧急暂停会阻止全局普通 Swap / LP 操作；`false` 表示 `GLOBAL_UNPAUSED`。它与任意证券的 `pauseMode` 可以同时存在，因此后端应分别记录全局布尔值和证券级两位掩码。通过 `setEmergencyPauseEnable(enabled, reasonCode)` 修改；`enabled=true` 需要 `EMERGENCY_PAUSER_ROLE`，`false` 需要 `EMERGENCY_RESUMER_ROLE`，且 `reasonCode` 必须非零。
 
@@ -489,7 +528,7 @@ const lpLegalShareAdapterAbi = [
 ];
 ```
 
-Registry 的顺序是 `isSbtAllowed(permission, account)`，PermissionsAdapter 合约的顺序是 `isAllowed(account, permission)`；permission 的 ABI 类型为 **`bytes2`**。`0x0002` 为普通 LP 权限；`0x0004` 仅用于 PermissionsAdapter 合约的强退资格查询。
+Registry 的顺序是 `isSbtAllowed(permission, account)`，PermissionsAdapter 合约的顺序是 `isAllowed(account, permission)`；permission 的 ABI 类型为 **`bytes2`**。`0x0002` 为普通 LP 权限；`0x8000` 仅用于 PermissionsAdapter 合约的强退资格查询。
 
 ### 3\. 公共参数
 
@@ -646,13 +685,13 @@ function buildInitializePoolTransaction(lpManagerAddress, poolKey, sqrtPriceX96)
 |前置条件 / 行为|`unwindPosition`|`unwindPositionByTsv`|
 |---|---|---|
 |调用者|池内任一已验证 PermissionsAdapter 合约的 `owner()`|Registry 的 `FORCE_EXIT_ADMIN_ROLE` 持有者|
-|仓位资格|NFT 存在；至少一侧已验证 PermissionsAdapter 合约的 `isAllowed(lp, 0x0004)` 为 true|同左|
+|仓位资格|NFT 存在；至少一侧已验证 PermissionsAdapter 合约的 `isAllowed(lp, 0x8000)` 为 true|NFT 存在；当前源码不检查 `UNWIND_ALLOWED`，由 `FORCE_EXIT_ADMIN_ROLE` 授权|
 |SBT / NFT 授权|不要求 LP 或管理员通过普通 LP SBT 校验，也无需 LP 预先授权 NFT|同左|
 |暂停与池准入|全局未暂停；当前版本强退绕过普通 `isLPAllowed`，执行 Hook 时仍检查已注册池及 Hook 身份|同左|
 |接收人|每种资产先尝试 LP；失败后仅权限资产尝试该 PermissionsAdapter 合约 owner；仍失败则整笔回滚|两种资产直接发给 LP；任一交付失败则整笔回滚|
 |结果|销毁 NFT；不会向用户交付无法赎回的 claim 作为兜底|销毁 NFT|
 
-参数均为 `(uint256 tokenId,uint128 amount0Min,uint128 amount1Min,bytes hookData)`；没有 `recipient` 和 `deadline`。`hookData` 规则与普通 LP 相同。**SBT 被撤销不自动等于允许 unwind**，必须实际查询 PermissionsAdapter 合约的 `UNWIND_ALLOWED = 0x0004`。
+参数均为 `(uint256 tokenId,uint128 amount0Min,uint128 amount1Min,bytes hookData)`；没有 `recipient` 和 `deadline`。`hookData` 规则与普通 LP 相同。**SBT 被撤销不自动等于允许发行方 unwind**；发行方路径须查询 PermissionsAdapter 的 `UNWIND_ALLOWED = 0x8000`。TSV 管理员路径不执行此资格检查。该常量来自 `PermissionFlags.sol`，不是 Registry 普通 LP/SWAP 的身份位。
 
 ```JavaScript
 function buildIssuerUnwindTransaction(input) {
@@ -677,6 +716,9 @@ function buildTsvUnwindTransaction(input) {
 ```
 
 发行方强退发出 `IssuerPositionUnwound`，每种非零资产的最终接收人由 `CurrencyUnwound` 给出；TSV 管理员强退发出 `TsvPositionUnwound`，资产直接交付 LP，不走 `CurrencyUnwound` 路径。汇总事件中的 `token0/token1` 是池内 currency 地址；股票侧实际到账应核对底层股票代币的 `Transfer` 和余额。当前版本 `withdrawClaim(address,uint256,address)` 已禁用；普通 LP 入口不能提交 `MINT_6909` 或 `UNWIND_WITH_FALLBACK`。
+
+**事件金额版本说明：**未包含本次修复的实现使用池内 W 的接收人余额差，股票实际已到账时汇总字段仍可能为零。本分支 `TSVLPManagerLib` 修复通过 Factory 将 W 解析为 U，在交付前后观察同一 U；报价币仍观察 Q。修复后的 `lpReceivedAmount0/1`、`issuerReceivedAmount0/1` 表示对应接收人的实际结算代币 raw 余额增量，不是股数 WAD；`token0/token1` 仍保持 PoolKey 的 W/Q 地址，事件签名不变。发行方兜底收到股票时记入 issuer 字段；TSV 路径的 issuer 金额为零。此修复尚未确认部署，历史/未修复版本须以底层股票 Transfer 与余额对账，不能仅凭汇总事件入账。
+
 
 ### 7\. LP 交易提交
 
@@ -728,7 +770,7 @@ const swapRouterAbi = [
 const swapInterface = new Interface(swapRouterAbi);
 ```
 
-三个 Swap 入口均为 nonpayable，返回 `(uint256 actualIn,uint256 actualOut)`；内部自行组装 Swap、Settle、Take，后端不传 LP `actions` 或 `unlockData`。`swapExactInput(request)` 由调用者自己付款、接收输出并接受身份检查，无需 Adapter allowlist。`swapExactInputFromContractDirect` 的股票输入须先存入 PermissionsAdapter，并传 `payer = address(0)`；报价代币输入传 `payer = msg.sender`，由 Router 在结算时从调用 Adapter 直接划给 PoolManager；`recipient` 必须等于 `participant`。`swapExactInputFromContract` 从调用合约付款并向该合约交付，`participant` 仍是权限主体。后两个入口要求调用合约进入 allowlist；`setAdapterAllowed` 仅供 Registry 的 `DEFAULT_ADMIN_ROLE` 配置调用者。
+三个 Swap 入口均为 nonpayable，返回 `(uint256 actualIn,uint256 actualOut)`；内部自行组装 Swap、Settle、Take，后端不传 LP `actions` 或 `unlockData`。`swapExactInput(request)` 由调用者自己付款、接收输出并接受身份检查，无需 Adapter allowlist。`swapExactInputFromContractDirect` 的股票输入须先存入 PermissionsAdapter，并传 `payer = address(0)`；报价代币输入传 `payer = msg.sender`，由 Router 在结算时从调用 Adapter 直接划给 PoolManager；股票输出要求 `recipient == participant`；报价币输出要求该报价币当前 `registered == true`，且 `recipient` 为 `participant` 或调用 Router 的 Adapter。`swapExactInputFromContract` 从调用合约付款并向该合约交付，`participant` 仍是权限主体。后两个入口要求调用合约进入 allowlist；`setAdapterAllowed` 仅供 Registry 的 `DEFAULT_ADMIN_ROLE` 配置调用者。
 
 ### 2\. Swap 前置条件与授权
 
@@ -747,9 +789,9 @@ const swapInterface = new Interface(swapRouterAbi);
 |---|---|---|
 |`swapExactInput(request)`|调用者持有输入代币，并直接授权 **Swap Router 代理地址**；调用者本人接受 SBT 与发行方权限检查|同一调用者|
 |`swapExactInputFromContract(request, participant)`|调用 Router 的已授权合约先持有输入代币，并授权 **Swap Router 代理地址**；Router 从该合约拉取输入，`participant` 只接受权限检查|同一调用合约；外部 Adapter 可再交付给 `to`|
-|`swapExactInputFromContractDirect(request, payer, participant, recipient)`|输入 SET：先由 AA wallet 将 SET 存入 PermissionsAdapter，`payer = address(0)`，Router 不再拉 SET；输入报价代币：`payer = msg.sender`，调用 Adapter 持币并授权 **Swap Router 代理地址**，Router 在结算时直接划给 PoolManager|显式 `recipient == participant`；输出 SET 时将 `participant` 设为接收 SET 的 AA wallet|
+|`swapExactInputFromContractDirect(request, payer, participant, recipient)`|输入 SET：先由 AA wallet 将 SET 存入 PermissionsAdapter，`payer = address(0)`，Router 不再拉 SET；输入报价代币：`payer = msg.sender`，调用 Adapter 持币并授权 **Swap Router 代理地址**，Router 在结算时直接划给 PoolManager|SET 输出：`recipient == participant`，设为接收 SET 的 AA wallet；报价币输出：允许 `participant` 或调用 Adapter，且报价币须当前 registered|
 
-三个入口在 Router 内都不调用 TokenApprove；若外部 DexRouter 通过 TokenApprove 从用户收取输入，那是 Router 之前的上游步骤，不能替代调用者或 Adapter 对 Router 的授权。Router 检查实际权限主体的 SBT；直结算入口还强制 `recipient == participant`。输出 SET 时，底层代币的转账合规检查仍可能拒绝接收人。
+三个入口在 Router 内都不调用 TokenApprove；若外部 DexRouter 通过 TokenApprove 从用户收取输入，那是 Router 之前的上游步骤，不能替代调用者或 Adapter 对 Router 的授权。Router 检查实际权限主体的 SBT；直结算入口仅在股票输出时强制 `recipient == participant`；报价币输出可给 participant 或调用 Adapter，且报价币须当前 registered。输出 SET 时，底层代币的转账合规检查仍可能拒绝接收人。
 
 查询和 Token 授权 ABI：
 
@@ -790,7 +832,7 @@ const swapLegalShareAdapterAbi = [
 
 Router 在资金转移前检查已授权调用者、池和 `participant` 的交易权限；随后执行 `SWAP_EXACT_IN_SINGLE → SETTLE_ALL → TAKE_ALL`，并要求实际输入等于 `amountSpecified`。因此，**若直接调用者是独立于 AA wallet 的 DexRouter Adapter，这条预付款流程会让 SET 经过该 Adapter，不能满足“SET 只在 AA wallet 与 PermissionsAdapter 之间转移”**。AA wallet 自己交易可使用 `swapExactInput(request)`，由钱包直接付款和接收输出，无需 Adapter allowlist。
 
-若采用直结算入口满足该 SET 约束：卖出 SET 时，AA wallet 先在同一原子交易中将 SET 转到 PermissionsAdapter，调用时 `payer = address(0)`，Router 不再次转 SET；买入 SET 时，`payer` 为调用 Adapter，报价代币由该 Adapter 直接交给 PoolManager，`participant` 与 `recipient` 均设为接收 SET 的 AA wallet，PermissionsAdapter 将 SET 直接交给该钱包。Router 强制两者相等，但不核验该地址是否属于 AA wallet，接入方须保证传入正确的权限主体。若预存 SET 和 Swap 分属两笔交易，后者失败不会回滚前者的预存。
+若采用直结算入口满足该 SET 约束：卖出 SET 时，AA wallet 先在同一原子交易中将 SET 转到 PermissionsAdapter，调用时 `payer = address(0)`，Router 不再次转 SET；买入 SET 时，`payer` 为调用 Adapter，报价代币由该 Adapter 直接交给 PoolManager，`participant` 与 `recipient` 均设为接收 SET 的 AA wallet，PermissionsAdapter 将 SET 直接交给该钱包。Router 在股票输出时强制两者相等，但不核验该地址是否属于 AA wallet，接入方须保证传入正确的权限主体。若预存 SET 和 Swap 分属两笔交易，后者失败不会回滚前者的预存。
 
 ### 3\. SwapRequest 参数
 
@@ -802,9 +844,9 @@ Router 在资金转移前检查已授权调用者、池和 `participant` 的交�
 |`limitAmount`|`uint128`|最低输出最小单位数量，必须大于 0|
 |`deadline`|`uint64`|Unix 秒，不是毫秒|
 |`expectedMultiplier`|`uint256`|报价时读取的非零倍数；执行时必须一致|
-|`participant`|`address`，仅两个 `FromContract` 入口的参数|用户或 AA wallet 身份；预付款入口只用它做权限检查，不从其地址付款；直结算入口要求它等于 `recipient`|
+|`participant`|`address`，仅两个 `FromContract` 入口的参数|用户或 AA wallet 身份；预付款入口只用它做权限检查，不从其地址付款；直结算入口在股票输出时要求它等于 `recipient`|
 |`payer`|`address`，仅直结算入口的第二个参数|股票输入必须为零地址；报价代币输入必须为调用 Router 的 Adapter 地址|
-|`recipient`|`address`，仅直结算入口的第四个参数|必须等于 `participant`；其他两个入口的输出固定交给直接调用者|
+|`recipient`|`address`，仅直结算入口的第四个参数|股票输出必须等于 `participant`；报价币输出可为 `participant` 或调用 Adapter，且报价币须当前 registered；其他两个入口固定交付直接调用者|
 
 倍数读取顺序：先用 `registry.getUnderlying(underlyingToken)` 找到 `legalShareAdapter`，再对该合约调用 `currentMultiplier(underlyingToken)`。价格或倍数变化后应重新报价，不只替换快照数值。
 
@@ -1210,7 +1252,7 @@ function buildMultiplierSyncUpdates(input) {
 
 This guide follows the structure of Uniswap's [Managing Liquidity](https://developers.uniswap.org/docs/protocols/v4/guides/managing-liquidity/overview) guide: prerequisites, ABI, encoding, and submission\. **LP operations and swaps use different entry points and are described separately below\.**
 
-> Based on the X Layer deployment manifest below and its matching contract ABIs in `docs/artifacts/`\. Use proxy addresses for all business operations, and ensure that the ABI matches the version deployed on the target chain\. Examples use ethers\.js v6\. The encoding functions generate calldata, and the submission examples reuse a Signer supplied by the integrating application\. The integrator is responsible for obtaining quotes and signed authorizations\.
+> Interfaces follow `main@7f7e23c1` source and explicitly identified fixes on this branch. Addresses below come from the integration owner's designated test-address document; they do not prove this branch is deployed. Use proxy addresses for business calls. Examples use ethers.js v6; integrators supply quotes and signed authorizations. Verify the target implementation and matching build artifacts before release.
 
 This document uses three distinct terms: the **PermissionsAdapter token** is the stock\-side asset held in the pool; the **underlying stock token** is the stock asset that users actually hold; and the **quote token** is the other asset in the pool\. PermissionsAdapter tokens and underlying stock tokens have a 1:1 relationship in their smallest units\. All examples below apply to ERC\-20 pools, with transaction `value = 0`\.
 
@@ -1239,6 +1281,39 @@ This document uses three distinct terms: the **PermissionsAdapter token** is the
 ```
 
 [TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd?from=vcFollow)
+
+### Version and test-environment boundaries
+
+- Address source: [TSV contract addresses (mainnet testing / staging)](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd), body reviewed on **2026-10-21**. This is X Layer **mainnet testing / staging**, not testnet. Deployment metadata is copied from that document, not independently verified on-chain in this revision.
+- Use the designated Factory rather than silently substituting an older repository deployment record. Before use, read `registry.permissionsAdapterFactory()`, Router/LP Manager `PERMISSIONS_ADAPTER_FACTORY()`, and their PoolManager bindings. The external AA entry and the TSV manifest's SmartWalletFactory are listed separately; do not assume interchangeability.
+- **ABI artifacts lag source**: current source uses `applySecurityStatus(bytes32,uint8,bool,bytes32)` and a top-level `getSecurity().pauseMode`. At the review baseline, `docs/artifacts/TSVRegistryV1.abi.json` still has the three-argument setter and nested `securityState.pauseMode`; the Registry interface artifact also retains the old return shape. Do not mix versions. Regenerate ABIs from the target release build and verify proxy implementation, deployment block, compiler settings and linked libraries. This documentation revision does not regenerate artifacts.
+- **Deployment of the unwind event-amount fix is unconfirmed**. This branch observes actual settlement-token balances; see Unwind below. An unchanged proxy address does not prove the fix is active. Historical logs are not backfilled.
+- Never copy private keys, signing keys or credentials into the repository. Only non-sensitive test configuration is listed below. Independently confirm TokenApprove; do not substitute the DexRouter address.
+
+```json
+{
+  "external": {
+    "DexRouter": "0xF473911594c987848b09437D39f3fd6A4c74cf5C",
+    "TSVAdapter": "0x30C18593fADE94859D03776AE9A00C5b16A6f27C",
+    "AA_SmartWalletFactory": "0xDd3FEa01cD550C9EFfC893f346690b9A649f35EF",
+    "AA_SmartWallet": "0xe40ccB2D94975c51bff0C004eFDfd9B3a5796fA4",
+    "SBT": "0x053Ecef8cCB8844322BeE86290Dae016b9843b6D"
+  },
+  "tokens": {
+    "USDT0": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    "USDC": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+    "MockUSDC": "0xb0A8640210A0dA1a59d95Bd51E39b3FA488c244e",
+    "VOLOROSTOCK": {
+      "underlying": "0x5eA384EA0eDefAF7317999328949798EF05A96A3",
+      "permissionsAdapter": "0x811d7F406f11D2252917Db84EfCF0de52d350FBF"
+    },
+    "RWT": {
+      "underlying": "0x28Ccb07e804c6541634C07f1809f7Eaae3B523B0",
+      "permissionsAdapter": "0xf6bb667b55d0cacdb9d2bb9d75d78b4ebe1f1b6c"
+    }
+  }
+}
+```
 
 ## 0\. Tokens in the System and Admission
 
@@ -1269,7 +1344,7 @@ For stock admission, Registry checks that Factory has verified the wrapper, that
 #### Prerequisites
 
 - Connect to the target network and configure its Registry proxy address.
-- Event tracking also requires the PoolManager address and an RPC-supported block range. Read the address from `permissionedPoolManager()` on the target chain's Registry proxy, or from `dependencies.poolManager` in that chain's deployment manifest; verify the `chainId` and Registry address. Getter queries require a known `poolId`.
+- Event tracking also requires the PoolManager address and an RPC-supported block range. Read the address from `permissionedPoolManager()` on the target chain's Registry proxy, or from `dependencies.poolManager` in that chain's deployment manifest; verify the `chainId` and Registry address. `permissionedPoolManager()` takes no poolId; the pool-specific asset-resolution example below requires a known `poolId`.
 
 #### Path 1: Event Tracking
 
@@ -1429,7 +1504,7 @@ Deduplicate using `(chainId, contractAddress, blockHash, transactionHash, logInd
 
 #### Path 1: Event Tracking
 
-After a successful `applySecurityStatus(...)` call, the Registry emits `SecurityStatusChanged(securityId, oldPauseMode, newPauseMode)`. The event contains the security ID and complete before / after status codes, but no `poolId`. Call `registry.getSecurity(securityId).poolIds` to obtain pools associated with the security. The pause bits are stored on the security record, not per pool, so every `poolId` under that `securityId` shares the same `pauseMode`; this is a security-wide pause / resume, not a per-pool operation. `poolIds` is append-only and may include delisted pools. A pool's effective `isTradable` / `isLPAllowed` result can still differ because of other conditions such as pool lifecycle or the global emergency pause.
+After a successful `applySecurityStatus(...)` call, the Registry emits `SecurityStatusChanged(securityId, oldPauseMode, newPauseMode)`. The event contains the security ID and complete before / after status codes, but no `poolId`. Call `registry.getSecurity(securityId).poolIds` to obtain pools associated with the security. The pause bits are stored on the security record, not per pool, so every `poolId` under that `securityId` shares the same `pauseMode`; this is a security-wide pause / resume, not a per-pool operation. `poolIds` is append-only and may include delisted pools. A pool's effective `isTradable` / `isLPAllowed` result can still differ because of other conditions such as pool lifecycle; combine the global emergency pause separately via `isPaused()`.
 
 The protocol-wide emergency pause is a separate state: track it through the Registry's `EmergencyPauseChanged(enabled, operator, reasonCode)` event. It is not associated with a `securityId` and does not change any security's `pauseMode`.
 
@@ -1456,7 +1531,7 @@ function decodePauseMode(value, globalPaused = false) {
 registry.on("SecurityStatusChanged", async (securityId, _oldPauseMode, newPauseMode, event) => {
   const [security, globalPaused] = await Promise.all([
     registry.getSecurity(securityId, { blockTag: event.log.blockNumber }),
-    registry.isPaused(),
+    registry.isPaused({ blockTag: event.log.blockNumber }),
   ]);
   const pauseStatus = decodePauseMode(newPauseMode, globalPaused);
   console.log({
@@ -1483,7 +1558,7 @@ Given a `poolId`, call `registry.isTradable(poolId)` and `registry.isLPAllowed(p
 
 ##### Case 1: Known `poolId`
 
-Call `getPool(poolId)` to confirm the pool is registered, then call `isTradable(poolId)` / `isLPAllowed(poolId)` directly and use these pool-level Getter results to produce the final `pauseStatus`. They already reflect pool lifecycle, global pause, and other conditions; do not override them with the security-level `pauseMode`.
+Confirm registration with `getPool(poolId)`, then read `isPaused()`, `isTradable(poolId)` and `isLPAllowed(poolId)` at the same block. The current pool getters combine lifecycle and security pause bits, **not the global emergency pause**. Compute `!globalPaused && tradable` / `!globalPaused && lpAllowed`. These are protocol-state gates, not proof of identity, issuer, balance, allowance, multiplier or quota eligibility.
 
 ```JavaScript
 import { Contract, ZeroHash } from "ethers";
@@ -1492,24 +1567,28 @@ const registry = new Contract(registryAddress, [
   "function getPool(bytes32) view returns (tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,bytes32 securityId,uint8 tierId,uint8 lifecycle,uint256 tickCount,uint256 poolSecurityIndex))",
   "function isTradable(bytes32 poolId) view returns (bool)",
   "function isLPAllowed(bytes32 poolId) view returns (bool)",
+  "function isPaused() view returns (bool)",
 ], provider);
 
-const pool = await registry.getPool(poolId);
+const blockTag = await provider.getBlockNumber();
+const atBlock = { blockTag };
+const pool = await registry.getPool(poolId, atBlock);
 if (pool.securityId === ZeroHash) throw new Error("Unknown TSV pool");
-const [swapAllowed, lpAllowed] = await Promise.all([
-  registry.isTradable(poolId),
-  registry.isLPAllowed(poolId),
+const [globalPaused, tradable, lpAllowed] = await Promise.all([
+  registry.isPaused(atBlock),
+  registry.isTradable(poolId, atBlock),
+  registry.isLPAllowed(poolId, atBlock),
 ]);
 const pauseStatus = {
-  swap: swapAllowed ? "UNPAUSED" : "PAUSED",
-  addRemoveLP: lpAllowed ? "UNPAUSED" : "PAUSED",
+  swap: !globalPaused && tradable ? "UNPAUSED" : "PAUSED",
+  addRemoveLP: !globalPaused && lpAllowed ? "UNPAUSED" : "PAUSED",
 };
 console.log(pauseStatus);
 ```
 
 ##### Case 2: Known `securityId`
 
-Call `getSecurity(securityId)` directly to read the security-level `pauseMode` and every associated `poolId`. In this case, the final security-level `pauseStatus` is `decodePauseMode(pauseMode, globalPaused)`; all pools under that security share this security-level pause state. To determine whether a particular pool currently allows swaps / ordinary LP, use that pool's `isTradable(poolId)` / `isLPAllowed(poolId)` return values as the final authority; these also reflect pool-level conditions such as lifecycle.
+Call `getSecurity(securityId)` directly to read the security-level `pauseMode` and every associated `poolId`. In this case, the final security-level `pauseStatus` is `decodePauseMode(pauseMode, globalPaused)`; all pools under that security share this security-level pause state. To determine whether a particular pool currently allows swaps / ordinary LP, combine that pool's `isTradable(poolId)` / `isLPAllowed(poolId)` results with `!registry.isPaused()`; these also reflect pool-level conditions such as lifecycle.
 
 ```JavaScript
 import { Contract } from "ethers";
@@ -1529,8 +1608,9 @@ function decodePauseMode(value, globalPaused = false) {
   };
 }
 
-const security = await registry.getSecurity(securityId);
-const globalPaused = await registry.isPaused();
+const atBlock = { blockTag: await provider.getBlockNumber() };
+const security = await registry.getSecurity(securityId, atBlock);
+const globalPaused = await registry.isPaused(atBlock);
 const pauseStatus = decodePauseMode(security.pauseMode, globalPaused);
 console.log({
   securityId,
@@ -1542,7 +1622,7 @@ console.log({
 
 ##### Case 3: Known CET address
 
-CET is the issuer's underlying stock-token address. Call `getUnderlying(cetAddress)` to obtain its `securityId`, then call `getSecurity(securityId)` to read the shared pause state and associated pools. In this case, the final security-level `pauseStatus` is `decodePauseMode(pauseMode, globalPaused)`; all pools under that security share this security-level pause state. To determine whether a particular pool currently allows swaps / ordinary LP, use that pool's `isTradable(poolId)` / `isLPAllowed(poolId)` return values as the final authority. Do not pass the in-pool WCET address to this path.
+CET is the issuer's underlying stock-token address. Call `getUnderlying(cetAddress)` to obtain its `securityId`, then call `getSecurity(securityId)` to read the shared pause state and associated pools. In this case, the final security-level `pauseStatus` is `decodePauseMode(pauseMode, globalPaused)`; all pools under that security share this security-level pause state. To determine whether a particular pool currently allows swaps / ordinary LP, combine that pool's `isTradable(poolId)` / `isLPAllowed(poolId)` results with `!registry.isPaused()`. Do not pass the in-pool WCET address to this path.
 
 ```JavaScript
 import { Contract, ZeroHash } from "ethers";
@@ -1563,10 +1643,11 @@ function decodePauseMode(value, globalPaused = false) {
   };
 }
 
-const underlying = await registry.getUnderlying(cetAddress);
+const atBlock = { blockTag: await provider.getBlockNumber() };
+const underlying = await registry.getUnderlying(cetAddress, atBlock);
 if (underlying.securityId === ZeroHash) throw new Error("Unknown CET address");
-const security = await registry.getSecurity(underlying.securityId);
-const globalPaused = await registry.isPaused();
+const security = await registry.getSecurity(underlying.securityId, atBlock);
+const globalPaused = await registry.isPaused(atBlock);
 const pauseStatus = decodePauseMode(security.pauseMode, globalPaused);
 console.log({
   cetAddress,
@@ -1585,11 +1666,11 @@ The code in `SecurityRecord.pauseMode` and `SecurityStatusChanged` is a two\-bit
 - `ADD_REMOVE_LP_PAUSED` (`10`): the LP bit is set, so `isLPAllowed(poolId)` rejects ordinary LP position operations because of this security pause; the TRADE pause bit is not set.
 - `TRADE_AND_ADD_REMOVE_LP_PAUSED` (`11`): both bits are set, so the security pause blocks both swaps and ordinary LP position operations.
 
-`pauseMode` represents security-level pause bits, not a pool's complete effective permission; pool lifecycle, global emergency pause, and other conditions can also affect the result. Use `isTradable` / `isLPAllowed` for the pool\-level checks\.
+`pauseMode` represents security-level pause bits, not a pool's complete effective permission; pool lifecycle, global emergency pause, and other conditions can also affect the result. Combine `isTradable` / `isLPAllowed` with `!isPaused()` for pool-level state checks\.
 
 The global state is not one of the four `pauseMode` labels: `isPaused() == true` means `GLOBAL_PAUSED`, and the protocol\-wide emergency pause blocks ordinary swaps / LP operations; `false` means `GLOBAL_UNPAUSED`. It can coexist with any security `pauseMode`, so backends should store the global boolean separately from the two\-bit security mask. It is changed through `setEmergencyPauseEnable(enabled, reasonCode)`: `enabled=true` requires `EMERGENCY_PAUSER_ROLE`, `false` requires `EMERGENCY_RESUMER_ROLE`, and `reasonCode` must be nonzero.
 
-Use bit tests to decode the security mask: `tradePaused = (pauseMode & 0b01) != 0` and `addRemoveLpPaused = (pauseMode & 0b10) != 0`; both security pause bits are clear only when `pauseMode == 0`. Read the global pause separately as the boolean `globalPaused = registry.isPaused()`; it is not a third bit in `pauseMode`. Combine them with logical OR for each operation: `swapPaused = globalPaused || tradePaused` and `addRemoveLpPaused = globalPaused || addRemoveLpPaused`; the corresponding operations are not blocked by these pause gates only when `!globalPaused && !tradePaused` or `!globalPaused && !addRemoveLpPaused`. In the examples, `decodePauseMode(pauseMode, globalPaused)` combines these into one `pauseStatus` object whose `swap` and `addRemoveLP` fields each indicate `PAUSED` or `UNPAUSED`. These formulas cover pause gates only; use `isTradable(poolId)` / `isLPAllowed(poolId)` for the final pool permission checks.
+Use bit tests to decode the security mask: `tradePaused = (pauseMode & 0b01) != 0` and `addRemoveLpPaused = (pauseMode & 0b10) != 0`; both security pause bits are clear only when `pauseMode == 0`. Read the global pause separately as the boolean `globalPaused = registry.isPaused()`; it is not a third bit in `pauseMode`. Combine them with logical OR for each operation: `swapPaused = globalPaused || tradePaused` and `addRemoveLpPaused = globalPaused || addRemoveLpPaused`; the corresponding operations are not blocked by these pause gates only when `!globalPaused && !tradePaused` or `!globalPaused && !addRemoveLpPaused`. In the examples, `decodePauseMode(pauseMode, globalPaused)` combines these into one `pauseStatus` object whose `swap` and `addRemoveLP` fields each indicate `PAUSED` or `UNPAUSED`. These formulas cover pause gates only; combine `isTradable(poolId)` / `isLPAllowed(poolId)` with `!isPaused()` and separately validate account and transaction conditions.
 
 #### Pause / Resume Call
 
@@ -1691,7 +1772,7 @@ const lpLegalShareAdapterAbi = [
 ];
 ```
 
-Registry uses the argument order `isSbtAllowed(permission, account)`, while the PermissionsAdapter contract uses `isAllowed(account, permission)`\. The ABI type of permission is **`bytes2`**\. `0x0002` represents ordinary LP permission; `0x0004` is used only to query forced\-exit eligibility on the PermissionsAdapter contract\.
+Registry uses the argument order `isSbtAllowed(permission, account)`, while the PermissionsAdapter contract uses `isAllowed(account, permission)`\. The ABI type of permission is **`bytes2`**\. `0x0002` represents ordinary LP permission; `0x8000` is used only to query forced\-exit eligibility on the PermissionsAdapter contract\.
 
 ### 3\. Common Parameters
 
@@ -1848,13 +1929,13 @@ Both dedicated entry points call the LP Manager proxy directly\. They return no 
 |Prerequisite / behavior|`unwindPosition`|`unwindPositionByTsv`|
 |---|---|---|
 |Caller|The `owner()` of either verified PermissionsAdapter contract in the pool|A holder of Registry's `FORCE_EXIT_ADMIN_ROLE`|
-|Position eligibility|The NFT exists, and at least one verified PermissionsAdapter contract in the pool returns true for `isAllowed(lp, 0x0004)`|Same as `unwindPosition`|
+|Position eligibility|The NFT exists, and at least one verified PermissionsAdapter contract returns true for `isAllowed(lp, 0x8000)`|The NFT exists; current source does not check `UNWIND_ALLOWED`, and authorization comes from `FORCE_EXIT_ADMIN_ROLE`|
 |SBT / NFT approval|Neither the LP nor the administrator needs to pass ordinary LP SBT checks, and prior NFT approval from the LP is not required|Same as `unwindPosition`|
 |Pause and pool admission|No global pause; in this version, forced exits bypass ordinary `isLPAllowed` checks, while Hook execution still checks pool registration and Hook identity|Same as `unwindPosition`|
 |Recipient|For each asset, delivery to the LP is attempted first\. If that fails, delivery to the corresponding PermissionsAdapter contract owner is attempted only for permissioned assets\. If delivery still fails, the entire transaction reverts|Both assets are sent directly to the LP; failure to deliver either asset reverts the entire transaction|
 |Result|Burns the NFT; does not deliver an unredeemable claim to the user as a fallback|Burns the NFT|
 
-Both entry points take `(uint256 tokenId,uint128 amount0Min,uint128 amount1Min,bytes hookData)`\. There is no `recipient` or `deadline` parameter\. `hookData` follows the same rules as ordinary LP operations\. **Revocation of an SBT does not automatically make a position eligible for unwind**; query the PermissionsAdapter contract's `UNWIND_ALLOWED = 0x0004` permission explicitly\.
+Both entry points take `(uint256 tokenId,uint128 amount0Min,uint128 amount1Min,bytes hookData)`\. There is no `recipient` or `deadline` parameter\. `hookData` follows the same rules as ordinary LP operations\. **SBT revocation does not automatically permit issuer unwind**; query `UNWIND_ALLOWED = 0x8000` on PermissionsAdapter for the issuer path. The TSV-administrator path does not perform this eligibility check. This constant comes from `PermissionFlags.sol`, not the Registry LP/SWAP identity bits.
 
 ```JavaScript
 function buildIssuerUnwindTransaction(input) {
@@ -1879,6 +1960,9 @@ function buildTsvUnwindTransaction(input) {
 ```
 
 Issuer\-initiated unwinds emit `IssuerPositionUnwound`, with `CurrencyUnwound` identifying the final recipient of each nonzero asset\. TSV\-administrator unwinds emit `TsvPositionUnwound` and deliver assets directly to the LP without `CurrencyUnwound`\. The aggregate events' `token0/token1` are pool currency addresses; confirm actual stock delivery from underlying stock token `Transfer` logs and balances\. In this version, `withdrawClaim(address,uint256,address)` is disabled, and ordinary LP entry points cannot submit `MINT_6909` or `UNWIND_WITH_FALLBACK`\.
+
+**Event-amount version note:** implementations without this fix measure recipient W balances, so aggregate stock amounts can be zero despite successful U delivery. This branch's `TSVLPManagerLib` resolves W to U through the Factory and observes the same U before and after delivery; quotes continue to observe Q. After the fix, `lpReceivedAmount0/1` and `issuerReceivedAmount0/1` represent actual settlement-token raw balance increases, not legal-share WAD. `token0/token1` retain PoolKey W/Q addresses and event signatures are unchanged. Issuer fallback stock receipts populate issuer fields; TSV-path issuer amounts remain zero. Deployment is unconfirmed. Reconcile historical/unfixed releases against underlying transfers and balances, not aggregate events alone.
+
 
 ### 7\. Submitting LP Transactions
 
@@ -1930,7 +2014,7 @@ const swapRouterAbi = [
 const swapInterface = new Interface(swapRouterAbi);
 ```
 
-All three swap entry points are nonpayable and return `(uint256 actualIn,uint256 actualOut)`\. They construct the Swap, Settle, and Take operations internally; the backend does not supply LP `actions` or `unlockData`\. `swapExactInput(request)` pays from, delivers to, and checks the identity of the caller without an adapter allowlist\. For `swapExactInputFromContractDirect`, stock input must already be deposited in PermissionsAdapter with `payer = address(0)`; quote\-token input uses `payer = msg.sender`, with Router transferring it directly from the calling adapter to PoolManager during settlement\. `recipient` must equal `participant`\. `swapExactInputFromContract` pays from and delivers to the calling contract while still checking `participant`'s permissions\. The two `FromContract` entry points require an allowlisted calling contract; only holders of Registry's `DEFAULT_ADMIN_ROLE` can configure it with `setAdapterAllowed`\.
+All three swap entry points are nonpayable and return `(uint256 actualIn,uint256 actualOut)`\. They construct the Swap, Settle, and Take operations internally; the backend does not supply LP `actions` or `unlockData`\. `swapExactInput(request)` pays from, delivers to, and checks the identity of the caller without an adapter allowlist\. For `swapExactInputFromContractDirect`, stock input must already be deposited in PermissionsAdapter with `payer = address(0)`; quote\-token input uses `payer = msg.sender`, with Router transferring it directly from the calling adapter to PoolManager during settlement\. Stock output requires `recipient == participant`; quote output requires the quote to be currently registered and permits either `participant` or the calling Adapter. `swapExactInputFromContract` pays from and delivers to the calling contract while still checking `participant`'s permissions\. The two `FromContract` entry points require an allowlisted calling contract; only holders of Registry's `DEFAULT_ADMIN_ROLE` can configure it with `setAdapterAllowed`\.
 
 ### 2\. Swap Prerequisites and Approvals
 
@@ -1949,9 +2033,9 @@ The three entry points differ in who pays and where Router delivers output:
 |---|---|---|
 |`swapExactInput(request)`|The caller holds the input token and directly approves the **Swap Router proxy address**; the caller is also checked for SBT and issuer permission|The same caller|
 |`swapExactInputFromContract(request, participant)`|The approved calling contract already holds the input token and approves the **Swap Router proxy address**\. Router pulls input from that contract; `participant` is checked only for permission|The same calling contract; an external adapter may forward output to `to`|
-|`swapExactInputFromContractDirect(request, payer, participant, recipient)`|SET input: the AA wallet deposits SET in PermissionsAdapter first, `payer = address(0)`, and Router does not pull SET again\. Quote\-token input: `payer = msg.sender`; the calling adapter holds the tokens and approves the **Swap Router proxy address**, which transfers them directly to PoolManager during settlement|Explicit `recipient == participant`; for SET output, set `participant` to the receiving AA wallet|
+|`swapExactInputFromContractDirect(request, payer, participant, recipient)`|SET input: the AA wallet deposits SET in PermissionsAdapter first, `payer = address(0)`, and Router does not pull SET again\. Quote\-token input: `payer = msg.sender`; the calling adapter holds the tokens and approves the **Swap Router proxy address**, which transfers them directly to PoolManager during settlement|SET output: `recipient == participant`, the receiving AA wallet; quote output: participant or calling Adapter, with the quote currently registered|
 
-None of the three entry points calls TokenApprove inside Router\. If the external DexRouter uses TokenApprove to collect a user's input, that upstream step occurs before Router execution and does not replace the caller's or adapter's approval to Router\. Router checks the actual permission subject's SBT; the direct\-settlement entry point also requires `recipient == participant`\. Delivery of SET can still fail the underlying token's transfer compliance checks\.
+None of the three entry points calls TokenApprove inside Router\. If the external DexRouter uses TokenApprove to collect a user's input, that upstream step occurs before Router execution and does not replace the caller's or adapter's approval to Router\. Router checks the actual permission subject's SBT; the direct-settlement entry point requires `recipient == participant` for stock output only; registered quote output may also go to the calling Adapter. Delivery of SET can still fail the underlying token's transfer compliance checks\.
 
 Query and token\-approval ABIs:
 
@@ -1992,7 +2076,7 @@ Below, **SET** means the underlying stock token\. Put the **PermissionsAdapter t
 
 Router checks the authorized caller, pool, and `participant`'s trading permission before moving funds\. It then executes `SWAP_EXACT_IN_SINGLE → SETTLE_ALL → TAKE_ALL` and requires actual input to equal `amountSpecified`\. **If the direct caller is a DexRouter adapter distinct from the AA wallet, this prefunded flow passes SET through that adapter and cannot satisfy the requirement that SET move only between the AA wallet and PermissionsAdapter**\. An AA wallet trading for itself can use `swapExactInput(request)` to pay and receive directly, without adapter allowlisting\.
 
-The direct\-settlement entry point can satisfy that SET rule: to sell SET, the AA wallet first transfers SET into PermissionsAdapter in the same atomic transaction, passes `payer = address(0)`, and Router does not transfer SET again\. To buy SET, `payer` is the calling adapter, which sends quote tokens directly to PoolManager; set both `participant` and `recipient` to the receiving AA wallet so PermissionsAdapter delivers SET straight to it\. Router enforces equality but does not verify that the address belongs to an AA wallet, so the integration must supply the correct permission subject\. If the SET deposit and swap are separate transactions, a failed swap does not revert the earlier deposit\.
+The direct\-settlement entry point can satisfy that SET rule: to sell SET, the AA wallet first transfers SET into PermissionsAdapter in the same atomic transaction, passes `payer = address(0)`, and Router does not transfer SET again\. To buy SET, `payer` is the calling adapter, which sends quote tokens directly to PoolManager; set both `participant` and `recipient` to the receiving AA wallet so PermissionsAdapter delivers SET straight to it\. Router enforces equality for stock output but does not verify that the address belongs to an AA wallet, so the integration must supply the correct permission subject\. If the SET deposit and swap are separate transactions, a failed swap does not revert the earlier deposit\.
 
 ### 3\. SwapRequest Parameters
 
@@ -2004,9 +2088,9 @@ The direct\-settlement entry point can satisfy that SET rule: to sell SET, the A
 |`limitAmount`|`uint128`|Minimum output amount in the token's smallest units; must be greater than 0|
 |`deadline`|`uint64`|Unix time in seconds, not milliseconds|
 |`expectedMultiplier`|`uint256`|The nonzero multiplier read when quoting; must match at execution time|
-|`participant`|`address`, only on the two `FromContract` entry points|The user or AA\-wallet identity; the prefunded entry point checks it without pulling payment from it, and the direct\-settlement entry point requires it to equal `recipient`|
+|`participant`|`address`, only on the two `FromContract` entry points|The user or AA\-wallet identity; the prefunded entry point checks it without pulling payment from it, and the direct-settlement entry point requires equality with `recipient` for stock output only|
 |`payer`|`address`, only the second argument on the direct\-settlement entry point|The zero address for stock input; the calling adapter address for quote\-token input|
-|`recipient`|`address`, only the fourth argument on the direct\-settlement entry point|Must equal `participant`; the other two entry points deliver output to their direct caller|
+|`recipient`|`address`, only the fourth argument on the direct\-settlement entry point|Stock output: must equal `participant`. Registered quote output: participant or calling Adapter. Other entry points deliver to their direct caller|
 
 Read the multiplier in this order: obtain `legalShareAdapter` from `registry.getUnderlying(underlyingToken)`, then call `currentMultiplier(underlyingToken)` on that contract\. If the price or multiplier changes, obtain a new quote rather than merely replacing the snapshot value\.
 

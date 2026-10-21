@@ -42,6 +42,7 @@ library TSVLPManagerLib {
     error RegistryPaused();
     error UnAcceptableScenario();
 
+    /// @dev token0/token1 remain pool currencies; received amounts are settlement-token raw units.
     event IssuerPositionUnwound(
         uint256 indexed tokenId,
         address indexed lpOwner,
@@ -54,6 +55,7 @@ library TSVLPManagerLib {
         uint256 issuerReceivedAmount1
     );
 
+    /// @dev token0/token1 remain pool currencies; received amounts are settlement-token raw units.
     event TsvPositionUnwound(
         uint256 indexed tokenId,
         address indexed lpOwner,
@@ -121,8 +123,10 @@ library TSVLPManagerLib {
         uint128 amount1Min = p.amount1Min;
         bytes memory hookData = p.hookData;
         address issuer = _getPoolIssuer(p.factory, poolKey);
-        uint256 lpBalance0Before = poolKey.currency0.balanceOf(lp);
-        uint256 lpBalance1Before = poolKey.currency1.balanceOf(lp);
+        Currency settlement0 = _settlementCurrency(p.factory, poolKey.currency0);
+        Currency settlement1 = _settlementCurrency(p.factory, poolKey.currency1);
+        uint256 lpBalance0Before = settlement0.balanceOf(lp);
+        uint256 lpBalance1Before = settlement1.balanceOf(lp);
         // Unsubscribe with the PoolManager locked so notifyUnsubscribe can't strand a delta and brick the unlock.
         if (positionInfo[tokenId].hasSubscriber()) {
             unsubscribe(positionInfo, subscriber, tokenId, p.unsubscribeGasLimit);
@@ -152,9 +156,9 @@ library TSVLPManagerLib {
             issuer,
             Currency.unwrap(poolKey.currency0),
             Currency.unwrap(poolKey.currency1),
-            poolKey.currency0.balanceOf(lp) - lpBalance0Before,
+            settlement0.balanceOf(lp) - lpBalance0Before,
             0,
-            poolKey.currency1.balanceOf(lp) - lpBalance1Before,
+            settlement1.balanceOf(lp) - lpBalance1Before,
             0
         );
     }
@@ -176,7 +180,9 @@ library TSVLPManagerLib {
         bool isUnwindable1 = _getLpStatus(p.factory, poolKey.currency1, lp);
         if (!isUnwindable0 && !isUnwindable1) revert LpUnWindable();
         address issuer = _getPoolIssuer(p.factory, poolKey);
-        RecipientBalances memory beforeBalances = _recipientBalances(poolKey, lp, issuer);
+        Currency settlement0 = _settlementCurrency(p.factory, poolKey.currency0);
+        Currency settlement1 = _settlementCurrency(p.factory, poolKey.currency1);
+        RecipientBalances memory beforeBalances = _recipientBalances(settlement0, settlement1, lp, issuer);
         // Unsubscribe with the PoolManager locked so notifyUnsubscribe can't strand a delta and brick the unlock.
         if (positionInfo[tokenId].hasSubscriber()) {
             unsubscribe(positionInfo, subscriber, tokenId, p.unsubscribeGasLimit);
@@ -211,7 +217,7 @@ library TSVLPManagerLib {
         // Deliver the real asset to the LP, then the adapter owner; revert the unwind if neither accepts it.
         bool issuerReceived0 = _deliverCurrency(p, poolKey.currency0, amount0);
         bool issuerReceived1 = _deliverCurrency(p, poolKey.currency1, amount1);
-        RecipientBalances memory afterBalances = _recipientBalances(poolKey, lp, issuer);
+        RecipientBalances memory afterBalances = _recipientBalances(settlement0, settlement1, lp, issuer);
         emit IssuerPositionUnwound(
             tokenId,
             lp,
@@ -225,15 +231,26 @@ library TSVLPManagerLib {
         );
     }
 
-    function _recipientBalances(PoolKey memory poolKey, address lp, address issuer)
+    /// @dev Resolve once before delivery so both snapshots observe the same settlement assets.
+    ///      Permissioned currencies unwrap on delivery; recipients hold U, not W.
+    function _settlementCurrency(IPermissionsAdapterFactory factory, Currency currency)
+        private
+        view
+        returns (Currency)
+    {
+        address underlying = factory.verifiedPermissionsAdapterOf(Currency.unwrap(currency));
+        return underlying == address(0) ? currency : Currency.wrap(underlying);
+    }
+
+    function _recipientBalances(Currency currency0, Currency currency1, address lp, address issuer)
         private
         view
         returns (RecipientBalances memory balances)
     {
-        balances.lp0 = poolKey.currency0.balanceOf(lp);
-        balances.issuer0 = poolKey.currency0.balanceOf(issuer);
-        balances.lp1 = poolKey.currency1.balanceOf(lp);
-        balances.issuer1 = poolKey.currency1.balanceOf(issuer);
+        balances.lp0 = currency0.balanceOf(lp);
+        balances.issuer0 = currency0.balanceOf(issuer);
+        balances.lp1 = currency1.balanceOf(lp);
+        balances.issuer1 = currency1.balanceOf(issuer);
     }
 
     function _getPoolIssuer(IPermissionsAdapterFactory factory, PoolKey memory poolKey)

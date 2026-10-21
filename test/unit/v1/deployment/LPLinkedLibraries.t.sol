@@ -107,6 +107,8 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         assertEq(tsvIssuerAmount0, 0);
         assertEq(tsvLpAmount1, 1);
         assertEq(tsvIssuerAmount1, 0);
+        assertEq(key.currency0.balanceOf(owner), 0);
+        assertEq(key.currency0.balanceOf(address(this)), 0);
     }
 
     function testIssuerUnwindEventReportsFallbackAmounts() public {
@@ -131,10 +133,8 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
     }
 
     function _mockObservedBalances() private {
-        vm.etch(
-            Currency.unwrap(key.currency0),
-            address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency0))).code
-        );
+        // Delivery unwraps W into U. Keep W balances at zero to reproduce the original event bug.
+        vm.etch(underlying, address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency0))).code);
         vm.etch(
             Currency.unwrap(key.currency1),
             address(new LPObservedBalanceToken(manager, Currency.unwrap(key.currency1))).code
