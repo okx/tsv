@@ -255,6 +255,27 @@ const tsvIndexEventAbi = [
 
 ### 市场暂停 / 恢复状态
 
+#### 池级状态与全局暂停：设计语义
+
+`isTradable(poolId)`、`isLPAllowed(poolId)` **按设计不包含全局暂停**。它们反映池生命周期及所属证券的对应操作暂停位；`isPaused()` 独立返回全局紧急暂停。后端组合这两层状态，不能为了前端判断方便而修改合约 Getter 的语义。
+
+- **池生命周期 `PAUSE`**：禁止 Swap，但不因这一状态禁止普通 LP 操作。
+- **证券级 LP 暂停位**：另行禁止普通 LP；不要与池生命周期 `PAUSE` 混淆。
+- **全局暂停**：禁止 Swap 和普通 LP；执行入口独立检查全局暂停，无需将其合并进池级 Getter。
+
+下表假设池已注册且证券暂停位均未设置；“允许”仅指状态门控，不代表账户权限、资产交付等检查已通过：
+
+|池生命周期|全局 `isPaused()`|`isTradable`|`isLPAllowed`|后端 Swap 状态|后端普通 LP 状态|
+|---|---|---|---|---|---|
+|`LIST`|false|true|true|允许|允许|
+|`PAUSE`|false|false|true|禁止|允许|
+|`DELIST`|false|false|false|禁止|禁止|
+|`LIST`|true|true|true|禁止|禁止|
+|`PAUSE`|true|false|true|禁止|禁止|
+|`DELIST`|true|false|false|禁止|禁止|
+
+因此全局暂停时池级 Getter 仍可能返回 true，这是预期设计，不是漏洞。后端统一按下面的 Getter 查询示例，在同一区块计算 `swapAllowed = !globalPaused && tradable`、`lpAllowed = !globalPaused && poolLpAllowed`。缓存中应分别保存池级结果与全局状态；收到 `EmergencyPauseChanged` 时重新计算所有受影响池的最终状态，不改写池生命周期或证券暂停位。
+
 #### 前置条件
 
 - 已配置目标 TSV Registry 代理地址及 Provider。
@@ -314,7 +335,7 @@ registry.on("EmergencyPauseChanged", (enabled, operator, reasonCode, event) => {
 
 ##### 情况一：已知 `poolId`
 
-调用 `getPool(poolId)` 确认池已注册后，在同一区块读取 `isPaused()`、`isTradable(poolId)` 和 `isLPAllowed(poolId)`。当前源码的两个池级 Getter 只合并池生命周期和证券暂停位，**不包含全局紧急暂停**；必须分别计算 `!globalPaused && tradable` / `!globalPaused && lpAllowed`。这只是协议状态门控，不代表身份、发行方、余额、授权、倍率和额度检查都已通过。
+调用 `getPool(poolId)` 确认池已注册后，在同一区块读取 `isPaused()`、`isTradable(poolId)` 和 `isLPAllowed(poolId)`。两个池级 Getter 按设计只合并池生命周期和证券暂停位，**不包含全局紧急暂停**；必须分别计算 `!globalPaused && tradable` / `!globalPaused && poolLpAllowed`。这只是协议状态门控，不代表身份、发行方、余额、授权、倍率和额度检查都已通过。
 
 ```JavaScript
 import { Contract, ZeroHash } from "ethers";
@@ -330,14 +351,16 @@ const blockTag = await provider.getBlockNumber();
 const atBlock = { blockTag };
 const pool = await registry.getPool(poolId, atBlock);
 if (pool.securityId === ZeroHash) throw new Error("Unknown TSV pool");
-const [globalPaused, tradable, lpAllowed] = await Promise.all([
+const [globalPaused, tradable, poolLpAllowed] = await Promise.all([
   registry.isPaused(atBlock),
   registry.isTradable(poolId, atBlock),
   registry.isLPAllowed(poolId, atBlock),
 ]);
+const swapAllowed = !globalPaused && tradable;
+const lpAllowed = !globalPaused && poolLpAllowed;
 const pauseStatus = {
-  swap: !globalPaused && tradable ? "UNPAUSED" : "PAUSED",
-  addRemoveLP: !globalPaused && lpAllowed ? "UNPAUSED" : "PAUSED",
+  swap: swapAllowed ? "UNPAUSED" : "PAUSED",
+  addRemoveLP: lpAllowed ? "UNPAUSED" : "PAUSED",
 };
 console.log(pauseStatus);
 ```
@@ -1497,6 +1520,27 @@ Deduplicate using `(chainId, contractAddress, blockHash, transactionHash, logInd
 
 ### Market Pause / Resume Status
 
+#### Pool-level state and global pause: intended semantics
+
+`isTradable(poolId)` and `isLPAllowed(poolId)` **exclude global pause by design**. They reflect pool lifecycle and the corresponding security operation pause bits; `isPaused()` independently reports the global emergency pause. The backend combines these two layers. Do not change contract getter semantics merely to simplify frontend checks.
+
+- **Pool lifecycle `PAUSE`** blocks swaps but does not itself block ordinary LP operations.
+- **The security-level LP pause bit** separately blocks ordinary LP. Do not confuse it with pool lifecycle `PAUSE`.
+- **Global pause** blocks swaps and ordinary LP. Execution entry points check it independently; pool-level getters need not incorporate it.
+
+The table assumes a registered pool with both security pause bits clear. “Allowed” means state gates only, not that account permissions or asset-delivery checks have passed:
+
+|Pool lifecycle|Global `isPaused()`|`isTradable`|`isLPAllowed`|Backend swap status|Backend ordinary LP status|
+|---|---|---|---|---|---|
+|`LIST`|false|true|true|Allowed|Allowed|
+|`PAUSE`|false|false|true|Blocked|Allowed|
+|`DELIST`|false|false|false|Blocked|Blocked|
+|`LIST`|true|true|true|Blocked|Blocked|
+|`PAUSE`|true|false|true|Blocked|Blocked|
+|`DELIST`|true|false|false|Blocked|Blocked|
+
+A pool getter returning true during global pause is intended behavior, not a bug. Following the getter example below, read at one block and compute `swapAllowed = !globalPaused && tradable` and `lpAllowed = !globalPaused && poolLpAllowed`. Cache pool-level results separately from global state. On `EmergencyPauseChanged`, recompute effective status for all affected pools without rewriting their lifecycle or security pause bits.
+
 #### Prerequisites
 
 - Configure the target TSV Registry proxy address and a Provider.
@@ -1554,11 +1598,11 @@ registry.on("EmergencyPauseChanged", (enabled, operator, reasonCode, event) => {
 
 #### Path 2: Getter Queries
 
-Given a `poolId`, call `registry.isTradable(poolId)` and `registry.isLPAllowed(poolId)` directly to determine whether that pool currently permits swaps / ordinary LP operations. To read the security-level pause status, first get `securityId` from `registry.getPool(poolId).securityId`, then call `registry.getSecurity(securityId)` and read `pauseMode`. If `securityId` is already known, call `getSecurity(securityId)` directly.
+Given a `poolId`, read `registry.isTradable(poolId)` and `registry.isLPAllowed(poolId)` for pool-level gates, then separately combine them with `!registry.isPaused()` for backend effective swap / ordinary LP status. To read the security-level pause status, first get `securityId` from `registry.getPool(poolId).securityId`, then call `registry.getSecurity(securityId)` and read `pauseMode`. If `securityId` is already known, call `getSecurity(securityId)` directly.
 
 ##### Case 1: Known `poolId`
 
-Confirm registration with `getPool(poolId)`, then read `isPaused()`, `isTradable(poolId)` and `isLPAllowed(poolId)` at the same block. The current pool getters combine lifecycle and security pause bits, **not the global emergency pause**. Compute `!globalPaused && tradable` / `!globalPaused && lpAllowed`. These are protocol-state gates, not proof of identity, issuer, balance, allowance, multiplier or quota eligibility.
+Confirm registration with `getPool(poolId)`, then read `isPaused()`, `isTradable(poolId)` and `isLPAllowed(poolId)` at the same block. By design, the pool getters combine lifecycle and security pause bits, **not the global emergency pause**. Compute `!globalPaused && tradable` / `!globalPaused && poolLpAllowed`. These are protocol-state gates, not proof of identity, issuer, balance, allowance, multiplier or quota eligibility.
 
 ```JavaScript
 import { Contract, ZeroHash } from "ethers";
@@ -1574,14 +1618,16 @@ const blockTag = await provider.getBlockNumber();
 const atBlock = { blockTag };
 const pool = await registry.getPool(poolId, atBlock);
 if (pool.securityId === ZeroHash) throw new Error("Unknown TSV pool");
-const [globalPaused, tradable, lpAllowed] = await Promise.all([
+const [globalPaused, tradable, poolLpAllowed] = await Promise.all([
   registry.isPaused(atBlock),
   registry.isTradable(poolId, atBlock),
   registry.isLPAllowed(poolId, atBlock),
 ]);
+const swapAllowed = !globalPaused && tradable;
+const lpAllowed = !globalPaused && poolLpAllowed;
 const pauseStatus = {
-  swap: !globalPaused && tradable ? "UNPAUSED" : "PAUSED",
-  addRemoveLP: !globalPaused && lpAllowed ? "UNPAUSED" : "PAUSED",
+  swap: swapAllowed ? "UNPAUSED" : "PAUSED",
+  addRemoveLP: lpAllowed ? "UNPAUSED" : "PAUSED",
 };
 console.log(pauseStatus);
 ```
