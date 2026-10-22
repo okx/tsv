@@ -1,0 +1,95 @@
+Compiling 195 files with Solc 0.8.26
+Solc 0.8.26 finished in 28.22s
+Compiler run successful with warnings:
+Warning (5740): Unreachable code.
+   --> lib/v4-periphery/lib/v4-core/lib/solmate/src/tokens/ERC721.sol:118:9:
+    |
+118 |         require(
+    |         ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (5740): Unreachable code.
+   --> lib/v4-periphery/lib/v4-core/lib/solmate/src/tokens/ERC721.sol:134:9:
+    |
+134 |         require(
+    |         ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (5740): Unreachable code.
+  --> lib/v4-periphery/src/base/ReentrancyLock.sol:14:9:
+   |
+14 |         Locker.set(address(0));
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+Warning (5667): Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> src/v1/vendor/permissionedPools/PermissionedPositionManager.sol:145:27:
+    |
+145 |     function transferFrom(address from, address to, uint256 id) public virtual override onlyIfPoolManagerLocked {
+    |                           ^^^^^^^^^^^^
+
+Warning (5667): Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> src/v1/vendor/permissionedPools/PermissionedPositionManager.sol:145:41:
+    |
+145 |     function transferFrom(address from, address to, uint256 id) public virtual override onlyIfPoolManagerLocked {
+    |                                         ^^^^^^^^^^
+
+Warning (5667): Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> src/v1/vendor/permissionedPools/PermissionedPositionManager.sol:145:53:
+    |
+145 |     function transferFrom(address from, address to, uint256 id) public virtual override onlyIfPoolManagerLocked {
+    |                                                     ^^^^^^^^^^
+
+Warning (2018): Function state mutability can be restricted to view
+  --> src/v1/vendor/permissionedPools/base/NativeWrapper.sol:39:5:
+   |
+39 |     function _receiveNative() internal {
+   |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Traces:
+  [1026370] → new IssueOperatorSbt@0x9f7cF1d1F558E57ef88a59ac3D47214eF25B6A06
+    └─ ← [Return] 5016 bytes of code
+
+  [41655] IssueOperatorSbt::run()
+    ├─ [0] VM::envUint("XLAYER_PRIVATE_KEY") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::addr(<pk>) [staticcall]
+    │   └─ ← [Return] 0x486371f86335dd1D3420BfFAd40959DD6E4d034c
+    ├─ [0] VM::envOr("TSV_SBT_EXPECTED_ISSUER", 0x486371f86335dd1D3420BfFAd40959DD6E4d034c) [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("TSV_REGISTRY") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("TSV_SBT") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envUint("TSV_SBT_TOKEN_ID") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [8021] 0x2233EA2044FFA04CccEeEf0b9AdFe0799505a908::participantSbt() [staticcall]
+    │   ├─ [3158] 0x6B168962366EB82bB7D05C4b454706868614140d::participantSbt() [delegatecall]
+    │   │   └─ ← [Return] 0x053Ecef8cCB8844322BeE86290Dae016b9843b6D
+    │   └─ ← [Return] 0x053Ecef8cCB8844322BeE86290Dae016b9843b6D
+    ├─ [4016] 0x2233EA2044FFA04CccEeEf0b9AdFe0799505a908::sbtIdentityConfig(115214272521083034120997061784522011358194625102826302340838626386165673916984 [1.152e77]) [staticcall]
+    │   ├─ [3647] 0x6B168962366EB82bB7D05C4b454706868614140d::sbtIdentityConfig(115214272521083034120997061784522011358194625102826302340838626386165673916984 [1.152e77]) [delegatecall]
+    │   │   └─ ← [Return] true, 0x0003
+    │   └─ ← [Return] true, 0x0003
+    ├─ [6102] 0x053Ecef8cCB8844322BeE86290Dae016b9843b6D::issuerRole(115214272521083034120997061784522011358194625102826302340838626386165673916984 [1.152e77]) [staticcall]
+    │   ├─ [1128] 0xD40C9a26250f059777DA1bB4C938084cb84dffB8::issuerRole(115214272521083034120997061784522011358194625102826302340838626386165673916984 [1.152e77]) [delegatecall]
+    │   │   └─ ← [Return] 0x29076c22c58df1b92016e29d27616ab6f4ed4d26165244781b49c58b7a75839d
+    │   └─ ← [Return] 0x29076c22c58df1b92016e29d27616ab6f4ed4d26165244781b49c58b7a75839d
+    ├─ [3694] 0x053Ecef8cCB8844322BeE86290Dae016b9843b6D::hasRole(0x29076c22c58df1b92016e29d27616ab6f4ed4d26165244781b49c58b7a75839d, 0x486371f86335dd1D3420BfFAd40959DD6E4d034c) [staticcall]
+    │   ├─ [3217] 0xD40C9a26250f059777DA1bB4C938084cb84dffB8::hasRole(0x29076c22c58df1b92016e29d27616ab6f4ed4d26165244781b49c58b7a75839d, 0x486371f86335dd1D3420BfFAd40959DD6E4d034c) [delegatecall]
+    │   │   └─ ← [Return] true
+    │   └─ ← [Return] true
+    ├─ [0] VM::envOr("TSV_SBT_RECIPIENT_COUNT", 1) [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::toString(0) [staticcall]
+    │   └─ ← [Return] "0"
+    ├─ [0] VM::envOr("TSV_SBT_RECIPIENT_0", 0x486371f86335dd1D3420BfFAd40959DD6E4d034c) [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [3751] 0x053Ecef8cCB8844322BeE86290Dae016b9843b6D::verify(0x3A8A0baC3481C452de5d53946c73De4980c8C668, 115214272521083034120997061784522011358194625102826302340838626386165673916984 [1.152e77]) [staticcall]
+    │   ├─ [3274] 0xD40C9a26250f059777DA1bB4C938084cb84dffB8::verify(0x3A8A0baC3481C452de5d53946c73De4980c8C668, 115214272521083034120997061784522011358194625102826302340838626386165673916984 [1.152e77]) [delegatecall]
+    │   │   └─ ← [Return] true
+    │   └─ ← [Return] true
+    └─ ← [Revert] recipient already holds this SBT
+
+
+Warning: This is a nightly build of Foundry. It is recommended to use the latest stable version. To mute this warning set `FOUNDRY_DISABLE_NIGHTLY_WARNING` in your environment. 
+
+Warning: Found unknown `remappings_generate` config for profile `soldeer` defined in foundry.toml.
+Error: script failed: recipient already holds this SBT

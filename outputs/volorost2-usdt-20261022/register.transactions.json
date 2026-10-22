@@ -1,0 +1,15 @@
+{
+  "transactions": [
+    {
+      "hash": "0xe86b369c79355e72398bd35e6a52c79f914f52c022107aeab76a57f62ec5c45c",
+      "transactionType": "CALL",
+      "contractAddress": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+      "function": "registerPermissionedCurrency((address,bytes32,address),uint8,bytes32)",
+      "arguments": [
+        "(0x9f212c1DCc9e8026d30Ff38b01B72687EAab747b, 0xb5305ea27b8a8d8f365bb30fd5500981f3fc8848bc3c897b801051edeee73c7f, 0x48a9b7cBdA233d67f9743B7E4f6daAdd789Bbc19)",
+        "2",
+        "0x9b895cd764f7592189c39411c126720b83204a077dbacc9801d8669f136fc6fc"
+      ]
+    }
+  ]
+}

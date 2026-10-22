@@ -1,0 +1,181 @@
+{
+  "owner": "0x224467f6640AbE0A62D1be98187912627b59722A",
+  "tokens": [
+    {
+      "underlying": "0x6C9E1F1E6A084e88C1f67f45Ccd473CA90c2fd13",
+      "balance": "0",
+      "trust": "0x3177e4a4f736efb9efb6870c3ff634d8468d8a79",
+      "compliance": "0xea313ab1e422bc6735088aec32831833c27f0b8b",
+      "rebasing": "0x3f68161342229d41142220447f0066a73a4c4ba7",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x4dEEe58e069fd52Ce1db945699f15f03E049b920",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x3cd46c4c278f85f0d8474e2415b4506e5a196446",
+      "rebasing": "0xb2fc7741b77a42919a172e70abbdb5120fec6bf4",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x7AD9D70f30f31E39EA0046C35D196b8a9F3E81E9",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x91596628c4306fab4abe42f81f1ecb5e8fef1c51",
+      "rebasing": "0x9d24db0682a2069a259edd3f55443ca3f3686a0a",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0xa9DBCf8904721810513B73cA6f4942dE8f8f99e7",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x69781ace8810b61d0cee9b40c85ec9de475cdd81",
+      "rebasing": "0x81b06c78a755ca5ae4e3a23ed2c04ee44a704cdc",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0xc2a611aBd4f3De5dc3BB22Af4063f9aee269255d",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x01f7d74fb850c590296f2f1f68f2913c16a21dc1",
+      "rebasing": "0x1afcb54427a49a7faf7e82021ea433f2c433b6a5",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0xb14034A0b533a88fc62AC2F577ed59FB0375b130",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0xb097c4c760b4df4c84a9df05adf67449b70328ee",
+      "rebasing": "0x188178b85ad78fa9b2018327892c1a9133466a85",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x947382f119Fe6f0344123A41B8833B969c9539b3",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x70c3ce9cc8d75be7c2d649b1f135bc3c63ae9bed",
+      "rebasing": "0xaa5c69f46474350cd9c9433e077f1caf6cb49291",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0xbF6343896f1AdcACE43e810C1758b53A40DCEe95",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x2666af59bf1ace8858b66ecc98e82371c1cee2d9",
+      "rebasing": "0x6769d311ed3830cb15aca447801f8a6cc190064a",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x13160af212E62F12Eca804B91fEfe302a4EF4387",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x0ac8d82bf1f5f25703334159723237e44d0cd4a6",
+      "rebasing": "0x82f579cd3b5fa5ed3fd3d2053454ae494ca58dd1",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x8A2689465034031bf0F55E65f600CEE17bB0F6D3",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0xd3aaf8c884cb13e979ed9c18135700cfd49820d4",
+      "rebasing": "0x17940f59b43d021bf222f886202eb660dfe5334f",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x9a0E6B7C37873aF042A8959f4D5188B657204Aa6",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x42f2ab1d20f9c770d2454d7ec4af5691a1278536",
+      "rebasing": "0xaaa120cd9dc8124e7611aa8b637fe52c1e074c62",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0xCCF3e98eb18f35A38fdd162ec5FFf5788FF01801",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0xf64d87a31143a2f6be505511057560f0af4a948a",
+      "rebasing": "0x99e848c86d566bbe34042542a581c58627fb117c",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x5aA6dBc1C202cEA406910fe50e5e1d28FAbb5BDa",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0xe56d3ed5f62971739fecee55aa4f9263b9cf64d2",
+      "rebasing": "0x6343c5459594c5f3bf5306bf0468ebf9ed61331e",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x4bEE53f182F871d1204D256Fe8e4265b23b7A261",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x5eeec707c6bc99bd81a71ccf94f154110e2f4490",
+      "rebasing": "0x779e445e3909d5d0f29d2ba2b1c7c23ccf227724",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x7283faBD88b147CD7e49F505AA1F848D6B14a95d",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x4a02ee4c33e26be56b8628ff3d66b5fe789a7590",
+      "rebasing": "0xc481fbee4d093a2b5d78b9b8836e23614756c599",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x531922E67811467D5dd5137755a38AeD15e5df35",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0xb80bd9fabc0bdf28522c2bcbcbff1b935148255d",
+      "rebasing": "0x2eb3678effe0ec4cd74564bd429ff681576aafb1",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0xc9B54c9cC12983099fcD49F0357B08A2596f9C54",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0xfc63542b4e8a55972b572efc37c9e86d62148c13",
+      "rebasing": "0xac676e74693184e41480d0b931bceb77b3cd6336",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x78FA06BD9e8a7Af4aEe36F9Fa348080D2f27Bf46",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x11f67160e32326eb0b29bea98f1d92c9c745ec8d",
+      "rebasing": "0xaaddb77577b51df609945648b3981aa86505bcf1",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0xb879670887B5328e805309FD37f76A2F598e129D",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0xe8bf94ea50a18b41860970a785bc5759a84979f1",
+      "rebasing": "0xaf563e1820d254d61f99dfeaf1be5cd1fb070abe",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x9eBc3dc2807F7323aCfe4B5f345291A4AD6b3F1B",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x182b9e777fc55284b67f43b5802e6e8a5fd0bbca",
+      "rebasing": "0x8203ddee7a30d318a5c51f8de4857ec7657e995c",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0xbaDeDb3F01632Bc1508F2A952472edF1fa3b808C",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0xdb86b0c210277651e6a45376f8b038f7dac1e883",
+      "rebasing": "0x5c9da19d1cde4ee53b5ad80f1a9656b222e44597",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "underlying": "0x45e33E9B75A3bd3BcC6aa3FDCa680248904A4cD1",
+      "balance": "0",
+      "trust": "0x5adf5ae52cee301d1cac14fd82302801231e7a73",
+      "compliance": "0x34b54d0dbe2bb94c625c8321720febb073007c04",
+      "rebasing": "0xef8cd935853c048675bc79c6062fe21f25c73744",
+      "mintSimulation": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    }
+  ]
+}

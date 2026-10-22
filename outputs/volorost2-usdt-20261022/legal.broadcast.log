@@ -1,0 +1,36 @@
+No files changed, compilation skipped
+Script ran successfully.
+
+== Logs ==
+  XLayer chainId: 196
+  Underlying U: 0xC03484ab791B5BD2C3DA860BEa2Ba96C76248BFD
+  Created Legal-share Adapter: 0x48a9b7cBdA233d67f9743B7E4f6daAdd789Bbc19
+  Current multiplier: 1000000000000000000
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 196
+
+Estimated gas price: 0.040000001 gwei
+
+Estimated total gas used for script: 367656
+
+Estimated amount required: 0.000014706240367656 ETH
+
+==========================
+
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+
+Transactions saved to: /Users/oker/meili/yunshan.fang_dacs_at_okg.com/117/Desktop/gitlab/tsv/broadcast/DeployLegalShareAdapter.s.sol/196/run-latest.json
+
+Sensitive values saved to: /Users/oker/meili/yunshan.fang_dacs_at_okg.com/117/Desktop/gitlab/tsv/cache/DeployLegalShareAdapter.s.sol/196/run-latest.json
+
+
+Warning: This is a nightly build of Foundry. It is recommended to use the latest stable version. To mute this warning set `FOUNDRY_DISABLE_NIGHTLY_WARNING` in your environment. 
+
+Warning: Found unknown `remappings_generate` config for profile `soldeer` defined in foundry.toml.

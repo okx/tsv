@@ -1,0 +1,21 @@
+{
+  "depositPerAdapter": "0.1",
+  "depositRaw": "100000000000000000",
+  "fee": 2000,
+  "feePercent": "0.2%",
+  "tickSpacing": 60,
+  "quote": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+  "quoteSymbol": "USD₮0",
+  "initialPriceQuotePerUnderlying": "1",
+  "owner": "0x224467f6640AbE0A62D1be98187912627b59722A",
+  "checker": "0xb4110157542283aecacb7483b7029d2216507525",
+  "securityIdScheme": "keccak256(UTF8(\"RWAT:196:\" + lowercaseUnderlyingAddress))",
+  "deployLegalShareAdapterPerToken": true,
+  "mintShortfallAuthorized": true,
+  "tierId": 3,
+  "tierCapacity": 40,
+  "configureTSVAdapterPermissions": false,
+  "addLiquidity": false,
+  "swap": false,
+  "serviceInitializationAuthorized": false
+}
