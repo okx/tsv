@@ -1,0 +1,13 @@
+{
+  "transactions": [
+    {
+      "hash": "0x02619115ab04993a58db374cd0a77912a31349331574fa32d3a29c0c6013caf4",
+      "transactionType": "CREATE",
+      "contractAddress": "0x48a9b7cbda233d67f9743b7e4f6daadd789bbc19",
+      "function": null,
+      "arguments": [
+        "0xC03484ab791B5BD2C3DA860BEa2Ba96C76248BFD"
+      ]
+    }
+  ]
+}

@@ -30,6 +30,10 @@ contract AddLiquidityTSV is Script {
 
         uint256 privateKey = vm.envUint("XLAYER_PRIVATE_KEY");
         address owner = vm.addr(privateKey);
+        require(
+            owner == vm.envOr("TSV_LIQUIDITY_EXPECTED_OWNER", owner),
+            "signing wallet differs from expected LP owner"
+        );
         address currency0Address = vm.envAddress("TSV_CURRENCY0");
         address currency1Address = vm.envAddress("TSV_CURRENCY1");
         address hookAddress = vm.envAddress("TSV_HOOK");
