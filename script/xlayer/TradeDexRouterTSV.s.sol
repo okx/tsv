@@ -6,7 +6,6 @@ import {console2} from "forge-std/console2.sol";
 import {IERC20} from "dex-adapters/interfaces/IERC20.sol";
 import {ITSVSwapRouter} from "dex-adapters/interfaces/ITSVSwapRouter.sol";
 import {TSVAdapter} from "dex-adapters/adapters/uniswap-v4/TSVAdapter.sol";
-import {ECDSA} from "dex-adapters/libraries/ECDSA.sol";
 import {SafeERC20} from "dex-adapters/libraries/SafeERC20.sol";
 import {IDexRouter, IDexApproveProxy} from "../../lib/dexrouter-interfaces/IDexRouter.sol";
 
@@ -14,8 +13,8 @@ interface ITSVRouterAdapterPolicy {
     function isAdapterAllowed(address adapter) external view returns (bool);
 }
 
-/// @notice Simulates or broadcasts one single-hop TSVAdapter swap (signed sells, unsigned buys) through X Layer DexRouter.
-/// @dev The trading wallet and the TSVAdapter backend signer are separate keys. No signing key is an operation input.
+/// @notice Simulates or broadcasts one single-hop TSVAdapter swap (no backend signature) through X Layer DexRouter.
+/// @dev Only the transaction wallet key is required; no backend authorization is encoded.
 contract TradeDexRouterTSV is Script {
     using SafeERC20 for IERC20;
 
@@ -38,7 +37,6 @@ contract TradeDexRouterTSV is Script {
         uint256 amountIn;
         uint256 minReturn;
         uint256 expectedMultiplier;
-        uint256 nonce;
         uint256 deadline;
         bool isBuy;
         bool zeroForOne;
@@ -54,18 +52,9 @@ contract TradeDexRouterTSV is Script {
         TradeConfig memory c = _readConfig(trader);
         _validate(c, trader);
 
-        address[] memory allowedCallers = new address[](1);
-        allowedCallers[0] = c.dexRouter;
-        TSVAdapter.MoreInfo memory info = TSVAdapter.MoreInfo({
-            key: c.key,
-            expectedMultiplier: c.expectedMultiplier,
-            amountIn: c.amountIn,
-            allowedCallers: allowedCallers,
-            nonce: c.nonce,
-            deadline: c.deadline,
-            authSig: bytes("")
-        });
-        bytes memory moreInfo = _buildMoreInfo(c.isBuy, c.adapter, info, c.zeroForOne, c.participant);
+        TSVAdapter.MoreInfo memory info =
+            TSVAdapter.MoreInfo({key: c.key, expectedMultiplier: c.expectedMultiplier, amountIn: c.amountIn});
+        bytes memory moreInfo = _buildMoreInfo(c.isBuy, info);
         IDexRouter.RouterPath[] memory paths = _paths(c, moreInfo);
         IDexRouter.BaseRequest memory request = IDexRouter.BaseRequest({
             fromToken: uint256(uint160(c.tokenIn)),
@@ -108,7 +97,6 @@ contract TradeDexRouterTSV is Script {
         c.minReturn = vm.envUint("TSV_DEX_MIN_RETURN");
         c.expectedMultiplier = vm.envUint("TSV_DEX_EXPECTED_MULTIPLIER");
         c.isBuy = _isBuy(vm.envString("TSV_DEX_SIDE"));
-        c.nonce = c.isBuy ? 0 : vm.envUint("TSV_DEX_NONCE");
         uint256 deadlineSeconds = vm.envUint("TSV_DEX_DEADLINE_SECONDS");
         require(
             block.timestamp <= type(uint64).max && deadlineSeconds > 0
@@ -193,40 +181,15 @@ contract TradeDexRouterTSV is Script {
         console2.log("Minimum output (raw):", c.minReturn);
         console2.log("Expected multiplier:", c.expectedMultiplier);
         console2.log("DexRouter deadline:", c.deadline);
-        if (!c.isBuy) console2.log("Sell authorization nonce:", c.nonce);
         console2.log("TokenApprove allowance spender:", c.tokenApprove);
         if (IERC20(c.tokenIn).allowance(trader, c.tokenApprove) < c.amountIn) {
             console2.log("Broadcast will first set exact TokenApprove allowance for this amount.");
         }
     }
 
-    /// @dev The SDK's amountIn funds DexRouter in both directions; buy MoreInfo carries no authorization.
-    function _buildMoreInfo(
-        bool isBuy,
-        address adapterAddress,
-        TSVAdapter.MoreInfo memory info,
-        bool zeroForOne,
-        address participant
-    ) internal returns (bytes memory) {
-        if (isBuy) {
-            info.amountIn = 0;
-            info.allowedCallers = new address[](0);
-            info.nonce = 0;
-            info.deadline = 0;
-            info.authSig = bytes("");
-        } else {
-            uint256 authSignerKey = vm.envUint("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY");
-            TSVAdapter adapter = TSVAdapter(adapterAddress);
-            require(adapter.AUTH_SIGNER() == vm.addr(authSignerKey), "signer key does not match adapter AUTH_SIGNER");
-            require(!adapter.isNonceUsed(info.nonce), "TSVAdapter authorization nonce already used");
-            bytes32 payloadHash = keccak256(
-                abi.encode(info.key, info.expectedMultiplier, info.amountIn, zeroForOne, participant, info.deadline)
-            );
-            bytes32 inner =
-                keccak256(abi.encode(adapterAddress, payloadHash, info.allowedCallers, info.nonce, block.chainid));
-            (bytes32 r, bytes32 vs) = vm.signCompact(authSignerKey, ECDSA.toEthSignedMessageHash(inner));
-            info.authSig = abi.encodePacked(r, vs);
-        }
+    /// @dev Both sides fund DexRouter; purchases encode zero because the Adapter uses its live Q balance.
+    function _buildMoreInfo(bool isBuy, TSVAdapter.MoreInfo memory info) internal pure returns (bytes memory) {
+        if (isBuy) info.amountIn = 0;
         return abi.encode(info);
     }
 

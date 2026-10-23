@@ -211,7 +211,7 @@ def configure_dexrouter_trade(env: dict[str, str]) -> None:
     values = env.copy()
     ask_pool_key(values, prefix="TSV_DEX_", existing_pool_default=True)
     values["TSV_DEX_ADAPTER"] = ask_address(
-        "签名版 TSVAdapter", values.get("TSV_DEX_ADAPTER")
+        "无签名三字段 TSVAdapter", values.get("TSV_DEX_ADAPTER")
     )
     pool = PoolKey(
         values["TSV_DEX_CURRENCY0"],
@@ -227,11 +227,10 @@ def configure_dexrouter_trade(env: dict[str, str]) -> None:
     default_stock = values.get("TSV_EXISTING_POOL_CURRENCY1")
     stock_currency = ask_address("股票/W 的 PoolKey currency", default_stock)
     stock_underlying = ask_address("股票/W 对应的底层 U", values.get("TSV_INSPECT_U_0"))
-    amount_in = int(ask_uint("DexRouter 实际输入 amountIn（raw units，卖出时也用于签名）"))
+    amount_in = int(ask_uint("DexRouter 实际输入 amountIn（raw units，卖出时写入 moreInfo.amountIn）"))
     min_return = int(ask_uint("DexRouter 最小输出（raw units）"))
     expected_multiplier = int(ask_uint("报价时的 legal-share multiplier（WAD）"))
-    nonce = int(ask_uint("本 Adapter 未使用过的签名 nonce")) if side is TradeSide.SELL_STOCK else 0
-    deadline_seconds = int(ask_uint("交易有效秒数（卖出同时作为签名有效期）", "300", maximum=(1 << 64) - 1))
+    deadline_seconds = int(ask_uint("DexRouter 交易有效秒数", "300", maximum=(1 << 64) - 1))
     request = DexRouterTradeRequest(
         adapter=values["TSV_DEX_ADAPTER"],
         dex_router=values["DEX_ROUTER"],
@@ -243,7 +242,6 @@ def configure_dexrouter_trade(env: dict[str, str]) -> None:
         amount_in=amount_in,
         min_return=min_return,
         expected_multiplier=expected_multiplier,
-        nonce=nonce,
         deadline_seconds=deadline_seconds,
     )
     env.update(request.env())

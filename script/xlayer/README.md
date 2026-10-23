@@ -9,11 +9,11 @@ Create the local environment file once, put your operator wallet key in it, then
 ```sh
 test -f script/xlayer/.env.xlayer || cp script/xlayer/.env.xlayer.example script/xlayer/.env.xlayer
 # Edit script/xlayer/.env.xlayer and set XLAYER_PRIVATE_KEY.
-# DexRouter + TSVAdapter swaps also need TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY.
+# DexRouter + TSVAdapter swaps need no backend signer.
 python3 script/xlayer/operate.py
 ```
 
-The operator automatically reads keys from `script/xlayer/.env.xlayer`. The X Layer Mainnet RPC and public deployment/inventory values are fixed in [`deployment.json`](deployment.json); an optional `XLAYER_RPC_URL` in the local environment can override the public default. `XLAYER_PRIVATE_KEY` is the operation wallet. `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY` is only needed for DexRouter + TSVAdapter swaps and must match the deployed Adapter's `AUTH_SIGNER()` address.
+The operator automatically reads keys from `script/xlayer/.env.xlayer`. The X Layer Mainnet RPC and public deployment/inventory values are fixed in [`deployment.json`](deployment.json); an optional `XLAYER_RPC_URL` in the local environment can override the public default. `XLAYER_PRIVATE_KEY` is the operation wallet. TSVAdapter swaps require no backend signer key.
 
 The menu delegates Forge simulation and explicit broadcast to the repository-native Python SDK in [`sdk/python`](../../sdk/python/README.md). The menu remains the interactive parameter collector; the SDK owns the shared script allowlist, secret-safe subprocess handling, and confirmation gate.
 
@@ -34,7 +34,7 @@ Keep `.env.xlayer` local. Do not paste its contents into chat or commit it. Use 
 11. **Deploy a Legal-share Adapter for an existing U.** This is for a Factory-verified W that already exists and avoids creating a second W.
 12. **Issue the configured TSV SBT to the current operator.** The script checks the Registry SBT binding, `SWAP|LP` flags, issuer role, and existing credential first.
 13. **Add liquidity to an initialized W/Q pool.** Enter the PoolKey and each currency's maximum raw input; the script resolves W deposits to the corresponding U and selects a tick range around the current pool tick.
-14. **Trade through DexRouter + TSVAdapter.** Enter buy/sell direction, signed Adapter address, PoolKey, W/U, raw input, minimum output, quoted multiplier, sale nonce (only for sells), and transaction validity period. The route is single-hop; participant, Adapter `to`, and receiver default to the operator wallet. If the TokenApprove allowance is insufficient, the broadcast includes an exact-amount approval before the swap. Approval and swap are separate transactions, so a failed swap can leave that exact allowance in TokenApprove.
+14. **Trade through DexRouter + TSVAdapter.** Enter direction, unsigned three-field Adapter address, PoolKey, W/U, raw input, minimum output, multiplier and transaction validity period. Neither side needs a backend signer or nonce. The route remains single-hop; participant and receiver must be the trading wallet.
 
 Read-only menu items 1 and 2 stop after simulation. Write items simulate first. If simulation succeeds, type `BROADCAST` exactly to rerun the operation with Forge's `--broadcast`; any other response exits without broadcasting.
 
@@ -48,4 +48,4 @@ Read-only menu items 1 and 2 stop after simulation. Write items simulate first. 
 
 ## DexRouter adapter path
 
-The X Layer `TSVAdapter` follows the signed-amount implementation pinned by `lib/dex-adapters`. Only stock sales require a `MoreInfo` signature, binding the exact input amount, PoolKey, direction, multiplier, participant, allowed caller, nonce, and deadline; recipient is not signed. Purchases require no auth signer key and encode zero/empty authorization fields. The request input amount remains positive for DexRouter funding; purchases swap the Adapter's live Q balance. Buys pre-transfer Q to the Adapter; sells pre-transfer U directly to W. The SDK simulates and can broadcast a single-hop `dagSwapTo` request. Both the Adapter's DexRouter allowlist and the TSV Router's Adapter allowlist must be configured. The old Adapter is immutable and cannot gain the new `AUTH_SIGNER` support by changing environment values; deploy the signed version and update `TSV_DEX_ADAPTER` before using menu item 14. See [`EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md`](../../docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md).
+Use the unsigned three-field `MoreInfo(PoolKey, expectedMultiplier, amountIn)` Adapter pinned by the submodule. Stock sales use the exact input amount and preserve surplus U in W. Purchases encode amountIn = 0 and use the live Q balance of the Adapter. The outer DexRouter funding amount remains positive for both sides. No signer or nonce is needed; transaction deadline and minimum output remain enforced by DexRouter. Configure both allowlists and use a matching new deployment. See [integration details](../../docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md).

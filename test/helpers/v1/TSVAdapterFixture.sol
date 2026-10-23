@@ -8,21 +8,14 @@ import {TSVAdapter} from "dex-adapters/adapters/uniswap-v4/TSVAdapter.sol";
 import {ITSVSwapRouter} from "dex-adapters/interfaces/ITSVSwapRouter.sol";
 import {DEX_ROUTER_CALLER_MARKER, ORIGIN_PAYER} from "dex-adapters/libraries/Constants.sol";
 
-/// @dev Uses the upstream Adapter with W-to-U settlement currency resolution. Test signing material is supplied through the process environment.
+/// @dev Uses the upstream Adapter with W-to-U settlement currency resolution. No backend signing material is required.
 abstract contract TSVAdapterFixture is Test {
-    function _testAuthKey() internal view returns (uint256) {
-        return vm.envUint("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY");
-    }
-    uint256 internal authNonce;
-
     function _adapterRoute(
         TSVAdapter adapter,
-        address trustedCaller,
         PoolKey memory poolKey,
         uint256 expectedMultiplier,
         uint256 amountIn,
-        bool zeroForOne,
-        address participant
+        bool zeroForOne
     ) internal returns (bytes memory) {
         ITSVSwapRouter.PoolKey memory externalKey = ITSVSwapRouter.PoolKey(
             Currency.unwrap(poolKey.currency0),
@@ -32,24 +25,8 @@ abstract contract TSVAdapterFixture is Test {
             address(poolKey.hooks)
         );
         address inputCurrency = Currency.unwrap(zeroForOne ? poolKey.currency0 : poolKey.currency1);
-        if (ITSVSwapRouter(adapter.TSV_ROUTER()).settlementCurrency(inputCurrency) == inputCurrency) {
-            return
-                abi.encode(TSVAdapter.MoreInfo(externalKey, expectedMultiplier, 0, new address[](0), 0, 0, bytes("")));
-        }
-        uint256 deadline = block.timestamp + 100;
-        address[] memory allowed = new address[](1);
-        allowed[0] = trustedCaller;
-        uint256 nonce = authNonce++;
-        bytes32 payloadHash =
-            keccak256(abi.encode(externalKey, expectedMultiplier, amountIn, zeroForOne, participant, deadline));
-        bytes32 inner = keccak256(abi.encode(address(adapter), payloadHash, allowed, nonce, block.chainid));
-        (bytes32 r, bytes32 vs) =
-            vm.signCompact(_testAuthKey(), keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", inner)));
-        return abi.encode(
-            TSVAdapter.MoreInfo(
-                externalKey, expectedMultiplier, amountIn, allowed, nonce, deadline, abi.encodePacked(r, vs)
-            )
-        );
+        bool isBuy = ITSVSwapRouter(adapter.TSV_ROUTER()).settlementCurrency(inputCurrency) == inputCurrency;
+        return abi.encode(TSVAdapter.MoreInfo(externalKey, expectedMultiplier, isBuy ? 0 : amountIn));
     }
 
     function _adapterPayload(

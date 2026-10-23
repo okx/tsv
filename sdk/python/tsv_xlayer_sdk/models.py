@@ -84,7 +84,7 @@ class TradeSide(Enum):
 
 @dataclass(frozen=True)
 class DexRouterTradeRequest:
-    """One TSVAdapter hop: amount_in funds DexRouter; only stock sales need authorization."""
+    """One TSVAdapter hop: amount_in funds DexRouter; stock sales use the specified amount without backend authorization."""
 
     adapter: str
     dex_router: str
@@ -96,7 +96,6 @@ class DexRouterTradeRequest:
     amount_in: int
     min_return: int
     expected_multiplier: int
-    nonce: int
     deadline_seconds: int
     participant: str | None = None
     receiver: str | None = None
@@ -123,8 +122,6 @@ class DexRouterTradeRequest:
             raise ValueError("min_return must fit a positive uint128")
         if self.expected_multiplier <= 0 or self.expected_multiplier >= 1 << 256:
             raise ValueError("expected_multiplier must fit a positive uint256")
-        if self.nonce < 0 or self.nonce >= 1 << 256:
-            raise ValueError("nonce must fit uint256")
         if self.deadline_seconds <= 0 or self.deadline_seconds >= 1 << 64:
             raise ValueError("deadline_seconds must fit a positive uint64")
         if (self.participant is None) != (self.receiver is None):
@@ -173,7 +170,6 @@ class DexRouterTradeRequest:
             "TSV_DEX_AMOUNT_IN": str(self.amount_in),
             "TSV_DEX_MIN_RETURN": str(self.min_return),
             "TSV_DEX_EXPECTED_MULTIPLIER": str(self.expected_multiplier),
-            "TSV_DEX_NONCE": str(self.nonce if self.side is TradeSide.SELL_STOCK else 0),
             "TSV_DEX_DEADLINE_SECONDS": str(self.deadline_seconds),
         }
         if self.participant is not None:
