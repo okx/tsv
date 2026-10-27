@@ -11,7 +11,6 @@ import {TSVAdapterFixture} from "../../../helpers/v1/TSVAdapterFixture.sol";
 import {TSVAdapter} from "dex-adapters/adapters/uniswap-v4/TSVAdapter.sol";
 import {TradeDexRouterTSV} from "../../../../script/xlayer/TradeDexRouterTSV.s.sol";
 import {ITSVSwapRouter} from "dex-adapters/interfaces/ITSVSwapRouter.sol";
-import {CallerAuth} from "dex-adapters/libraries/CallerAuth.sol";
 import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
 
 /// @dev Reproduces the existing DexRouter callback ABI and authenticated trailers.
@@ -24,11 +23,8 @@ contract TestDexCallbackCaller {
 
 /// @dev Exercise the exact MoreInfo builder used by the operator, without broadcasting.
 contract TradeDexRouterTSVHarness is TradeDexRouterTSV {
-    function build(bool isBuy, address adapter, TSVAdapter.MoreInfo memory info, bool direction, address participant)
-        external
-        returns (bytes memory)
-    {
-        return _buildMoreInfo(isBuy, adapter, info, direction, participant);
+    function build(bool isBuy, TSVAdapter.MoreInfo memory info) external returns (bytes memory) {
+        return _buildMoreInfo(isBuy, info);
     }
 }
 
@@ -39,7 +35,7 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
     function setUp() public override {
         super.setUp();
         caller = new TestDexCallbackCaller();
-        adapter = new TSVAdapter(address(router), address(this), address(caller), vm.addr(_testAuthKey()));
+        adapter = new TSVAdapter(address(router), address(this), address(caller));
         router.setAdapterAllowed(address(adapter), true);
     }
 
@@ -49,11 +45,10 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         (bool ok, bytes memory data) = address(adapter).call(payload);
         assertFalse(ok);
         assertEq(bytes4(data), TSVAdapter.UnauthorizedDexRouter.selector);
-        assertFalse(adapter.isNonceUsed(0));
     }
 
     function testMalformedLengthPrefixAndZeroParticipantRejectBeforeFunding() public {
-        bytes memory route = _adapterRoute(adapter, address(caller), key, issuer.multiplier(), 1e18, true, alice);
+        bytes memory route = _adapterRoute(adapter, key, issuer.multiplier(), 1e18, true);
         bytes memory canonical = abi.encodeCall(TSVAdapter.sellBase, (alice, address(router), route));
         vm.expectRevert(TSVAdapter.InvalidTrailer.selector);
         caller.execute(address(adapter), canonical);
@@ -66,7 +61,6 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         );
         vm.expectRevert(TSVAdapter.InvalidParticipant.selector);
         caller.execute(address(adapter), _adapterPayload(true, alice, address(router), route, address(0), alice));
-        assertFalse(adapter.isNonceUsed(0));
     }
 
     function testPoolArgumentIsIgnoredAndZeroRecipientRejectsAtomically() public {
@@ -75,8 +69,7 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
 
         bool buyDirection = Currency.unwrap(key.currency0) != address(stock);
         _fundInput(buyDirection, 1e18);
-        bytes memory route =
-            _adapterRoute(adapter, address(caller), key, issuer.multiplier(), 1e18, buyDirection, alice);
+        bytes memory route = _adapterRoute(adapter, key, issuer.multiplier(), 1e18, buyDirection);
         bytes memory zeroRecipient = _adapterPayload(buyDirection, address(0), address(router), route, alice, alice);
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
         caller.execute(address(adapter), zeroRecipient);
@@ -131,7 +124,7 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         assertFalse(registry.hasCredential(address(adapter)));
     }
 
-    function testPartialFillRevertsAndPreservesPrefundingNonceAndAllowance() public {
+    function testPartialFillRevertsAndPreservesPrefundingAndAllowance() public {
         bool direction = Currency.unwrap(key.currency0) == address(stock);
         IERC20 input = IERC20(address(underlying));
         address refundTo = makeAddr("separate-refund");
@@ -146,7 +139,6 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         assertEq(input.balanceOf(address(stock)), stockInputBefore + 1e22);
         assertEq(input.balanceOf(refundTo), 0);
         assertEq(input.allowance(address(adapter), address(router)), 0);
-        assertFalse(adapter.isNonceUsed(authNonce - 1));
     }
 
     function testIneligibleParticipantCannotUseEligibleRefundAddress() public {
@@ -156,39 +148,18 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         _fundInput(quoteToStock, 1e18);
         vm.expectRevert(PermissionedV4Router.Unauthorized.selector);
         caller.execute(address(adapter), payload);
-        assertFalse(adapter.isNonceUsed(0));
     }
 
-    function testSuccessfulAuthorizationCannotBeReplayed() public {
+    function testUnsignedSaleCanRepeatWithFreshFunding() public {
         bool direction = Currency.unwrap(key.currency0) == address(stock);
         bytes memory payload = _payload(direction, address(router), alice, alice, alice, 1e18);
         _fundInput(direction, 1e18);
         caller.execute(address(adapter), payload);
-        assertTrue(adapter.isNonceUsed(0));
-        vm.expectRevert(CallerAuth.AUTH_NonceUsed.selector);
+        _fundInput(direction, 1e18);
         caller.execute(address(adapter), payload);
     }
 
-    function testExpiredAuthorizationReverts() public {
-        bool direction = Currency.unwrap(key.currency0) == address(stock);
-        bytes memory payload = _payload(direction, address(router), alice, alice, alice, 1e18);
-        vm.warp(block.timestamp + 101);
-        vm.expectRevert(TSVAdapter.AuthExpired.selector);
-        caller.execute(address(adapter), payload);
-    }
-
-    function testMultiplierTamperingInvalidatesSignedRoute() public {
-        bool direction = Currency.unwrap(key.currency0) == address(stock);
-        bytes memory route = _adapterRoute(adapter, address(caller), key, issuer.multiplier(), 1e18, direction, alice);
-        TSVAdapter.MoreInfo memory info = abi.decode(route, (TSVAdapter.MoreInfo));
-        info.expectedMultiplier = 2e18;
-        bytes memory payload = _adapterPayload(direction, alice, address(router), abi.encode(info), alice, alice);
-        vm.expectRevert(CallerAuth.AUTH_BadAuthSig.selector);
-        caller.execute(address(adapter), payload);
-        assertFalse(adapter.isNonceUsed(info.nonce));
-    }
-
-    function testSignedStaleMultiplierRejectsAndPreservesNonceAndPrefunding() public {
+    function testStaleMultiplierRejectsAndPreservesPrefunding() public {
         bool direction = Currency.unwrap(key.currency0) == address(stock);
         bytes memory payload = _payload(direction, address(router), alice, alice, alice, 1e16);
         IERC20 input = _settlementToken(direction ? key.currency0 : key.currency1);
@@ -199,7 +170,6 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         vm.expectRevert();
         caller.execute(address(adapter), payload);
         assertEq(_digest(), beforeState);
-        assertFalse(adapter.isNonceUsed(authNonce - 1));
         assertEq(input.balanceOf(address(stock)), fundedBalance);
         assertEq(input.allowance(address(adapter), address(router)), 0);
     }
@@ -225,7 +195,6 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         assertEq(_digest(), before_);
         assertEq(input.balanceOf(fundingTarget), fundedBalance);
         assertEq(input.allowance(address(adapter), address(router)), 0);
-        assertFalse(adapter.isNonceUsed(0));
     }
 
     function testAdapterPaymentPreservesUserIdentityAndLocksEverySwapEntry() public {
@@ -265,68 +234,40 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
         );
         info.expectedMultiplier = issuer.multiplier();
         info.amountIn = 1e18;
-        info.allowedCallers = new address[](1);
-        info.allowedCallers[0] = address(caller);
-        info.nonce = 77;
-        info.deadline = block.timestamp + 100;
     }
 
-    function testOperatorBuyClearsAuthorizationAndUsesLiveBalanceRepeatedly() public {
+    function testOperatorBuyUsesLiveBalanceRepeatedly() public {
         TradeDexRouterTSVHarness builder = new TradeDexRouterTSVHarness();
         bool direction = Currency.unwrap(key.currency0) != address(stock);
         TSVAdapter.MoreInfo memory template = _operatorInfo();
-        template.authSig = hex"ff";
         // No Adapter lookup or signer access should be needed to build a purchase payload.
-        bytes memory route = builder.build(true, address(0), template, direction, alice);
+        bytes memory route = builder.build(true, template);
         TSVAdapter.MoreInfo memory info = abi.decode(route, (TSVAdapter.MoreInfo));
         assertEq(info.amountIn, 0);
-        assertEq(info.allowedCallers.length, 0);
-        assertEq(info.nonce, 0);
-        assertEq(info.deadline, 0);
-        assertEq(info.authSig.length, 0);
         bytes memory payload = _adapterPayload(direction, alice, address(router), route, alice, alice);
         for (uint256 i; i < 2; ++i) {
             _fundInput(direction, 1e18 + i * 100);
             caller.execute(address(adapter), payload);
             assertEq(quote.balanceOf(address(adapter)), 0);
             assertEq(quote.allowance(address(adapter), address(router)), 0);
-            assertFalse(adapter.isNonceUsed(0));
         }
     }
 
-    function testOperatorSaleSignatureSupportsRuntimeRecipientAndRejectsReplay() public {
+    function testOperatorSaleUsesExactAmountAndRuntimeRecipient() public {
         TradeDexRouterTSVHarness builder = new TradeDexRouterTSVHarness();
         bool direction = Currency.unwrap(key.currency0) == address(stock);
         TSVAdapter.MoreInfo memory info = _operatorInfo();
-        bytes memory route = builder.build(false, address(adapter), info, direction, alice);
+        bytes memory route = builder.build(false, info);
         uint256 freeBefore = _inventory();
         _fundInput(direction, 1e18 + 100);
         uint256 beforeQuote = quote.balanceOf(address(caller));
-        // The signer only knew participant; DexRouter selects a different recipient at execution.
+        // DexRouter selects the recipient at execution.
         bytes memory payload = _adapterPayload(direction, address(caller), address(router), route, alice, alice);
         caller.execute(address(adapter), payload);
         assertGt(quote.balanceOf(address(caller)), beforeQuote);
         assertEq(_inventory(), freeBefore + 100);
-        assertTrue(adapter.isNonceUsed(info.nonce));
-        vm.expectRevert(CallerAuth.AUTH_NonceUsed.selector);
+        _fundInput(direction, 1e18);
         caller.execute(address(adapter), payload);
-    }
-
-    function testOperatorSaleRejectsAmountAndParticipantTampering() public {
-        TradeDexRouterTSVHarness builder = new TradeDexRouterTSVHarness();
-        bool direction = Currency.unwrap(key.currency0) == address(stock);
-        bytes memory route = builder.build(false, address(adapter), _operatorInfo(), direction, alice);
-        TSVAdapter.MoreInfo memory info = abi.decode(route, (TSVAdapter.MoreInfo));
-        info.amountIn++;
-        vm.expectRevert(CallerAuth.AUTH_BadAuthSig.selector);
-        caller.execute(
-            address(adapter), _adapterPayload(direction, alice, address(router), abi.encode(info), alice, alice)
-        );
-        vm.expectRevert(CallerAuth.AUTH_BadAuthSig.selector);
-        caller.execute(
-            address(adapter), _adapterPayload(direction, alice, address(router), route, address(caller), alice)
-        );
-        assertFalse(adapter.isNonceUsed(info.nonce));
     }
 
     function _settlementToken(Currency currency) internal view returns (IERC20) {
@@ -353,7 +294,7 @@ contract TSVDexAdapterTest is WrappedSwapFixture, TSVAdapterFixture {
             direction,
             recipient,
             pool,
-            _adapterRoute(adapter, address(caller), key, issuer.multiplier(), amountIn, direction, participant),
+            _adapterRoute(adapter, key, issuer.multiplier(), amountIn, direction),
             participant,
             refundTo
         );

@@ -14,7 +14,7 @@ import subprocess
 from typing import Mapping
 
 
-_LOCAL_ENV_KEYS = frozenset({"XLAYER_PRIVATE_KEY", "TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "XLAYER_RPC_URL"})
+_LOCAL_ENV_KEYS = frozenset({"XLAYER_PRIVATE_KEY", "XLAYER_RPC_URL"})
 
 
 class Target(Enum):
@@ -137,11 +137,6 @@ class ExecutionClient:
             side = env.get("TSV_DEX_SIDE", "")
             if side not in {"BUY_STOCK", "SELL_STOCK"}:
                 raise ValueError("TSV_DEX_SIDE must be BUY_STOCK or SELL_STOCK")
-            if side == "SELL_STOCK" and not env.get("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", "").strip():
-                raise ValueError(
-                    "DexRouter TSV stock sales require TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY in "
-                    f"{self.local_env_file} or the process environment"
-                )
         # Keep the endpoint in the child environment for scripts that read it, too.
         env["ETH_RPC_URL"] = rpc_url
         return env

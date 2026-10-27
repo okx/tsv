@@ -12,9 +12,7 @@ test -f script/xlayer/.env.xlayer || cp script/xlayer/.env.xlayer.example script
 python3 script/xlayer/operate.py
 ```
 
-Amounts are raw token units. `XLAYER_PRIVATE_KEY` signs and pays for operations. For DexRouter + TSVAdapter stock sales only, also set `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY`; its derived address must equal `AUTH_SIGNER()` on the signed-amount Adapter. The operator never accepts either key through `Operation.inputs`, and redacts both from Forge output. `XLAYER_RPC_URL` is an optional override.
-
-`Target` covers the inspect, registration, adapter deployment, pool, direct trade, liquidity, SBT, Registry, Ledger, and DexRouter trade scripts. `operate.py` collects operation-specific values; the SDK owns the script allowlist, signing environment, simulation fingerprint, and explicit broadcast gate.
+Amounts are raw token units. `XLAYER_PRIVATE_KEY` signs and pays for transactions; neither side requires a backend signer. `XLAYER_RPC_URL` is an optional override. Keys cannot be supplied through `Operation.inputs`.
 
 `PermissionsAdapterFactoryMigrationRequest` formats the Registry action, replacement Factory, and three distinct reason codes for `Target.REGISTRY_OPERATION`:
 
@@ -43,18 +41,22 @@ The operation also requires the security inventory configured in `deployment.jso
 
 ## DexRouter + TSVAdapter
 
-`DexRouterTradeRequest` validates and formats a one-hop request for `Target.DEX_ROUTER_TRADE`. Its `env()` method returns only public operation inputs; the Solidity script builds `MoreInfo`, checks both TSV/Adapter allowlists and TokenApproveProxy wiring, then calls `IDexRouter.dagSwapTo`. Stock sales require the local auth signer; purchases do not read it.
+The SDK targets the unsigned three-field `MoreInfo(PoolKey key, uint256 expectedMultiplier, uint256 amountIn)` ABI, pinned by `lib/dex-adapters` at commit `80800d56`. Use a matching deployed Adapter and configure its DexRouter allowlist and the TSV Router Adapter allowlist. Previous signed deployments are incompatible.
 
-Stock sales sign the exact input amount, PoolKey, direction, multiplier, participant, allowed caller, nonce, and deadline. The Adapter receiver (`to`) is chosen by DexRouter at execution and is not signed. Buys pre-transfer Q to the Adapter (`assetTo = adapter`) and swap its live Q balance. Buy `MoreInfo` encodes `amountIn = nonce = deadline = 0`, `allowedCallers = []`, and `authSig = 0x`; the operator does not ask for a buy nonce. Sells pre-transfer U directly to W (`assetTo = W`) and consume only the signed amount, preserving surplus U. **The SDK request `amount_in` / `TSV_DEX_AMOUNT_IN` is still the positive DexRouter funding amount for either side, not the zero buy `MoreInfo.amountIn`.** `deadline_seconds` still controls the outer DexRouter transaction for purchases. If the TokenApprove allowance is below the trade amount, the script includes an exact-amount approval before the swap. Both writes are simulated first; the operator only broadcasts after `BROADCAST`.
+`DexRouterTradeRequest.amount_in` / `TSV_DEX_AMOUNT_IN` is the positive outer DexRouter funding amount for both sides. Sales transfer U directly into W and encode that exact amount in MoreInfo, preserving surplus U. Purchases transfer Q to the Adapter, encode MoreInfo.amountIn = 0 and consume the live Q balance, including previous donations. No backend signature, nonce or authorization deadline is encoded. Remove `nonce` from Python request construction; the legacy `TSV_DEX_NONCE` and `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY` settings are unnecessary.
 
-The local callback integration fixture tracks the current upstream `MoreInfo` ABI. It does not certify live X Layer deployment state. See [the adapter integration note](../../docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) for the signature, funding, deployment, and authorization requirements.
+`deadline_seconds` still controls the outer DexRouter transaction; `min_return` still protects output. The operator validates settlement mappings, balances and both allowlists. Approval and swap are separate transactions; a failed swap can leave the approved amount outstanding. Broadcast still requires a successful simulation and explicit `BROADCAST` confirmation.
+
+Exact sale amounts do not prove ownership of prefunded U: the Adapter trusts the allowlisted DexRouter for amount and participant, and an identical payload can execute again if funds are available. The single-hop operator continues to require participant and receiver to be the trading wallet. See [integration details](../../docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md).
 
 ## Validation
 
 ```sh
 python3 -m unittest discover -s sdk/python/tests -v
-TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY="0x$(openssl rand -hex 32)" \
-  forge test --match-path test/integration/local/trading/DexAdapter.t.sol -vv
+forge test --match-path test/integration/local/trading/DexAdapter.t.sol --skip SecuritizeTSVChecker.sol -vv
+forge build script/xlayer/TradeDexRouterTSV.s.sol
 ```
 
-The test key is ephemeral and is not used for live transactions. The Adapter submodule is pinned to `5be1e7f8963979c637adae9f21077a6c4100c5a8`; its OpenZeppelin 4 dependency uses a scoped remapping, leaving TSV's OpenZeppelin 5 dependency unchanged.
+Tests require no signer environment variable and do not broadcast transactions. Legacy signer values are still redacted from child-process output if present in an inherited environment.
+
+Validation: 8 Python tests and 13 local integration tests passed; the trade script compiled. The integration command excludes the unrelated `src/v1/vendor/SecuritizeTSVChecker.sol`, whose relative imports are missing on the current main branch. This is not a full-repository build result.
