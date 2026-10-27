@@ -16,6 +16,21 @@ def _address(value: str, name: str) -> str:
     return value
 
 
+def _reason_code(value: str, name: str) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ValueError(f"{name} must be a non-empty reason code")
+    if re.fullmatch(r"0x[0-9a-fA-F]{64}", value):
+        encoded = value.lower()
+    else:
+        raw = value.encode("utf-8")
+        if len(raw) > 32:
+            raise ValueError(f"{name} must be at most 32 UTF-8 bytes or a bytes32 hex value")
+        encoded = "0x" + raw.ljust(32, b"\0").hex()
+    if int(encoded, 16) == 0:
+        raise ValueError(f"{name} must not be zero")
+    return encoded
+
+
 @dataclass(frozen=True)
 class PoolKey:
     currency0: str
@@ -75,6 +90,42 @@ class TradeRequest:
             }
         )
         return values
+
+
+@dataclass(frozen=True)
+class PermissionsAdapterFactoryMigrationRequest:
+    """Public inputs for the Registry's ordered Factory migration operation."""
+
+    new_factory: str
+    pause_reason_code: str
+    replacement_reason_code: str
+    resume_reason_code: str
+
+    def __post_init__(self) -> None:
+        _address(self.new_factory, "new_factory")
+        reasons = (
+            _reason_code(self.pause_reason_code, "pause_reason_code"),
+            _reason_code(self.replacement_reason_code, "replacement_reason_code"),
+            _reason_code(self.resume_reason_code, "resume_reason_code"),
+        )
+        if len(set(reasons)) != len(reasons):
+            raise ValueError("pause, replacement, and resume reason codes must be distinct")
+
+    def env(self) -> dict[str, str]:
+        """Return the allowlisted Registry script inputs; signing keys stay out of inputs."""
+        return {
+            "TSV_REGISTRY_ACTION": "MIGRATE_PERMISSIONS_ADAPTER_FACTORY",
+            "TSV_NEW_PERMISSIONS_ADAPTER_FACTORY": self.new_factory,
+            "TSV_FACTORY_REPLACE_PAUSE_REASON_CODE": _reason_code(
+                self.pause_reason_code, "pause_reason_code"
+            ),
+            "TSV_FACTORY_REPLACE_REASON_CODE": _reason_code(
+                self.replacement_reason_code, "replacement_reason_code"
+            ),
+            "TSV_FACTORY_REPLACE_RESUME_REASON_CODE": _reason_code(
+                self.resume_reason_code, "resume_reason_code"
+            ),
+        }
 
 
 class TradeSide(Enum):

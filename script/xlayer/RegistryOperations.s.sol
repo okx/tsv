@@ -5,6 +5,13 @@ import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
+import {TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
+import {IPositionDescriptor} from "v4-periphery/interfaces/IPositionDescriptor.sol";
+import {IWETH9} from "v4-periphery/interfaces/external/IWETH9.sol";
+import {IPermissionsAdapterFactory} from "tsv-v1/vendor/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
+import {ITSVPermissionedRegistry} from "tsv-v1/interfaces/ITSVPermissionedRegistry.sol";
 import {
     UnderlyingRecord,
     QuoteTokenRecord,
@@ -231,9 +238,139 @@ contract RegistryOperations is Script {
             vm.startBroadcast(privateKey);
             router.setAdapterAllowed(adapter, allowed);
             vm.stopBroadcast();
+        } else if (actionHash == keccak256("MIGRATE_PERMISSIONS_ADAPTER_FACTORY")) {
+            _migratePermissionsAdapterFactory(registry, privateKey, operator);
         } else {
             revert("unknown TSV_REGISTRY_ACTION");
         }
+    }
+
+    function _migratePermissionsAdapterFactory(TSVRegistryV1 registry, uint256 privateKey, address operator)
+        private
+    {
+        _requireRole(registry, registry.DEFAULT_ADMIN_ROLE(), operator);
+        _requireRole(registry, registry.UPGRADE_ADMIN_ROLE(), operator);
+        require(!registry.emergencyPauseEnable(), "Registry must start unpaused");
+
+        address newFactory = vm.envAddress("TSV_NEW_PERMISSIONS_ADAPTER_FACTORY");
+        address previousFactory = registry.permissionsAdapterFactory();
+        require(newFactory != previousFactory && newFactory.code.length != 0, "invalid replacement Factory");
+        IPermissionsAdapterFactory replacementFactory = IPermissionsAdapterFactory(newFactory);
+        address poolManager = registry.permissionedPoolManager();
+        require(replacementFactory.POOL_MANAGER() == poolManager, "new Factory PoolManager mismatch");
+
+        address lpManagerAddress = registry.lpManager();
+        address hookAddress = registry.hook();
+        require(lpManagerAddress == vm.envAddress("TSV_LP_MANAGER"), "LP Manager config drift");
+        require(hookAddress == vm.envAddress("TSV_HOOK"), "Hook config drift");
+        require(lpManagerAddress.code.length != 0 && hookAddress.code.length != 0, "component has no code");
+
+        IFactoryReplacementHook hookComponent = IFactoryReplacementHook(hookAddress);
+        address routerAddress = hookComponent.router();
+        require(routerAddress == vm.envAddress("TSV_ROUTER"), "Router config drift");
+        require(routerAddress.code.length != 0, "Router has no code");
+        require(
+            hookComponent.registry() == address(registry) && hookComponent.poolManager() == poolManager
+                && hookComponent.lpManager() == lpManagerAddress,
+            "Hook component bindings mismatch"
+        );
+
+        TSVLPManagerV1 lpManager = TSVLPManagerV1(payable(lpManagerAddress));
+        TSVSwapRouterV1 router = TSVSwapRouterV1(routerAddress);
+        require(address(lpManager.registry()) == address(registry), "LP Manager Registry mismatch");
+        require(address(router.registry()) == address(registry), "Router Registry mismatch");
+        require(address(lpManager.poolManager()) == poolManager, "LP Manager PoolManager mismatch");
+        require(address(router.poolManager()) == poolManager, "Router PoolManager mismatch");
+        require(
+            address(lpManager.PERMISSIONS_ADAPTER_FACTORY()) == previousFactory
+                && address(router.PERMISSIONS_ADAPTER_FACTORY()) == previousFactory,
+            "component Factory drift"
+        );
+
+        uint256 securityCount = vm.envUint("TSV_INSPECT_SECURITY_COUNT");
+        require(securityCount != 0, "security inventory is empty");
+        for (uint256 i; i < securityCount; ++i) {
+            bytes32 securityId = vm.envBytes32(string.concat("TSV_INSPECT_SECURITY_", vm.toString(i)));
+            SecurityRecord memory security = registry.getSecurity(securityId);
+            require(security.securityId == securityId, "security inventory mismatch");
+            require(security.listedPoolCount == 0, "all old Factory pools must be delisted first");
+        }
+
+        bytes32 pauseReason = _migrationReason("TSV_FACTORY_REPLACE_PAUSE_REASON_CODE");
+        bytes32 replaceReason = _migrationReason("TSV_FACTORY_REPLACE_REASON_CODE");
+        bytes32 resumeReason = _migrationReason("TSV_FACTORY_REPLACE_RESUME_REASON_CODE");
+        require(
+            pauseReason != replaceReason && pauseReason != resumeReason && replaceReason != resumeReason,
+            "use a different reasonCode for each migration operation"
+        );
+
+        uint256 wrappedCount = vm.envUint("TSV_INSPECT_W_COUNT");
+        for (uint256 i; i < wrappedCount; ++i) {
+            address wrapped = vm.envAddress(string.concat("TSV_INSPECT_W_", vm.toString(i)));
+            address oldUnderlying = IPermissionsAdapterFactory(previousFactory).permissionsAdapterOf(wrapped);
+            address newUnderlying = replacementFactory.permissionsAdapterOf(wrapped);
+            if (oldUnderlying != newUnderlying) {
+                console2.log("Factory mapping changes for W:", wrapped);
+                console2.log("Previous U:", oldUnderlying);
+                console2.log("Replacement U:", newUnderlying);
+            }
+        }
+
+        console2.log("Replacing PermissionsAdapterFactory:", previousFactory, newFactory);
+        console2.log("PoolManager:", poolManager);
+        console2.log("LP Manager and Router upgrades run while Registry is unpaused.");
+        console2.log("The current signer keeps EMERGENCY_PAUSER_ROLE and EMERGENCY_RESUMER_ROLE.");
+
+        vm.startBroadcast(privateKey);
+        if (!registry.hasRole(registry.EMERGENCY_PAUSER_ROLE(), operator)) {
+            registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), operator);
+        }
+        if (!registry.hasRole(registry.EMERGENCY_RESUMER_ROLE(), operator)) {
+            registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), operator);
+        }
+
+        TSVLPManagerV1 nextLpManager = new TSVLPManagerV1(
+            IPoolManager(poolManager),
+            IAllowanceTransfer(address(lpManager.permit2())),
+            lpManager.unsubscribeGasLimit(),
+            IPositionDescriptor(address(lpManager.tokenDescriptor())),
+            IWETH9(address(lpManager.WETH9())),
+            replacementFactory,
+            lpManager.DELIVERY_GAS_LIMIT(),
+            ITSVPermissionedRegistry(address(registry))
+        );
+        console2.log("LP Manager implementation:", address(nextLpManager));
+        lpManager.upgradeToAndCall(address(nextLpManager), bytes(""));
+        require(address(lpManager.PERMISSIONS_ADAPTER_FACTORY()) == newFactory, "LP Manager upgrade failed");
+
+        TSVSwapRouterV1 bridgeRouter = new TSVSwapRouterV1(poolManager, previousFactory);
+        console2.log("Router bridge implementation:", address(bridgeRouter));
+        router.upgradeToAndCall(address(bridgeRouter), bytes(""));
+        require(address(router.PERMISSIONS_ADAPTER_FACTORY()) == previousFactory, "Router bridge upgrade failed");
+
+        TSVSwapRouterV1 nextRouter = new TSVSwapRouterV1(poolManager, newFactory);
+        console2.log("Router target implementation:", address(nextRouter));
+        router.upgradeToAndCall(address(nextRouter), bytes(""));
+        require(address(router.PERMISSIONS_ADAPTER_FACTORY()) == newFactory, "Router Factory upgrade failed");
+
+        registry.setEmergencyPauseEnable(true, pauseReason);
+        TSVRegistryV1 nextRegistry = new TSVRegistryV1();
+        console2.log("Registry implementation:", address(nextRegistry));
+        registry.upgradeToAndCall(address(nextRegistry), bytes(""));
+        registry.replacePermissionsAdapterFactory(newFactory, replaceReason);
+        require(registry.permissionsAdapterFactory() == newFactory, "Registry Factory replacement failed");
+        registry.setEmergencyPauseEnable(false, resumeReason);
+        require(!registry.emergencyPauseEnable(), "Registry remains paused");
+        vm.stopBroadcast();
+
+        console2.log("PermissionsAdapterFactory migration completed; pause roles remain assigned.");
+    }
+
+    function _migrationReason(string memory variableName) private view returns (bytes32 reason) {
+        reason = vm.envBytes32(variableName);
+        require(reason != bytes32(0), "migration reasonCode must be nonzero");
+        console2.log(variableName);
+        console2.logBytes32(reason);
     }
 
     function _reason(string memory variableName) private view returns (bytes32 reason) {
@@ -246,4 +383,11 @@ contract RegistryOperations is Script {
     function _requireRole(TSVRegistryV1 registry, bytes32 role, address account) private view {
         require(registry.hasRole(role, account), "operator lacks required Registry role");
     }
+}
+
+interface IFactoryReplacementHook {
+    function registry() external view returns (address);
+    function poolManager() external view returns (address);
+    function router() external view returns (address);
+    function lpManager() external view returns (address);
 }

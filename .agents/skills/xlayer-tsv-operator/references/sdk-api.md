@@ -4,7 +4,7 @@ The package is in `sdk/python/tsv_xlayer_sdk` and requires Python 3.10+. Add `sd
 
 ## Foundry operations
 
-`Target` enumerates the XLayer scripts: asset and pool inspection, quote registration, stock adapter creation and verification, stock registration, pool initialization, direct TSV trade, Registry and Ledger operations, Legal-share Adapter deployment, SBT issuance, liquidity addition, and signed DexRouter + TSVAdapter swaps.
+`Target` enumerates the XLayer scripts: asset and pool inspection, quote registration, stock adapter creation and verification, stock registration, pool initialization, direct TSV trade, Registry and Ledger operations (including the multi-step PermissionsAdapterFactory migration), Legal-share Adapter deployment, SBT issuance, liquidity addition, and signed DexRouter + TSVAdapter swaps.
 
 Create an immutable `Operation(target, label, inputs)` using script environment variables as `inputs`. Keep signing credentials out of `inputs`; the client reads `XLAYER_PRIVATE_KEY` and, for DexRouter swaps, `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY` from `script/xlayer/.env.xlayer` or the process environment. Public mainnet RPC/deployment values load from `script/xlayer/deployment.json`. `XLAYER_RPC_URL` is an optional override.
 
@@ -15,6 +15,10 @@ if simulation.result.succeeded:
 ```
 
 `broadcast` rejects read-only operations, failed simulations, any confirmation other than the exact word `BROADCAST`, and any operation/configuration change since simulation. It reruns the same allowlisted Forge script with `--broadcast`.
+
+The `MIGRATE_PERMISSIONS_ADAPTER_FACTORY` Registry operation permanently grants the signer `EMERGENCY_PAUSER_ROLE` and `EMERGENCY_RESUMER_ROLE`, upgrades LP Manager, moves Router through an old-Factory bridge implementation to the new Factory implementation, pauses the Registry, upgrades Registry, replaces its Factory pointer, then resumes the Registry. It requires the configured securities to have no listed pools and asks for three distinct reason codes. A W not recognized by the replacement Factory will stop passing Factory validation.
+
+`PermissionsAdapterFactoryMigrationRequest` formats the action, replacement Factory address, and distinct pause/replacement/resume reason codes for `Operation(Target.REGISTRY_OPERATION, ..., request.env())`. The security and W inventories remain in the public deployment configuration; signing keys are loaded separately by `ExecutionClient`.
 
 `PoolKey` validates nonzero sorted currencies, fee, tick spacing, and hook. `TradeRequest` validates raw input/minimum output/deadline and creates the `TSV_*` environment values for `Target.TRADE`.
 

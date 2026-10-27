@@ -308,14 +308,15 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         UUPSUpgradeable.upgradeToAndCall(newImplementation, data);
     }
 
-    /// @dev Future upgrades must preserve immutable PoolManager/Factory identities and the new storage layout.
+    /// @dev Future implementations may change Factory but must retain the bound PoolManager.
     function _authorizeUpgrade(address implementation) internal view override {
         if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert UnauthorizedUpgrade();
         if (_getLocker() != address(0)) revert ContractLocked();
+        TSVSwapRouterV1 candidate = TSVSwapRouterV1(implementation);
+        IPermissionsAdapterFactory candidateFactory = candidate.PERMISSIONS_ADAPTER_FACTORY();
         if (
-            address(TSVSwapRouterV1(implementation).poolManager()) != address(poolManager)
-                || address(TSVSwapRouterV1(implementation).PERMISSIONS_ADAPTER_FACTORY())
-                    != address(PERMISSIONS_ADAPTER_FACTORY)
+            address(candidate.poolManager()) != address(poolManager) || address(candidateFactory).code.length == 0
+                || candidateFactory.POOL_MANAGER() != address(poolManager)
         ) revert InvalidRequest();
     }
 }

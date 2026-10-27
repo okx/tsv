@@ -16,6 +16,31 @@ Amounts are raw token units. `XLAYER_PRIVATE_KEY` signs and pays for operations.
 
 `Target` covers the inspect, registration, adapter deployment, pool, direct trade, liquidity, SBT, Registry, Ledger, and DexRouter trade scripts. `operate.py` collects operation-specific values; the SDK owns the script allowlist, signing environment, simulation fingerprint, and explicit broadcast gate.
 
+`PermissionsAdapterFactoryMigrationRequest` formats the Registry action, replacement Factory, and three distinct reason codes for `Target.REGISTRY_OPERATION`:
+
+```python
+from tsv_xlayer_sdk import (
+    ExecutionClient,
+    Operation,
+    PermissionsAdapterFactoryMigrationRequest,
+    Target,
+)
+
+request = PermissionsAdapterFactoryMigrationRequest(
+    new_factory="0x<replacement-factory-address>",
+    pause_reason_code="pause-reason",
+    replacement_reason_code="factory-replacement-reason",
+    resume_reason_code="resume-reason",
+)
+operation = Operation(Target.REGISTRY_OPERATION, "Replace PermissionsAdapterFactory", request.env())
+client = ExecutionClient()
+simulation = client.simulate(operation)
+if simulation.result.succeeded:
+    result = client.broadcast(simulation, "BROADCAST")
+```
+
+The operation also requires the security inventory configured in `deployment.json` to have no listed pools, plus the operator's Registry admin and upgrade roles. It permanently grants the signer emergency pause/resume roles; any W unrecognized by the new Factory will fail Factory validation after the switch. Simulate before broadcast and use the exact `BROADCAST` confirmation.
+
 ## DexRouter + TSVAdapter
 
 `DexRouterTradeRequest` validates and formats a one-hop request for `Target.DEX_ROUTER_TRADE`. Its `env()` method returns only public operation inputs; the Solidity script builds `MoreInfo`, checks both TSV/Adapter allowlists and TokenApproveProxy wiring, then calls `IDexRouter.dagSwapTo`. Stock sales require the local auth signer; purchases do not read it.

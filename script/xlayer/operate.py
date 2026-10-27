@@ -273,6 +273,7 @@ def configure_registry_action(env: dict[str, str]) -> None:
         "REPLACE_LEGAL_ADAPTER", "SET_TIER_POLICY",
         "SET_SBT_CONFIG", "RELIST_SECURITY", "SET_SECURITY_TIER", "DELIST_SECURITY",
         "SECURITY_STATUS", "POOL_LIFECYCLE", "GLOBAL_PAUSE", "ROUTER_ADAPTER",
+        "MIGRATE_PERMISSIONS_ADAPTER_FACTORY",
     ]
     print("可选 Registry/Router 操作：" + ", ".join(actions))
     action = ask("操作名").upper()
@@ -326,6 +327,26 @@ def configure_registry_action(env: dict[str, str]) -> None:
     elif action == "ROUTER_ADAPTER":
         env["TSV_ROUTER_ADAPTER"] = ask_address("Router Adapter", env.get("TSV_DEX_ADAPTER"))
         env["TSV_ROUTER_ADAPTER_ALLOWED"] = ask_bool("授权 Adapter")
+    elif action == "MIGRATE_PERMISSIONS_ADAPTER_FACTORY":
+        env["TSV_NEW_PERMISSIONS_ADAPTER_FACTORY"] = ask_address(
+            "新 PermissionsAdapterFactory",
+            "0x92cdb229613da8ca45e375cf69df4b3b645ff48d",
+        )
+        reason_names = (
+            "TSV_FACTORY_REPLACE_PAUSE_REASON_CODE",
+            "TSV_FACTORY_REPLACE_REASON_CODE",
+            "TSV_FACTORY_REPLACE_RESUME_REASON_CODE",
+        )
+        reason_labels = ("全局暂停", "更换 Factory", "恢复全局运行")
+        reasons = []
+        for name, label in zip(reason_names, reason_labels):
+            env[name] = ask_reason(f"{label} reasonCode")
+            reasons.append(env[name].lower())
+        if len(set(reasons)) != len(reasons):
+            raise ValueError("暂停、更换 Factory、恢复操作必须使用不同的 reasonCode")
+        print("本操作会永久授予当前钱包 EMERGENCY_PAUSER_ROLE 与 EMERGENCY_RESUMER_ROLE。")
+        print("LP Manager 直接升级；Router 先升级为旧 Factory bridge，再切换到新 Factory。")
+        print("切换后，不被新 Factory 识别的旧 W 将无法再通过 Factory 验证。")
 
 
 def configure_ledger_action(env: dict[str, str]) -> None:
@@ -429,7 +450,7 @@ def main() -> int:
     print("6. 登记已有 W/U/Security ID 列表")
     print("7. 初始化 W/Q 池")
     print("8. 执行一次 swap")
-    print("9. Registry/Router 管理操作（含授予 SYMBOL_ADMIN_ROLE）")
+    print("9. Registry/Router 管理操作（含授予 SYMBOL_ADMIN_ROLE、Factory 迁移）")
     print("10. Volume Ledger 管理操作")
     print("11. 为已有 U 部署 Legal-share Adapter")
     print("12. 给当前操作钱包发行已配置的 TSV SBT")
