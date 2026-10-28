@@ -6,11 +6,21 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
+import {TSVGoverned} from "tsv-v1/governance/TSVGoverned.sol";
+import {ReentrancyLock} from "v4-periphery/base/ReentrancyLock.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {PermissionsAdapterFactory} from "tsv-v1/vendor/permissionedPools/PermissionsAdapterFactory.sol";
+
+contract TSVRouterUpgradeLockHarness is TSVSwapRouterV1 {
+    constructor(address manager, address permissionsFactory) TSVSwapRouterV1(manager, permissionsFactory) {}
+
+    function upgradeWhileLocked(address next) external isNotLocked {
+        this.upgradeToAndCall(next, "");
+    }
+}
 
 contract TSVComponentUpgradeRolesTest is Test {
     TSVRegistryV1 private registry;
@@ -83,6 +93,79 @@ contract TSVComponentUpgradeRolesTest is Test {
         }
     }
 
+    function testPausedComponentsAndRegistryAllowAuthorizedUpgradeAndStayPaused() public {
+        _pauseRegistry();
+        address[3] memory next = _implementations();
+        for (uint256 i; i < components.length; ++i) {
+            UUPSUpgradeable(components[i]).upgradeToAndCall(next[i], "");
+            assertEq(TSVERC1967Proxy(payable(components[i])).tsvImplementation(), next[i]);
+            assertTrue(registry.isPaused());
+        }
+        address nextRegistry = address(new TSVRegistryV1());
+        registry.upgradeToAndCall(nextRegistry, "");
+        assertEq(TSVERC1967Proxy(payable(address(registry))).tsvImplementation(), nextRegistry);
+        assertTrue(registry.isPaused());
+        assertTrue(registry.hasRole(registry.UPGRADE_ADMIN_ROLE(), address(this)));
+
+        registry.setEmergencyPauseEnable(false, bytes32("RESUME"));
+        assertFalse(registry.isPaused());
+        router.setAdapterAllowed(address(ledger), true);
+        assertTrue(router.isAdapterAllowed(address(ledger)));
+    }
+
+    function testPausedComponentsAndRegistryRejectUnauthorizedUpgrades() public {
+        _pauseRegistry();
+        address unauthorized = makeAddr("paused-non-upgrade-admin");
+        registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), unauthorized);
+        address[3] memory next = _implementations();
+        for (uint256 i; i < components.length; ++i) {
+            vm.expectRevert(_unauthorized(i));
+            vm.prank(unauthorized);
+            UUPSUpgradeable(components[i]).upgradeToAndCall(next[i], "");
+            assertEq(TSVERC1967Proxy(payable(components[i])).tsvImplementation(), implementations[i]);
+        }
+        address nextRegistry = address(new TSVRegistryV1());
+        vm.expectRevert(TSVGoverned.UnauthorizedUpgrade.selector);
+        vm.prank(unauthorized);
+        registry.upgradeToAndCall(nextRegistry, "");
+        assertTrue(registry.isPaused());
+    }
+
+    function testPausedRouterUpgradeRejectsDifferentPoolManager() public {
+        _pauseRegistry();
+        PermissionsAdapterFactory otherFactory = new PermissionsAdapterFactory(address(ledger));
+        address next = address(new TSVSwapRouterV1(address(ledger), address(otherFactory)));
+        vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
+        router.upgradeToAndCall(next, "");
+        assertEq(TSVERC1967Proxy(payable(address(router))).tsvImplementation(), implementations[2]);
+        assertTrue(registry.isPaused());
+    }
+
+    function testPausedRouterUpgradeStillRejectsActiveLocker() public {
+        TSVRouterUpgradeLockHarness implementation = new TSVRouterUpgradeLockHarness(address(this), address(factory));
+        TSVRouterUpgradeLockHarness lockedRouter = TSVRouterUpgradeLockHarness(
+            address(
+                new TSVERC1967Proxy(
+                    address(implementation),
+                    abi.encodeCall(TSVSwapRouterV1.initialize, (address(this), address(registry)))
+                )
+            )
+        );
+        registry.grantRole(registry.UPGRADE_ADMIN_ROLE(), address(lockedRouter));
+        _pauseRegistry();
+        address next = address(new TSVSwapRouterV1(address(this), address(factory)));
+        vm.expectRevert(ReentrancyLock.ContractLocked.selector);
+        lockedRouter.upgradeWhileLocked(next);
+        assertEq(TSVERC1967Proxy(payable(address(lockedRouter))).tsvImplementation(), address(implementation));
+        assertTrue(registry.isPaused());
+    }
+
+    function _pauseRegistry() private {
+        registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), address(this));
+        registry.grantRole(registry.EMERGENCY_RESUMER_ROLE(), address(this));
+        registry.setEmergencyPauseEnable(true, bytes32("PAUSE"));
+    }
+
     function testLedgerUpgradePreservesQuotaUsageAndRegistry() public {
         bytes32 security = keccak256("upgrade-security");
         registry.grantRole(ledger.VOLUME_ORACLE_ROLE(), address(this));
@@ -137,16 +220,22 @@ contract TSVComponentUpgradeRolesTest is Test {
         assertFalse(router.isAdapterAllowed(address(ledger)));
     }
 
-    function testRouterUpgradeRejectsChangedImmutableDependencies() public {
-        PermissionsAdapterFactory changedFactory = new PermissionsAdapterFactory(address(this));
-        address next = address(new TSVSwapRouterV1(address(this), address(changedFactory)));
-        vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
-        router.upgradeToAndCall(next, "");
-        changedFactory = new PermissionsAdapterFactory(address(ledger));
-        next = address(new TSVSwapRouterV1(address(ledger), address(changedFactory)));
+    function testRouterUpgradeRejectsChangedPoolManager() public {
+        PermissionsAdapterFactory changedFactory = new PermissionsAdapterFactory(address(ledger));
+        address next = address(new TSVSwapRouterV1(address(ledger), address(changedFactory)));
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
         router.upgradeToAndCall(next, "");
         assertEq(TSVERC1967Proxy(payable(address(router))).tsvImplementation(), implementations[2]);
+    }
+
+    function testPausedRouterUpgradeAllowsFactoryWithSamePoolManager() public {
+        _pauseRegistry();
+        PermissionsAdapterFactory nextFactory = new PermissionsAdapterFactory(address(this));
+        address next = address(new TSVSwapRouterV1(address(this), address(nextFactory)));
+        router.upgradeToAndCall(next, "");
+        assertEq(TSVERC1967Proxy(payable(address(router))).tsvImplementation(), next);
+        assertEq(address(router.PERMISSIONS_ADAPTER_FACTORY()), address(nextFactory));
+        assertTrue(registry.isPaused());
     }
 
     function _implementations() private returns (address[3] memory) {

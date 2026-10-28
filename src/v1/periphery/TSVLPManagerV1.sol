@@ -303,12 +303,8 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         return SafeCallback.unlockCallback(data);
     }
 
-    function upgradeToAndCall(address newImplementation, bytes memory data)
-        public
-        payable
-        override
-        whenRegistryNotPaused
-    {
+    /// @notice Allows authorized upgrades without changing the Registry pause state.
+    function upgradeToAndCall(address newImplementation, bytes memory data) public payable override {
         UUPSUpgradeable.upgradeToAndCall(newImplementation, data);
     }
 
