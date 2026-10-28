@@ -32,6 +32,8 @@ Router 只有单池 exact-input 入口，并要求输入全额成交与最小输
 
 `swapExactInputFromContractDirect` 的 U 输入使用 W 中预存的 U（payer 为零），Q 输入由调用 Adapter（payer 为 msg.sender）付款；stock/W 输出必须交给 participant，已登记 quoteToken/Q 输出可交给 participant 或调用 Adapter。`swapExactInputFromContract` 使用调用 Adapter 作为 payer 和输出接收方。新增 `swapExactInput` 由调用者本人付款并接收输出；U 输入由 Router 从调用者转入 W，Q 输入由 Router 从调用者直接结算至 PoolManager。Router 不实现多跳、exact-output、外部 DEX 的 caller-marker 认证，也不判定 Adapter 是否可信；这些责任属于 Adapter 部署、Router allowlist 与后端路由配置。
 
+Router 的六个 active 上下文字段仅在本次 swap 执行期间使用。`PoolManager.unlock` 返回后，先缓存 `actualIn/actualOut` 并校验实际输入，再清零 participant、recipient、inputCurrency、payer 及两个金额字段；回调期间保留完整上下文。失败交易通过 EVM 回滚恢复调用前状态。字段声明和存储顺序保持不变。
+
 ## 6. LP 位置与退出
 
 LP Manager 复用 permissioned V4 position manager，在 action 分发处增加 Registry SBT 和 lifecycle 门禁，并在成功 mint/burn 后更新 Registry 的 NFT 数量。两个基于 V4 currency delta 的 mint/increase actions 不受支持。普通 `withdrawClaim` 禁用。
