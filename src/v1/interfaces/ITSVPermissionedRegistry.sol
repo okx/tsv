@@ -160,12 +160,12 @@ interface ITSVPermissionedRegistry {
     /// @return Whether `owner` currently holds `tokenId`.
     function hasIdentity(address owner, uint256 tokenId) external view returns (bool);
 
-    /// @notice Checks whether an account holds any registered identity.
+    /// @notice Checks whether an account holds any currently registered identity.
     /// @param owner Account whose registered identity ownership is checked.
     /// @return Whether `owner` holds at least one registered SBT identity.
     function hasCredential(address owner) external view returns (bool);
 
-    /// @notice Registers one identity or updates its swap/LP permissions.
+    /// @notice Registers or updates one identity; assigning NONE removes it from the registered set.
     /// @param tokenId Identity token ID to register or update.
     /// @param permissions TSV operation flags assigned to the identity.
     /// @param reasonCode Nonzero operational reason code for the configuration change.
