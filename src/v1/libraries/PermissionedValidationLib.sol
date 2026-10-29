@@ -111,17 +111,11 @@ library PermissionedValidationLib {
 
     function _candidateUnderlying(address w) private view returns (address u) {
         IPermissionedRegistryViews r = IPermissionedRegistryViews(address(this));
+        // A verified entry is the Factory's canonical underlying for this adapter.
         u = _readAddressArgument(
-            r.permissionsAdapterFactory(), IPermissionsAdapterFactory.permissionsAdapterOf.selector, w
+            r.permissionsAdapterFactory(), IPermissionsAdapterFactory.verifiedPermissionsAdapterOf.selector, w
         );
-        if (
-            u == address(0)
-                || _readAddressArgument(
-                        r.permissionsAdapterFactory(),
-                        IPermissionsAdapterFactory.verifiedPermissionsAdapterOf.selector,
-                        w
-                    ) != u
-        ) revert UnverifiedPermissionedAdapter(w);
+        if (u == address(0)) revert UnverifiedPermissionedAdapter(w);
         if (
             w.code.length == 0
                 || _readAddress(w, IPermissionsAdapter.POOL_MANAGER.selector) != r.permissionedPoolManager()

@@ -262,11 +262,17 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         bytes memory payload = _payload(request);
         // PoolManager forwards payload unchanged; SafeCallback restricts callbacks to that immutable PM.
         poolManager.unlock(payload);
-        activePayer = address(0);
         actualIn = activeAmountIn;
         actualOut = activeAmountOut;
         if (actualIn != request.amountSpecified) revert SlippageExceeded();
         // V4 exact-input action enforces the input and minimum-output limits.
+        // Callbacks are complete and return amounts are cached; clear the full swap context.
+        activeParticipant = address(0);
+        activeRecipient = address(0);
+        activeInputCurrency = address(0);
+        activePayer = address(0);
+        activeAmountIn = 0;
+        activeAmountOut = 0;
     }
 
     function _checkRequest(SwapRequest memory request) private view {
@@ -299,12 +305,8 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         );
     }
 
-    function upgradeToAndCall(address newImplementation, bytes memory data)
-        public
-        payable
-        override
-        whenRegistryNotPaused
-    {
+    /// @notice Allows authorized upgrades without changing the Registry pause state.
+    function upgradeToAndCall(address newImplementation, bytes memory data) public payable override {
         UUPSUpgradeable.upgradeToAndCall(newImplementation, data);
     }
 

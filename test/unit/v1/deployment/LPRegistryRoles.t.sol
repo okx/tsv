@@ -96,11 +96,42 @@ contract LPRegistryRolesTest is LPLinkedFixture {
         assertEq(_implementation(), address(implementation));
     }
 
-    function testUpgradeStillRespectsRegistryPause() public {
+    function testUpgradeWhilePausedPreservesPauseAndPosition() public {
         LPLinkedHarness implementation = _newImplementation();
-        vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.isPaused, ()), abi.encode(true));
-        vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
+        _pauseRegistry();
         lp.upgradeToAndCall(address(implementation), "");
+        assertEq(_implementation(), address(implementation));
+        assertTrue(TSVRegistryV1(registry).isPaused());
+        assertEq(lp.ownerOf(tokenId), owner);
+        assertEq(address(lp.registry()), registry);
+
+        vm.expectRevert(TSVLPManagerV1.RegistryPaused.selector);
+        vm.prank(owner);
+        lp.approve(address(this), tokenId);
+        TSVRegistryV1(registry).setEmergencyPauseEnable(false, bytes32("RESUME"));
+        vm.prank(owner);
+        lp.approve(address(this), tokenId);
+        assertEq(lp.getApproved(tokenId), address(this));
+    }
+
+    function testPausedUpgradeStillRequiresUpgradeRole() public {
+        LPLinkedHarness implementation = _newImplementation();
+        address previous = _implementation();
+        _pauseRegistry();
+        vm.expectRevert(TSVLPManagerV1.UnauthorizedUpgrade.selector);
+        vm.prank(owner);
+        lp.upgradeToAndCall(address(implementation), "");
+        assertEq(_implementation(), previous);
+        assertTrue(TSVRegistryV1(registry).isPaused());
+    }
+
+    function _pauseRegistry() private {
+        // This suite uses a real Registry; remove the fixture's permissive view mocks.
+        vm.clearMockedCalls();
+        TSVRegistryV1 r = TSVRegistryV1(registry);
+        r.grantRole(r.EMERGENCY_PAUSER_ROLE(), address(this));
+        r.grantRole(r.EMERGENCY_RESUMER_ROLE(), address(this));
+        r.setEmergencyPauseEnable(true, bytes32("PAUSE"));
     }
 
     function testInitializerAndUupsContextRemainProtected() public {

@@ -49,7 +49,7 @@ PoolManager / 旧 Adapter / U、Q 代币 / LP NFT 所属代理：不迁移。
 
 Registry 迁移实现和 Router 过渡实现只新增 immutable 参数，没有新增代理存储变量。Registry 使用固定旧／新地址实现单向迁移，没有占用可能已被 SBT 迁移使用的 `reinitializer(2)`。完成后的标准 Router 恢复原来的依赖一致性检查，不能随意换 Factory。
 
-**不要在升级前打开全局暂停。** 当前 LP Manager、Router、Hook 的升级入口受 Registry 全局暂停限制。本方案通过原子切换避免跨交易的混合依赖状态；如业务要求维护窗口，可先停止前端、撮合或后台入口。脚本会拒绝全局暂停的 Registry。
+**本专用 Factory 迁移脚本仍要求 Registry 未暂停。** 普通 Registry、Hook、Router、LP Manager 和 Ledger 的授权 UUPS 升级已允许在全局暂停时执行，并保留暂停状态；但本方案的迁移方法和协调器另有显式的未暂停前置条件，脚本仍会拒绝全局暂停的 Registry。本方案通过原子切换避免跨交易的混合依赖状态；如使用此脚本并需要维护窗口，可先停止前端、撮合或后台入口。普通暂停升级能力不等于此专用脚本已支持暂停迁移。
 
 ## 4. 权限和接口
 

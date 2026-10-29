@@ -54,9 +54,8 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
         _disableInitializers();
     }
 
-    /// @dev Upgrade authorization is managed exclusively by the Registry.
+    /// @dev Registry upgrade admins may upgrade while paused or unpaused.
     function _authorizeUpgrade(address) internal view override {
-        if (registry.isPaused()) revert InvalidOperation();
         if (!registry.hasRole(UPGRADE_ADMIN_ROLE, msg.sender)) revert UnauthorizedUpgrade();
     }
 

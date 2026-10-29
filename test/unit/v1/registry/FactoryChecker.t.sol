@@ -68,6 +68,19 @@ contract TSVFactoryCheckerTest is FoundationFixture {
         assertEq(registry.getCurrencyUnderlying(w), address(stockToken));
     }
 
+    function testAdmissionRejectsVerifiedUnderlyingMismatch() public {
+        address w = _prepareCurrency(address(stockToken), SECURITY, address(stockAdapter)).currency;
+        vm.mockCall(
+            address(permissionsFactory),
+            abi.encodeCall(IPermissionsAdapterFactory.verifiedPermissionsAdapterOf, (w)),
+            abi.encode(address(quote))
+        );
+        vm.expectRevert(TSVRegistryV1.InvalidPermissionedConfig.selector);
+        registry.registerPermissionedCurrency(_config(w, SECURITY, address(stockAdapter)), 1, bytes32("TEST"));
+        assertEq(registry.getCurrencyUnderlying(w), address(0));
+        assertEq(registry.getTierPolicy(1).listedCount, 1);
+    }
+
     function testForeignFactoryAdapterIsNotAdmitted() public {
         PermissionsAdapterFactory foreign = new PermissionsAdapterFactory(address(manager));
         address w =

@@ -104,7 +104,7 @@ Registry 为每个 SBT identity token ID 保存权限 bitmask。对 participant�
 | `EMERGENCY_PAUSER_ROLE` / `EMERGENCY_RESUMER_ROLE` | 启用/解除 global pause |
 | `POOL_CREATOR_ROLE` | 通过 LP Manager 初始化已登记 V4 池 |
 | `FORCE_EXIT_ADMIN_ROLE` | 调用 `unwindPositionByTsv` |
-| `UPGRADE_ADMIN_ROLE` | 授权 UUPS 升级；Hook 在 global pause 时也会拒绝升级 |
+| `UPGRADE_ADMIN_ROLE` | 授权 UUPS 升级；Registry、Hook、Router、LP Manager 和 Ledger 在全局暂停或未暂停时均允许授权升级，升级本身不切换暂停状态 |
 
 共享基类仍定义 `REVOKE_EXIT_EXECUTOR_ROLE` 和 `WITHDRAW_CLAIM_ROLE` 常量，但当前 TSV 合约没有消费者；`withdrawClaim` 会回滚。分配角色前应先核对当前源码中的实际调用点，不能仅凭常量名称赋予运营含义。
 

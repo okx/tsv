@@ -156,9 +156,9 @@ library TSVLPManagerLib {
             issuer,
             Currency.unwrap(poolKey.currency0),
             Currency.unwrap(poolKey.currency1),
-            settlement0.balanceOf(lp) - lpBalance0Before,
+            settlement0.balanceOf(lp) > lpBalance0Before ? settlement0.balanceOf(lp) - lpBalance0Before: 0,
             0,
-            settlement1.balanceOf(lp) - lpBalance1Before,
+            settlement1.balanceOf(lp) > lpBalance1Before ? settlement1.balanceOf(lp) - lpBalance1Before: 0,
             0
         );
     }
@@ -224,10 +224,10 @@ library TSVLPManagerLib {
             issuer,
             Currency.unwrap(poolKey.currency0),
             Currency.unwrap(poolKey.currency1),
-            issuerReceived0 ? 0 : afterBalances.lp0 - beforeBalances.lp0,
-            issuerReceived0 ? afterBalances.issuer0 - beforeBalances.issuer0 : 0,
-            issuerReceived1 ? 0 : afterBalances.lp1 - beforeBalances.lp1,
-            issuerReceived1 ? afterBalances.issuer1 - beforeBalances.issuer1 : 0
+            issuerReceived0 ? 0 : (afterBalances.lp0 > beforeBalances.lp0 ? afterBalances.lp0 - beforeBalances.lp0: 0),
+            issuerReceived0 ? (afterBalances.issuer0 > beforeBalances.issuer0 ? afterBalances.issuer0 - beforeBalances.issuer0 : 0) : 0,
+            issuerReceived1 ? 0 : (afterBalances.lp1 > beforeBalances.lp1 ? afterBalances.lp1 - beforeBalances.lp1 : 0),
+            issuerReceived1 ? (afterBalances.issuer1 > beforeBalances.issuer1 ? afterBalances.issuer1 - beforeBalances.issuer1 : 0) : 0
         );
     }
 
@@ -374,10 +374,6 @@ library TSVLPManagerLib {
         address owner;
         if (action == Actions.MINT_POSITION) {
             (PoolKey calldata key,,,,,, address recipient,) = params.decodeMintParams();
-            poolKey = key;
-            owner = _mapRecipient(recipient, executor);
-        } else if (action == Actions.MINT_POSITION_FROM_DELTAS) {
-            (PoolKey calldata key,,,,, address recipient,) = params.decodeMintFromDeltasParams();
             poolKey = key;
             owner = _mapRecipient(recipient, executor);
         } else {

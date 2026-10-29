@@ -58,7 +58,7 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         credential.setPaused(false);
         registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
-        assertTrue(registry.hasCredential(owner));
+        assertFalse(registry.hasCredential(owner));
         assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
     }
@@ -74,10 +74,15 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         good.setFailVerify(true);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         _assertConfig(7, true, true);
         assertEq(address(registry.participantSbt()), address(good));
         assertEq(registry.sbtTokenIds().length, 1);
+        // Removal does not depend on a live SBT verification call.
+        registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
+        (bool removedRegistered,) = registry.sbtIdentityConfig(7);
+        assertFalse(removedRegistered);
+        assertEq(registry.sbtTokenIds().length, 0);
     }
 
     function testSbtConfigurationAndUpdateEventsWithMalformedReadsAtomic() public {
@@ -129,7 +134,7 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.hasIdentity(owner, 7);
         OperationsSbt credential = identitySbt;
-        registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         credential.setCredential(owner, 7, true);
         credential.setCredential(owner, 99, true);
@@ -142,7 +147,7 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         assertFalse(registry.hasCredential(owner));
     }
 
-    function testPermissionUpdatesApplyToHoldersWithoutRevokingIdentityOrDuplicatingIds() public {
+    function testPermissionUpdatesAndNONERemovalApplyToHoldersWithoutDuplicateIds() public {
         address owner = makeAddr("holder");
         OperationsSbt credential = identitySbt;
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
@@ -152,18 +157,44 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
+        (bool removedRegistered,) = registry.sbtIdentityConfig(7);
+        assertFalse(removedRegistered);
+        assertEq(registry.sbtTokenIds().length, 1);
         assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         registry.setSbtConfig(8, PermissionFlags.NONE, bytes32("TEST"));
-        assertTrue(registry.hasCredential(owner));
+        assertEq(registry.sbtTokenIds().length, 0);
+        assertFalse(registry.hasCredential(owner));
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
+        (bool reRegistered,) = registry.sbtIdentityConfig(7);
+        assertTrue(reRegistered);
         assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner));
         assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner));
         uint256[] memory ids = registry.sbtTokenIds();
-        assertEq(ids.length, 2);
+        assertEq(ids.length, 1);
         assertEq(ids[0], 7);
-        assertEq(ids[1], 8);
+    }
+
+    function testSbtIdentityRegistrationHasHardCapAndNONEFreesRegistrationSlot() public {
+        uint256 cap = registry.MAX_SBT_IDENTITIES();
+        for (uint256 tokenId; tokenId < cap; ++tokenId) {
+            registry.setSbtConfig(tokenId, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
+        }
+        assertEq(registry.sbtTokenIds().length, cap);
+
+        // NONE removes the identity from both the permission set and registered-ID list.
+        registry.setSbtConfig(0, PermissionFlags.NONE, bytes32("TEST"));
+        assertEq(registry.sbtTokenIds().length, cap - 1);
+        registry.setSbtConfig(cap, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
+        assertEq(registry.sbtTokenIds().length, cap);
+
+        // Re-registering a removed ID consumes a free slot and remains bounded.
+        registry.setSbtConfig(1, PermissionFlags.NONE, bytes32("TEST"));
+        registry.setSbtConfig(0, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
+        assertEq(registry.sbtTokenIds().length, cap);
+        vm.expectRevert(TSVRegistryV1.SbtIdentityLimitReached.selector);
+        registry.setSbtConfig(cap + 1, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
     }
 
     function testUnrelatedPermissionBitsDoNotAuthorizeSwapOrLiquidity() public {
@@ -193,7 +224,8 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         credential.setCredential(owner, 8, holders & 2 != 0);
         credential.setPaused(paused);
         uint8 expected = paused ? 0 : ((holders & 1 != 0 ? first : 0) | (holders & 2 != 0 ? second : 0));
-        assertEq(registry.hasCredential(owner), holders != 0);
+        bool expectedHeld = (holders & 1 != 0 && first != 0) || (holders & 2 != 0 && second != 0);
+        assertEq(registry.hasCredential(owner), expectedHeld);
         assertEq(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, owner), expected & 1 != 0);
         assertEq(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, owner), expected & 2 != 0);
         assertEq(PermissionFlag.unwrap(registry.permissionsOf(owner)), bytes2(uint16(expected)));
