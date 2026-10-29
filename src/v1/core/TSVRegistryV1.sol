@@ -337,10 +337,6 @@ contract TSVRegistryV1 is TSVGoverned {
             if (registered) _removeIdentity(tokenId);
             sbtIdentityConfig[tokenId] = SbtIdentityConfig(false, PermissionFlags.NONE);
         } else {
-            try ISmartWalletSbtV1(participantSbt).verify(address(this), tokenId) returns (bool) {}
-            catch {
-                revert InvalidConfig();
-            }
             if (!registered) {
                 if (identityTokenIds.length >= MAX_SBT_IDENTITIES) revert SbtIdentityLimitReached();
                 identityTokenIds.push(tokenId);
