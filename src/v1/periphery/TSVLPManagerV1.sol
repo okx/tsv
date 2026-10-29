@@ -82,8 +82,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         IPositionDescriptor _tokenDescriptor,
         IWETH9 _weth9,
         IPermissionsAdapterFactory _permissionsAdapterFactory,
-        uint256 _deliveryGasLimit,
-        ITSVPermissionedRegistry _registry
+        uint256 _deliveryGasLimit
     )
         PermissionedPositionManager(
             _poolManager,
@@ -95,8 +94,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
             _deliveryGasLimit
         )
     {
-        if (address(_registry).code.length == 0) revert InvalidRegistry();
-        registry = _registry;
         _disableInitializers();
     }
 
