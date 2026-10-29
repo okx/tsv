@@ -62,7 +62,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
 
     ITSVPermissionedRegistry public registry;
 
-    uint256[48] private __gap;
 
     modifier onlyRole(bytes32 role) {
         TSVLPManagerLib.requireRole(registry, role);
