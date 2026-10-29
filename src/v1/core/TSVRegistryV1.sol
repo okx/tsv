@@ -755,7 +755,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @dev Both set => ALL (3); both clear => unpaused (0); otherwise return the one set bit.
     ///      Query callers receive operation bits, not SecurityPauseMode enum ordinals.
     function _getSecurityPauseMode(bytes32 securityId) private view returns (uint8) {
-        return securities[securityId].pauseMode & 3;
+        return securities[securityId].pauseMode;
     }
 
     /// @notice Enables or disables the protocol-wide emergency pause.
