@@ -608,7 +608,6 @@ contract TSVRegistryV1 is TSVGoverned {
         if ((securityId0 == 0) == (securityId1 == 0)) revert InvalidPool();
         bytes32 securityId = securityId0 == 0 ? securityId1 : securityId0;
         SecurityRecord storage security = securities[securityId];
-        if (!security.listed) revert InvalidPool();
         uint8 tierId = security.tierId;
         poolId = PoolId.unwrap(key.toId());
         if (isKnownPool(poolId)) revert InvalidPool();
