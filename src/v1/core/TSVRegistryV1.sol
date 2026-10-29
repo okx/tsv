@@ -837,11 +837,8 @@ contract TSVRegistryV1 is TSVGoverned {
     function _registerPermissionedCurrency(PermissionedRegisterParam calldata registerParam, bytes32 reasonCode)
         private
     {
-        _requireEnvironment();
         address currency = registerParam.currency;
-        if (currencyUnderlying[currency] != address(0) || !securities[registerParam.securityId].listed) {
-            revert InvalidPermissionedConfig();
-        }
+        if (currencyUnderlying[currency] != address(0)) revert InvalidPermissionedConfig();
         address underlying = PermissionedValidationLib.candidateUnderlying(currency);
         uint8 rawDecimals = PermissionedValidationLib.stockDecimals(currency, underlying);
         UnderlyingRecord storage canonicalUnderlying = underlyings[underlying];
