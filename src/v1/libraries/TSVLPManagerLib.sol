@@ -376,10 +376,6 @@ library TSVLPManagerLib {
             (PoolKey calldata key,,,,,, address recipient,) = params.decodeMintParams();
             poolKey = key;
             owner = _mapRecipient(recipient, executor);
-        } else if (action == Actions.MINT_POSITION_FROM_DELTAS) {
-            (PoolKey calldata key,,,,, address recipient,) = params.decodeMintFromDeltasParams();
-            poolKey = key;
-            owner = _mapRecipient(recipient, executor);
         } else {
             uint256 tokenId = abi.decode(params, (uint256));
             require((owner = owners[tokenId]) != address(0), "NOT_MINTED");
