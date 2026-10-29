@@ -55,6 +55,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
     bytes32 public constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
     bytes32 public constant UPGRADE_ADMIN_ROLE = keccak256("UPGRADE_ADMIN_ROLE");
+    bytes32 public constant UNWIND_ACTIVE_FLAG = keccak256("UNWIND_ACTIVE_FLAG");
 
     /// @dev Action bitset for authorized exit callbacks; BURN_POSITION has separate NFT accounting below.
     uint256 private constant EXIT_SETTLEMENT_ACTIONS = (uint256(1) << Actions.TAKE_PAIR)
@@ -327,7 +328,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
                     actionParams.decodeBurnParams();
                 (PoolKey memory poolKey,) = getPoolAndPositionInfo(tokenId);
                 // The committed hash is already consumed; mark only this burn as an active unwind.
-                TSVLPManagerLib.authorizeCallback(bytes32(uint256(1)));
+                TSVLPManagerLib.authorizeCallback(UNWIND_ACTIVE_FLAG);
                 _burn(tokenId, amount0Min, amount1Min, hookData);
                 TSVLPManagerLib.authorizeCallback(bytes32(0));
                 _updatePoolTickCount(poolKey, -1);
@@ -341,7 +342,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
 
     /// @notice True only while an authorized unwind burns its position, for the Hook's LP admission bypass.
     function isUnwindActive() external view returns (bool) {
-        return TSVLPManagerLib.authorizedCallbackHash() == bytes32(uint256(1));
+        return TSVLPManagerLib.authorizedCallbackHash() == UNWIND_ACTIVE_FLAG;
     }
 
     /// @dev Only ordinary actions reach this dispatcher; forced exits execute through their authorized callback.
