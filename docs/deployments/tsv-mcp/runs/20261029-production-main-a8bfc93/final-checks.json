@@ -1,0 +1,207 @@
+{
+  "checkedAt": "2026-10-30T03:09:39.597643+00:00",
+  "block": 74560742,
+  "components": {
+    "TSVRegistryV1": {
+      "implementation": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "proxy": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "implementationInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "proxyInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "adminSameImplementationUpgradeSimulation": {
+        "jsonrpc": "2.0",
+        "result": "0x",
+        "id": 1
+      },
+      "deployerUpgradeRejected": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted: :azT",
+          "data": "0x3a617a54"
+        },
+        "id": 1
+      }
+    },
+    "TSVVolumeLedgerV1": {
+      "implementation": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
+      "proxy": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+      "implementationInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "proxyInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "adminSameImplementationUpgradeSimulation": {
+        "jsonrpc": "2.0",
+        "result": "0x",
+        "id": 1
+      },
+      "deployerUpgradeRejected": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0x82b42900"
+        },
+        "id": 1
+      }
+    },
+    "TSVSwapRouterV1": {
+      "implementation": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+      "proxy": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "implementationInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "proxyInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "adminSameImplementationUpgradeSimulation": {
+        "jsonrpc": "2.0",
+        "result": "0x",
+        "id": 1
+      },
+      "deployerUpgradeRejected": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted: :azT",
+          "data": "0x3a617a54"
+        },
+        "id": 1
+      }
+    },
+    "TSVLPManagerV1": {
+      "implementation": "0x98f9398f865b58c868b7750449f7188c639e4175",
+      "proxy": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+      "implementationInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "proxyInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "adminSameImplementationUpgradeSimulation": {
+        "jsonrpc": "2.0",
+        "result": "0x",
+        "id": 1
+      },
+      "deployerUpgradeRejected": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted: :azT",
+          "data": "0x3a617a54"
+        },
+        "id": 1
+      }
+    },
+    "TSVHookV1": {
+      "implementation": "0x6422ef382cfe42b200aec323236c005c604550f7",
+      "proxy": "0xF151416e74d6B4Ae00197e8D8E4f4765283B3fff",
+      "implementationInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "proxyInitializationBlocked": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      },
+      "adminSameImplementationUpgradeSimulation": {
+        "jsonrpc": "2.0",
+        "result": "0x",
+        "id": 1
+      },
+      "deployerUpgradeRejected": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted: :azT",
+          "data": "0x3a617a54"
+        },
+        "id": 1
+      }
+    }
+  },
+  "scope": {
+    "createW": false,
+    "businessConfiguration": false,
+    "initializeProxiesAtomically": true
+  },
+  "registryBusinessBindings": {
+    "hook()": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "lpManager()": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "permissionsAdapterFactory()": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "permissionedPoolManager()": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "participantSbt()": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "registryBusinessBindingsConfigured": false,
+  "registryIsPaused": false,
+  "lpProxyEip712DomainMatchesProxyAndChain": {
+    "expected": "0x41765806dfa0596fa5c380f5ab93f2cbbc81d6c5f4d2a7a479d8f028f463e01b",
+    "actual": "0x41765806dfa0596fa5c380f5ab93f2cbbc81d6c5f4d2a7a479d8f028f463e01b"
+  },
+  "hookAddressPermissionBits": "0x3fff",
+  "status": "ALL_FINAL_CHECKS_PASSED",
+  "noWriteTransactionsPerformedByTheseChecks": true
+}

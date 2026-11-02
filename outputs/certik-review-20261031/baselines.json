@@ -1,0 +1,14 @@
+{
+  "report": {
+    "ref": "85623cd73ab6248b4acec71f478f30088c4deec3",
+    "commit": "85623cd73ab6248b4acec71f478f30088c4deec3"
+  },
+  "audit-fix": {
+    "ref": "origin/audit/2026-10-27-6402443-fix",
+    "commit": "543dcd34e882eead3a9f2391540c704105fbc693"
+  },
+  "main": {
+    "ref": "origin/main",
+    "commit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420"
+  }
+}

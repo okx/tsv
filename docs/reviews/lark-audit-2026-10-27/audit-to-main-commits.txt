@@ -1,0 +1,57 @@
+90929552fd557fd67b9debafa905bafffb40ed86 Merge branch 'fix/sdk-tsv-unsigned-amount' into 'main'
+0b663ea5c448d76e0c683b8385bb9b9c41e9ac2f Merge branch 'feat/permissions-adapter-factory-upgrade' into 'main'
+bd7f03e1934e429f4ec6efe51c602a8e56f2bc77 fix(sdk): use unsigned three-field TSVAdapter payloads
+fa7308715d06fb97e5750056dc49cabc320ccfc0 Merge branch 'tsv-add-script' into 'main'
+95b3ad1b6acfca244bba4cec662f352a70e4be1d change dir
+8b6d2c7f4093d8f97d329e54350d8633f09eb5b0 change dir
+b88b0d5d2e5424218a13950652e72e9fa17f9d20 change dir
+c767c230e5ae51113322ca868faf06f8af5baa92 add script
+2782abd0088650ffd93b9298923acccd9462ae7d Merge branch 'fix/unwind-underlying-event-amounts' into 'main'
+dae4737f46371804194ab85754b07704e6fd6b20 docs: clarify independent pool gates and global pause semantics
+3df4394f5d7ad2dcd6f857ed4f6d75dd9a57002d docs: mark unwind amounts fixed and remove TokenApprove requirements
+8fbabc59de872ec3d5743a81e55f39dec45f54c7 fix: report underlying token receipts in unwind events
+7f7e23c1b2659ffd45915d092dbf9592f7b157ec update doc
+400ae8a8deed51a8c477c7de349afa888331a310 update
+0172eedb7ec2a29fca35a22c739eb6151117b9eb version1
+d1e2f92747da10eba2eea117304338485812fb51 udpate
+00b14d28076ea194c4240c65fde9bc470a275515 feat(sdk): add Factory migration request and Skill guidance
+47cd7d14cdc8eff8c2d384eded49fd1d3aef6098 feat(xlayer): add interactive factory migration
+796df985fe967c42fc2dd30ffd7517aa5c995e90 feat(tsv): support permissions adapter factory replacement
+bcdace150aadd84c1215437e64f857e6975ed26e Merge branch 'fix/sdk-tsv-sell-only-auth' into 'main'
+80f1762466bab0cd93b7c50e18ce594261378bcd fix(sdk): align TSV swaps with sell-only authorization
+926bb7707c53c6ab4d1181fe10e086671dcac39c Merge branch 'feat/xlayer-tsv-operator-sdk' into 'main'
+80a2f0e4b686fe65f643172a1647346f8f60848d feat: support signed TSV DexRouter swaps
+d83bc78920ec6c5a90cc0d3ae0f5a88ceddf6cc0 Merge branch 'feat/xlayer-tsv-operator-sdk' into 'main'
+be9d37f616922e4c0a5f11cd7eb6dd0b38270863 feat(xlayer): add interactive TSV operator SDK
+f162f1b97c9d41e7d3c0f58b80be9b2a9b058b2f Merge branch 'docs/record-new-permissions-adapter-factory' into 'main'
+ae3a28db76c4b74eeb534d50a8640d4cf4e51c01 docs: record new permissions adapter factory
+ffb1e5c8d6ee6f5914a672629931aa7d6c6235ff Merge branch 'fix/lp-unwind-permission-flag' into 'main'
+a841fcc80d185fedaf02102726e4e62a5d88d89d fix: align LP unwind authorization
+95f2f58968a6d0e2e8ede96ddd1e6d792e13c28b Merge branch 'deployment/xlayer-aa-protocol-20261015' into 'main'
+d4fbd44c38adcd1d1c7d1fdd7e521dc82f521142 Merge branch 'docs/xlayer-rwt-usdc-record-20261015' into 'main'
+9af5222fa9d383b8964026d056db56d43a7fccb9 docs: record X Layer RWT USDC operations
+922d27c29cc4e6ed0f8fb6598dccfeeb70969c68 docs: record X Layer RWT USDC operations
+21484e96e717eda045d7b5eb48cdfb3aba6dc5f1 Merge branch 'deployment/xlayer-aa-protocol-20261015' into 'main'
+451eeae27e036a062162710a51743c83390c1a92 feat: add TSV mainnet deployment and AA operations scripts
+85623cd73ab6248b4acec71f478f30088c4deec3 Merge branch 'deployment/xlayer-mainnet-smoke-20261014' into 'main'
+dcbaaa076e6673d3c6b1667fd486d811c0aeeb1b docs: record X Layer mainnet smoke deployment
+6f574ee730c4211fa1798a2c7ef0080b3e9f9045 Merge branch 'fix/direct-swap-recipient-routing-20261014' into 'main'
+54581de66022ec407a67532bd5fd90260be00d79 refactor(router): simplify recipient validation
+407af84bff514d7a011c9a947f74dc793ef3a311 fix(router): enforce direct swap recipient rules
+312bdaa8a38c93ae1882fc87c06d947fe39ec2cf fix(router): route direct swap outputs by token type
+a93eea675804a20972a9bda36ecb3e1752d0482b Merge branch 'improvement-apply-security-status' into 'main'
+60dbd0c9401669f15563a70aab11bf7f8dba357b change applySecurityStatus logic
+42a690d682536adb603b9adbf4eb4af1ce7dd1cb Merge branch 'improvement-apply-security-status' into 'main'
+956891238276ff3ecccfbf536b7938add58b84e3 change applySecurityStatus logic
+cd89fa1d2653e63a3ee853588cf2b40a8e224efb Merge branch 'feat/router-caller-bound-swap-20261013' into 'main'
+580615a374dec85245163f68532faabe4937055f feat(router): add caller-bound swaps and recipient check
+dcf74d75f7c27ccaf873a75b7ca8b2a0e2690ec4 Merge branch 'fix/lp-unwind-issuer-event-amounts-20261013' into 'main'
+8df17b31a25ee4ea458947d87d5aaea07e1d1478 fix(lp): report recipient balance deltas in unwind events
+96fa16ac181662f1b3cdd3c1f88fd31a6f21e43d Merge branch 'feat/lp-unwind-balance-events-20261013' into 'main'
+f020dddf4fd4eba5ed9d35a6b8864d334bff6af4 feat(lp): emit unwind events from LP balance changes
+5985c091c3aa2d673658f9f5ec85fb78b6a683f7 Merge branch 'feat/tsv-direct-approval-unwind-by-tsv-20261013' into 'main'
+ad9705818b60e87626c7438648911c43805986e0 feat(tsv): use direct LP approvals and rename TSV unwind
+def84d0cee2ef37079e5ea17a6ffa77da00ba1a7 Merge branch 'feat/router-q-direct-settlement-20261013' into 'main'
+9c1327790ed0a82666a62f635457c1f767b0345d fix: settle quote tokens directly to PoolManager
+51213954e66bf5b3ccf324d803844c99d3db5a2e Merge branch 'fix/ledger-persistent-daily-quota-20261013' into 'main'
+0228096b528a453b7d24335b3fc67c46512db709 fix: align volume ledger persistent daily quota API

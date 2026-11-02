@@ -1,0 +1,380 @@
+{
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "currency_",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "currentMultiplier",
+      "inputs": [
+        {
+          "name": "currency",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "multiplier",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "poolCurrency",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "supportsInterface",
+      "inputs": [
+        {
+          "name": "interfaceId",
+          "type": "bytes4",
+          "internalType": "bytes4"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "toLegalShares",
+      "inputs": [
+        {
+          "name": "currency",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "rawAmount",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "legalSharesWad",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "error",
+      "name": "InvalidAdapterConfig",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "InvalidCurrency",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "InvalidRate",
+      "inputs": []
+    }
+  ],
+  "bytecode": {
+    "object": "0x60a080604052346100df57602081610519803803809161001f82856100ff565b8339810103126100df57516001600160a01b0381168082036100df57801580156100f6575b61009b5760206004916040519283809263313ce56760e01b82525afa9081156100eb575f916100aa575b5060ff601291161161009b576080526040516103e290816101378239608051818181608d01526101f60152f35b636b587da360e01b5f5260045ffd5b90506020813d6020116100e3575b816100c5602093836100ff565b810103126100df575160ff811681036100df5760ff61006e565b5f80fd5b3d91506100b8565b6040513d5f823e3d90fd5b50813b15610044565b601f909101601f19168101906001600160401b0382119082101761012257604052565b634e487b7160e01b5f52604160045260245ffdfe6080806040526004361015610012575f80fd5b5f3560e01c90816301ffc9a7146100eb575080636b705c65146100bc5780638571a0ae146100785763c65fb04b14610048575f80fd5b3461007457602036600319011261007457602061006b61006661013d565b6101e7565b50604051908152f35b5f80fd5b34610074575f366003190112610074576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b346100745760403660031901126100745760206100e36100da61013d565b60243590610153565b604051908152f35b34610074576020366003190112610074576004359063ffffffff60e01b8216809203610074576020916250bc9960e71b811490811561012c575b5015158152f35b6301ffc9a760e01b14905083610125565b600435906001600160a01b038216820361007457565b9080156101ab5761016560ff926101e7565b9290921691604d83116101975761017f92600a0a91610322565b90811561018857565b636a43f8d160e01b5f5260045ffd5b634e487b7160e01b5f52601160045260245ffd5b50505f90565b90601f8019910116810190811067ffffffffffffffff8211176101d357604052565b634e487b7160e01b5f52604160045260245ffd5b6001600160a01b0390811691907f00000000000000000000000000000000000000000000000000000000000000001682036103135760405163a60bf13d60e01b815290602082600481865afa9182156102d4575f926102df575b506004602083946040519283809263313ce56760e01b82525afa9081156102d4575f91610298575b50911582811561028a575b5061027b57565b636b587da360e01b5f5260045ffd5b6012915060ff16115f610274565b90506020813d6020116102cc575b816102b3602093836101b1565b81010312610074575160ff81168103610074575f610269565b3d91506102a6565b6040513d5f823e3d90fd5b9091506020813d60201161030b575b816102fb602093836101b1565b810103126100745751905f610241565b3d91506102ee565b631eb3268560e31b5f5260045ffd5b90915f1983830992808302928380861095039480860395146103b3578483111561039b5790829109815f0382168092046002816003021880820260020302808202600203028082026002030280820260020302808202600203028091026002030293600183805f03040190848311900302920304170290565b82634e487b715f52156003026011186020526024601cfd5b5050809250156103c1570490565b634e487b7160e01b5f52601260045260245ffdfea164736f6c634300081a000a",
+    "sourceMap": "546:1922:4:-:0;;;;;;;;;;;;;;;;;;;:::i;:::-;;;;;;;;;;-1:-1:-1;;;;;546:1922:4;;;;;;;807:23;;:53;;;;-1:-1:-1;803:88:4;;546:1922;919:52;546:1922;;;;;;;;;;919:52;;;;;;;;;-1:-1:-1;919:52:4;;;-1:-1:-1;546:1922:4;;997:2;546:1922;;985:14;981:49;;1040:24;;546:1922;;;;;;;;1040:24;546:1922;;;;;;;;;;;981:49;869:22;;;-1:-1:-1;1008:22:4;919:52;-1:-1:-1;1008:22:4;919:52;;;546:1922;919:52;;546:1922;919:52;;;;;;546:1922;919:52;;;:::i;:::-;;;546:1922;;;;;;;;;;;;;919:52;;546:1922;-1:-1:-1;546:1922:4;;919:52;;;-1:-1:-1;919:52:4;;;546:1922;;;-1:-1:-1;546:1922:4;;;;;807:53;834:21;;;:26;807:53;;546:1922;;;;;-1:-1:-1;;546:1922:4;;;;-1:-1:-1;;;;;546:1922:4;;;;;;;;;;:::o;:::-;;;;-1:-1:-1;546:1922:4;;;;;-1:-1:-1;546:1922:4",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x6080806040526004361015610012575f80fd5b5f3560e01c90816301ffc9a7146100eb575080636b705c65146100bc5780638571a0ae146100785763c65fb04b14610048575f80fd5b3461007457602036600319011261007457602061006b61006661013d565b6101e7565b50604051908152f35b5f80fd5b34610074575f366003190112610074576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b346100745760403660031901126100745760206100e36100da61013d565b60243590610153565b604051908152f35b34610074576020366003190112610074576004359063ffffffff60e01b8216809203610074576020916250bc9960e71b811490811561012c575b5015158152f35b6301ffc9a760e01b14905083610125565b600435906001600160a01b038216820361007457565b9080156101ab5761016560ff926101e7565b9290921691604d83116101975761017f92600a0a91610322565b90811561018857565b636a43f8d160e01b5f5260045ffd5b634e487b7160e01b5f52601160045260245ffd5b50505f90565b90601f8019910116810190811067ffffffffffffffff8211176101d357604052565b634e487b7160e01b5f52604160045260245ffd5b6001600160a01b0390811691907f00000000000000000000000000000000000000000000000000000000000000001682036103135760405163a60bf13d60e01b815290602082600481865afa9182156102d4575f926102df575b506004602083946040519283809263313ce56760e01b82525afa9081156102d4575f91610298575b50911582811561028a575b5061027b57565b636b587da360e01b5f5260045ffd5b6012915060ff16115f610274565b90506020813d6020116102cc575b816102b3602093836101b1565b81010312610074575160ff81168103610074575f610269565b3d91506102a6565b6040513d5f823e3d90fd5b9091506020813d60201161030b575b816102fb602093836101b1565b810103126100745751905f610241565b3d91506102ee565b631eb3268560e31b5f5260045ffd5b90915f1983830992808302928380861095039480860395146103b3578483111561039b5790829109815f0382168092046002816003021880820260020302808202600203028082026002030280820260020302808202600203028091026002030293600183805f03040190848311900302920304170290565b82634e487b715f52156003026011186020526024601cfd5b5050809250156103c1570490565b634e487b7160e01b5f52601260045260245ffdfea164736f6c634300081a000a",
+    "sourceMap": "546:1922:4:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;546:1922:4;;;;;1493:28;546:1922;;:::i;:::-;1493:28;:::i;:::-;546:1922;;;;;;;;;;;;;;;;;-1:-1:-1;;546:1922:4;;;;;;709:46;-1:-1:-1;;;;;546:1922:4;;;;;;;;;;;;-1:-1:-1;;546:1922:4;;;;;;;;:::i;:::-;;;;;:::i;:::-;;;;;;;;;;;;;-1:-1:-1;;546:1922:4;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;1179:57:4;;;:101;;;;546:1922;;;;;;;1179:101;-1:-1:-1;;;1240:40:4;;-1:-1:-1;1179:101:4;;;546:1922;;;;-1:-1:-1;;;;;546:1922:4;;;;;;:::o;1617:417::-;;1783:14;;1779:28;;1857;546:1922;1857:28;;:::i;:::-;546:1922;;;;;;;;;;1912:60;546:1922;;;1912:60;;:::i;:::-;1986:19;;;1982:45;;1617:417::o;1982:45::-;2014:13;;;546:1922;2014:13;;546:1922;2014:13;546:1922;;;;;;;;;;;;1779:28;1799:8;;546:1922;1799:8;:::o;546:1922::-;;;;;;;;;;;;;;;;;;;;;:::o;:::-;;;;-1:-1:-1;546:1922:4;;;;;-1:-1:-1;546:1922:4;2040:426;-1:-1:-1;;;;;546:1922:4;;;;;2171:12;546:1922;2159:24;;2155:54;;546:1922;;-1:-1:-1;;;2322:20:4;;546:1922;2322:20;546:1922;2322:20;546:1922;2322:20;;;;;;;;-1:-1:-1;2322:20:4;;;2040:426;2309:33;2322:20;;2309:33;546:1922;;;;;;;;;;2364:16;;;;;;;;;-1:-1:-1;2364:16:4;;;2040:426;-1:-1:-1;2352:28:4;2395:15;2352:28;2395:33;;;;2040:426;2391:68;;;2040:426::o;2391:68::-;2437:22;;;-1:-1:-1;2437:22:4;2322:20;-1:-1:-1;2437:22:4;2395:33;2426:2;546:1922;;;;2414:14;2395:33;;;2364:16;;;2322:20;2364:16;;2322:20;2364:16;;;;;;2322:20;2364:16;;;:::i;:::-;;;546:1922;;;;;;;;;;;;2364:16;;;;;;-1:-1:-1;2364:16:4;;;546:1922;;;-1:-1:-1;546:1922:4;;;;;2322:20;;;;;;;;;;;;;;;;;;:::i;:::-;;;546:1922;;;;;2322:20;;;;;;;-1:-1:-1;2322:20:4;;2155:54;2192:17;;;;;;;;7258:3683:2;;;-1:-1:-1;;7258:3683:2;;1412:159;;;;;;;;;;;;;;;;7514:9;;7510:365;;7985:19;;;;7981:142;;8406:308;;;;940:4:0;546:1922:4;940:4:0;8933:31:2;;8978:384;;;9816:1;940:4:0;9797:1:2;940:4:0;9796:21:2;940:4:0;;;9816:1:2;940:4:0;;;;;9816:1:2;940:4:0;;;;;9816:1:2;940:4:0;;;;;9816:1:2;940:4:0;;;;;9816:1:2;940:4:0;;;;;9816:1:2;940:4:0;;8978:384:2;;;;546:1922:4;8978:384:2;;;8406:308;;;;;;940:4:0;8406:308:2;;8978:384;9425:18;940:4:0;7258:3683:2;:::o;7981:142::-;1829:135:0;;546:1922:4;1829:135:0;8044:16:2;5328:5;940:4:0;;5322:42:2;1829:135:0;;;;;7510:365:2;546:1922:4;;;;;;;;;7836:24:2;:::o;546:1922:4:-;;;;;;;;;;;",
+    "linkReferences": {},
+    "immutableReferences": {
+      "3501": [
+        {
+          "start": 141,
+          "length": 32
+        },
+        {
+          "start": 502,
+          "length": 32
+        }
+      ]
+    }
+  },
+  "methodIdentifiers": {
+    "currentMultiplier(address)": "c65fb04b",
+    "poolCurrency()": "8571a0ae",
+    "supportsInterface(bytes4)": "01ffc9a7",
+    "toLegalShares(address,uint256)": "6b705c65"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.26+commit.8a97fa7a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"currency_\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"InvalidAdapterConfig\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidCurrency\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidRate\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"currency\",\"type\":\"address\"}],\"name\":\"currentMultiplier\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"multiplier\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"poolCurrency\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"currency\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"rawAmount\",\"type\":\"uint256\"}],\"name\":\"toLegalShares\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"legalSharesWad\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"supportsInterface(bytes4)\":{\"details\":\"Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas.\"}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"currentMultiplier(address)\":{\"notice\":\"Returns the live ERC-8056 multiplier for the bound Currency.\"},\"poolCurrency()\":{\"notice\":\"Returns the pool Currency to which this adapter is bound.\"},\"toLegalShares(address,uint256)\":{\"notice\":\"Converts raw token units using the multiplier active at this call.\"}},\"notice\":\"Converts raw ERC-8056 token amounts using the multiplier active at call time.\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/v1/adapters/ERC8056DirectLegalShareAdapter.sol\":\"ERC8056DirectLegalShareAdapter\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":@adapters/=lib/dex-adapters/src/adapters/\",\":@dex/=lib/dexrouter/contracts/8/\",\":@ensdomains/=lib/v4-core/node_modules/@ensdomains/\",\":@interfaces/=lib/dex-adapters/src/interfaces/\",\":@libraries/=lib/dex-adapters/src/libraries/\",\":@okxlabs/=lib/dexrouter/contracts/8/\",\":@openzeppelin-contracts-5.5.0/=dependencies/@openzeppelin-contracts-5.5.0/\",\":@openzeppelin-contracts-upgradeable-5.5.0/=dependencies/@openzeppelin-contracts-upgradeable-5.5.0/\",\":@openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.5.0/\",\":@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.5.0/\",\":@uniswap/v4-core/=lib/v4-periphery/lib/v4-core/\",\":TestToken/=lib/TestToken/\",\":deploy-factory-1.0.0/=lib/soul-bound-token-1155/dependencies/deploy-factory-1.0.0/\",\":deploy-factory/=lib/soul-bound-token-1155/dependencies/deploy-factory-1.0.0/\",\":dex-adapters/=lib/dex-adapters/src/\",\":dexrouter-interfaces/=lib/dexrouter-interfaces/\",\":dexrouter/=lib/dexrouter/contracts/\",\":ds-test/=lib/v4-core/lib/forge-std/lib/ds-test/src/\",\":erc4626-tests/=lib/v4-core/lib/openzeppelin-contracts/lib/erc4626-tests/\",\":eth-gas-reporter/=lib/TestToken/securitize-dstoken-snapshot-0a39d22/node_modules/eth-gas-reporter/\",\":forge-gas-snapshot/=lib/v4-periphery/lib/permit2/lib/forge-gas-snapshot/src/\",\":forge-std-1.9.7/=lib/soul-bound-token-1155/dependencies/forge-std-1.9.7/\",\":forge-std/=lib/v4-core/lib/forge-std/src/\",\":hardhat/=lib/v4-core/node_modules/hardhat/\",\":openzeppelin-contracts/=lib/v4-core/lib/openzeppelin-contracts/\",\":openzeppelin/=lib/dex-adapters/lib/openzeppelin-contracts/contracts/\",\":permit2/=lib/v4-periphery/lib/permit2/\",\":solmate/=lib/v4-core/lib/solmate/\",\":soul-bound-token-1155/=lib/soul-bound-token-1155/src/\",\":tsv-v1/=src/v1/\",\":v4-core/=lib/v4-core/src/\",\":v4-periphery/=lib/v4-periphery/src/\",\"lib/dex-adapters/:@interfaces/=lib/dex-adapters/src/interfaces/\",\"lib/dex-adapters/:@libraries/=lib/dex-adapters/src/libraries/\",\"lib/dex-adapters/:@openzeppelin/contracts/=lib/dex-adapters/lib/openzeppelin-contracts/contracts/\",\"lib/v4-periphery/:@openzeppelin/contracts/=lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/contracts/\",\"lib/v4-periphery/:@uniswap/v4-core/src/=lib/v4-periphery/lib/v4-core/src/\",\"lib/v4-periphery/:solmate/=lib/v4-periphery/lib/v4-core/lib/solmate/\",\"lib/v4-periphery/src/hooks/permissionedPools/:@uniswap/v4-core/src/=lib/v4-core/src/\",\"src/v1/vendor/permissionedPools/:@openzeppelin/contracts/=lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/contracts/\",\"src/v1/vendor/permissionedPools/:@uniswap/v4-core/src/=lib/v4-periphery/lib/v4-core/src/\",\"src/v1/vendor/permissionedPools/:solmate/=lib/v4-periphery/lib/v4-core/lib/solmate/\"],\"viaIR\":true},\"sources\":{\"dependencies/@openzeppelin-contracts-5.5.0/utils/Panic.sol\":{\"keccak256\":\"0xf7fe324703a64fc51702311dc51562d5cb1497734f074e4f483bfb6717572d7a\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c6a5ff4f9fd8649b7ee20800b7fa387d3465bd77cf20c2d1068cd5c98e1ed57a\",\"dweb:/ipfs/QmVSaVJf9FXFhdYEYeCEfjMVHrxDh5qL4CGkxdMWpQCrqG\"]},\"dependencies/@openzeppelin-contracts-5.5.0/utils/introspection/IERC165.sol\":{\"keccak256\":\"0x8891738ffe910f0cf2da09566928589bf5d63f4524dd734fd9cedbac3274dd5c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://971f954442df5c2ef5b5ebf1eb245d7105d9fbacc7386ee5c796df1d45b21617\",\"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u\"]},\"dependencies/@openzeppelin-contracts-5.5.0/utils/math/Math.sol\":{\"keccak256\":\"0x09e3f1c72d4c5cbe8e2644ab7313f8f7177533ae2f4c24cdcbbeaf520a73734c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://93208401215d539fa2d81626b207c1f611def7883d0e447b3b5969ebaa7b3c2c\",\"dweb:/ipfs/QmXPxDnQPx8LAweX5ZJqEcwkvs59kP4c64VVDG1Jjq1mef\"]},\"dependencies/@openzeppelin-contracts-5.5.0/utils/math/SafeCast.sol\":{\"keccak256\":\"0x195533c86d0ef72bcc06456a4f66a9b941f38eb403739b00f21fd7c1abd1ae54\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b1d578337048cad08c1c03041cca5978eff5428aa130c781b271ad9e5566e1f8\",\"dweb:/ipfs/QmPFKL2r9CBsMwmUqqdcFPfHZB2qcs9g1HDrPxzWSxomvy\"]},\"src/v1/adapters/ERC8056DirectLegalShareAdapter.sol\":{\"keccak256\":\"0x877fc78e07a12611d6b2d90654b2fe311f64ed2e84a45918d1b55c97268d6557\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://436e340a21df56f94bbee7e21fc9662164ba361753bff61e02a5298df4651eaf\",\"dweb:/ipfs/QmZpNk3wsiGoUD9NM7HWnWWwJsHTbNB2La6aNgJ4xCg5Gd\"]},\"src/v1/interfaces/IDirectLegalShareAdapter.sol\":{\"keccak256\":\"0xf7727955f2213e12e03477aefbfc09e789a0df4f0d5b127eb3bdabd8778f4436\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b6fd1dea4c2cb09c1d73ed90381689389415ac9e579ea49c38a0acb7165988dd\",\"dweb:/ipfs/QmeGF3nV174vbAu3UFuarJyMMTwNs8J1aeEhHHVeSdqN6Y\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": {
+      "version": "0.8.26+commit.8a97fa7a"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "currency_",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "type": "error",
+          "name": "InvalidAdapterConfig"
+        },
+        {
+          "inputs": [],
+          "type": "error",
+          "name": "InvalidCurrency"
+        },
+        {
+          "inputs": [],
+          "type": "error",
+          "name": "InvalidRate"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "currency",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "currentMultiplier",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "multiplier",
+              "type": "uint256"
+            }
+          ]
+        },
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "poolCurrency",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ]
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes4",
+              "name": "interfaceId",
+              "type": "bytes4"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function",
+          "name": "supportsInterface",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ]
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "currency",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "rawAmount",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "toLegalShares",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "legalSharesWad",
+              "type": "uint256"
+            }
+          ]
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {
+          "supportsInterface(bytes4)": {
+            "details": "Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas."
+          }
+        },
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {
+          "currentMultiplier(address)": {
+            "notice": "Returns the live ERC-8056 multiplier for the bound Currency."
+          },
+          "poolCurrency()": {
+            "notice": "Returns the pool Currency to which this adapter is bound."
+          },
+          "toLegalShares(address,uint256)": {
+            "notice": "Converts raw token units using the multiplier active at this call."
+          }
+        },
+        "version": 1
+      }
+    },
+    "settings": {
+      "remappings": [
+        "@adapters/=lib/dex-adapters/src/adapters/",
+        "@dex/=lib/dexrouter/contracts/8/",
+        "@ensdomains/=lib/v4-core/node_modules/@ensdomains/",
+        "@interfaces/=lib/dex-adapters/src/interfaces/",
+        "@libraries/=lib/dex-adapters/src/libraries/",
+        "@okxlabs/=lib/dexrouter/contracts/8/",
+        "@openzeppelin-contracts-5.5.0/=dependencies/@openzeppelin-contracts-5.5.0/",
+        "@openzeppelin-contracts-upgradeable-5.5.0/=dependencies/@openzeppelin-contracts-upgradeable-5.5.0/",
+        "@openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.5.0/",
+        "@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.5.0/",
+        "@uniswap/v4-core/=lib/v4-periphery/lib/v4-core/",
+        "TestToken/=lib/TestToken/",
+        "deploy-factory-1.0.0/=lib/soul-bound-token-1155/dependencies/deploy-factory-1.0.0/",
+        "deploy-factory/=lib/soul-bound-token-1155/dependencies/deploy-factory-1.0.0/",
+        "dex-adapters/=lib/dex-adapters/src/",
+        "dexrouter-interfaces/=lib/dexrouter-interfaces/",
+        "dexrouter/=lib/dexrouter/contracts/",
+        "ds-test/=lib/v4-core/lib/forge-std/lib/ds-test/src/",
+        "erc4626-tests/=lib/v4-core/lib/openzeppelin-contracts/lib/erc4626-tests/",
+        "eth-gas-reporter/=lib/TestToken/securitize-dstoken-snapshot-0a39d22/node_modules/eth-gas-reporter/",
+        "forge-gas-snapshot/=lib/v4-periphery/lib/permit2/lib/forge-gas-snapshot/src/",
+        "forge-std-1.9.7/=lib/soul-bound-token-1155/dependencies/forge-std-1.9.7/",
+        "forge-std/=lib/v4-core/lib/forge-std/src/",
+        "hardhat/=lib/v4-core/node_modules/hardhat/",
+        "openzeppelin-contracts/=lib/v4-core/lib/openzeppelin-contracts/",
+        "openzeppelin/=lib/dex-adapters/lib/openzeppelin-contracts/contracts/",
+        "permit2/=lib/v4-periphery/lib/permit2/",
+        "solmate/=lib/v4-core/lib/solmate/",
+        "soul-bound-token-1155/=lib/soul-bound-token-1155/src/",
+        "tsv-v1/=src/v1/",
+        "v4-core/=lib/v4-core/src/",
+        "v4-periphery/=lib/v4-periphery/src/",
+        "lib/dex-adapters/:@interfaces/=lib/dex-adapters/src/interfaces/",
+        "lib/dex-adapters/:@libraries/=lib/dex-adapters/src/libraries/",
+        "lib/dex-adapters/:@openzeppelin/contracts/=lib/dex-adapters/lib/openzeppelin-contracts/contracts/",
+        "lib/v4-periphery/:@openzeppelin/contracts/=lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/contracts/",
+        "lib/v4-periphery/:@uniswap/v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
+        "lib/v4-periphery/:solmate/=lib/v4-periphery/lib/v4-core/lib/solmate/",
+        "lib/v4-periphery/src/hooks/permissionedPools/:@uniswap/v4-core/src/=lib/v4-core/src/",
+        "src/v1/vendor/permissionedPools/:@openzeppelin/contracts/=lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/contracts/",
+        "src/v1/vendor/permissionedPools/:@uniswap/v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
+        "src/v1/vendor/permissionedPools/:solmate/=lib/v4-periphery/lib/v4-core/lib/solmate/"
+      ],
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "metadata": {
+        "bytecodeHash": "none"
+      },
+      "compilationTarget": {
+        "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol": "ERC8056DirectLegalShareAdapter"
+      },
+      "evmVersion": "cancun",
+      "libraries": {},
+      "viaIR": true
+    },
+    "sources": {
+      "dependencies/@openzeppelin-contracts-5.5.0/utils/Panic.sol": {
+        "keccak256": "0xf7fe324703a64fc51702311dc51562d5cb1497734f074e4f483bfb6717572d7a",
+        "urls": [
+          "bzz-raw://c6a5ff4f9fd8649b7ee20800b7fa387d3465bd77cf20c2d1068cd5c98e1ed57a",
+          "dweb:/ipfs/QmVSaVJf9FXFhdYEYeCEfjMVHrxDh5qL4CGkxdMWpQCrqG"
+        ],
+        "license": "MIT"
+      },
+      "dependencies/@openzeppelin-contracts-5.5.0/utils/introspection/IERC165.sol": {
+        "keccak256": "0x8891738ffe910f0cf2da09566928589bf5d63f4524dd734fd9cedbac3274dd5c",
+        "urls": [
+          "bzz-raw://971f954442df5c2ef5b5ebf1eb245d7105d9fbacc7386ee5c796df1d45b21617",
+          "dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
+        ],
+        "license": "MIT"
+      },
+      "dependencies/@openzeppelin-contracts-5.5.0/utils/math/Math.sol": {
+        "keccak256": "0x09e3f1c72d4c5cbe8e2644ab7313f8f7177533ae2f4c24cdcbbeaf520a73734c",
+        "urls": [
+          "bzz-raw://93208401215d539fa2d81626b207c1f611def7883d0e447b3b5969ebaa7b3c2c",
+          "dweb:/ipfs/QmXPxDnQPx8LAweX5ZJqEcwkvs59kP4c64VVDG1Jjq1mef"
+        ],
+        "license": "MIT"
+      },
+      "dependencies/@openzeppelin-contracts-5.5.0/utils/math/SafeCast.sol": {
+        "keccak256": "0x195533c86d0ef72bcc06456a4f66a9b941f38eb403739b00f21fd7c1abd1ae54",
+        "urls": [
+          "bzz-raw://b1d578337048cad08c1c03041cca5978eff5428aa130c781b271ad9e5566e1f8",
+          "dweb:/ipfs/QmPFKL2r9CBsMwmUqqdcFPfHZB2qcs9g1HDrPxzWSxomvy"
+        ],
+        "license": "MIT"
+      },
+      "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol": {
+        "keccak256": "0x877fc78e07a12611d6b2d90654b2fe311f64ed2e84a45918d1b55c97268d6557",
+        "urls": [
+          "bzz-raw://436e340a21df56f94bbee7e21fc9662164ba361753bff61e02a5298df4651eaf",
+          "dweb:/ipfs/QmZpNk3wsiGoUD9NM7HWnWWwJsHTbNB2La6aNgJ4xCg5Gd"
+        ],
+        "license": "MIT"
+      },
+      "src/v1/interfaces/IDirectLegalShareAdapter.sol": {
+        "keccak256": "0xf7727955f2213e12e03477aefbfc09e789a0df4f0d5b127eb3bdabd8778f4436",
+        "urls": [
+          "bzz-raw://b6fd1dea4c2cb09c1d73ed90381689389415ac9e579ea49c38a0acb7165988dd",
+          "dweb:/ipfs/QmeGF3nV174vbAu3UFuarJyMMTwNs8J1aeEhHHVeSdqN6Y"
+        ],
+        "license": "MIT"
+      }
+    },
+    "version": 1
+  },
+  "id": 4
+}

@@ -1,0 +1,14 @@
+{
+  "event": "deployment_trace_plan_created",
+  "occurredAtUtc": "2026-10-29T06:59:46.064426+00:00",
+  "deploymentSubmitted": false,
+  "chainId": null,
+  "selectedSourceCommit": null,
+  "transactionHashes": [],
+  "files": {
+    "README.md": "2c2b13b32437a39adc4d33a3f4ff8ef76d60bb6c4c274555a4948637f77a2f50",
+    "run-manifest.template.json": "166f11cf0c4c7aecfd1a5016d203c949e8f9d3c0f7b6df9995bfe8d3a13fbe21",
+    "task-record.template.json": "e792d6f679bb7d338fb6b083885ed381536a330d798c8e8bd0d3aadc1df73663",
+    "deployment-plan.json": "0094c2bfb046890beb25f171f2f3fab90dcc9ff88c5115eabefedc43c88a8de5"
+  }
+}

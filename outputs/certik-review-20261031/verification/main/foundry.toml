@@ -1,0 +1,32 @@
+[profile.default]
+src="empty"
+allow_paths=["../../../.."]
+test="test"
+script="empty"
+solc_version="0.8.26"
+evm_version="cancun"
+optimizer=true
+optimizer_runs=200
+via_ir=true
+bytecode_hash="none"
+remappings=[
+  "dex-adapters/=../../../../lib/dex-adapters/src/",
+  "../../../../lib/dex-adapters/:@interfaces/=../../../../lib/dex-adapters/src/interfaces/",
+  "../../../../lib/dex-adapters/:@libraries/=../../../../lib/dex-adapters/src/libraries/",
+  "../../../../lib/dex-adapters/:@openzeppelin/contracts/=../../../../lib/dex-adapters/lib/openzeppelin-contracts/contracts/",
+  "v4-periphery/=../../../../lib/v4-periphery/src/",
+  "../../baselines/main/src/v1/vendor/permissionedPools/:@openzeppelin/contracts/=../../../../lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/contracts/",
+  "../../baselines/main/src/v1/vendor/permissionedPools/:@uniswap/v4-core/src/=../../../../lib/v4-periphery/lib/v4-core/src/",
+  "../../baselines/main/src/v1/vendor/permissionedPools/:solmate/=../../../../lib/v4-periphery/lib/v4-core/lib/solmate/",
+  "../../../../lib/v4-periphery/:@openzeppelin/contracts/=../../../../lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/contracts/",
+  "../../../../lib/v4-periphery/:@uniswap/v4-core/src/=../../../../lib/v4-periphery/lib/v4-core/src/",
+  "../../../../lib/v4-periphery/src/hooks/permissionedPools/:@uniswap/v4-core/src/=../../../../lib/v4-core/src/",
+  "../../../../lib/v4-periphery/:solmate/=../../../../lib/v4-periphery/lib/v4-core/lib/solmate/",
+  "v4-core/=../../../../lib/v4-core/src/",
+  "tsv-v1/=../../baselines/main/src/v1/",
+  "forge-std/=../../../../lib/v4-core/lib/forge-std/src/",
+  "@openzeppelin/contracts/=../../../../dependencies/@openzeppelin-contracts-5.5.0/",
+  "@openzeppelin/contracts-upgradeable/=../../../../dependencies/@openzeppelin-contracts-upgradeable-5.5.0/",
+  "@uniswap/v4-core/src/=../../../../lib/v4-core/src/",
+  "solmate/=../../../../lib/v4-periphery/lib/v4-core/lib/solmate/"
+]

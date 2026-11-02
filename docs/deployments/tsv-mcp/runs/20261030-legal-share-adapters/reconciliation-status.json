@@ -1,0 +1,107 @@
+{
+  "checkedAt": "2026-10-30T09:43:44.409Z",
+  "results": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "attempt": 2,
+        "uuid": "68894e45-7ab8-4271-a012-a6d1d3222c47",
+        "name": "TSV-20261030-MSTR-ERC8056DirectLegalShareAdapter",
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"68894e45-7ab8-4271-a012-a6d1d3222c47\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0xea94ee164aa7b936b4f91168741b4a1af2a5362f30b825e26c8437a80f78295e\"},\"detailMsg\":null,\"msg_detail\":null}"
+            }
+          ],
+          "isError": false
+        }
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "attempt": 2,
+        "uuid": "7ce30cca-a9d1-4b43-aec9-8620364ef3bb",
+        "name": "TSV-20261030-BTGO-ERC8056DirectLegalShareAdapter",
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"7ce30cca-a9d1-4b43-aec9-8620364ef3bb\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0xfd53602df10f1c7307b2150a9387515a8155e6f3e7df21a682dcd1a50fc6d0e7\"},\"detailMsg\":null,\"msg_detail\":null}"
+            }
+          ],
+          "isError": false
+        }
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "attempt": 2,
+        "uuid": "63559330-d22c-4238-acbd-4a7a0686d05c",
+        "name": "TSV-20261030-SECZ-ERC8056DirectLegalShareAdapter",
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"63559330-d22c-4238-acbd-4a7a0686d05c\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0x40f8057da2795dc0514a9b6adda5fe60107f1c18641c34268acbc003629d88d6\"},\"detailMsg\":null,\"msg_detail\":null}"
+            }
+          ],
+          "isError": false
+        }
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "attempt": 3,
+        "uuid": "62028719-d22c-4378-8251-ee3efc644634",
+        "name": "TSV-20261030-MSTR-ERC8056DirectLegalShareAdapter",
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"62028719-d22c-4378-8251-ee3efc644634\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0xefce06eed01375ad823431f91ed616c404d3db9b74e27f3af555b717ebb7a5e2\"},\"detailMsg\":null,\"msg_detail\":null}"
+            }
+          ],
+          "isError": false
+        }
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "attempt": 3,
+        "uuid": "dd8df1d1-c681-488e-8da5-f5ea9b19f99d",
+        "name": "TSV-20261030-BTGO-ERC8056DirectLegalShareAdapter",
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"dd8df1d1-c681-488e-8da5-f5ea9b19f99d\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0xfa8d13909b6743f195ed26bef8d3e42599dd52eba6d29e9f735f30bbbb84f286\"},\"detailMsg\":null,\"msg_detail\":null}"
+            }
+          ],
+          "isError": false
+        }
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "attempt": 3,
+        "uuid": "fd7501a6-4b41-4500-ba33-eed63b734274",
+        "name": "TSV-20261030-SECZ-ERC8056DirectLegalShareAdapter",
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"fd7501a6-4b41-4500-ba33-eed63b734274\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0xe928ef7976caa25eec6898a744e5b93bd6e2f3a50c3651ce3dd086295a2a8f8d\"},\"detailMsg\":null,\"msg_detail\":null}"
+            }
+          ],
+          "isError": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,293 @@
+[
+  {
+    "contract": "PermissionedValidationLib",
+    "artifactSha256": "b86f9f7a8e58a5c4bef9730334fb13341c6dcd3400e6dde766f9c02e34cd57f6",
+    "creationBytecodeBytes": 4082,
+    "linkReferences": {},
+    "constructors": []
+  },
+  {
+    "contract": "TSVLPManagerLib",
+    "artifactSha256": "33c032ec4cec3141c56bac4d92ec680d82e89d848c29c7791d32d9246c7df9aa",
+    "creationBytecodeBytes": 10178,
+    "linkReferences": {},
+    "constructors": []
+  },
+  {
+    "contract": "LPPositionMath",
+    "artifactSha256": "2e10ec100a16e3a9b4a85a9d6824cf3ae2039dcdabb2f5bd60491586aa8b3a53",
+    "creationBytecodeBytes": 1707,
+    "linkReferences": {},
+    "constructors": []
+  },
+  {
+    "contract": "PermissionsAdapterFactory",
+    "artifactSha256": "b62d5e03b2b72ca199884d6956b734acb2e75078fe16a15413317ecabae9b8a7",
+    "creationBytecodeBytes": 8517,
+    "linkReferences": {},
+    "constructors": [
+      {
+        "type": "constructor",
+        "inputs": [
+          {
+            "name": "poolManager",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "stateMutability": "nonpayable"
+      }
+    ]
+  },
+  {
+    "contract": "TSVHookProxyFactoryV1",
+    "artifactSha256": "fd6994a1dd00a7cae0101639701e0b0dce5958749b3bc1b51b6d68529be0c715",
+    "creationBytecodeBytes": 1528,
+    "linkReferences": {},
+    "constructors": []
+  },
+  {
+    "contract": "TSVVolumeLedgerV1",
+    "artifactSha256": "924234f7a72fa2f7c8cd638c3f3abaeb29d9921b2564f053207bd8c41eb7676e",
+    "creationBytecodeBytes": 4273,
+    "linkReferences": {},
+    "constructors": [
+      {
+        "type": "constructor",
+        "inputs": [],
+        "stateMutability": "nonpayable"
+      }
+    ]
+  },
+  {
+    "contract": "TSVHookV1",
+    "artifactSha256": "b01e167bff7fa9b7bdb5f3ac0ea6275a38ec95c2316761ca312f3e54ff95e540",
+    "creationBytecodeBytes": 7338,
+    "linkReferences": {},
+    "constructors": [
+      {
+        "type": "constructor",
+        "inputs": [],
+        "stateMutability": "nonpayable"
+      }
+    ]
+  },
+  {
+    "contract": "TSVRegistryV1",
+    "artifactSha256": "eaba53afd1b9444bc2d3d94e159504d2a899bec3ba12413f2544f229d9c28794",
+    "creationBytecodeBytes": 17002,
+    "linkReferences": {
+      "src/v1/libraries/PermissionedValidationLib.sol": {
+        "PermissionedValidationLib": [
+          {
+            "start": 7551,
+            "length": 20
+          },
+          {
+            "start": 7956,
+            "length": 20
+          },
+          {
+            "start": 10837,
+            "length": 20
+          },
+          {
+            "start": 11772,
+            "length": 20
+          }
+        ]
+      }
+    },
+    "constructors": []
+  },
+  {
+    "contract": "TSVSwapRouterV1",
+    "artifactSha256": "79eac35d58beb5f1c679fa8fc77563566ba95a8f33b72b81d05b256f34483f85",
+    "creationBytecodeBytes": 14412,
+    "linkReferences": {},
+    "constructors": [
+      {
+        "type": "constructor",
+        "inputs": [
+          {
+            "name": "pm",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "factory",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "stateMutability": "nonpayable"
+      }
+    ]
+  },
+  {
+    "contract": "TSVLPManagerV1",
+    "artifactSha256": "b2c51390e741163b511bf2a8166d2bbcb104f35493ef5eb097bca1959ad4dc37",
+    "creationBytecodeBytes": 25835,
+    "linkReferences": {
+      "src/v1/libraries/TSVLPManagerLib.sol": {
+        "TSVLPManagerLib": [
+          {
+            "start": 7852,
+            "length": 20
+          },
+          {
+            "start": 9004,
+            "length": 20
+          },
+          {
+            "start": 10785,
+            "length": 20
+          },
+          {
+            "start": 11434,
+            "length": 20
+          },
+          {
+            "start": 12666,
+            "length": 20
+          },
+          {
+            "start": 12804,
+            "length": 20
+          },
+          {
+            "start": 16108,
+            "length": 20
+          },
+          {
+            "start": 17938,
+            "length": 20
+          },
+          {
+            "start": 18047,
+            "length": 20
+          },
+          {
+            "start": 18403,
+            "length": 20
+          },
+          {
+            "start": 20529,
+            "length": 20
+          },
+          {
+            "start": 24116,
+            "length": 20
+          },
+          {
+            "start": 24550,
+            "length": 20
+          }
+        ]
+      },
+      "src/v1/vendor/permissionedPools/libraries/LPPositionMath.sol": {
+        "LPPositionMath": [
+          {
+            "start": 21962,
+            "length": 20
+          },
+          {
+            "start": 23299,
+            "length": 20
+          }
+        ]
+      }
+    },
+    "constructors": [
+      {
+        "type": "constructor",
+        "inputs": [
+          {
+            "name": "_poolManager",
+            "type": "address",
+            "internalType": "contract IPoolManager"
+          },
+          {
+            "name": "_permit2",
+            "type": "address",
+            "internalType": "contract IAllowanceTransfer"
+          },
+          {
+            "name": "_unsubscribeGasLimit",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_tokenDescriptor",
+            "type": "address",
+            "internalType": "contract IPositionDescriptor"
+          },
+          {
+            "name": "_weth9",
+            "type": "address",
+            "internalType": "contract IWETH9"
+          },
+          {
+            "name": "_permissionsAdapterFactory",
+            "type": "address",
+            "internalType": "contract IPermissionsAdapterFactory"
+          },
+          {
+            "name": "_deliveryGasLimit",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_registry",
+            "type": "address",
+            "internalType": "contract ITSVPermissionedRegistry"
+          }
+        ],
+        "stateMutability": "nonpayable"
+      }
+    ]
+  },
+  {
+    "contract": "TSVERC1967Proxy",
+    "artifactSha256": "7844d903c01f8c2365191231b0a6253d4e86d2c6866b6ccfa61a2d5fa5e122e5",
+    "creationBytecodeBytes": 720,
+    "linkReferences": {},
+    "constructors": [
+      {
+        "type": "constructor",
+        "inputs": [
+          {
+            "name": "implementation",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "data",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ],
+        "stateMutability": "nonpayable"
+      }
+    ]
+  },
+  {
+    "contract": "ERC8056DirectLegalShareAdapter",
+    "artifactSha256": "75646304a4232e570f95dcdbfcefa9ad5ee038b60b81634f2bab6a0055e2dcec",
+    "creationBytecodeBytes": 1305,
+    "linkReferences": {},
+    "constructors": [
+      {
+        "type": "constructor",
+        "inputs": [
+          {
+            "name": "currency_",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "stateMutability": "nonpayable"
+      }
+    ]
+  }
+]

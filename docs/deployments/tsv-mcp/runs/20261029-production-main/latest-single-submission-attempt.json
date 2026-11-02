@@ -1,0 +1,17 @@
+{
+  "preparedAt": "2026-10-29T08:11:09.134231+00:00",
+  "request": "requests/single-permissioned-validation-lib-20261029T081109Z.json",
+  "uuid": "52b0593b-0c97-4885-9895-f5d74b9bd4b3",
+  "previousUuid": "9d67f662-ed03-402b-880a-5a8ce2424fe0",
+  "name": "TSV-prod-20261029-PermissionedValidationLib",
+  "sha256": "a9d048be89bd30b2d3fcff70f88cba40ef6321ed615432538331e04e1f00bcff",
+  "status": "SENT_APPROVAL_ALREADY_EXISTS",
+  "taskCount": 1,
+  "response": "single-permissioned-validation-lib-response-20261029T081109Z.json",
+  "sentAt": "2026-10-29T08:11:23.357073+00:00",
+  "approvalInstance": 16539,
+  "serverErrorCode": "10021",
+  "requestId": "NRI_16ba85f583e04724bfa0e30911f0534a",
+  "taskStatus": "任务不存在",
+  "broadcastConfirmed": false
+}

@@ -1,0 +1,295 @@
+{
+  "note": "enumerate.sh uses unsupported BSD grep -P; these portable Python counts supersede its zero values",
+  "sources": [
+    {
+      "path": "src/v1/adapters/ERC8056DirectLegalShareAdapter.sol",
+      "lines": 59,
+      "nsloc": 44
+    },
+    {
+      "path": "src/v1/core/TSVHookV1.sol",
+      "lines": 317,
+      "nsloc": 210
+    },
+    {
+      "path": "src/v1/core/TSVRegistryV1.sol",
+      "lines": 842,
+      "nsloc": 503
+    },
+    {
+      "path": "src/v1/core/TSVVolumeLedgerV1.sol",
+      "lines": 78,
+      "nsloc": 57
+    },
+    {
+      "path": "src/v1/deployment/TSVERC1967Proxy.sol",
+      "lines": 24,
+      "nsloc": 12
+    },
+    {
+      "path": "src/v1/deployment/TSVHookProxyFactoryV1.sol",
+      "lines": 44,
+      "nsloc": 22
+    },
+    {
+      "path": "src/v1/governance/TSVGoverned.sol",
+      "lines": 43,
+      "nsloc": 29
+    },
+    {
+      "path": "src/v1/interfaces/IBlacklistStatus.sol",
+      "lines": 7,
+      "nsloc": 4
+    },
+    {
+      "path": "src/v1/interfaces/IDirectLegalShareAdapter.sol",
+      "lines": 21,
+      "nsloc": 7
+    },
+    {
+      "path": "src/v1/interfaces/IStatusQuoter.sol",
+      "lines": 7,
+      "nsloc": 4
+    },
+    {
+      "path": "src/v1/interfaces/ITSVLPUnwindContext.sol",
+      "lines": 7,
+      "nsloc": 4
+    },
+    {
+      "path": "src/v1/interfaces/ITSVPermissionedRegistry.sol",
+      "lines": 216,
+      "nsloc": 61
+    },
+    {
+      "path": "src/v1/interfaces/ITokenApproveProxy.sol",
+      "lines": 10,
+      "nsloc": 6
+    },
+    {
+      "path": "src/v1/libraries/PermissionedValidationLib.sol",
+      "lines": 181,
+      "nsloc": 154
+    },
+    {
+      "path": "src/v1/libraries/TSVDirectSettlementLib.sol",
+      "lines": 57,
+      "nsloc": 36
+    },
+    {
+      "path": "src/v1/libraries/TSVLPManagerLib.sol",
+      "lines": 443,
+      "nsloc": 366
+    },
+    {
+      "path": "src/v1/libraries/TSVPermissionedSettlementLib.sol",
+      "lines": 25,
+      "nsloc": 17
+    },
+    {
+      "path": "src/v1/periphery/TSVLPManagerV1.sol",
+      "lines": 413,
+      "nsloc": 344
+    },
+    {
+      "path": "src/v1/periphery/TSVSwapRouterV1.sol",
+      "lines": 266,
+      "nsloc": 202
+    },
+    {
+      "path": "src/v1/types/TSVTypes.sol",
+      "lines": 117,
+      "nsloc": 68
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/BaseAllowListChecker.sol",
+      "lines": 13,
+      "nsloc": 9
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/PermissionedPositionManager.sol",
+      "lines": 356,
+      "nsloc": 245
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/PermissionedV4Router.sol",
+      "lines": 103,
+      "nsloc": 74
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/PermissionsAdapter.sol",
+      "lines": 190,
+      "nsloc": 130
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/PermissionsAdapterFactory.sol",
+      "lines": 48,
+      "nsloc": 36
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/PositionManager.sol",
+      "lines": 583,
+      "nsloc": 394
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/BaseActionsRouter.sol",
+      "lines": 77,
+      "nsloc": 42
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/EIP712_v4.sol",
+      "lines": 52,
+      "nsloc": 29
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/ERC721Permit_v4.sol",
+      "lines": 102,
+      "nsloc": 61
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/Multicall_v4.sol",
+      "lines": 28,
+      "nsloc": 16
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/NativeWrapper.sol",
+      "lines": 42,
+      "nsloc": 23
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/Notifier.sol",
+      "lines": 137,
+      "nsloc": 88
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/Permit2Forwarder.sol",
+      "lines": 46,
+      "nsloc": 30
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/PoolInitializer_v4.sol",
+      "lines": 19,
+      "nsloc": 13
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/SafeCallback.sol",
+      "lines": 24,
+      "nsloc": 11
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/base/UnorderedNonce.sol",
+      "lines": 31,
+      "nsloc": 15
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/interfaces/IAllowlistChecker.sol",
+      "lines": 13,
+      "nsloc": 6
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/interfaces/IPermissionsAdapter.sol",
+      "lines": 106,
+      "nsloc": 30
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/interfaces/IPermissionsAdapterFactory.sol",
+      "lines": 52,
+      "nsloc": 19
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/libraries/LPPositionMath.sol",
+      "lines": 22,
+      "nsloc": 17
+    },
+    {
+      "path": "src/v1/vendor/permissionedPools/libraries/PermissionFlags.sol",
+      "lines": 29,
+      "nsloc": 21
+    },
+    {
+      "path": "src/v1/vendor/v4-router/V4Router.sol",
+      "lines": 232,
+      "nsloc": 183
+    },
+    {
+      "path": "src/v1/vendor/v4-router/base/BaseActionsRouter.sol",
+      "lines": 75,
+      "nsloc": 42
+    },
+    {
+      "path": "src/v1/vendor/v4-router/base/DeltaResolver.sol",
+      "lines": 123,
+      "nsloc": 68
+    },
+    {
+      "path": "src/v1/vendor/v4-router/base/ImmutableState.sol",
+      "lines": 25,
+      "nsloc": 14
+    },
+    {
+      "path": "src/v1/vendor/v4-router/base/SafeCallback.sol",
+      "lines": 21,
+      "nsloc": 11
+    },
+    {
+      "path": "src/v1/vendor/v4-router/hooks/permissionedPools/PermissionedV4Router.sol",
+      "lines": 108,
+      "nsloc": 79
+    },
+    {
+      "path": "src/v1/vendor/v4-router/interfaces/IImmutableState.sol",
+      "lines": 11,
+      "nsloc": 5
+    },
+    {
+      "path": "src/v1/vendor/v4-router/interfaces/IMsgSender.sol",
+      "lines": 13,
+      "nsloc": 4
+    },
+    {
+      "path": "src/v1/vendor/v4-router/interfaces/IV4Router.sol",
+      "lines": 67,
+      "nsloc": 45
+    },
+    {
+      "path": "src/v1/vendor/v4-router/libraries/ActionConstants.sol",
+      "lines": 20,
+      "nsloc": 7
+    },
+    {
+      "path": "src/v1/vendor/v4-router/libraries/Actions.sol",
+      "lines": 63,
+      "nsloc": 29
+    },
+    {
+      "path": "src/v1/vendor/v4-router/libraries/BipsLibrary.sol",
+      "lines": 17,
+      "nsloc": 9
+    },
+    {
+      "path": "src/v1/vendor/v4-router/libraries/CalldataDecoder.sol",
+      "lines": 387,
+      "nsloc": 290
+    },
+    {
+      "path": "src/v1/vendor/v4-router/libraries/PathKey.sol",
+      "lines": 38,
+      "nsloc": 25
+    }
+  ],
+  "total_source_files": 55,
+  "total_source_lines": 6450,
+  "total_nsloc": 4270,
+  "test_files": 53,
+  "test_functions": 272,
+  "stateless_fuzz": 15,
+  "foundry_invariant": 0,
+  "echidna": 0,
+  "medusa": 0,
+  "fork": 0,
+  "halmos": 0,
+  "hevm": 0,
+  "certora_specs": 0,
+  "hardhat_fuzz": 0,
+  "natspec_files": 52
+}

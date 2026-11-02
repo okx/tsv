@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-10-29T07:23:39.669569+00:00",
+  "type": "UNSENT_REQUEST_UUID_REFRESH",
+  "source": "user requires new task UUIDs before every create submission",
+  "mapping": [
+    {
+      "name": "TSV-prod-20261029-PermissionedValidationLib",
+      "previousUuid": "d8dbb2c3-3643-4ee1-bc51-1147de33ff09",
+      "newUuid": "d6d973a4-fcb1-452b-8697-3f5bc6d826e4"
+    },
+    {
+      "name": "TSV-prod-20261029-TSVLPManagerLib",
+      "previousUuid": "94728a29-b36b-4a13-84a4-54f1e25ea6d9",
+      "newUuid": "3599477d-d6db-4861-af79-f751408f6848"
+    },
+    {
+      "name": "TSV-prod-20261029-LPPositionMath",
+      "previousUuid": "4db0b73a-d938-4cde-a4b6-7b46c443b160",
+      "newUuid": "189d175a-6967-49a4-a690-dc5ffbbac4ad"
+    },
+    {
+      "name": "TSV-prod-20261029-PermissionsAdapterFactory",
+      "previousUuid": "1a5e47a0-6b21-4654-903c-d39af8fb6ea6",
+      "newUuid": "5b000b7b-70e3-48b3-9e47-89c35fa68fac"
+    },
+    {
+      "name": "TSV-prod-20261029-TSVHookProxyFactoryV1",
+      "previousUuid": "3daf40e8-e50e-430f-a213-385aad703216",
+      "newUuid": "a8ce0be2-2228-4dca-8f5f-2be006609d69"
+    },
+    {
+      "name": "TSV-prod-20261029-TSVVolumeLedgerV1",
+      "previousUuid": "1b6b2910-316d-4e0f-ae20-be58424c69b6",
+      "newUuid": "a51b7efa-e56a-4172-b3d1-4b9d47ea45e6"
+    },
+    {
+      "name": "TSV-prod-20261029-TSVHookV1",
+      "previousUuid": "1f311801-92eb-4fa6-ad05-3838309eddae",
+      "newUuid": "04a72e67-e94b-4ecf-b2f4-9904ec1dce57"
+    }
+  ],
+  "submitted": false
+}

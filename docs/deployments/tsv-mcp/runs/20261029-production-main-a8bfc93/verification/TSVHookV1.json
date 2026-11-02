@@ -1,0 +1,18 @@
+{
+  "contract": "TSVHookV1",
+  "uuid": "a360ae64-3088-4121-a02b-46be0bb74e89",
+  "taskId": 9090,
+  "address": "0x6422ef382cfe42b200aec323236c005c604550f7",
+  "txHash": "0x13946a49b8be69e47d288bb055cb19955d94950b9c67c58773da155be699ef0e",
+  "block": 74501595,
+  "confirmationsAtCheck": 209,
+  "checks": {
+    "creationInputMatchesSubmittedJson": true,
+    "receiptStatus": 1,
+    "creationTransaction": true,
+    "deployerMatches": true,
+    "runtimeMatchesCompiledArtifactWithPatchedImmutables": true,
+    "runtimeCodeBytes": 7001,
+    "runtimeSha256": "b75ef0015c78b44313fb4773d8cfdfa5c34beb3bcf0771a65e73475415a39bc7"
+  }
+}

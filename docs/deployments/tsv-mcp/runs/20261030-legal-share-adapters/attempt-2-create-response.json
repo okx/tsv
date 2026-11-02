@@ -1,0 +1,13 @@
+{
+  "submittedAt": "2026-10-30T09:35:52.245Z",
+  "tool": "mcp__pmboss__create_evm_contract_deployment_task",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Tool call failed: HTTP 500"
+      }
+    ],
+    "isError": false
+  }
+}

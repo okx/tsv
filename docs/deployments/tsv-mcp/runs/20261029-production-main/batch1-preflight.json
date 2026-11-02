@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-10-29T07:14:14.378967+00:00",
+  "block": "0x4709cba",
+  "chain": {
+    "jsonrpc": "2.0",
+    "result": "0xc4",
+    "id": 1
+  },
+  "deployerCode": {
+    "jsonrpc": "2.0",
+    "result": "0x",
+    "id": 1
+  },
+  "deployerBalance": {
+    "jsonrpc": "2.0",
+    "result": "0x1f36d1b8acc2e4b",
+    "id": 1
+  },
+  "gasPrice": {
+    "jsonrpc": "2.0",
+    "result": "0x1312d01",
+    "id": 1
+  },
+  "estimates": [
+    {
+      "contract": "PermissionedValidationLib",
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0xe50ba",
+        "id": 1
+      },
+      "calldataSha256": "649bc7bb42e28353abcb2fe3b346dfcf1b98534117ecf8d75455c876fb7076b9",
+      "runtimeTemplateBytes": 4052
+    },
+    {
+      "contract": "TSVLPManagerLib",
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0x229492",
+        "id": 1
+      },
+      "calldataSha256": "1501be701f0cb46e8d659d05ae148485458c99229720959bc2e7c1d5cbbbf54e",
+      "runtimeTemplateBytes": 10146
+    },
+    {
+      "contract": "LPPositionMath",
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0x66995",
+        "id": 1
+      },
+      "calldataSha256": "93b4638cd894823151d2c3ffbadb469ec92a83766e4ae39eeaaa152ac3d71bdf",
+      "runtimeTemplateBytes": 1677
+    },
+    {
+      "contract": "PermissionsAdapterFactory",
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0x1cad8c",
+        "id": 1
+      },
+      "calldataSha256": "2770c87c1a7bf90d031156dc85bcff3bafa79d00b4b66813168172385037addd",
+      "runtimeTemplateBytes": 8384
+    },
+    {
+      "contract": "TSVHookProxyFactoryV1",
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0x5d4b3",
+        "id": 1
+      },
+      "calldataSha256": "16e0912434cbf75347d3eb7a574fe741a7fc73658e867515f430c740b0960017",
+      "runtimeTemplateBytes": 1502
+    },
+    {
+      "contract": "TSVVolumeLedgerV1",
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0xea824",
+        "id": 1
+      },
+      "calldataSha256": "2485c13bb0875aee031a09d11c845b885764c6b08dbd48565ab8d2e462afc323",
+      "runtimeTemplateBytes": 4036
+    },
+    {
+      "contract": "TSVHookV1",
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0x18da36",
+        "id": 1
+      },
+      "calldataSha256": "bd7bc2ebb84b42a3e00870c5da221bc1c47b379d0038158ac125a5c5f65a87f2",
+      "runtimeTemplateBytes": 7101
+    }
+  ]
+}

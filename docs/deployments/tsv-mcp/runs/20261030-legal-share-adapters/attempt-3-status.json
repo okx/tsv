@@ -1,0 +1,50 @@
+[
+  {
+    "status": "fulfilled",
+    "value": {
+      "uuid": "62028719-d22c-4378-8251-ee3efc644634",
+      "name": "TSV-20261030-MSTR-ERC8056DirectLegalShareAdapter",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"code\":-1,\"msg\":\"任务不存在\",\"data\":null,\"detailMsg\":null,\"msg_detail\":null}"
+          }
+        ],
+        "isError": false
+      }
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "uuid": "dd8df1d1-c681-488e-8da5-f5ea9b19f99d",
+      "name": "TSV-20261030-BTGO-ERC8056DirectLegalShareAdapter",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"code\":-1,\"msg\":\"任务不存在\",\"data\":null,\"detailMsg\":null,\"msg_detail\":null}"
+          }
+        ],
+        "isError": false
+      }
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "uuid": "fd7501a6-4b41-4500-ba33-eed63b734274",
+      "name": "TSV-20261030-SECZ-ERC8056DirectLegalShareAdapter",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"code\":-1,\"msg\":\"任务不存在\",\"data\":null,\"detailMsg\":null,\"msg_detail\":null}"
+          }
+        ],
+        "isError": false
+      }
+    }
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "chain": "X Layer Testnet",
+  "sourceRepository": "https://github.com/securitize-io/dstoken",
+  "sourceRef": "feature/BC-2599",
+  "sourceCommit": "0a39d22d6c2f1d28d6792ea904a0252d71272f47",
+  "sourceContract": "contracts/token/DSToken.sol",
+  "sourcePermalink": "https://github.com/securitize-io/dstoken/blob/0a39d22d6c2f1d28d6792ea904a0252d71272f47/contracts/token/DSToken.sol",
+  "token": {
+    "integrationRole": "First real U in TSV",
+    "address": "0xa7d19ec1cc4c221aac6ab2278fa35e16f4ad6ca0",
+    "explorer": "https://www.oklink.com/zh-hans/x-layer-testnet/address/0xa7d19ec1cc4c221aac6ab2278fa35e16f4ad6ca0/contract"
+  },
+  "note": "The address/source mapping records the selected U integration and source revision; it does not by itself prove proxy status or bytecode equivalence.",
+  "snapshotPath": "lib/TestToken/securitize-dstoken-snapshot-0a39d22"
+}

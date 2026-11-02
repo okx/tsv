@@ -1,0 +1,28 @@
+{
+  "id": 11527718,
+  "type": null,
+  "body": "<!-- tsv-issue26-remove-unused-lib-two-branches-20261029 -->\n## 修复记录：两个版本分支均已删除未使用的 TSVDirectSettlementLib\n\n按项目方要求，删除 `src/v1/libraries/TSVDirectSettlementLib.sol`，并分别提交、推送至审计修复分支和 main 对应修复分支。\n\n### 提交与版本范围\n\n| 版本线 | 修复分支 | 删除提交 | 说明 |\n|---|---|---|---|\n| audit | `audit/2026-10-27-6402443-fix` | [a5a47b5694f104c394e2cea231bc85f1a7147554](https://gitlab.okg.com/web3-dex/tsv/-/commit/a5a47b5694f104c394e2cea231bc85f1a7147554) | 基于正确审计 commit `42a690d682536adb603b9adbf4eb4af1ce7dd1cb` 的修复线；在已有 SBT 修复提交 `1f8269d` 上追加本次删除 |\n| main | `main-audit` | [e7021804417e791b4f2071e4cc7461576a86fd5a](https://gitlab.okg.com/web3-dex/tsv/-/commit/e7021804417e791b4f2071e4cc7461576a86fd5a) | 基于 main 快照 `90929552fd557fd67b9debafa905bafffb40ed86` 追加本次删除 |\n\n审计分支名称沿用历史命名，其中的 `6402443` 不代表实际审计基线；实际基线已更正为 `42a690d`。两个删除提交均已推送并核对远端分支指向。本次未合并至 `main`，原始审计基线分支也保持不变。\n\n### 变更范围与原因\n\n- 两个提交各自只删除上述一个文件，均为 **57 行删除**。\n- 删除前，在各自最新分支的 `src`、`script`、`test` 中检索 `TSVDirectSettlementLib`，唯一命中是该库自身的定义，没有 import 或调用方。\n- 该库仅包含未被使用的 internal 结算 helper。删除是对本 issue 的死代码清理，减少维护误导；本次没有替换或重构实际 Router/LPManager 结算路径。\n- 审计修复分支此前的 SBT 修复完整保留，本次提交不修改该部分。\n\n### 验证记录\n\n1. 删除后再次检查两个提交快照，在 `src`、`script`、`test` 中均无剩余 `TSVDirectSettlementLib` 引用。\n2. 检查 Git tree，确认文件在两个修复提交中均不存在。\n3. 检查每个提交的 diff，确认唯一变更为删除该库。\n4. 两个工作树均通过 `git diff --check`。\n5. 推送后核对远端：audit 修复线指向 `a5a47b5`，main 修复线指向 `e702180`。\n\n**本次未执行编译或测试。** 以上验证针对未引用文件删除和提交范围，不将其表述为完整构建/回归通过。原报告正文及先前分析保留，便于追溯。",
+  "author": {
+    "id": 2461,
+    "username": "zewei.lu",
+    "public_email": null,
+    "name": "zewei.lu@okg.com",
+    "state": "active",
+    "locked": false,
+    "avatar_url": "https://secure.gravatar.com/avatar/8f6a06ace9e6e5d42b74fbb4b3309b3ab7c5c4de1ebfd3070324dcef6def5413?s=80&d=identicon",
+    "web_url": "https://gitlab.okg.com/zewei.lu"
+  },
+  "created_at": "2026-10-28T18:39:23.777Z",
+  "updated_at": "2026-10-28T18:39:23.777Z",
+  "system": false,
+  "noteable_id": 9994,
+  "noteable_type": "Issue",
+  "project_id": 18199,
+  "resolvable": false,
+  "confidential": false,
+  "internal": false,
+  "imported": false,
+  "imported_from": "none",
+  "noteable_iid": 26,
+  "commands_changes": {}
+}

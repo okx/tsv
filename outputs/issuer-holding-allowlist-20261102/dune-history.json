@@ -1,0 +1,166 @@
+{
+  "query": {
+    "query_id": 9053939,
+    "name": "XLayer issuer wallet authorization history 2026-11-02",
+    "description": "Public on-chain event discovery for three token WalletManagers and their shared investor registry; final current-state eligibility is verified independently over RPC.",
+    "query": "WITH events AS (\n SELECT 'event' AS row_kind, block_time, block_number, \"index\" AS log_index,\n concat('0x',lower(to_hex(contract_address))) AS contract_address,\n concat('0x',lower(to_hex(topic0))) AS topic0,\n concat('0x',lower(to_hex(data))) AS data,\n concat('0x',lower(to_hex(tx_hash))) AS tx_hash,\n concat('0x',lower(to_hex(tx_from))) AS tx_from,\n concat('0x',lower(to_hex(tx_to))) AS tx_to\n FROM xlayer.logs\n WHERE block_date >= DATE '2024-01-01' AND block_date <= DATE '2026-11-02'\n AND contract_address IN (0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb,0xa96982eeb325b9051cfbac970ede179a903d85df,0x3c946e6491707792592996c896ccca43b8353392,0x017d40856467f36b0b86775314f04ba8ed0d65b3)\n AND topic0 IN (0x81ffbfef319d8e018af37c91c880768a5e52e5aef2d52ed7d03d73a9c940a96c,0xd4288bbc89382857327f7cd94c27bef4d693c4a48b59f38bea82bfc33d522a3d,0xfa47a8dfcdc942a0a3741f1cb27d9204791c65abf5e0cbacae56a51f27de3376,0x9e8e6fefa02ab82a125e6b37b1c9d6615c955513136bce3372f9722da3f1dc6c)\n), watermark AS (\n SELECT 'watermark' AS row_kind, block_time, block_number, CAST(NULL AS integer) AS log_index,\n CAST(NULL AS varchar) AS contract_address, CAST(NULL AS varchar) AS topic0, CAST(NULL AS varchar) AS data,\n CAST(NULL AS varchar) AS tx_hash, CAST(NULL AS varchar) AS tx_from, CAST(NULL AS varchar) AS tx_to\n FROM xlayer.transactions\n WHERE block_date >= DATE '2026-11-01' AND block_date <= DATE '2026-11-02'\n ORDER BY block_number DESC LIMIT 1\n)\nSELECT * FROM events UNION ALL SELECT * FROM watermark ORDER BY block_number, log_index",
+    "is_private": true,
+    "is_temp": true,
+    "url": "https://dune.com/queries/9053939"
+  },
+  "execution": {
+    "execution_id": "01M6D5JFAP93KHJZAPA1DWXWP9",
+    "state": "COMPLETED",
+    "engine_used": "small"
+  },
+  "result_preview": {
+    "executionId": "01M6D5JFAP93KHJZAPA1DWXWP9",
+    "state": "COMPLETED",
+    "resultMetadata": {
+      "columns": [
+        {
+          "name": "row_kind",
+          "type": "varchar(9)"
+        },
+        {
+          "name": "block_time",
+          "type": "timestamp(3) with time zone"
+        },
+        {
+          "name": "block_number",
+          "type": "bigint"
+        },
+        {
+          "name": "log_index",
+          "type": "integer"
+        },
+        {
+          "name": "contract_address",
+          "type": "varchar"
+        },
+        {
+          "name": "topic0",
+          "type": "varchar"
+        },
+        {
+          "name": "data",
+          "type": "varchar"
+        },
+        {
+          "name": "tx_hash",
+          "type": "varchar"
+        },
+        {
+          "name": "tx_from",
+          "type": "varchar"
+        },
+        {
+          "name": "tx_to",
+          "type": "varchar"
+        }
+      ],
+      "totalRowCount": 8,
+      "executionCostCredits": "0.324"
+    },
+    "data": {
+      "rows": [
+        {
+          "row_kind": "event",
+          "block_time": "2026-10-29 18:40:42.000 UTC",
+          "block_number": 74530206,
+          "log_index": 31,
+          "contract_address": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+          "topic0": "0x81ffbfef319d8e018af37c91c880768a5e52e5aef2d52ed7d03d73a9c940a96c",
+          "data": "0x000000000000000000000000cca82354ab36f485fcf1e2ed775877fbfff55b8800000000000000000000000000000000000000000000000000000000000000020000000000000000000000007309c1b0ea2abee47115118bf81133bedf04cba7",
+          "tx_hash": "0x48d246dd775cb5f2a85b6ca841282de115960a92a8f58b96a916b1a21878ebef",
+          "tx_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+          "tx_to": "0x7309c1b0ea2abee47115118bf81133bedf04cba7"
+        },
+        {
+          "row_kind": "event",
+          "block_time": "2026-10-29 19:20:54.000 UTC",
+          "block_number": 74532618,
+          "log_index": 0,
+          "contract_address": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+          "topic0": "0x81ffbfef319d8e018af37c91c880768a5e52e5aef2d52ed7d03d73a9c940a96c",
+          "data": "0x000000000000000000000000cca82354ab36f485fcf1e2ed775877fbfff55b880000000000000000000000000000000000000000000000000000000000000002000000000000000000000000389f975c90a445f07acfa4653ffef17dcd66d598",
+          "tx_hash": "0x6ab12739ac44a28c6eeaf8cf283ddb2d65ff5c1666ab26da1ab417a2ee157978",
+          "tx_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+          "tx_to": "0x389f975c90a445f07acfa4653ffef17dcd66d598"
+        },
+        {
+          "row_kind": "event",
+          "block_time": "2026-10-29 19:44:45.000 UTC",
+          "block_number": 74534049,
+          "log_index": 2,
+          "contract_address": "0x3c946e6491707792592996c896ccca43b8353392",
+          "topic0": "0x81ffbfef319d8e018af37c91c880768a5e52e5aef2d52ed7d03d73a9c940a96c",
+          "data": "0x000000000000000000000000bb543c77436645c8b95b64eec39e3c0d48d4842b00000000000000000000000000000000000000000000000000000000000000020000000000000000000000004bdac3a15f06c40f834a23b824cf16328ade54ce",
+          "tx_hash": "0x9b6cd335714501a27e1051afb1276eb956fd436e04fae3628a5db4124a672f02",
+          "tx_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+          "tx_to": "0x4bdac3a15f06c40f834a23b824cf16328ade54ce"
+        },
+        {
+          "row_kind": "event",
+          "block_time": "2026-10-30 21:11:46.000 UTC",
+          "block_number": 74625670,
+          "log_index": 15,
+          "contract_address": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+          "topic0": "0x81ffbfef319d8e018af37c91c880768a5e52e5aef2d52ed7d03d73a9c940a96c",
+          "data": "0x000000000000000000000000e1218f57c5fe7d11088ac4682781906f3c4b0bff0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000dfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "tx_hash": "0xaa1e742f428bdb90502a84c1b9efa839acd2111c3da0f1bc335080990004c1e4",
+          "tx_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "tx_to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb"
+        },
+        {
+          "row_kind": "event",
+          "block_time": "2026-10-30 21:11:46.000 UTC",
+          "block_number": 74625670,
+          "log_index": 16,
+          "contract_address": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+          "topic0": "0x81ffbfef319d8e018af37c91c880768a5e52e5aef2d52ed7d03d73a9c940a96c",
+          "data": "0x00000000000000000000000002f21252b936435f13241ed815ecfb54bf7474ed0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000dfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "tx_hash": "0xaa1e742f428bdb90502a84c1b9efa839acd2111c3da0f1bc335080990004c1e4",
+          "tx_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "tx_to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb"
+        },
+        {
+          "row_kind": "event",
+          "block_time": "2026-10-30 21:16:29.000 UTC",
+          "block_number": 74625953,
+          "log_index": 29,
+          "contract_address": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+          "topic0": "0x81ffbfef319d8e018af37c91c880768a5e52e5aef2d52ed7d03d73a9c940a96c",
+          "data": "0x000000000000000000000000d5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000dfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "tx_hash": "0x700cb63369dc5a027d2817082ec57bd5b38fafe1e339a019dcf33bdf01d30c05",
+          "tx_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "tx_to": "0xa96982eeb325b9051cfbac970ede179a903d85df"
+        },
+        {
+          "row_kind": "event",
+          "block_time": "2026-10-30 21:16:29.000 UTC",
+          "block_number": 74625953,
+          "log_index": 30,
+          "contract_address": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+          "topic0": "0x81ffbfef319d8e018af37c91c880768a5e52e5aef2d52ed7d03d73a9c940a96c",
+          "data": "0x00000000000000000000000002f21252b936435f13241ed815ecfb54bf7474ed0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000dfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "tx_hash": "0x700cb63369dc5a027d2817082ec57bd5b38fafe1e339a019dcf33bdf01d30c05",
+          "tx_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "tx_to": "0xa96982eeb325b9051cfbac970ede179a903d85df"
+        },
+        {
+          "row_kind": "watermark",
+          "block_time": "2026-11-02 03:19:13.000 UTC",
+          "block_number": 74820517,
+          "log_index": null,
+          "contract_address": null,
+          "topic0": null,
+          "data": null,
+          "tx_hash": null,
+          "tx_from": null,
+          "tx_to": null
+        }
+      ]
+    }
+  }
+}

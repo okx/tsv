@@ -1,0 +1,149 @@
+[
+  {
+    "iid": 9,
+    "key": "No.1",
+    "old_title": "[审计 No.1] 订阅回调可使强制退出的余额差计算下溢",
+    "title": "[审计｜中风险｜No.1] 订阅回调可使强制退出的余额差计算下溢",
+    "severity": "中风险"
+  },
+  {
+    "iid": 10,
+    "key": "No.2",
+    "old_title": "[审计 No.2] SBT 身份列表无长度上限，权限校验可能耗尽 gas",
+    "title": "[审计｜中风险｜No.2] SBT 身份列表无长度上限，权限校验可能耗尽 gas",
+    "severity": "中风险"
+  },
+  {
+    "iid": 11,
+    "key": "No.3",
+    "old_title": "[审计 No.3] 强退事件读取 W 余额，漏报实际收到的 U 资产",
+    "title": "[审计｜低风险｜No.3] 强退事件读取 W 余额，漏报实际收到的 U 资产",
+    "severity": "低风险"
+  },
+  {
+    "iid": 12,
+    "key": "No.4",
+    "old_title": "[审计 No.4] 不同合约的升级暂停检查不一致",
+    "title": "[审计｜优化建议｜No.4] 不同合约的升级暂停检查不一致",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 13,
+    "key": "No.5",
+    "old_title": "[审计 No.5] 中心化风险",
+    "title": "[审计｜低风险｜No.5] 中心化风险",
+    "severity": "低风险"
+  },
+  {
+    "iid": 14,
+    "key": "No.6.1",
+    "old_title": "[审计 No.6.1] 评估主合约 reserve gap 的必要性",
+    "title": "[审计｜优化建议｜No.6.1] 评估主合约 reserve gap 的必要性",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 15,
+    "key": "No.6.2",
+    "old_title": "[审计 No.6.2] 明确 constructor 与 initialize 的 Registry 配置来源",
+    "title": "[审计｜优化建议｜No.6.2] 明确 constructor 与 initialize 的 Registry 配置来源",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 16,
+    "key": "No.6.3",
+    "old_title": "[审计 No.6.3] 使用具名常量表示强退活动状态",
+    "title": "[审计｜优化建议｜No.6.3] 使用具名常量表示强退活动状态",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 17,
+    "key": "No.6.4",
+    "old_title": "[审计 No.6.4] 简化 _candidateUnderlying 的 Adapter 读取",
+    "title": "[审计｜优化建议｜No.6.4] 简化 _candidateUnderlying 的 Adapter 读取",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 18,
+    "key": "No.6.5",
+    "old_title": "[审计 No.6.5] 删除未支持的结算分支",
+    "title": "[审计｜优化建议｜No.6.5] 删除未支持的结算分支",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 19,
+    "key": "No.6.6",
+    "old_title": "[审计 No.6.6] 减少 checkSettlementAction 的重复拒绝检查",
+    "title": "[审计｜优化建议｜No.6.6] 减少 checkSettlementAction 的重复拒绝检查",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 20,
+    "key": "No.6.7",
+    "old_title": "[审计 No.6.7] 删除 registerPool 重复的 listed 检查",
+    "title": "[审计｜优化建议｜No.6.7] 删除 registerPool 重复的 listed 检查",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 21,
+    "key": "No.6.8",
+    "old_title": "[审计 No.6.8] 明确双向交易额度的手续费统计口径",
+    "title": "[审计｜优化建议｜No.6.8] 明确双向交易额度的手续费统计口径",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 22,
+    "key": "No.6.9",
+    "old_title": "[审计 No.6.9] 评估 _validateMultiplierSnapshot 重复调用",
+    "title": "[审计｜优化建议｜No.6.9] 评估 _validateMultiplierSnapshot 重复调用",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 23,
+    "key": "No.6.10",
+    "old_title": "[审计 No.6.10] 简化 participantSbt 重复校验",
+    "title": "[审计｜优化建议｜No.6.10] 简化 participantSbt 重复校验",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 24,
+    "key": "No.6.11",
+    "old_title": "[审计 No.6.11] 删除 pauseMode 范围冗余检查",
+    "title": "[审计｜优化建议｜No.6.11] 删除 pauseMode 范围冗余检查",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 25,
+    "key": "No.6.12",
+    "old_title": "[审计 No.6.12] 删除 registerPermissionedCurrency 重复检查",
+    "title": "[审计｜优化建议｜No.6.12] 删除 registerPermissionedCurrency 重复检查",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 26,
+    "key": "No.6.13",
+    "old_title": "[审计 No.6.13] 确认是否保留未使用的 TSVDirectSettlementLib",
+    "title": "[审计｜优化建议｜No.6.13] 确认是否保留未使用的 TSVDirectSettlementLib",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 27,
+    "key": "No.6.14",
+    "old_title": "[审计 No.6.14] swap 结束后清理 active 状态变量",
+    "title": "[审计｜优化建议｜No.6.14] swap 结束后清理 active 状态变量",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 28,
+    "key": "No.6.15",
+    "old_title": "[审计 No.6.15] approve 增加 spender/operator 的 SBT 检查",
+    "title": "[审计｜优化建议｜No.6.15] approve 增加 spender/operator 的 SBT 检查",
+    "severity": "优化建议"
+  },
+  {
+    "iid": 29,
+    "key": "问题1",
+    "old_title": "[审计 问题1] 累计本金超出单次资产增量上限，可能导致强退失败",
+    "title": "[审计｜未评级｜问题1] 累计本金超出单次资产增量上限，可能导致强退失败",
+    "severity": "未评级"
+  }
+]

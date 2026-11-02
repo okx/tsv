@@ -1,0 +1,84 @@
+{
+  "contract": "TSVVolumeLedgerV1",
+  "address": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+  "snapshotBlock": 74575585,
+  "transactions": [
+    {
+      "hash": "0x92fd88c9521aab24894108ecdc8d6dce58f303a45b7f1fe4c001017cf8c9b82e",
+      "chainId": 196,
+      "contract": "TSVVolumeLedgerV1",
+      "contractAddress": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+      "kind": "proxy-create-and-initialize",
+      "blockNumber": 74502320,
+      "blockHash": "0xf5014ad017caa7e447c33a2eea7e9075059f40c7ac266a8bf29f529976475d3d",
+      "transactionIndex": 12,
+      "time": "2026-10-29T18:55:56+08:00",
+      "from": "0xeb84007545644e10c1a47502438377f7cd192904",
+      "to": null,
+      "createdAddress": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 178438,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "3568760178438",
+      "calldata": "0x60806040523461014f575f6102d08038038061001a81610167565b92833981019060408183031261014f578051906001600160a01b0382169081830361014f576020810151906001600160401b03821161014f570183601f8201121561014f578051906001600160401b03821161015357610083601f8301601f1916602001610167565b948286526020838301011161014f57815f9260208093018388015e85010152813b1561013d577f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc80546001600160a01b031916821790557fbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b5f80a2815115610134578161010f9161018c565b505b51156101255760405160b790816102198239f35b630235062160e21b8152600490fd5b505f9150610111565b634c9c8ce360e01b5f5260045260245ffd5b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b6040519190601f01601f191682016001600160401b0381118382101761015357604052565b905f8091602081519101845af48080610205575b156101c05750506040513d81523d5f602083013e60203d82010160405290565b156101e557639996b31560e01b5f9081526001600160a01b0391909116600452602490fd5b3d156101f6576040513d5f823e3d90fd5b63d6bda27560e01b5f5260045ffd5b503d1515806101a05750813b15156101a056fe608060405260043610156055575b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc545f9081906001600160a01b0316368280378136915af43d5f803e156051573d5ff35b3d5ffd5b5f3560e01c633e2031c403600d573460a6575f36600319011260a6577f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546001600160a01b03166080908152602090f35b5f80fdfea164736f6c634300081a000a0000000000000000000000008f4c315e7b8627e8afbe4192ba95f81e1c37f0c300000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000024c4d66de80000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea00000000000000000000000000000000000000000000000000000000",
+      "call": {
+        "function": "TSVERC1967Proxy.constructor",
+        "signature": "constructor(address,bytes)",
+        "parameters": {
+          "implementation": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
+          "data": "0xc4d66de80000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea"
+        }
+      },
+      "annotations": {},
+      "events": [
+        {
+          "event": "Upgraded",
+          "signature": "Upgraded(address)",
+          "address": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+          "logIndex": 34,
+          "parameters": {
+            "implementation": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3"
+          }
+        },
+        {
+          "event": "Initialized",
+          "signature": "Initialized(uint64)",
+          "address": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+          "logIndex": 35,
+          "parameters": {
+            "version": "1"
+          }
+        }
+      ],
+      "purpose": "部署代理并原子初始化。初始化 TSVVolumeLedgerV1 代理的业务依赖和初始权限。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0x92fd88c9521aab24894108ecdc8d6dce58f303a45b7f1fe4c001017cf8c9b82e",
+      "initializer": {
+        "function": "initialize",
+        "signature": "initialize(address)",
+        "selector": "0xc4d66de8",
+        "parameters": {
+          "registry_": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea"
+        }
+      }
+    }
+  ],
+  "internalCalls": [
+    {
+      "hash": "0x92fd88c9521aab24894108ecdc8d6dce58f303a45b7f1fe4c001017cf8c9b82e",
+      "blockNumber": 74502320,
+      "time": "2026-10-29T18:55:56+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+      "to": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
+      "function": "initialize(address)",
+      "parameters": {
+        "registry_": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    }
+  ]
+}

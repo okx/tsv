@@ -1,0 +1,32 @@
+{
+  "baseline": "main",
+  "commit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+  "command": "forge test -vv --root outputs/certik-review-20261031/verification/main",
+  "exit_code": 0,
+  "passed": 5,
+  "failed": 0,
+  "skipped": 0,
+  "tests": [
+    {
+      "name": "test_OTA01_AdmissionValidatorAcceptsNonFunctionalMultiplier",
+      "result": "PASS"
+    },
+    {
+      "name": "test_OTA02_ReservedMaskStillStored",
+      "result": "PASS"
+    },
+    {
+      "name": "test_OTA03_BoundedActiveSetAndRemoval",
+      "result": "PASS"
+    },
+    {
+      "name": "test_OTA04_AnotherAllowedWrapperConsumesUnattributedDeposit",
+      "result": "PASS"
+    },
+    {
+      "name": "test_OTA08_DisabledQuoteDirectPathComparison",
+      "result": "PASS"
+    }
+  ],
+  "limitations": "Mocks isolate selected boundaries; not an end-to-end unauthorized theft or production-chain verification. PASS includes successful reproduction of an existing problem."
+}

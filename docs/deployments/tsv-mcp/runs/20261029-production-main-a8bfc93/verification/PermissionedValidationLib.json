@@ -1,0 +1,18 @@
+{
+  "contract": "PermissionedValidationLib",
+  "uuid": "df8ba5a5-c4cb-49e4-a4f1-3052b2654709",
+  "taskId": 9084,
+  "address": "0x8db3a851e94b38e258f801f835e2e7deeb217538",
+  "txHash": "0xaafdde4c340db103a23d50383a5cf82539241779192822ef6244fde7c22c8af4",
+  "block": 74501535,
+  "confirmationsAtCheck": 269,
+  "checks": {
+    "creationInputMatchesSubmittedJson": true,
+    "receiptStatus": 1,
+    "creationTransaction": true,
+    "deployerMatches": true,
+    "runtimeMatchesCompiledArtifactWithPatchedImmutables": true,
+    "runtimeCodeBytes": 3871,
+    "runtimeSha256": "9da2e8f341639553edb91946c6f5f0a57253db6ca6e62d188ab7d528e949ea28"
+  }
+}

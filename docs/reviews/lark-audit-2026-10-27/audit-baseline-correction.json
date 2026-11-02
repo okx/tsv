@@ -1,0 +1,11 @@
+{
+  "correct_audit_commit": "42a690d682536adb603b9adbf4eb4af1ce7dd1cb",
+  "previous_incorrect_audit_commit": "6402443e9fc372e8aa52c9ba82cd3e84cb846493",
+  "audit_branch": "audit/2026-10-27-6402443",
+  "fix_branch": "audit/2026-10-27-6402443-fix",
+  "fix_head": "1f8269d6193b3f7a8cad3982312d29aaf83f0e98",
+  "preserved_original_fix_commit": "259ba863e15a758b606efa4db6bddb892abaecf1",
+  "remote_backup_branch": "backup/audit-20261028-fix-259ba86",
+  "patch_id_unchanged": true,
+  "main_audit_unchanged": true
+}

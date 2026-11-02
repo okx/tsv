@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "tsv-mcp-deployment-trace-v1",
+  "status": "TEMPLATE_ONLY_NOT_DEPLOYED",
+  "runId": null,
+  "createdAtUtc": null,
+  "scope": {
+    "directCreationTasks": 15,
+    "creationBatches": 5,
+    "hookFactoryCalls": 1,
+    "createW": false,
+    "businessConfiguration": false,
+    "proxyConstructorInitialization": true
+  },
+  "source": {
+    "branch": null,
+    "commit": null,
+    "submodules": {},
+    "workingTreeClean": null,
+    "compilerVersion": null,
+    "evmVersion": null,
+    "optimizer": null,
+    "optimizerRuns": null,
+    "viaIR": null,
+    "buildArtifactsHash": null
+  },
+  "network": {
+    "chainId": null,
+    "name": null,
+    "referenceBlock": null,
+    "referenceBlockHash": null,
+    "confirmationPolicy": null
+  },
+  "principals": {
+    "mcpPrivilegeAddress": null,
+    "actualTransactionSender": null,
+    "expectedDefaultAdmin": null,
+    "expectedUpgradeAdmin": null,
+    "approvalEvidenceReferences": []
+  },
+  "externalDependencies": {
+    "poolManager": {
+      "address": null,
+      "codeHash": null,
+      "verifiedAtBlock": null
+    },
+    "permit2": {
+      "address": null,
+      "codeHash": null,
+      "verifiedAtBlock": null
+    },
+    "wethOrWokb": {
+      "address": null,
+      "codeHash": null,
+      "verifiedAtBlock": null
+    },
+    "positionDescriptor": {
+      "address": null,
+      "codeHash": null,
+      "verifiedAtBlock": null
+    },
+    "participantSbt": {
+      "address": null,
+      "codeHash": null,
+      "verifiedAtBlock": null
+    },
+    "underlying": {
+      "address": null,
+      "codeHash": null,
+      "verifiedAtBlock": null
+    },
+    "issuerChecker": {
+      "address": null,
+      "codeHash": null,
+      "verifiedAtBlock": null
+    }
+  },
+  "createdContracts": {},
+  "taskRecords": [],
+  "batchResults": [],
+  "hookCreate2": {
+    "factory": null,
+    "implementation": null,
+    "initDataHash": null,
+    "salt": null,
+    "initCodeHash": null,
+    "predictedAddress": null,
+    "actualAddress": null,
+    "transactionHash": null,
+    "flagsVerified": null
+  },
+  "finalVerification": {
+    "state": "NOT_STARTED",
+    "checks": [],
+    "businessReady": false,
+    "excludedBusinessConfiguration": "NOT_EXECUTED"
+  },
+  "archive": {
+    "eventJournal": null,
+    "checksumsFile": null,
+    "gitCommit": null,
+    "externalEvidenceReferences": []
+  }
+}

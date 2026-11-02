@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"tasks\":[{\"uuid\":\"b9ac9696-3260-44ba-9dcd-33daa91de077\",\"task_id\":9094,\"ref_order_id\":\"7b17bf83-a333-44c2-99ba-025ac4b82dd3\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"a211496a-e8ee-407d-9646-8a4c0d83a064\",\"task_id\":9095,\"ref_order_id\":\"eb3de0a7-ee0f-4e26-857d-bd68cc38732a\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"12d0de6a-54d3-455a-a837-51383837e86b\",\"task_id\":9096,\"ref_order_id\":\"c8860d44-b86f-4542-99b8-8417be2fedd7\",\"chain_id\":196,\"task_status\":3}]},\"detailMsg\":null,\"msg_detail\":null}"
+    }
+  ],
+  "isError": false
+}

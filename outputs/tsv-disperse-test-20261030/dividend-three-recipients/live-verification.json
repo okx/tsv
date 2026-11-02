@@ -1,0 +1,80 @@
+{
+  "chainId": 196,
+  "contract": "0xe6c3702b8f3ac9d096dd38e5267082fd0c003a9c",
+  "payer": "0xc2cebe8485f666874667e500b36028ab2a297f8f",
+  "payoutToken": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+  "batchHash": "0x06efcdd5f2d77c51f4b416cf053d497bbcd9e599f4684e0ae186ce0d0e28305e",
+  "amountPerRecipientUsdc": "0.1",
+  "totalUsdc": "0.3",
+  "recipients": [
+    {
+      "label": "九龙",
+      "address": "0x31846cfea0c2b5eea300bc8c4af50ed563a9f042",
+      "amountRaw": "100000"
+    },
+    {
+      "label": "洋洋",
+      "address": "0x85aeed947cc5507ff427d20747e74994fd950daa",
+      "amountRaw": "100000"
+    },
+    {
+      "label": "洋洋",
+      "address": "0x2b6f358a2cf03de7b35d3c84959f0ad6d3ec53d8",
+      "amountRaw": "100000"
+    }
+  ],
+  "balancesBeforeRaw": {
+    "0x31846cfea0c2b5eea300bc8c4af50ed563a9f042": "2",
+    "0x85aeed947cc5507ff427d20747e74994fd950daa": "0",
+    "0x2b6f358a2cf03de7b35d3c84959f0ad6d3ec53d8": "2000"
+  },
+  "payerBeforeRaw": "27585534",
+  "initialNonce": 131,
+  "startedAt": "2026-10-30T10:30:30.651853+00:00",
+  "status": "PASSED",
+  "mode": "LIVE",
+  "balancesAfterRaw": {
+    "0x31846cfea0c2b5eea300bc8c4af50ed563a9f042": "100002",
+    "0x85aeed947cc5507ff427d20747e74994fd950daa": "100000",
+    "0x2b6f358a2cf03de7b35d3c84959f0ad6d3ec53d8": "102000"
+  },
+  "payerAfterRaw": "27285534",
+  "paidEvents": [
+    {
+      "recipient": "0x31846cfea0c2b5eea300bc8c4af50ed563a9f042",
+      "amountRaw": "100000"
+    },
+    {
+      "recipient": "0x85aeed947cc5507ff427d20747e74994fd950daa",
+      "amountRaw": "100000"
+    },
+    {
+      "recipient": "0x2b6f358a2cf03de7b35d3c84959f0ad6d3ec53d8",
+      "amountRaw": "100000"
+    }
+  ],
+  "dispersedEvents": [
+    {
+      "totalRaw": "300000",
+      "count": 3,
+      "batchHash": "0x06efcdd5f2d77c51f4b416cf053d497bbcd9e599f4684e0ae186ce0d0e28305e"
+    }
+  ],
+  "contractBalanceRaw": "0",
+  "remainingAllowanceRaw": "0",
+  "verificationBlock": 74587198,
+  "transactions": [
+    {
+      "purpose": "approve-exactly-0.3-USDC",
+      "hash": "0x878deeeb2a3406c2f8d8d5c914459d832ebe3c9ea5f0a88140101f0f6a5a3c46",
+      "block": 74587196
+    },
+    {
+      "purpose": "disperse-dividend",
+      "hash": "0x58166e686426997a29f4ab67962049ad3cd84eb41eac62ca3e5cde3791d24847",
+      "block": 74587198
+    }
+  ],
+  "totalGasLimit": 313519,
+  "gasPaidWei": "3932960196648"
+}

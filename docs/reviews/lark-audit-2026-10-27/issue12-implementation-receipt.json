@@ -1,0 +1,30 @@
+[
+  {
+    "branch": "audit/2026-10-27-6402443-fix",
+    "commit": "821391df7705fca8d8d674757b9e1c60bd08d241",
+    "targeted_tests_passed": 53,
+    "test_suites": [
+      "TSVComponentUpgradeRolesTest",
+      "LPRegistryRolesTest",
+      "TSVSecurityPausesTest",
+      "LPLinkedLibrariesTest"
+    ],
+    "full_suite_run": false,
+    "test_configuration": "FOUNDRY_PROFILE=unit; CLI @uniswap/v4-core/src/ remapping; skip SecuritizeTSVChecker.sol and script",
+    "log": "issue12-audit-tests.log"
+  },
+  {
+    "branch": "main-audit",
+    "commit": "8303dd1bce16ef16fc83404ffbe3f5123c20c766",
+    "targeted_tests_passed": 53,
+    "test_suites": [
+      "TSVComponentUpgradeRolesTest",
+      "LPRegistryRolesTest",
+      "TSVSecurityPausesTest",
+      "LPLinkedLibrariesTest"
+    ],
+    "full_suite_run": false,
+    "test_configuration": "FOUNDRY_PROFILE=unit; CLI @uniswap/v4-core/src/ remapping; skip SecuritizeTSVChecker.sol and script",
+    "log": "issue12-main-tests.log"
+  }
+]

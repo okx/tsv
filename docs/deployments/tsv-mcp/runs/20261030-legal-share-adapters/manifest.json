@@ -1,0 +1,57 @@
+{
+  "preparedAt": "2026-10-30T09:35:22.959931+00:00",
+  "chainId": 196,
+  "rpcUrl": "https://rpc.xlayer.tech",
+  "preflightBlock": 74583887,
+  "sourceBranch": "main",
+  "sourceCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+  "checkoutBranch": "test/securitize-disperse-mock",
+  "scope": "Three immutable ERC8056DirectLegalShareAdapter deployments only; no W or Registry configuration",
+  "deployer": "0xeb84007545644e10c1a47502438377f7cd192904",
+  "status": "SIX_DEPLOYMENTS_CONFIRMED_THREE_DUPLICATES",
+  "requestSha256": "211eeda3614780129a4f06300f22503555632aba71405992af9b8bc1403a0bce",
+  "bytecodeMatchesPreviousProductionArtifact": true,
+  "tasks": [
+    {
+      "symbol": "MSTR",
+      "underlying": "0xf83D29cA0F926CEf42597ac57e807ad452Ce5B43",
+      "uuid": "62028719-d22c-4378-8251-ee3efc644634",
+      "gasLimit": 393470
+    },
+    {
+      "symbol": "BTGO",
+      "underlying": "0xA57157574E6Efd4E26F08B97cAa0BEE6c8A80E4F",
+      "uuid": "dd8df1d1-c681-488e-8da5-f5ea9b19f99d",
+      "gasLimit": 393470
+    },
+    {
+      "symbol": "SECZ",
+      "underlying": "0x811EEf1eF8033743109D45af69dC9E59F79f4b5c",
+      "uuid": "fd7501a6-4b41-4500-ba33-eed63b734274",
+      "gasLimit": 393470
+    }
+  ],
+  "priorAttempt": "Rejected before task creation: session INTENT_REQUIRED; original request/response retained.",
+  "retryPreparedAt": "2026-10-30T09:36:13.174461+00:00",
+  "lastCheckedAt": "2026-10-30T09:36:36.841051+00:00",
+  "creationCalls": 3,
+  "attempts": [
+    {
+      "attempt": 1,
+      "result": "INTENT_REQUIRED; no task created"
+    },
+    {
+      "attempt": 2,
+      "result": "HTTP 500; all 3 UUID queries returned task not found"
+    },
+    {
+      "attempt": 3,
+      "result": "HTTP 500; all 3 UUID queries returned task not found"
+    }
+  ],
+  "onChainDeploymentConfirmed": true,
+  "nextAction": "No more deployment submissions; choose a single adapter per asset for later Registry configuration.",
+  "reconciliation": "reconciled-deployments.json",
+  "reconciledAt": "2026-10-30T09:43:51.140386+00:00",
+  "previousNotFoundQueriesWereTransient": true
+}

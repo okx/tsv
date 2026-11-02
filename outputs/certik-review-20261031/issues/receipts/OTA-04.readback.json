@@ -1,0 +1,71 @@
+{
+  "id": 10029,
+  "iid": 34,
+  "project_id": 18199,
+  "title": "[CertiK｜中风险｜OTA-04][audit-fix] 共享预存 U 缺少出资归属",
+  "description": "## 来源与修复范围\n\n来源：[CertiK TSV 初审报告（原始 PDF）](https://gitlab.okg.com/web3-dex/tsv/uploads/4b71892b28b1a3f8a9851a862d66ee15/CertiK-PRE-OKX-TSV---Audit__preliminary-20261030T231203Z.pdf)，第 22,23 页，编号 **OTA-04**，原报告等级 **Medium**。原报告状态为 Pending；以下状态是 2026-10-31 独立代码复核结论，不代表 CertiK 已确认关闭。\n\n**修复目标分支：`audit/2026-10-27-6402443-fix`（audit-fix）。请本项单独提交修复/验证记录，建立对应 MR，不与其他审计项混成一个不可独立验收的变更。**\n\n- 报告审计 commit：`85623cd73ab6248b4acec71f478f30088c4deec3`。\n- audit-fix 复核 commit：`543dcd34e882eead3a9f2391540c704105fbc693`。\n- main 对照 commit：`a8bfc93aa2cf40142e6511e5069d90f65b59f420`；本 Issue 的修复目标是 audit-fix。\n\n## 双基线复核\n\n- **audit-fix：仍存在；收款人限制仅缩小一条路径**\n- **main：仍存在**\n\n成立且值得优先处理，但利用前提是获准调用方及其权限/身份链路，不能描述成任意地址可盗取。\n\n### 原因与实现\n\nPermissionsAdapter.wrapToPoolManager 只检查 allowedWrappers，并以 U.balanceOf(W) - W.totalSupply() 计算可包装的全局余额；没有记录这笔 U 属于哪个存款人或哪次请求。Direct 股票输入要求 payer=0，由 Router 消费已经放在 W 中的 U。验证存款、误转和非原子预存都进入同一个可用余额。\n\n### 影响与利用前提\n\n一个被允许的包装调用方可以消费其他地址此前放入的无归属余额。经 TSV Router 完成卖出还要满足 adapter 白名单、SBT、发行方许可和池交易条件。audit-fix 仅允许 recipient=participant，仍不能证明预存属于该 participant；main 还允许 Q 输出给调用 adapter。可信 adapter 的自身校验可降低外部用户利用机会，但并没有在 W 层形成出资隔离。\n\n## audit-fix 处理要求与验收条件\n\n- [ ] 为本次 U 输入建立明确的 payer/请求归属：优先采用原子拉取并限定仅消费本次认证输入，或实现按 caller/payer/nonce 记账的预存信用。\n- [ ] 把验证存款、误转及其他请求存款与本次可消费余额隔离；只把“转入+wrap”放进同一交易而仍消费全局余额不满足要求。\n- [ ] 保留 adapter、SBT、发行方权限和收款人约束，覆盖恶意白名单调用方/多请求并发条件下的余额归属。\n- [ ] 增加跨存款人测试：B 不得消费 A 的验证/预存余额；正常完整输入、失败原子回滚和重复消费均需覆盖。\n- [ ] 在本 Issue 记录最终处理、对应 MR/完整 commit、验证命令与结果，并提供供 CertiK 复核的证据；已修复项以复核和回归补全验收，不制造无意义的重复代码改动。\n\n### 修复建议及注意事项\n\n优先让结算从本次已认证 payer 原子拉取 U，并且只按本次资金变化授权包装；或为预存建立 caller/payer/nonce 归属额度和消费规则。单纯“先转入再 wrap”仍可挪用原有余额，必须限定可消费数额/权限。验证用余额与可交易余额应分离，明确误转回收。若选择信任所有获准 adapter，应将这个信任和禁止非原子预存写入准入条件，不能标为技术修复。\n\n## 代码证据（固定 commit）\n\n- main：[ `src/v1/vendor/permissionedPools/PermissionsAdapter.sol:50` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/vendor/permissionedPools/PermissionsAdapter.sol#L50)；`uint256 availableBalance = PERMISSIONED_TOKEN.balanceOf(address(this)) - totalSupply();`\n- main：[ `src/v1/periphery/TSVSwapRouterV1.sol:114` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/periphery/TSVSwapRouterV1.sol#L114)；`function swapExactInputFromContractDirect(`\n- audit-fix：[ `src/v1/periphery/TSVSwapRouterV1.sol:125` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/543dcd34e882eead3a9f2391540c704105fbc693/src/v1/periphery/TSVSwapRouterV1.sol#L125)；`if (recipient != participant) revert InvalidRequest();`\n\n## 已有验证与边界\n\n两个基线均用真实 PermissionsAdapter：A depositForVerification 100，另一个 allowedWrapper B 成功包装这 100，消耗全部可用余额。测试证明共享信用缺口，未演示完整 Router 套现，也未证明未授权 EOA 可利用。\n\n本次为报告逐项复核，未发送生产交易；mock 边界测试不代表完整端到端攻击或现网资产/角色配置已经确认。\n\n本地针对性测试：`test_OTA04_AnotherAllowedWrapperConsumesUnattributedDeposit`，两个基线均 PASS。PASS 包含问题存在的成功复现，不等于漏洞已修复。正式修复 MR 应将对应场景加入仓库测试。\n\n## 报告原文\n\n<details>\n<summary>展开 PDF 原文文字提取（保留原始内容，版式以附件 PDF 为准）</summary>\n\n```text\n[PDF page 22]\nOTA-04   OKX TSV - AUDIT\n\n\nOTA-04            Global Prefunding Lets Allowlisted Adapters Spend Unattributed\n                  Underlying\n\n\n\n\n Category        Severity        Location                                                                          Status\n\n\n Design              Medium      periphery/TSVSwapRouterV1.sol: 114~115; vendor/permissionedPools/                    Pending\n Issue                           PermissionsAdapter.sol: 48~49\n\n\n  Description\n\n\n TSVSwapRouterV1.swapExactInputFromContractDirect           allows an administrator-approved adapter to execute an exact-\ninput swap on behalf of a participant who satisfies the Registry and issuer swap permissions. For stock input, the function\nexpects the underlying token U to be prefunded in the stock wrapper W; for quote-token output, the adapter may designate\nitself as the recipient.\n\nThe direct entry point enforces a zero payer for stock input while permitting quote output to be sent to the calling adapter:\n\n\n  // TSVSwapRouterV1.swapExactInputFromContractDirect(...) —\n  src/v1/periphery/TSVSwapRouterV1.sol:133-142\n          bool recipientAllowed = isStockOutput\n              ? recipient == participant\n              : registry.getQuoteToken(outputCurrency).registered\n                  && (recipient == participant || recipient == msg.sender);\n          if (!recipientAllowed) revert InvalidRequest();\n          bool isUnderlyingInput = registry.getCurrencyUnderlying(inputCurrency) !=\n  address(0);\n          if ((isUnderlyingInput && payer != address(0)) || (!isUnderlyingInput &&\n  payer != msg.sender)) {\n              revert InvalidPayer();\n          }\n          return _swap(request, payer, participant, recipient);\n\n\nBecause   _swap   transfers U into W only when    payer   is nonzero, this branch does not attribute any U to the current\nadapter, participant, or request. During settlement, _settle    nevertheless asks W to mint the required amount to the\nPoolManager.    PermissionsAdapter.wrapToPoolManager         authorizes the Router as a wrapper but treats the entire difference\nbetween W's U balance and its outstanding supply as shared settlement credit:\n\n[PDF page 23]\nOTA-04    OKX TSV - AUDIT\n\n\n\n\n\n  // PermissionsAdapter.wrapToPoolManager(uint256) —\n  src/v1/vendor/permissionedPools/PermissionsAdapter.sol:48-52\n      function wrapToPoolManager(uint256 amount) external {\n          if (!allowedWrappers[msg.sender]) revert UnauthorizedWrapper(msg.sender);\n          uint256 availableBalance = PERMISSIONED_TOKEN.balanceOf(address(this)) -\n  totalSupply();\n          if (amount > availableBalance) revert InsufficientBalance(amount,\n  availableBalance);\n          _mint(POOL_MANAGER, amount);\n      }\n\n\nWhen W contains U from a verification deposit, an accidental transfer, or an earlier non-atomic prefunding operation, any\nallowlisted adapter can submit a stock-to-quote swap using an eligible participant and select itself as the quote recipient. W\nmints against that existing U, the PoolManager consumes the new W as swap input, and the adapter receives the quote\noutput. No state associates the consumed U with its depositor or gives that depositor a claim on the resulting W or Q.\n\nConsequently, an adapter can consume the entire unattributed U surplus and receive its corresponding quote-token value.\nThe depositors bear the U loss, and direct swaps that expected to use the depleted prefunding subsequently revert for\ninsufficient available balance.\n\n\n  Recommendation\n\nRequire each stock-input swap to pull U from an explicitly authenticated payer and wrap that exact amount atomically within\nthe same transaction. If prefunding must remain supported, record one-time credits keyed to the depositor and the\nauthorized adapter or participant, bind each credit to an amount and request nonce, and consume only that credit during\nsettlement. Track verification deposits separately from spendable swap inventory, and migrate or refund any existing\nunattributed U before enabling the corrected settlement path.\n```\n\n</details>",
+  "state": "opened",
+  "created_at": "2026-10-31T07:09:02.245Z",
+  "updated_at": "2026-10-31T07:09:02.245Z",
+  "closed_at": null,
+  "closed_by": null,
+  "labels": [],
+  "milestone": null,
+  "assignees": [],
+  "author": {
+    "id": 2461,
+    "username": "zewei.lu",
+    "public_email": null,
+    "name": "zewei.lu@okg.com",
+    "state": "active",
+    "locked": false,
+    "avatar_url": "https://secure.gravatar.com/avatar/8f6a06ace9e6e5d42b74fbb4b3309b3ab7c5c4de1ebfd3070324dcef6def5413?s=80&d=identicon",
+    "web_url": "https://gitlab.okg.com/zewei.lu"
+  },
+  "type": "ISSUE",
+  "assignee": null,
+  "user_notes_count": 0,
+  "merge_requests_count": 0,
+  "upvotes": 0,
+  "downvotes": 0,
+  "start_date": null,
+  "due_date": null,
+  "confidential": false,
+  "discussion_locked": null,
+  "issue_type": "issue",
+  "web_url": "https://gitlab.okg.com/web3-dex/tsv/-/work_items/34",
+  "time_stats": {
+    "time_estimate": 0,
+    "total_time_spent": 0,
+    "human_time_estimate": null,
+    "human_total_time_spent": null
+  },
+  "task_completion_status": {
+    "count": 5,
+    "completed_count": 0
+  },
+  "weight": null,
+  "blocking_issues_count": 0,
+  "has_tasks": false,
+  "_links": {
+    "self": "https://gitlab.okg.com/api/v4/projects/18199/issues/34",
+    "notes": "https://gitlab.okg.com/api/v4/projects/18199/issues/34/notes",
+    "award_emoji": "https://gitlab.okg.com/api/v4/projects/18199/issues/34/award_emoji",
+    "project": "https://gitlab.okg.com/api/v4/projects/18199",
+    "closed_as_duplicate_of": null
+  },
+  "references": {
+    "short": "#34",
+    "relative": "#34",
+    "full": "web3-dex/tsv#34"
+  },
+  "severity": "UNKNOWN",
+  "subscribed": true,
+  "moved_to_id": null,
+  "imported": false,
+  "imported_from": "none",
+  "service_desk_reply_to": null,
+  "epic_iid": null,
+  "epic": null,
+  "iteration": null
+}

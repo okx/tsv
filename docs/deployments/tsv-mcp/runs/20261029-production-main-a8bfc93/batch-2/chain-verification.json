@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-10-29T10:54:02.866611+00:00",
+  "status": "ALL_VERIFIED_SUCCESS",
+  "contracts": [
+    {
+      "contract": "TSVRegistryV1",
+      "uuid": "75b5aef4-5c8e-4258-9259-afb773328b9d",
+      "address": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "txHash": "0x7bf8aaab36b25aed30eb6b240e4441c4904eb113d8da416c007541619b91e0d5",
+      "block": 74502150,
+      "confirmationsAtCheck": 55,
+      "checks": {
+        "receiptStatus": 1,
+        "creationCalldataMatches": true,
+        "runtimeMatches": true
+      }
+    },
+    {
+      "contract": "TSVSwapRouterV1",
+      "uuid": "9b91a97e-305d-4ecc-aa41-4def90e0977f",
+      "address": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+      "txHash": "0x969eb07b3e9fcbc3d385c4886ed9e17188fa28b08cfc987cc000118d1762bc9c",
+      "block": 74502160,
+      "confirmationsAtCheck": 45,
+      "checks": {
+        "receiptStatus": 1,
+        "creationCalldataMatches": true,
+        "runtimeMatches": true
+      }
+    }
+  ]
+}

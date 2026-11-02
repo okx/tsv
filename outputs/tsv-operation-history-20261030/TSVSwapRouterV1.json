@@ -1,0 +1,176 @@
+{
+  "contract": "TSVSwapRouterV1",
+  "address": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+  "snapshotBlock": 74575585,
+  "transactions": [
+    {
+      "hash": "0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593",
+      "chainId": 196,
+      "contract": "TSVSwapRouterV1",
+      "contractAddress": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "kind": "proxy-create-and-initialize",
+      "blockNumber": 74502370,
+      "blockHash": "0xcf0df0885d29c2f080014151646e147ac2e74500f8a63c2965b27f7bc09d4242",
+      "transactionIndex": 5,
+      "time": "2026-10-29T18:56:46+08:00",
+      "from": "0xeb84007545644e10c1a47502438377f7cd192904",
+      "to": null,
+      "createdAddress": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 178720,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "3574400178720",
+      "calldata": "0x60806040523461014f575f6102d08038038061001a81610167565b92833981019060408183031261014f578051906001600160a01b0382169081830361014f576020810151906001600160401b03821161014f570183601f8201121561014f578051906001600160401b03821161015357610083601f8301601f1916602001610167565b948286526020838301011161014f57815f9260208093018388015e85010152813b1561013d577f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc80546001600160a01b031916821790557fbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b5f80a2815115610134578161010f9161018c565b505b51156101255760405160b790816102198239f35b630235062160e21b8152600490fd5b505f9150610111565b634c9c8ce360e01b5f5260045260245ffd5b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b6040519190601f01601f191682016001600160401b0381118382101761015357604052565b905f8091602081519101845af48080610205575b156101c05750506040513d81523d5f602083013e60203d82010160405290565b156101e557639996b31560e01b5f9081526001600160a01b0391909116600452602490fd5b3d156101f6576040513d5f823e3d90fd5b63d6bda27560e01b5f5260045ffd5b503d1515806101a05750813b15156101a056fe608060405260043610156055575b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc545f9081906001600160a01b0316368280378136915af43d5f803e156051573d5ff35b3d5ffd5b5f3560e01c633e2031c403600d573460a6575f36600319011260a6577f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546001600160a01b03166080908152602090f35b5f80fdfea164736f6c634300081a000a0000000000000000000000001bb8de0128ce24cc32398cff58cd1c1afc94459900000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000044485cc955000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea00000000000000000000000000000000000000000000000000000000",
+      "call": {
+        "function": "TSVERC1967Proxy.constructor",
+        "signature": "constructor(address,bytes)",
+        "parameters": {
+          "implementation": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+          "data": "0x485cc955000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea"
+        }
+      },
+      "annotations": {},
+      "events": [
+        {
+          "event": "Upgraded",
+          "signature": "Upgraded(address)",
+          "address": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+          "logIndex": 8,
+          "parameters": {
+            "implementation": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599"
+          }
+        },
+        {
+          "event": "Initialized",
+          "signature": "Initialized(uint64)",
+          "address": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+          "logIndex": 9,
+          "parameters": {
+            "version": "1"
+          }
+        }
+      ],
+      "purpose": "部署代理并原子初始化。初始化 TSVSwapRouterV1 代理的业务依赖和初始权限。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593",
+      "initializer": {
+        "function": "initialize",
+        "signature": "initialize(address,address)",
+        "selector": "0x485cc955",
+        "parameters": {
+          "pm": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+          "registry_": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea"
+        }
+      }
+    },
+    {
+      "hash": "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "chainId": 196,
+      "contract": "TSVSwapRouterV1",
+      "contractAddress": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "kind": "direct-call",
+      "blockNumber": 74573795,
+      "blockHash": "0x820e62d4da1f4286a531f017a97d5874886190185a0943c20770d132c1cd3539",
+      "transactionIndex": 7,
+      "time": "2026-10-30T14:47:11+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 70733,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1414660070733",
+      "calldata": "0xb2976fb9000000000000000000000000bc4eb2f78def67f26d9fb359fe719ea643d7f1c00000000000000000000000000000000000000000000000000000000000000001",
+      "call": {
+        "function": "setAdapterAllowed",
+        "signature": "setAdapterAllowed(address,bool)",
+        "selector": "0xb2976fb9",
+        "parameters": {
+          "adapter": "0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0",
+          "allowed": true
+        }
+      },
+      "annotations": {},
+      "events": [
+        {
+          "event": "AdapterAuthorizationUpdated",
+          "signature": "AdapterAuthorizationUpdated(address,bool)",
+          "address": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+          "logIndex": 24,
+          "parameters": {
+            "adapter": "0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0",
+            "allowed": true
+          }
+        }
+      ],
+      "purpose": "将 Adapter 0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0 的 TSV Router 调用许可设为 True；并非登记外部 DEXRouter。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2"
+    }
+  ],
+  "internalCalls": [
+    {
+      "hash": "0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593",
+      "blockNumber": 74502370,
+      "time": "2026-10-29T18:56:46+08:00",
+      "type": "DELEGATECALL",
+      "from": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "to": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+      "function": "initialize(address,address)",
+      "parameters": {
+        "pm": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+        "registry_": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "blockNumber": 74573795,
+      "time": "2026-10-30T14:47:11+08:00",
+      "type": "DELEGATECALL",
+      "from": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "to": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+      "function": "setAdapterAllowed(address,bool)",
+      "parameters": {
+        "adapter": "0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0",
+        "allowed": true
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "blockNumber": 74573795,
+      "time": "2026-10-30T14:47:11+08:00",
+      "type": "STATICCALL",
+      "from": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "function": "isPaused()",
+      "parameters": {},
+      "purpose": "检查 Registry 没有暂停。",
+      "evidence": "Explorer 高级索引确认两次 Router→Registry 调用；方法与参数由固定版本 modifiers 重建。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "blockNumber": 74573795,
+      "time": "2026-10-30T14:47:11+08:00",
+      "type": "STATICCALL",
+      "from": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "function": "hasRole(bytes32,address)",
+      "parameters": {
+        "role": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+      },
+      "purpose": "验证发起人具有 DEFAULT_ADMIN_ROLE。",
+      "evidence": "Explorer 高级索引确认两次 Router→Registry 调用；方法与参数由固定版本 modifiers 重建。",
+      "rawTraceAvailable": false
+    }
+  ]
+}

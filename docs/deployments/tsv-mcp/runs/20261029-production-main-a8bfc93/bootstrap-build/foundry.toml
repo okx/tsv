@@ -1,0 +1,11 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+remappings = ["forge-std/=/Users/oker/meili/zewei.lu_dacs_at_okg.com/117/Documents/code/tsv/lib/v4-core/lib/forge-std/src/"]

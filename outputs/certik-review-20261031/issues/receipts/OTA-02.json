@@ -1,0 +1,71 @@
+{
+  "id": 10035,
+  "iid": 40,
+  "project_id": 18199,
+  "title": "[CertiK｜提示级｜OTA-02][audit-fix] SBT 配置保存未经约束的权限位",
+  "description": "## 来源与修复范围\n\n来源：[CertiK TSV 初审报告（原始 PDF）](https://gitlab.okg.com/web3-dex/tsv/uploads/4b71892b28b1a3f8a9851a862d66ee15/CertiK-PRE-OKX-TSV---Audit__preliminary-20261030T231203Z.pdf)，第 33,34 页，编号 **OTA-02**，原报告等级 **Informational**。原报告状态为 Pending；以下状态是 2026-10-31 独立代码复核结论，不代表 CertiK 已确认关闭。\n\n**修复目标分支：`audit/2026-10-27-6402443-fix`（audit-fix）。请本项单独提交修复/验证记录，建立对应 MR，不与其他审计项混成一个不可独立验收的变更。**\n\n- 报告审计 commit：`85623cd73ab6248b4acec71f478f30088c4deec3`。\n- audit-fix 复核 commit：`543dcd34e882eead3a9f2391540c704105fbc693`。\n- main 对照 commit：`a8bfc93aa2cf40142e6511e5069d90f65b59f420`；本 Issue 的修复目标是 audit-fix。\n\n## 双基线复核\n\n- **audit-fix：仍保存任意 mask；当前消费端有限制**\n- **main：仍保存任意 mask；当前消费端有限制**\n\n报告的存储行为成立；当前直接越权的表述应收窄，主要是配置与未来兼容风险。\n\n### 原因与实现\n\nsetSbtConfig 可保存 0xFFFF 等任意非零 bytes2，permissionsOf 会返回原始按位并集；isSbtAllowed 只接受 SWAP_ALLOWED 和 LIQUIDITY_ALLOWED 请求。因此高位不会自动成为当前 TSV 的任意治理或强退权限。源码注释明确选择保留 vendor 原始 mask。\n\n### 影响与利用前提\n\n配置只能由默认管理员写入，不是用户提交任意 mask 就获得权限。风险在未来为保留位增加含义，或者外部消费者误读 permissionsOf 时，旧 0xFFFF 配置被追溯赋予新能力。NONE 会删除身份，但不会限制其他非零位。\n\n## audit-fix 处理要求与验收条件\n\n- [ ] 在 TSV 身份配置入口限制合法权限组合为 NONE、SWAP、LP、SWAP|LP，拒绝保留位、UNWIND 和 0xFFFF 等含额外位的配置。\n- [ ] 对已保存的历史原始 mask 给出盘点、显式迁移与兼容处理；如必须保留 vendor 原始 mask，需与 TSV 可用权限分离，防止未来赋义时自动扩权。\n- [ ] 覆盖合法组合、非法位和原始 ALL mask；继续拒绝以非 SWAP/LP 的 permission 参数调用 TSV 权限判断。\n- [ ] 在本 Issue 记录最终处理、对应 MR/完整 commit、验证命令与结果，并提供供 CertiK 复核的证据；已修复项以复核和回归补全验收，不制造无意义的重复代码改动。\n\n### 修复建议及注意事项\n\n如果 TSV 仅承诺两个权限，建议 setter 限制为 NONE、SWAP、LP、SWAP|LP，成本低且减少歧义；对已有值先盘点再迁移。如果业务必须透传 vendor mask，则把原始身份权限与 TSV 可用权限分开返回，承诺升级时逐项迁移，按设计接受而不是标为修复。\n\n## 代码证据（固定 commit）\n\n- main：[ `src/v1/core/TSVRegistryV1.sol:329` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/core/TSVRegistryV1.sol#L329)；`function setSbtConfig(uint256 tokenId, PermissionFlag permissions, bytes32 reasonCode)`\n- main：[ `src/v1/core/TSVRegistryV1.sol:390` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/core/TSVRegistryV1.sol#L390)；`function isSbtAllowed(PermissionFlag permission, address account) external view returns (bool) {`\n- audit-fix：[ `src/v1/core/TSVRegistryV1.sol:274` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/543dcd34e882eead3a9f2391540c704105fbc693/src/v1/core/TSVRegistryV1.sol#L274)；`function setSbtConfig(uint256 tokenId, PermissionFlag permissions, bytes32 reasonCode)`\n\n## 已有验证与边界\n\n两个真实 Registry 均成功保存并读回 0xFFFF。动态测试验证存储行为；消费端仅允许两类 permission 的结论来自静态复核。\n\n本次为报告逐项复核，未发送生产交易；mock 边界测试不代表完整端到端攻击或现网资产/角色配置已经确认。\n\n本地针对性测试：`test_OTA02_ReservedMaskStillStored`，两个基线均 PASS。PASS 包含问题存在的成功复现，不等于漏洞已修复。正式修复 MR 应将对应场景加入仓库测试。\n\n## 报告原文\n\n<details>\n<summary>展开 PDF 原文文字提取（保留原始内容，版式以附件 PDF 为准）</summary>\n\n```text\n[PDF page 33]\nOTA-02    OKX TSV - AUDIT\n\n\nOTA-02             Unvalidated SBT Permission Masks May Overgrant Current\n                   And Future Permissions\n\n\n\n\n Category           Severity                Location                                                                       Status\n\n\n Design Issue            Informational      vendor/permissionedPools/libraries/PermissionFlags.sol: 28~29                     Pending\n\n\n  Description\n\n\n TSVRegistryV1     associates each recognized SBT identity with a        PermissionFlag      bitmask.   permissionsOf      combines the\nmasks of all identities held by an account, and     isSbtAllowed      checks whether the combined result contains the requested\nTSV permission:\n\n\n  // TSVRegistryV1.sol:329\n  return (permissionsOf(account) & permission) == permission;\n\n\n\n setSbtConfig     stores the administrator-supplied mask without restricting it to the permissions supported by the TSV identity\ndomain:\n\n\n  // TSVRegistryV1.sol:284\n  sbtIdentityConfig[tokenId] = SbtIdentityConfig(true, permissions);\n\n\nThe permission library defines     ALL_ALLOWED     as  0xFFFF   :\n\n\n  // PermissionFlags.sol:28\n  PermissionFlag constant ALL_ALLOWED = PermissionFlag.wrap(0xFFFF);\n\n\nTSV currently assigns SBT authorization semantics only to         SWAP_ALLOWED      (0x0001   ) and   LIQUIDITY_ALLOWED      ( 0x0002   ).\nWhen an administrator configures an identity with       ALL_ALLOWED    , the stored mask contains both bits, causing the holder to\npass both operation gates:\n\n\n  0xFFFF & 0x0001 == 0x0001\n  0xFFFF & 0x0002 == 0x0002\n\n\nThe same behavior occurs for any unsupported mask containing either recognized bit. Invalid or reserved bits are therefore\nstored alongside active TSV permissions instead of being rejected.\n\nThese raw masks remain in Registry storage and are returned by           permissionsOf     . If a future upgrade assigns authorization\nsemantics to a previously unsupported bit without migrating or revalidating existing masks, identities whose stored masks\nalready contain that bit, including identities configured with    0xFFFF  , will automatically satisfy the new permission check\nwithout a new configuration action for that specific permission.\n\n[PDF page 34]\nOTA-02     OKX TSV - AUDIT\n\n\n\n\n  Recommendation\n\nDefine a permission mask specifically for the TSV SBT domain and validate every value supplied to                        setSbtConfig      . The\naccepted values should be limited to         NONE   ,  SWAP_ALLOWED      , LIQUIDITY_ALLOWED        , and their union (    0x0003   ). Reject any\nmask containing      UNWIND_ALLOWED       , reserved bits, or the vendor-level       ALL_ALLOWED      value.\n\nDo not use     0xFFFF    to represent “all current TSV permissions.” If such a convenience constant is required, define a domain-\nspecific constant.\n```\n\n</details>",
+  "state": "opened",
+  "created_at": "2026-10-31T07:09:16.238Z",
+  "updated_at": "2026-10-31T07:09:16.238Z",
+  "closed_at": null,
+  "closed_by": null,
+  "labels": [],
+  "milestone": null,
+  "assignees": [],
+  "author": {
+    "id": 2461,
+    "username": "zewei.lu",
+    "public_email": null,
+    "name": "zewei.lu@okg.com",
+    "state": "active",
+    "locked": false,
+    "avatar_url": "https://secure.gravatar.com/avatar/8f6a06ace9e6e5d42b74fbb4b3309b3ab7c5c4de1ebfd3070324dcef6def5413?s=80&d=identicon",
+    "web_url": "https://gitlab.okg.com/zewei.lu"
+  },
+  "type": "ISSUE",
+  "assignee": null,
+  "user_notes_count": 0,
+  "merge_requests_count": 0,
+  "upvotes": 0,
+  "downvotes": 0,
+  "start_date": null,
+  "due_date": null,
+  "confidential": false,
+  "discussion_locked": null,
+  "issue_type": "issue",
+  "web_url": "https://gitlab.okg.com/web3-dex/tsv/-/work_items/40",
+  "time_stats": {
+    "time_estimate": 0,
+    "total_time_spent": 0,
+    "human_time_estimate": null,
+    "human_total_time_spent": null
+  },
+  "task_completion_status": {
+    "count": 4,
+    "completed_count": 0
+  },
+  "weight": null,
+  "blocking_issues_count": 0,
+  "has_tasks": false,
+  "_links": {
+    "self": "https://gitlab.okg.com/api/v4/projects/18199/issues/40",
+    "notes": "https://gitlab.okg.com/api/v4/projects/18199/issues/40/notes",
+    "award_emoji": "https://gitlab.okg.com/api/v4/projects/18199/issues/40/award_emoji",
+    "project": "https://gitlab.okg.com/api/v4/projects/18199",
+    "closed_as_duplicate_of": null
+  },
+  "references": {
+    "short": "#40",
+    "relative": "#40",
+    "full": "web3-dex/tsv#40"
+  },
+  "severity": "UNKNOWN",
+  "subscribed": true,
+  "moved_to_id": null,
+  "imported": false,
+  "imported_from": "none",
+  "service_desk_reply_to": null,
+  "epic_iid": null,
+  "epic": null,
+  "iteration": null
+}

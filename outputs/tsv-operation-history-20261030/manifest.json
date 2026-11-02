@@ -1,0 +1,25 @@
+{
+  "startedAt": "2026-10-30T07:17:01.473205+00:00",
+  "chainId": 196,
+  "rpc": "https://rpc.xlayer.tech",
+  "snapshotToBlock": 74575585,
+  "contracts": {
+    "TSVRegistryV1": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+    "TSVVolumeLedgerV1": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+    "TSVSwapRouterV1": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+    "TSVLPManagerV1": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+    "TSVHookV1": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff"
+  },
+  "status": "COMPLETE_WITH_EXPLICIT_TRACE_LIMITATION",
+  "coverage": {
+    "directTransactions": "OKLink entire visible index (all status/type), RPC receipt cross-check; 18 unique parent transactions including Factory creation",
+    "internalCalls": "OKLink advanced index reviewed for all five; 26 unique in-scope edges; raw trace unavailable, reconstructed parameters labelled",
+    "eventLogs": "COMPLETE 74502235..74575585, 734 continuous ranges, 25 logs reconciled against all receipts",
+    "excluded": "Off-chain eth_call/simulation, pending/dropped requests, external contracts own history"
+  },
+  "note": "All purpose explanations are interpretations of decoded functions/events, not proof of private caller intent.",
+  "completedAt": "2026-10-30T07:26:37.785391+00:00",
+  "snapshotTime": "2026-10-30T15:17:01+08:00",
+  "snapshotBlockHash": "0x3215fea8f333cd3227da7f6875b6e8ae7e7f99609afc17823cc756fffef93436",
+  "sourceCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420"
+}

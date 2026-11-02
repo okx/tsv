@@ -1,0 +1,8 @@
+{
+  "initializePool": false,
+  "initializePool_result": "0xcf431952",
+  "mintLP": false,
+  "mintLP_result": "0x82b42900",
+  "swap": false,
+  "swap_result": "0x7517959a"
+}

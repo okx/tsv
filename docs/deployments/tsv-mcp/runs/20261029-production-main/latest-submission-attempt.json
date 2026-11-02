@@ -1,0 +1,52 @@
+{
+  "preparedAt": "2026-10-29T09:01:31.569926+00:00",
+  "request": "requests/batch1-20261029T090131Z.json",
+  "sha256": "89c120f87bb572091e9e1f623a5632bb88144055069f9a71b5551c73d9090785",
+  "mapping": [
+    {
+      "name": "TSV-prod-20261029-PermissionedValidationLib",
+      "previousUuid": "280dc81d-89e0-4e04-8be1-82b5c6b3d0c4",
+      "newUuid": "332766f5-8075-43c3-bb0b-f8519c4f7d3b"
+    },
+    {
+      "name": "TSV-prod-20261029-TSVLPManagerLib",
+      "previousUuid": "84b3901f-1a44-485b-af8b-78d83ca9d7f8",
+      "newUuid": "0bea7484-53ab-4912-97a4-8cf24a727b00"
+    },
+    {
+      "name": "TSV-prod-20261029-LPPositionMath",
+      "previousUuid": "9613ff5a-d594-4f73-8a96-e7c072915ca3",
+      "newUuid": "8e970349-5049-4401-a3ad-c606cb22258b"
+    },
+    {
+      "name": "TSV-prod-20261029-PermissionsAdapterFactory",
+      "previousUuid": "cfa2b093-0c2f-4169-be44-5c1a58c54851",
+      "newUuid": "7fedfe49-a5c7-4592-a09e-28770fe5bbd0"
+    },
+    {
+      "name": "TSV-prod-20261029-TSVHookProxyFactoryV1",
+      "previousUuid": "9a94e791-a653-442c-8679-2ceb71fd5dbd",
+      "newUuid": "e3c9c05d-a299-4daa-9827-eb9b6031fd95"
+    },
+    {
+      "name": "TSV-prod-20261029-TSVVolumeLedgerV1",
+      "previousUuid": "2f7dd585-fcdf-48a1-8386-77b6b9260a36",
+      "newUuid": "93b594b2-0f9a-4c93-a930-1dce3a4a68d6"
+    },
+    {
+      "name": "TSV-prod-20261029-TSVHookV1",
+      "previousUuid": "04fbe857-e98b-4547-9846-f1570ccf2ebd",
+      "newUuid": "4e1acf8c-3561-49c2-94f9-5bb304eeacc7"
+    }
+  ],
+  "status": "SENT_APPROVAL_ALREADY_EXISTS",
+  "taskCount": 7,
+  "response": "batch1-mcp-response-20261029T090131Z.json",
+  "sentAt": "2026-10-29T09:01:52.654051+00:00",
+  "approvalInstance": 16539,
+  "serverErrorCode": "10021",
+  "requestId": "NRI_64bc12d5e15a437891a8fb1ce2c6b515",
+  "statusResponse": "batch1-mcp-status-20261029T090131Z.json",
+  "taskStatus": "all 7 UUIDs return 任务不存在",
+  "broadcastConfirmed": false
+}

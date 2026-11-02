@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-29T11:20:08.852095+00:00",
+  "block": "0x470d65b",
+  "factory": "0xed28206bf9a16e4dc64b893563a48a1bb1e34c60",
+  "expectedHookProxy": "0xF151416e74d6B4Ae00197e8D8E4f4765283B3fff",
+  "codeResponse": {
+    "jsonrpc": "2.0",
+    "result": "0x",
+    "id": 1
+  },
+  "logsResponse": {
+    "jsonrpc": "2.0",
+    "error": {
+      "code": -32602,
+      "message": "block range greater than 100 max"
+    },
+    "id": 1
+  }
+}

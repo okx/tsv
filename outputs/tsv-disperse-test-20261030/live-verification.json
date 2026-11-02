@@ -1,0 +1,106 @@
+{
+  "contract": "0xe6c3702b8f3ac9d096dd38e5267082fd0c003a9c",
+  "paidEvents": [
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0x94f4f3cd90922d042c2c224e26eb3c9c76241ad1",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0xce72e4136916be377231aaa176c87b76347e4db9",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0xfd3c93bda97143d44f855084b66f56a82d5aa9e5",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0xfd27e6bc1d11a6c28f1443f886f8ec1a20ab55ac",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0xa9d5daf4a56e80f3ba4cb1f763810c0238ba61c8",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0x361b6f2a0e75d5a809f2edacddb3d09d08484224",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0x6d4d6065a4ce50789b57a754240eafd0c64ad16d",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0x94ab11de4341380608e89132ccf5f6d67f8c4c8d",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0xe07b2e4caebc9bf33fa2ed688649b809c68f3074",
+      "amountRaw": "100000"
+    },
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "recipient": "0x0b48f768da197efb18260859bc18a613d033d91a",
+      "amountRaw": "100000"
+    }
+  ],
+  "dispersedEvents": [
+    {
+      "token": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+      "sender": "0xc2cebe8485f666874667e500b36028ab2a297f8f",
+      "totalRaw": "1000000",
+      "count": 10,
+      "batchHash": "0xe3f3f418bb05181e751cbd311043e0b84c00c7f43c1cf87c32a0b939728db7c0"
+    }
+  ],
+  "recipientBalancesBefore": {
+    "0x94F4f3CD90922d042C2c224E26EB3C9C76241aD1": "0",
+    "0xCE72E4136916bE377231AaA176c87B76347E4dB9": "0",
+    "0xfD3C93bdA97143d44f855084b66F56A82D5AA9E5": "0",
+    "0xfD27e6bC1d11A6C28F1443f886f8ec1a20AB55aC": "0",
+    "0xa9D5dAF4A56e80f3Ba4Cb1f763810c0238BA61C8": "0",
+    "0x361b6F2A0e75d5a809f2EDacddB3D09d08484224": "0",
+    "0x6D4d6065a4CE50789b57A754240EAFD0c64Ad16d": "0",
+    "0x94Ab11de4341380608e89132ccF5f6D67f8c4C8d": "0",
+    "0xe07B2E4CaEbc9BF33fa2ed688649b809c68F3074": "0",
+    "0x0B48F768da197EFB18260859Bc18A613D033D91A": "0"
+  },
+  "recipientBalancesAfter": {
+    "0x94F4f3CD90922d042C2c224E26EB3C9C76241aD1": "100000",
+    "0xCE72E4136916bE377231AaA176c87B76347E4dB9": "100000",
+    "0xfD3C93bdA97143d44f855084b66F56A82D5AA9E5": "100000",
+    "0xfD27e6bC1d11A6C28F1443f886f8ec1a20AB55aC": "100000",
+    "0xa9D5dAF4A56e80f3Ba4Cb1f763810c0238BA61C8": "100000",
+    "0x361b6F2A0e75d5a809f2EDacddB3D09d08484224": "100000",
+    "0x6D4d6065a4CE50789b57A754240EAFD0c64Ad16d": "100000",
+    "0x94Ab11de4341380608e89132ccF5f6D67f8c4C8d": "100000",
+    "0xe07B2E4CaEbc9BF33fa2ed688649b809c68F3074": "100000",
+    "0x0B48F768da197EFB18260859Bc18A613D033D91A": "100000"
+  },
+  "remainingContractUsdcRaw": "0",
+  "allowanceRemainingRaw": "0",
+  "duplicateWindowSeconds": 600,
+  "verifiedAt": "2026-10-30T09:41:51.467785+00:00",
+  "status": "PASSED",
+  "mode": "LIVE",
+  "chainId": 196,
+  "sender": "0xc2cebe8485f666874667e500b36028ab2a297f8f",
+  "nonce": 117,
+  "senderUsdcBeforeRaw": "27585534",
+  "senderUsdcAfterRaw": "26585534",
+  "totalGasLimit": 2042657,
+  "transactions": [
+    "0xd6bc39884998c9043c4c7d1397bfa219741b749768086ad0180d4231b72b3159",
+    "0x03b99c3e3592c0dfd55cd1943d8c2c9261158a462ccf8977e80f642ba27f758e",
+    "0x478af35cad289fe6dee64d4edf2c18303ab925ada87e939f83a96baced747f17",
+    "0xff1ab3c949069c280ed18929b7fa4e2bc75d878a4284d4aafa489c5e7c14f6c5"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-29T10:59:12.643443+00:00",
+  "status": "ALL_VERIFIED_SUCCESS",
+  "contracts": [
+    {
+      "contract": "TSVLPManagerV1Proxy",
+      "uuid": "4958e3c5-1935-4b23-a806-6cf94f0c6189",
+      "address": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+      "txHash": "0xa748817a5039ad02cdd16d6fd2f297b36cfee571f3b508e61102d037ec5d878e",
+      "block": 74502470,
+      "confirmationsAtCheck": 40,
+      "checks": {
+        "receiptStatus": 1,
+        "creationCalldataMatches": true,
+        "runtimeMatches": true,
+        "erc1967ImplementationMatches": true,
+        "initializedDependenciesMatch": true,
+        "reinitializationReverts": true,
+        "reinitializationResponse": {
+          "jsonrpc": "2.0",
+          "error": {
+            "code": 3,
+            "message": "execution reverted",
+            "data": "0xf92ee8a9"
+          },
+          "id": 1
+        }
+      }
+    }
+  ]
+}

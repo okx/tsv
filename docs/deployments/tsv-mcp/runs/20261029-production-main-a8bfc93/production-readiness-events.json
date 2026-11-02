@@ -1,0 +1,186 @@
+{
+  "checkedAt": "2026-10-29T11:44:34.477699+00:00",
+  "fromBlock": 74501565,
+  "toBlock": 74505178,
+  "errors": [
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74502065
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74502165
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74502265
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74502365
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74502465
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503065
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503165
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503265
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503365
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503465
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503565
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503665
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503765
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503865
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74503965
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74504065
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74504165
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74504265
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74504365
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74504465
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74505065
+    },
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32016,
+        "message": "over rate limit"
+      },
+      "id": 74505165
+    }
+  ],
+  "logs": [],
+  "eventCounts": {},
+  "roleGrants": []
+}

@@ -1,0 +1,980 @@
+{
+  "contract": "TSVRegistryV1",
+  "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+  "snapshotBlock": 74575585,
+  "transactions": [
+    {
+      "hash": "0x46ea485908f82be0c370d72999ed99c1daa40ec7f9c4ee34edf62067600a0013",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "proxy-create-and-initialize",
+      "blockNumber": 74502235,
+      "blockHash": "0x3fe5559799d68b0b61ea7f7c4feaf416854203f0cb2fd5c7977884bb871ab0d7",
+      "transactionIndex": 5,
+      "time": "2026-10-29T18:54:31+08:00",
+      "from": "0xeb84007545644e10c1a47502438377f7cd192904",
+      "to": null,
+      "createdAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 203694,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "4073880203694",
+      "calldata": "0x60806040523461014f575f6102d08038038061001a81610167565b92833981019060408183031261014f578051906001600160a01b0382169081830361014f576020810151906001600160401b03821161014f570183601f8201121561014f578051906001600160401b03821161015357610083601f8301601f1916602001610167565b948286526020838301011161014f57815f9260208093018388015e85010152813b1561013d577f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc80546001600160a01b031916821790557fbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b5f80a2815115610134578161010f9161018c565b505b51156101255760405160b790816102198239f35b630235062160e21b8152600490fd5b505f9150610111565b634c9c8ce360e01b5f5260045260245ffd5b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b6040519190601f01601f191682016001600160401b0381118382101761015357604052565b905f8091602081519101845af48080610205575b156101c05750506040513d81523d5f602083013e60203d82010160405290565b156101e557639996b31560e01b5f9081526001600160a01b0391909116600452602490fd5b3d156101f6576040513d5f823e3d90fd5b63d6bda27560e01b5f5260045ffd5b503d1515806101a05750813b15156101a056fe608060405260043610156055575b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc545f9081906001600160a01b0316368280378136915af43d5f803e156051573d5ff35b3d5ffd5b5f3560e01c633e2031c403600d573460a6575f36600319011260a6577f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546001600160a01b03166080908152602090f35b5f80fdfea164736f6c634300081a000a000000000000000000000000f68f1d1d990352eeb83fc68ab705a98114bbbf1300000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000024c4d66de8000000000000000000000000ace2b3e7c752d5debca72210141d464371b3b9b100000000000000000000000000000000000000000000000000000000",
+      "call": {
+        "function": "TSVERC1967Proxy.constructor",
+        "signature": "constructor(address,bytes)",
+        "parameters": {
+          "implementation": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+          "data": "0xc4d66de8000000000000000000000000ace2b3e7c752d5debca72210141d464371b3b9b1"
+        }
+      },
+      "annotations": {},
+      "events": [
+        {
+          "event": "Upgraded",
+          "signature": "Upgraded(address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 7,
+          "parameters": {
+            "implementation": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13"
+          }
+        },
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 8,
+          "parameters": {
+            "role": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+            "sender": "0xeb84007545644e10c1a47502438377f7cd192904"
+          }
+        },
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 9,
+          "parameters": {
+            "role": "0xf5e41b69db3149675767a8769b58cb4060b90e5e3d4bab8b1c958708ed9c9259",
+            "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+            "sender": "0xeb84007545644e10c1a47502438377f7cd192904"
+          }
+        },
+        {
+          "event": "Initialized",
+          "signature": "Initialized(uint64)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 10,
+          "parameters": {
+            "version": "1"
+          }
+        }
+      ],
+      "purpose": "部署代理并原子初始化。初始化 TSVRegistryV1 代理的业务依赖和初始权限。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0x46ea485908f82be0c370d72999ed99c1daa40ec7f9c4ee34edf62067600a0013",
+      "initializer": {
+        "function": "initialize",
+        "signature": "initialize(address)",
+        "selector": "0xc4d66de8",
+        "parameters": {
+          "admin": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+        }
+      }
+    },
+    {
+      "hash": "0xb4b3cd843ba735177f1f18171c4edaf807eb8a04bd0f3a3e369c890cfbb00529",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74564645,
+      "blockHash": "0x05a20f85cc1e78b417cfd746579c4a1fd5be5a644faff5cffa6bc1d0d143cf2f",
+      "transactionIndex": 8,
+      "time": "2026-10-30T12:14:41+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15d43fe48cac22c5c9efc06f734f861904ef3f8878b428155af6f60ddd741132bfd000000000000000000000000ace2b3e7c752d5debca72210141d464371b3b9b1",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0x43fe48cac22c5c9efc06f734f861904ef3f8878b428155af6f60ddd741132bfd",
+          "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+        }
+      },
+      "annotations": {
+        "role": "SYMBOL_ADMIN_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 19,
+          "parameters": {
+            "role": "0x43fe48cac22c5c9efc06f734f861904ef3f8878b428155af6f60ddd741132bfd",
+            "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0xace2b3e7c752d5debca72210141d464371b3b9b1 SYMBOL_ADMIN_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xb4b3cd843ba735177f1f18171c4edaf807eb8a04bd0f3a3e369c890cfbb00529"
+    },
+    {
+      "hash": "0x914c7cf00db97a9794017d3d6b637b129737d44ff4d44758162b2a6ada995315",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74564655,
+      "blockHash": "0x982d5432398372d787c6c3b9280fe327a3281e8b762f2f5a5b7d21c57a1cd726",
+      "transactionIndex": 6,
+      "time": "2026-10-30T12:14:51+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15d4066b03ab177190abcd4de6384e71f7a60f56b879537b65d43a0523ade6cfe52000000000000000000000000ace2b3e7c752d5debca72210141d464371b3b9b1",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0x4066b03ab177190abcd4de6384e71f7a60f56b879537b65d43a0523ade6cfe52",
+          "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+        }
+      },
+      "annotations": {
+        "role": "POOL_CREATOR_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 21,
+          "parameters": {
+            "role": "0x4066b03ab177190abcd4de6384e71f7a60f56b879537b65d43a0523ade6cfe52",
+            "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0xace2b3e7c752d5debca72210141d464371b3b9b1 POOL_CREATOR_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0x914c7cf00db97a9794017d3d6b637b129737d44ff4d44758162b2a6ada995315"
+    },
+    {
+      "hash": "0xd26449084e03d7c0c1d7a824bbe5a10dfd6aa74dacc701ce212e6a78f24475ed",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74573345,
+      "blockHash": "0x171c258f9017080ed075e9253cbd77b9e4fa5a978e904e28558afa512f7a3448",
+      "transactionIndex": 4,
+      "time": "2026-10-30T14:39:41+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15d2d97f6a70b8b79080c0d186cf732f0382b6349ae993b9ce160f265f74e801516000000000000000000000000900b72bf637afc685526938a0c04f3d97fcdcb4b",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0x2d97f6a70b8b79080c0d186cf732f0382b6349ae993b9ce160f265f74e801516",
+          "account": "0x900b72bf637afc685526938a0c04f3d97fcdcb4b"
+        }
+      },
+      "annotations": {
+        "role": "VOLUME_ORACLE_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 6,
+          "parameters": {
+            "role": "0x2d97f6a70b8b79080c0d186cf732f0382b6349ae993b9ce160f265f74e801516",
+            "account": "0x900b72bf637afc685526938a0c04f3d97fcdcb4b",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0x900b72bf637afc685526938a0c04f3d97fcdcb4b VOLUME_ORACLE_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xd26449084e03d7c0c1d7a824bbe5a10dfd6aa74dacc701ce212e6a78f24475ed"
+    },
+    {
+      "hash": "0xd8f8ea1eb09def09ac4034cdb9385850911a2ee94807731e3964fef63e00fd84",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74573380,
+      "blockHash": "0x8392d75ab73760d0d07f85561814fba8adeded793a27848a4d9a3156b6e3f50e",
+      "transactionIndex": 6,
+      "time": "2026-10-30T14:40:16+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15d3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd480000000000000000000000003936b9299821a108bda6dc31caf3ebd2ff7add3c",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+          "account": "0x3936b9299821a108bda6dc31caf3ebd2ff7add3c"
+        }
+      },
+      "annotations": {
+        "role": "HALT_REPORTER_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 36,
+          "parameters": {
+            "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+            "account": "0x3936b9299821a108bda6dc31caf3ebd2ff7add3c",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0x3936b9299821a108bda6dc31caf3ebd2ff7add3c HALT_REPORTER_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xd8f8ea1eb09def09ac4034cdb9385850911a2ee94807731e3964fef63e00fd84"
+    },
+    {
+      "hash": "0x68fd2d5f645990f7211f7de6bfaeec5f65a12ce399845278b3b3bca6e85a9065",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74573400,
+      "blockHash": "0xd420439346976324939f85d869340ad1ee2ebc4ba58572360e8c73545c097f14",
+      "transactionIndex": 7,
+      "time": "2026-10-30T14:40:36+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15d3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48000000000000000000000000d3889e231ba20fdf40f0c8c034c19637cf877a1d",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+          "account": "0xd3889e231ba20fdf40f0c8c034c19637cf877a1d"
+        }
+      },
+      "annotations": {
+        "role": "HALT_REPORTER_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 30,
+          "parameters": {
+            "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+            "account": "0xd3889e231ba20fdf40f0c8c034c19637cf877a1d",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0xd3889e231ba20fdf40f0c8c034c19637cf877a1d HALT_REPORTER_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0x68fd2d5f645990f7211f7de6bfaeec5f65a12ce399845278b3b3bca6e85a9065"
+    },
+    {
+      "hash": "0xfa58545d4290d0887de56c397ae6fbaee4a152d3fd45efc1da7cdcf69695b29d",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74573420,
+      "blockHash": "0x66dba00aa67f6966b7e9a556da0680b9c58050d8052bf9afdaeaf75ef1e0d3ce",
+      "transactionIndex": 5,
+      "time": "2026-10-30T14:40:56+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56381,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127620056381",
+      "calldata": "0x2f2ff15dfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee000000000000000000000000466ef4a1008772af2d0fa52cd2fc8b5391863a76",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+          "account": "0x466ef4a1008772af2d0fa52cd2fc8b5391863a76"
+        }
+      },
+      "annotations": {
+        "role": "FORCE_EXIT_ADMIN_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 10,
+          "parameters": {
+            "role": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+            "account": "0x466ef4a1008772af2d0fa52cd2fc8b5391863a76",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0x466ef4a1008772af2d0fa52cd2fc8b5391863a76 FORCE_EXIT_ADMIN_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xfa58545d4290d0887de56c397ae6fbaee4a152d3fd45efc1da7cdcf69695b29d"
+    },
+    {
+      "hash": "0xd06ea9f069e87579cd81921a98438f3e4ba1d9606e77a7ec07a11643b2c756c4",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74573440,
+      "blockHash": "0xd1f536c31ddde34d60d2b35f000a45554ccda730535821be26e4622c662518e6",
+      "transactionIndex": 6,
+      "time": "2026-10-30T14:41:16+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15d3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd4800000000000000000000000094b9097cca1a368f7bd6aba0e38a6333bfd42936",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+          "account": "0x94b9097cca1a368f7bd6aba0e38a6333bfd42936"
+        }
+      },
+      "annotations": {
+        "role": "HALT_REPORTER_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 27,
+          "parameters": {
+            "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+            "account": "0x94b9097cca1a368f7bd6aba0e38a6333bfd42936",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0x94b9097cca1a368f7bd6aba0e38a6333bfd42936 HALT_REPORTER_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xd06ea9f069e87579cd81921a98438f3e4ba1d9606e77a7ec07a11643b2c756c4"
+    },
+    {
+      "hash": "0x31e3ca9cb4d61d0b852cee237e39a70b7ddba0cf42a0e230dea35dfeb882cebb",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74573460,
+      "blockHash": "0x33ed62bbbfe17c0f154f43946d4b6fb645221edc885106546b871807655d30bf",
+      "transactionIndex": 5,
+      "time": "2026-10-30T14:41:36+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15d2d97f6a70b8b79080c0d186cf732f0382b6349ae993b9ce160f265f74e8015160000000000000000000000008c9eacb4710441d8944d2e5c5fba0de07a38783c",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0x2d97f6a70b8b79080c0d186cf732f0382b6349ae993b9ce160f265f74e801516",
+          "account": "0x8c9eacb4710441d8944d2e5c5fba0de07a38783c"
+        }
+      },
+      "annotations": {
+        "role": "VOLUME_ORACLE_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 43,
+          "parameters": {
+            "role": "0x2d97f6a70b8b79080c0d186cf732f0382b6349ae993b9ce160f265f74e801516",
+            "account": "0x8c9eacb4710441d8944d2e5c5fba0de07a38783c",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0x8c9eacb4710441d8944d2e5c5fba0de07a38783c VOLUME_ORACLE_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0x31e3ca9cb4d61d0b852cee237e39a70b7ddba0cf42a0e230dea35dfeb882cebb"
+    },
+    {
+      "hash": "0x845a8f1a2ae2e91f44f17ddc2afaf5467c0e44b4e9e1e07780adf1c5c0db7c28",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74573480,
+      "blockHash": "0x760cbc2d39668aada540f1c277d94317eb16044f47b2c73059943c0a8f2eed2a",
+      "transactionIndex": 3,
+      "time": "2026-10-30T14:41:56+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15d3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd4800000000000000000000000054c9c9017045793a6c55dc42a7d740f2c41b6b7f",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+          "account": "0x54c9c9017045793a6c55dc42a7d740f2c41b6b7f"
+        }
+      },
+      "annotations": {
+        "role": "HALT_REPORTER_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 8,
+          "parameters": {
+            "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+            "account": "0x54c9c9017045793a6c55dc42a7d740f2c41b6b7f",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0x54c9c9017045793a6c55dc42a7d740f2c41b6b7f HALT_REPORTER_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0x845a8f1a2ae2e91f44f17ddc2afaf5467c0e44b4e9e1e07780adf1c5c0db7c28"
+    },
+    {
+      "hash": "0xdd8192600d2c1ca797340d0507f6d004535992b557a125c4745e473c5acce568",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74573510,
+      "blockHash": "0x3fa2f1d37d61b3211a7e109e5a7fad70657922e701d221d4606ce7a0f95cb292",
+      "transactionIndex": 3,
+      "time": "2026-10-30T14:42:26+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 56393,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1127860056393",
+      "calldata": "0x2f2ff15dfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee000000000000000000000000323ef02b3ce1a90d631f461a1eeec23cd639651f",
+      "call": {
+        "function": "grantRole",
+        "signature": "grantRole(bytes32,address)",
+        "selector": "0x2f2ff15d",
+        "parameters": {
+          "role": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+          "account": "0x323ef02b3ce1a90d631f461a1eeec23cd639651f"
+        }
+      },
+      "annotations": {
+        "role": "FORCE_EXIT_ADMIN_ROLE"
+      },
+      "events": [
+        {
+          "event": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 4,
+          "parameters": {
+            "role": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+            "account": "0x323ef02b3ce1a90d631f461a1eeec23cd639651f",
+            "sender": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+          }
+        }
+      ],
+      "purpose": "授予 0x323ef02b3ce1a90d631f461a1eeec23cd639651f FORCE_EXIT_ADMIN_ROLE 权限（Registry 角色）。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xdd8192600d2c1ca797340d0507f6d004535992b557a125c4745e473c5acce568"
+    },
+    {
+      "hash": "0xe693f661a048af0bdb3a48f793eb08f17c538559f8d89831c7cbbb7c3063f53e",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74575085,
+      "blockHash": "0xf720cd6aa61ce98dc213e609536c46a35fe9550d50d5a3f0f9cdf307a03c398c",
+      "transactionIndex": 10,
+      "time": "2026-10-30T15:08:41+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 169145,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "3382900169145",
+      "calldata": "0x016b76fe000000000000000000000000f151416e74d6b4ae00197e8d8e4f4765283b3fff0000000000000000000000009418a8ccb8170814d27c7f3db99e1b9f8c4a7b760000000000000000000000004c750656fca58da2a2e0402bd1ab0b39d134bdba0000000000000000000000002d7b601fb9a54f62e7257b19f18be315d2d76f9c",
+      "call": {
+        "function": "bindComponents",
+        "signature": "bindComponents(address,address,address,address)",
+        "selector": "0x016b76fe",
+        "parameters": {
+          "hook_": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+          "lpManager_": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+          "factory": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+          "sbt_": "0x2d7b601fb9a54f62e7257b19f18be315d2d76f9c"
+        }
+      },
+      "annotations": {},
+      "events": [
+        {
+          "event": "ComponentsBound",
+          "signature": "ComponentsBound(address,address,address,address,address)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 87,
+          "parameters": {
+            "hook": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+            "lpManager": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+            "factory": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+            "poolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+            "sbt": "0x2d7b601fb9a54f62e7257b19f18be315d2d76f9c"
+          }
+        }
+      ],
+      "purpose": "一次性绑定 Hook、LPManager、PermissionsAdapterFactory 与参与者 SBT，并从 Factory 确定 PoolManager；完成 Registry 组件连接。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xe693f661a048af0bdb3a48f793eb08f17c538559f8d89831c7cbbb7c3063f53e"
+    },
+    {
+      "hash": "0x9e38c625fd7611948b844a2340c0dab20fc66d3799eae7f227752090365b886f",
+      "chainId": 196,
+      "contract": "TSVRegistryV1",
+      "contractAddress": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "kind": "direct-call",
+      "blockNumber": 74575355,
+      "blockHash": "0x8cbc47061d8c13814811be4e51a0d220cc0a00735ce43a130c2e5fff90b053f6",
+      "transactionIndex": 6,
+      "time": "2026-10-30T15:13:11+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 54372,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "1087440054372",
+      "calldata": "0xc91d66130000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000004b5453565f544945525f315f4d41585f4c49535445445f37350000000000000000",
+      "call": {
+        "function": "setTierPolicy",
+        "signature": "setTierPolicy(uint8,uint32,bytes32)",
+        "selector": "0xc91d6613",
+        "parameters": {
+          "tierId": "1",
+          "maxListed": "75",
+          "reasonCode": "0x5453565f544945525f315f4d41585f4c49535445445f37350000000000000000"
+        }
+      },
+      "annotations": {
+        "reasonCode": "TSV_TIER_1_MAX_LISTED_75"
+      },
+      "events": [
+        {
+          "event": "TierPolicyChanged",
+          "signature": "TierPolicyChanged(uint8,uint32,bytes32)",
+          "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "logIndex": 13,
+          "parameters": {
+            "tierId": "1",
+            "maxListed": "75",
+            "reasonCode": "0x5453565f544945525f315f4d41585f4c49535445445f37350000000000000000"
+          }
+        }
+      ],
+      "purpose": "设置类别 1 的 maxListed=75，即该类别可上市证券的数量上限。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0x9e38c625fd7611948b844a2340c0dab20fc66d3799eae7f227752090365b886f"
+    }
+  ],
+  "internalCalls": [
+    {
+      "hash": "0x46ea485908f82be0c370d72999ed99c1daa40ec7f9c4ee34edf62067600a0013",
+      "blockNumber": 74502235,
+      "time": "2026-10-29T18:54:31+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "initialize(address)",
+      "parameters": {
+        "admin": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xb4b3cd843ba735177f1f18171c4edaf807eb8a04bd0f3a3e369c890cfbb00529",
+      "blockNumber": 74564645,
+      "time": "2026-10-30T12:14:41+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0x43fe48cac22c5c9efc06f734f861904ef3f8878b428155af6f60ddd741132bfd",
+        "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0x914c7cf00db97a9794017d3d6b637b129737d44ff4d44758162b2a6ada995315",
+      "blockNumber": 74564655,
+      "time": "2026-10-30T12:14:51+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0x4066b03ab177190abcd4de6384e71f7a60f56b879537b65d43a0523ade6cfe52",
+        "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xd26449084e03d7c0c1d7a824bbe5a10dfd6aa74dacc701ce212e6a78f24475ed",
+      "blockNumber": 74573345,
+      "time": "2026-10-30T14:39:41+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0x2d97f6a70b8b79080c0d186cf732f0382b6349ae993b9ce160f265f74e801516",
+        "account": "0x900b72bf637afc685526938a0c04f3d97fcdcb4b"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xd8f8ea1eb09def09ac4034cdb9385850911a2ee94807731e3964fef63e00fd84",
+      "blockNumber": 74573380,
+      "time": "2026-10-30T14:40:16+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+        "account": "0x3936b9299821a108bda6dc31caf3ebd2ff7add3c"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0x68fd2d5f645990f7211f7de6bfaeec5f65a12ce399845278b3b3bca6e85a9065",
+      "blockNumber": 74573400,
+      "time": "2026-10-30T14:40:36+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+        "account": "0xd3889e231ba20fdf40f0c8c034c19637cf877a1d"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xfa58545d4290d0887de56c397ae6fbaee4a152d3fd45efc1da7cdcf69695b29d",
+      "blockNumber": 74573420,
+      "time": "2026-10-30T14:40:56+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+        "account": "0x466ef4a1008772af2d0fa52cd2fc8b5391863a76"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xd06ea9f069e87579cd81921a98438f3e4ba1d9606e77a7ec07a11643b2c756c4",
+      "blockNumber": 74573440,
+      "time": "2026-10-30T14:41:16+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+        "account": "0x94b9097cca1a368f7bd6aba0e38a6333bfd42936"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0x31e3ca9cb4d61d0b852cee237e39a70b7ddba0cf42a0e230dea35dfeb882cebb",
+      "blockNumber": 74573460,
+      "time": "2026-10-30T14:41:36+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0x2d97f6a70b8b79080c0d186cf732f0382b6349ae993b9ce160f265f74e801516",
+        "account": "0x8c9eacb4710441d8944d2e5c5fba0de07a38783c"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0x845a8f1a2ae2e91f44f17ddc2afaf5467c0e44b4e9e1e07780adf1c5c0db7c28",
+      "blockNumber": 74573480,
+      "time": "2026-10-30T14:41:56+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+        "account": "0x54c9c9017045793a6c55dc42a7d740f2c41b6b7f"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xdd8192600d2c1ca797340d0507f6d004535992b557a125c4745e473c5acce568",
+      "blockNumber": 74573510,
+      "time": "2026-10-30T14:42:26+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "grantRole(bytes32,address)",
+      "parameters": {
+        "role": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+        "account": "0x323ef02b3ce1a90d631f461a1eeec23cd639651f"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "blockNumber": 74573795,
+      "time": "2026-10-30T14:47:11+08:00",
+      "type": "STATICCALL",
+      "from": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "function": "isPaused()",
+      "parameters": {},
+      "purpose": "检查 Registry 没有暂停。",
+      "evidence": "Explorer 高级索引确认两次 Router→Registry 调用；方法与参数由固定版本 modifiers 重建。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "blockNumber": 74573795,
+      "time": "2026-10-30T14:47:11+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "isPaused()",
+      "parameters": {},
+      "purpose": "检查 Registry 没有暂停。",
+      "evidence": "Explorer 高级索引确认相应 Registry→实现调用；参数随 STATICCALL。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "blockNumber": 74573795,
+      "time": "2026-10-30T14:47:11+08:00",
+      "type": "STATICCALL",
+      "from": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "to": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "function": "hasRole(bytes32,address)",
+      "parameters": {
+        "role": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+      },
+      "purpose": "验证发起人具有 DEFAULT_ADMIN_ROLE。",
+      "evidence": "Explorer 高级索引确认两次 Router→Registry 调用；方法与参数由固定版本 modifiers 重建。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "blockNumber": 74573795,
+      "time": "2026-10-30T14:47:11+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "hasRole(bytes32,address)",
+      "parameters": {
+        "role": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "account": "0xace2b3e7c752d5debca72210141d464371b3b9b1"
+      },
+      "purpose": "验证发起人具有 DEFAULT_ADMIN_ROLE。",
+      "evidence": "Explorer 高级索引确认相应 Registry→实现调用；参数随 STATICCALL。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xe693f661a048af0bdb3a48f793eb08f17c538559f8d89831c7cbbb7c3063f53e",
+      "blockNumber": 74575085,
+      "time": "2026-10-30T15:08:41+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "bindComponents(address,address,address,address)",
+      "parameters": {
+        "hook_": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+        "lpManager_": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+        "factory": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+        "sbt_": "0x2d7b601fb9a54f62e7257b19f18be315d2d76f9c"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xe693f661a048af0bdb3a48f793eb08f17c538559f8d89831c7cbbb7c3063f53e",
+      "blockNumber": 74575085,
+      "time": "2026-10-30T15:08:41+08:00",
+      "type": "STATICCALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0x2d7b601fb9a54f62e7257b19f18be315d2d76f9c",
+      "function": "paused()",
+      "parameters": {},
+      "purpose": "检查 SBT 接口可调用。",
+      "evidence": "Explorer 确认地址/类型；方法与参数由固定版本 bindComponents 源码重建。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xe693f661a048af0bdb3a48f793eb08f17c538559f8d89831c7cbbb7c3063f53e",
+      "blockNumber": 74575085,
+      "time": "2026-10-30T15:08:41+08:00",
+      "type": "STATICCALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0x2d7b601fb9a54f62e7257b19f18be315d2d76f9c",
+      "function": "verify(address,uint256)",
+      "parameters": {
+        "account": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+        "tokenId": "0"
+      },
+      "purpose": "检查 SBT verify 接口可调用；不代表给 Registry 发放 SBT。",
+      "evidence": "Explorer 确认地址/类型；方法与参数由固定版本 bindComponents 源码重建。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xe693f661a048af0bdb3a48f793eb08f17c538559f8d89831c7cbbb7c3063f53e",
+      "blockNumber": 74575085,
+      "time": "2026-10-30T15:08:41+08:00",
+      "type": "STATICCALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+      "function": "POOL_MANAGER()",
+      "parameters": {},
+      "purpose": "读取 Factory 的 PoolManager，写入 Registry 组件绑定。",
+      "evidence": "Explorer 确认地址/类型；方法与参数由固定版本 bindComponents 源码重建。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0x9e38c625fd7611948b844a2340c0dab20fc66d3799eae7f227752090365b886f",
+      "blockNumber": 74575355,
+      "time": "2026-10-30T15:13:11+08:00",
+      "type": "DELEGATECALL",
+      "from": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "to": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "function": "setTierPolicy(uint8,uint32,bytes32)",
+      "parameters": {
+        "tierId": "1",
+        "maxListed": "75",
+        "reasonCode": "0x5453565f544945525f315f4d41585f4c49535445445f37350000000000000000"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    }
+  ]
+}

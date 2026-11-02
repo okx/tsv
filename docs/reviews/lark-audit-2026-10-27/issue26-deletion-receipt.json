@@ -1,0 +1,18 @@
+[
+  {
+    "branch": "audit/2026-10-27-6402443-fix",
+    "commit": "a5a47b5694f104c394e2cea231bc85f1a7147554",
+    "only_change": "delete src/v1/libraries/TSVDirectSettlementLib.sol",
+    "remaining_source_script_test_references": 0,
+    "diff_check_passed": true,
+    "tests_run": false
+  },
+  {
+    "branch": "main-audit",
+    "commit": "e7021804417e791b4f2071e4cc7461576a86fd5a",
+    "only_change": "delete src/v1/libraries/TSVDirectSettlementLib.sol",
+    "remaining_source_script_test_references": 0,
+    "diff_check_passed": true,
+    "tests_run": false
+  }
+]

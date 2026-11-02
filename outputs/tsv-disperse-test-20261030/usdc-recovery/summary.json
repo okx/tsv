@@ -1,0 +1,142 @@
+{
+  "status": "ALL_TEST_RECIPIENT_USDC_RECOVERED",
+  "chainId": 196,
+  "destination": "0xc2cebe8485f666874667e500b36028ab2a297f8f",
+  "payoutToken": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+  "recoveredUsdc": "1",
+  "destinationBalanceUsdc": "27.585534",
+  "recipientCount": 10,
+  "allRecipientUsdcBalancesZero": true,
+  "mockContractUsdcBalanceRaw": "0",
+  "gasFundingTransactionCount": 10,
+  "usdcRecoveryTransactionCount": 10,
+  "gasPaidOKB": "0.00001224940061247",
+  "nativeRemainingAtRecipientsOKB": "0.0000038140001907",
+  "verificationBlock": 74585064,
+  "transactions": [
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 1,
+      "hash": "0xb362176f3229be2965eb6f67231a394bdb033049fe7a1ce3a2b5f5684ea378cf",
+      "block": 74584805
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 1,
+      "hash": "0x1484438cb2464190b6af46a12c8ee4a86e5fda18ee12b8c657039cb746935c7f",
+      "block": 74584807
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 2,
+      "hash": "0x0c92df7b1257341784666f9519a2b50213e64218c9637a0c565271d41a819cbc",
+      "block": 74584878
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 2,
+      "hash": "0x21f6fa4f2a644bf15f2f3063b8691666efb21e6a51ad156c7920a275b997927f",
+      "block": 74584881
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 3,
+      "hash": "0x7e14d50e7f6f3c8b4fb966b96151d739f51c9882251aa35946e7f0a61a82365a",
+      "block": 74584914
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 3,
+      "hash": "0xa140f162ad879f5c08c2bb8e48270669d6c9458b330415cb8dae074d40d6f10f",
+      "block": 74584973
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 4,
+      "hash": "0xfd94dca8b60730b7d7cbce2aa37464f4cc57d90b6730640d6beec2dfa31fa5ff",
+      "block": 74584975
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 4,
+      "hash": "0xe048e8d170c47874f049e06d16e70fd32501fab4212a1d138a01d66f30500c22",
+      "block": 74584978
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 5,
+      "hash": "0x418c91751a2d3617495f92f62b2a35dacae1c70d196d126fe6ebb15f878f2d32",
+      "block": 74584981
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 5,
+      "hash": "0x4482d0f9cf35136e16f04fc3c64b897952fe8192e46482221441b8d4c0bad7ed",
+      "block": 74584985
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 6,
+      "hash": "0xa983ba369cc51e7fb6a17c0142e2e0bda25a18179819e1b59ab04baf3d1ed112",
+      "block": 74585034
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 6,
+      "hash": "0xad6b3264542bbcd54fbe669fd180e0e4b8e82a8c5d216a5c50827500915b988f",
+      "block": 74585037
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 7,
+      "hash": "0x08d4bb5ff58ee15356f6e6a133c19ad3f26e689bd7196064b516fd0296153fc6",
+      "block": 74585040
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 7,
+      "hash": "0xbfccee7442778846dbec7d4c4c128623097fa0420d151dce00d0282d1d18c879",
+      "block": 74585043
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 8,
+      "hash": "0x34755736c6d5113c01f0b096e91e08d94003b212ce3d53276e66947c47b01e0b",
+      "block": 74585046
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 8,
+      "hash": "0xff1c2eb43cf3e56c6a9071f0afc1a74c8a85150eba8bd3ce029fee4ca4f2b6bb",
+      "block": 74585050
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 9,
+      "hash": "0x768c89d49edcbbefd2c98ef46008aecb23df8f97657c6374276b2efcc2aa0e46",
+      "block": 74585053
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 9,
+      "hash": "0x5c087933927f3f488c6006a26d880d1cebb036116cc4a1ab74853d821b815249",
+      "block": 74585057
+    },
+    {
+      "purpose": "fund-USDC-transfer-gas",
+      "index": 10,
+      "hash": "0x1bb742e7390d43dcf10f438d3dd1c72f635f97f6ac963751441fce01287202e7",
+      "block": 74585060
+    },
+    {
+      "purpose": "recover-all-USDC",
+      "index": 10,
+      "hash": "0x87c8768a6b0dc0ddf59c05a99f2c31048875696ced9a3be728abcb7ca3ba66c7",
+      "block": 74585064
+    }
+  ],
+  "verificationFile": "live-verification.json",
+  "larkTransactionLog": "https://okg-block.sg.larksuite.com/docx/YU5JdyR8DokY8fxd3yclI2wIgId",
+  "larkRecordVerified": true,
+  "larkBlockId": "doxlgDxdRzr5EwLtjP9LDboY1ug"
+}

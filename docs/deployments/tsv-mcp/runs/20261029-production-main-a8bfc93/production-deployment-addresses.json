@@ -1,0 +1,33 @@
+{
+  "network": "X Layer Mainnet",
+  "chainId": 196,
+  "deploymentDate": "2026-10-29",
+  "deploymentCompletedDate": "2026-10-30",
+  "deploymentStatus": "confirmed",
+  "sourceVerification": false,
+  "gitBranch": "main",
+  "commitId": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+  "proxies": {
+    "TSVRegistryV1": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+    "TSVVolumeLedgerV1": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+    "TSVSwapRouterV1": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+    "TSVLPManagerV1": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+    "TSVHookV1": "0xF151416e74d6B4Ae00197e8D8E4f4765283B3fff"
+  },
+  "implementations": {
+    "TSVRegistryV1": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+    "TSVVolumeLedgerV1": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
+    "TSVSwapRouterV1": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+    "TSVLPManagerV1": "0x98f9398f865b58c868b7750449f7188c639e4175",
+    "TSVHookV1": "0x6422ef382cfe42b200aec323236c005c604550f7"
+  },
+  "libraries": {
+    "PermissionedValidationLib": "0x8db3a851e94b38e258f801f835e2e7deeb217538",
+    "TSVLPManagerLib": "0x1fb638662581dcdd02f3908459030c337f521114",
+    "LPPositionMath": "0xe3334c3a8bf40cb9079ed0cb26cd8e696f76d6f4"
+  },
+  "factories": {
+    "PermissionsAdapterFactory": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+    "TSVHookProxyFactoryV1": "0xed28206bf9a16e4dc64b893563a48a1bb1e34c60"
+  }
+}

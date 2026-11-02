@@ -1,0 +1,220 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TSVSwapRouterV1 操作记录</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:1150px;margin:32px auto;padding:0 24px;color:#18212e}h1{font-size:28px}h2{font-size:22px;margin-top:38px}h3{font-size:18px}a{color:#165caa}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f8;padding:16px;border-radius:8px;font:13px/1.6 ui-monospace,monospace}table{border-collapse:collapse;width:100%}th,td{text-align:left;border-bottom:1px solid #dbe2e8;padding:10px;vertical-align:top}code{overflow-wrap:anywhere}.note{background:#eef5fc;padding:16px;border-radius:8px}.success{color:#16713c}</style><body><p><a href="index.html">返回总览</a> · <a href="TSVSwapRouterV1.json">JSON 记录</a></p><h1>TSVSwapRouterV1</h1><p><code>0xc58d2bf7ad7cb023760e767e9050be3f15cad686</code></p><p class="note">X Layer Mainnet，chainId 196。区块 74502235–74575585；截止 2026-10-30T15:17:01+08:00。按唯一交易 hash 计数，内部调用不会重复算作新增交易。用途依据函数和事件解释。</p><p>直接交易：核对 OKLink 地址历史全部状态/全部类型，并逐笔读取 RPC 原文。事件：连续扫描 734 个区间，无间隙，获得 25 条日志。内部调用：核对高级视图（包含零金额），保留调用边及参数重建依据；公开 RPC 不提供原始 trace，无法证明索引未覆盖的无事件内部调用绝对不存在。链下 eth_call、估算 Gas、签名前取消及未上链请求不属于链上历史。</p><p>独立交易 2 笔；高级内部索引 4 行。</p><article id="0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593"><h2>2026-10-29T18:56:46+08:00 · TSVERC1967Proxy.constructor</h2><p><a href="https://www.oklink.com/zh-hans/x-layer/evm/tx/0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593">0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593</a></p><p class="success">执行成功 · 区块 74502370</p><p><b>目的：</b>部署代理并原子初始化。初始化 TSVSwapRouterV1 代理的业务依赖和初始权限。</p><p>发送方：<code>0xeb84007545644e10c1a47502438377f7cd192904</code><br>交易接收方：<code>CREATE（EOA 直接创建）</code><br>目标代理：<code>0xc58d2bf7ad7cb023760e767e9050be3f15cad686</code></p><h3>完整参数</h3><pre>{
+  &quot;function&quot;: &quot;TSVERC1967Proxy.constructor&quot;,
+  &quot;signature&quot;: &quot;constructor(address,bytes)&quot;,
+  &quot;parameters&quot;: {
+    &quot;implementation&quot;: &quot;0x1bb8de0128ce24cc32398cff58cd1c1afc944599&quot;,
+    &quot;data&quot;: &quot;0x485cc955000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;
+  }
+}</pre><h3>同笔交易中的初始化参数</h3><pre>{
+  &quot;function&quot;: &quot;initialize&quot;,
+  &quot;signature&quot;: &quot;initialize(address,address)&quot;,
+  &quot;selector&quot;: &quot;0x485cc955&quot;,
+  &quot;parameters&quot;: {
+    &quot;pm&quot;: &quot;0x360e68faccca8ca495c1b759fd9eee466db9fb32&quot;,
+    &quot;registry_&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;
+  }
+}</pre><h3>回执事件</h3><pre>[
+  {
+    &quot;event&quot;: &quot;Upgraded&quot;,
+    &quot;signature&quot;: &quot;Upgraded(address)&quot;,
+    &quot;address&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;logIndex&quot;: 8,
+    &quot;parameters&quot;: {
+      &quot;implementation&quot;: &quot;0x1bb8de0128ce24cc32398cff58cd1c1afc944599&quot;
+    }
+  },
+  {
+    &quot;event&quot;: &quot;Initialized&quot;,
+    &quot;signature&quot;: &quot;Initialized(uint64)&quot;,
+    &quot;address&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;logIndex&quot;: 9,
+    &quot;parameters&quot;: {
+      &quot;version&quot;: &quot;1&quot;
+    }
+  }
+]</pre><details><summary>内部调用记录（含来源说明）</summary><pre>[
+  {
+    &quot;hash&quot;: &quot;0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593&quot;,
+    &quot;blockNumber&quot;: 74502370,
+    &quot;time&quot;: &quot;2026-10-29T18:56:46+08:00&quot;,
+    &quot;type&quot;: &quot;DELEGATECALL&quot;,
+    &quot;from&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;to&quot;: &quot;0x1bb8de0128ce24cc32398cff58cd1c1afc944599&quot;,
+    &quot;function&quot;: &quot;initialize(address,address)&quot;,
+    &quot;parameters&quot;: {
+      &quot;pm&quot;: &quot;0x360e68faccca8ca495c1b759fd9eee466db9fb32&quot;,
+      &quot;registry_&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;
+    },
+    &quot;purpose&quot;: &quot;在代理存储上下文执行业务函数；与父交易合并计数。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  }
+]</pre></details><details><summary>原始 calldata / Gas / 回执</summary><pre>{
+  &quot;calldata&quot;: &quot;0x60806040523461014f575f6102d08038038061001a81610167565b92833981019060408183031261014f578051906001600160a01b0382169081830361014f576020810151906001600160401b03821161014f570183601f8201121561014f578051906001600160401b03821161015357610083601f8301601f1916602001610167565b948286526020838301011161014f57815f9260208093018388015e85010152813b1561013d577f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc80546001600160a01b031916821790557fbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b5f80a2815115610134578161010f9161018c565b505b51156101255760405160b790816102198239f35b630235062160e21b8152600490fd5b505f9150610111565b634c9c8ce360e01b5f5260045260245ffd5b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b6040519190601f01601f191682016001600160401b0381118382101761015357604052565b905f8091602081519101845af48080610205575b156101c05750506040513d81523d5f602083013e60203d82010160405290565b156101e557639996b31560e01b5f9081526001600160a01b0391909116600452602490fd5b3d156101f6576040513d5f823e3d90fd5b63d6bda27560e01b5f5260045ffd5b503d1515806101a05750813b15156101a056fe608060405260043610156055575b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc545f9081906001600160a01b0316368280378136915af43d5f803e156051573d5ff35b3d5ffd5b5f3560e01c633e2031c403600d573460a6575f36600319011260a6577f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546001600160a01b03166080908152602090f35b5f80fdfea164736f6c634300081a000a0000000000000000000000001bb8de0128ce24cc32398cff58cd1c1afc94459900000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000044485cc955000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea00000000000000000000000000000000000000000000000000000000&quot;,
+  &quot;valueWei&quot;: &quot;0&quot;,
+  &quot;gasUsed&quot;: 178720,
+  &quot;effectiveGasPriceWei&quot;: &quot;20000001&quot;,
+  &quot;feeWei&quot;: &quot;3574400178720&quot;
+}</pre><a href="raw-records.html#5decfee8aad09871f88bc42397cf3ec068abc1c74b75af3e5ebdfd07e45cdbc6">交易原文</a> · <a href="raw-records.html#c44dfdf845caf7c5ad012033c81284d3a9d9f5b2d5f2fb3ddc6a387d08355822">回执原文</a></details></article><article id="0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2"><h2>2026-10-30T14:47:11+08:00 · setAdapterAllowed</h2><p><a href="https://www.oklink.com/zh-hans/x-layer/evm/tx/0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2">0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2</a></p><p class="success">执行成功 · 区块 74573795</p><p><b>目的：</b>将 Adapter 0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0 的 TSV Router 调用许可设为 True；并非登记外部 DEXRouter。</p><p>发送方：<code>0xace2b3e7c752d5debca72210141d464371b3b9b1</code><br>交易接收方：<code>0xc58d2bf7ad7cb023760e767e9050be3f15cad686</code><br>目标代理：<code>0xc58d2bf7ad7cb023760e767e9050be3f15cad686</code></p><h3>完整参数</h3><pre>{
+  &quot;function&quot;: &quot;setAdapterAllowed&quot;,
+  &quot;signature&quot;: &quot;setAdapterAllowed(address,bool)&quot;,
+  &quot;selector&quot;: &quot;0xb2976fb9&quot;,
+  &quot;parameters&quot;: {
+    &quot;adapter&quot;: &quot;0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0&quot;,
+    &quot;allowed&quot;: true
+  }
+}</pre><h3>回执事件</h3><pre>[
+  {
+    &quot;event&quot;: &quot;AdapterAuthorizationUpdated&quot;,
+    &quot;signature&quot;: &quot;AdapterAuthorizationUpdated(address,bool)&quot;,
+    &quot;address&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;logIndex&quot;: 24,
+    &quot;parameters&quot;: {
+      &quot;adapter&quot;: &quot;0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0&quot;,
+      &quot;allowed&quot;: true
+    }
+  }
+]</pre><details><summary>内部调用记录（含来源说明）</summary><pre>[
+  {
+    &quot;hash&quot;: &quot;0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2&quot;,
+    &quot;blockNumber&quot;: 74573795,
+    &quot;time&quot;: &quot;2026-10-30T14:47:11+08:00&quot;,
+    &quot;type&quot;: &quot;DELEGATECALL&quot;,
+    &quot;from&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;to&quot;: &quot;0x1bb8de0128ce24cc32398cff58cd1c1afc944599&quot;,
+    &quot;function&quot;: &quot;setAdapterAllowed(address,bool)&quot;,
+    &quot;parameters&quot;: {
+      &quot;adapter&quot;: &quot;0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0&quot;,
+      &quot;allowed&quot;: true
+    },
+    &quot;purpose&quot;: &quot;在代理存储上下文执行业务函数；与父交易合并计数。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2&quot;,
+    &quot;blockNumber&quot;: 74573795,
+    &quot;time&quot;: &quot;2026-10-30T14:47:11+08:00&quot;,
+    &quot;type&quot;: &quot;STATICCALL&quot;,
+    &quot;from&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;to&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+    &quot;function&quot;: &quot;isPaused()&quot;,
+    &quot;parameters&quot;: {},
+    &quot;purpose&quot;: &quot;检查 Registry 没有暂停。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级索引确认两次 Router→Registry 调用；方法与参数由固定版本 modifiers 重建。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2&quot;,
+    &quot;blockNumber&quot;: 74573795,
+    &quot;time&quot;: &quot;2026-10-30T14:47:11+08:00&quot;,
+    &quot;type&quot;: &quot;DELEGATECALL&quot;,
+    &quot;from&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+    &quot;to&quot;: &quot;0xf68f1d1d990352eeb83fc68ab705a98114bbbf13&quot;,
+    &quot;function&quot;: &quot;isPaused()&quot;,
+    &quot;parameters&quot;: {},
+    &quot;purpose&quot;: &quot;检查 Registry 没有暂停。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级索引确认相应 Registry→实现调用；参数随 STATICCALL。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2&quot;,
+    &quot;blockNumber&quot;: 74573795,
+    &quot;time&quot;: &quot;2026-10-30T14:47:11+08:00&quot;,
+    &quot;type&quot;: &quot;STATICCALL&quot;,
+    &quot;from&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;to&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+    &quot;function&quot;: &quot;hasRole(bytes32,address)&quot;,
+    &quot;parameters&quot;: {
+      &quot;role&quot;: &quot;0x0000000000000000000000000000000000000000000000000000000000000000&quot;,
+      &quot;account&quot;: &quot;0xace2b3e7c752d5debca72210141d464371b3b9b1&quot;
+    },
+    &quot;purpose&quot;: &quot;验证发起人具有 DEFAULT_ADMIN_ROLE。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级索引确认两次 Router→Registry 调用；方法与参数由固定版本 modifiers 重建。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2&quot;,
+    &quot;blockNumber&quot;: 74573795,
+    &quot;time&quot;: &quot;2026-10-30T14:47:11+08:00&quot;,
+    &quot;type&quot;: &quot;DELEGATECALL&quot;,
+    &quot;from&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+    &quot;to&quot;: &quot;0xf68f1d1d990352eeb83fc68ab705a98114bbbf13&quot;,
+    &quot;function&quot;: &quot;hasRole(bytes32,address)&quot;,
+    &quot;parameters&quot;: {
+      &quot;role&quot;: &quot;0x0000000000000000000000000000000000000000000000000000000000000000&quot;,
+      &quot;account&quot;: &quot;0xace2b3e7c752d5debca72210141d464371b3b9b1&quot;
+    },
+    &quot;purpose&quot;: &quot;验证发起人具有 DEFAULT_ADMIN_ROLE。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级索引确认相应 Registry→实现调用；参数随 STATICCALL。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  }
+]</pre></details><details><summary>原始 calldata / Gas / 回执</summary><pre>{
+  &quot;calldata&quot;: &quot;0xb2976fb9000000000000000000000000bc4eb2f78def67f26d9fb359fe719ea643d7f1c00000000000000000000000000000000000000000000000000000000000000001&quot;,
+  &quot;valueWei&quot;: &quot;0&quot;,
+  &quot;gasUsed&quot;: 70733,
+  &quot;effectiveGasPriceWei&quot;: &quot;20000001&quot;,
+  &quot;feeWei&quot;: &quot;1414660070733&quot;
+}</pre><a href="raw-records.html#0d101c1a2291a5785efb0a78be608e5fdfcfbb0e4dd0b1ef9d08778b31e8e65d">交易原文</a> · <a href="raw-records.html#c5476a9046a2a8f60cc7bea1c45633b03fe2a751aa368152cb777578741128cc">回执原文</a></details></article><h2>本地址全部内部调用边</h2><pre>[
+  {
+    &quot;hash&quot;: &quot;0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593&quot;,
+    &quot;blockNumber&quot;: 74502370,
+    &quot;time&quot;: &quot;2026-10-29T18:56:46+08:00&quot;,
+    &quot;type&quot;: &quot;DELEGATECALL&quot;,
+    &quot;from&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;to&quot;: &quot;0x1bb8de0128ce24cc32398cff58cd1c1afc944599&quot;,
+    &quot;function&quot;: &quot;initialize(address,address)&quot;,
+    &quot;parameters&quot;: {
+      &quot;pm&quot;: &quot;0x360e68faccca8ca495c1b759fd9eee466db9fb32&quot;,
+      &quot;registry_&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;
+    },
+    &quot;purpose&quot;: &quot;在代理存储上下文执行业务函数；与父交易合并计数。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2&quot;,
+    &quot;blockNumber&quot;: 74573795,
+    &quot;time&quot;: &quot;2026-10-30T14:47:11+08:00&quot;,
+    &quot;type&quot;: &quot;DELEGATECALL&quot;,
+    &quot;from&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;to&quot;: &quot;0x1bb8de0128ce24cc32398cff58cd1c1afc944599&quot;,
+    &quot;function&quot;: &quot;setAdapterAllowed(address,bool)&quot;,
+    &quot;parameters&quot;: {
+      &quot;adapter&quot;: &quot;0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0&quot;,
+      &quot;allowed&quot;: true
+    },
+    &quot;purpose&quot;: &quot;在代理存储上下文执行业务函数；与父交易合并计数。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2&quot;,
+    &quot;blockNumber&quot;: 74573795,
+    &quot;time&quot;: &quot;2026-10-30T14:47:11+08:00&quot;,
+    &quot;type&quot;: &quot;STATICCALL&quot;,
+    &quot;from&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;to&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+    &quot;function&quot;: &quot;isPaused()&quot;,
+    &quot;parameters&quot;: {},
+    &quot;purpose&quot;: &quot;检查 Registry 没有暂停。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级索引确认两次 Router→Registry 调用；方法与参数由固定版本 modifiers 重建。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2&quot;,
+    &quot;blockNumber&quot;: 74573795,
+    &quot;time&quot;: &quot;2026-10-30T14:47:11+08:00&quot;,
+    &quot;type&quot;: &quot;STATICCALL&quot;,
+    &quot;from&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;to&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+    &quot;function&quot;: &quot;hasRole(bytes32,address)&quot;,
+    &quot;parameters&quot;: {
+      &quot;role&quot;: &quot;0x0000000000000000000000000000000000000000000000000000000000000000&quot;,
+      &quot;account&quot;: &quot;0xace2b3e7c752d5debca72210141d464371b3b9b1&quot;
+    },
+    &quot;purpose&quot;: &quot;验证发起人具有 DEFAULT_ADMIN_ROLE。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级索引确认两次 Router→Registry 调用；方法与参数由固定版本 modifiers 重建。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  }
+]</pre></body></html>

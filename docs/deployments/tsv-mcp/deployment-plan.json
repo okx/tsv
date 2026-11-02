@@ -1,0 +1,133 @@
+{
+  "status": "PLANNING_ONLY_NOT_SUBMITTED",
+  "assumptions": "Deploy both factories and a legal-share adapter; reuse external prerequisites; no W creation or business configuration. Batch execution order is not assumed.",
+  "directCreations": [
+    {
+      "taskId": "permissionedValidationLib",
+      "batch": 1,
+      "dependencies": [],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "tsvLPManagerLib",
+      "batch": 1,
+      "dependencies": [],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "lpPositionMath",
+      "batch": 1,
+      "dependencies": [],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "permissionsAdapterFactory",
+      "batch": 1,
+      "dependencies": [],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "hookProxyFactory",
+      "batch": 1,
+      "dependencies": [],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "legalShareAdapter",
+      "batch": 1,
+      "dependencies": [],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "ledgerImplementation",
+      "batch": 1,
+      "dependencies": [],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "hookImplementation",
+      "batch": 1,
+      "dependencies": [],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "registryImplementation",
+      "batch": 2,
+      "dependencies": [
+        "permissionedValidationLib"
+      ],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "routerImplementation",
+      "batch": 2,
+      "dependencies": [
+        "permissionsAdapterFactory"
+      ],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "registryProxy",
+      "batch": 3,
+      "dependencies": [
+        "registryImplementation"
+      ],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "ledgerProxy",
+      "batch": 4,
+      "dependencies": [
+        "ledgerImplementation",
+        "registryProxy"
+      ],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "routerProxy",
+      "batch": 4,
+      "dependencies": [
+        "routerImplementation",
+        "registryProxy"
+      ],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "lpManagerImplementation",
+      "batch": 4,
+      "dependencies": [
+        "tsvLPManagerLib",
+        "lpPositionMath",
+        "permissionsAdapterFactory",
+        "registryProxy"
+      ],
+      "status": "NOT_SUBMITTED"
+    },
+    {
+      "taskId": "lpManagerProxy",
+      "batch": 5,
+      "dependencies": [
+        "lpManagerImplementation",
+        "registryProxy"
+      ],
+      "status": "NOT_SUBMITTED"
+    }
+  ],
+  "factoryCalls": [
+    {
+      "taskId": "hookProxy",
+      "afterBatch": 5,
+      "dependencies": [
+        "hookProxyFactory",
+        "hookImplementation",
+        "registryProxy",
+        "ledgerProxy",
+        "routerProxy",
+        "lpManagerProxy"
+      ],
+      "method": "TSVHookProxyFactoryV1.deploy(implementation,initData,salt)",
+      "status": "NOT_SUBMITTED",
+      "executionChannel": "NOT_SELECTED_CURRENT_MCP_CREATE_TOOL_HAS_NO_TO_FIELD"
+    }
+  ]
+}

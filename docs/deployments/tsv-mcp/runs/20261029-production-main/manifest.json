@@ -1,0 +1,243 @@
+{
+  "status": "CORRECTED_REQUEST_SENT_APPROVAL_ALREADY_EXISTS",
+  "createdAt": "2026-10-29T07:08:05.565548+00:00",
+  "source": {
+    "branch": "origin/main",
+    "commit": "90929552fd557fd67b9debafa905bafffb40ed86",
+    "selection": "user explicitly selected main",
+    "worktree": ".production-tsv-main-20261029",
+    "note": "Does not include recent audit repair-branch changes."
+  },
+  "network": {
+    "name": "XLayer",
+    "chainId": 196,
+    "rpcUrl": "https://rpc.xlayer.tech"
+  },
+  "privilegeAddress": "0xeb84007545644e10c1a47502438377f7cd192904",
+  "registryInitialAdmin": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+  "dependencies": {
+    "poolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+    "permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
+    "positionDescriptor": "0x9e9fbbef0e1bd752e83de5acff3d0c936a9e5a4b",
+    "wokb": "0xe538905cf8410324e03a5a23c1c177a474d59b2b"
+  },
+  "dependencySelection": "user requested same as preproduction; source script/xlayer/deployment.json; code presence checked only, not full compatibility verification",
+  "configuration": {
+    "unsubscribeGasLimit": 200000,
+    "deliveryGasLimit": 500000,
+    "gasValueProvenance": "read-only calls to preproduction LPManager 0xf73d8683b948564d2795c62a2a909012ea168d29; candidate for matching preproduction, not final submitted values"
+  },
+  "legalShareAdapter": {
+    "underlyingU": null,
+    "status": "DEFERRED_NO_U_PROVIDED"
+  },
+  "scope": {
+    "createW": false,
+    "businessConfiguration": false,
+    "initializeProxiesAtomically": true
+  },
+  "mcp": {
+    "intentResult": "Intent recorded; status ok",
+    "tasksSubmitted": [
+      {
+        "uuid": "d8dbb2c3-3643-4ee1-bc51-1147de33ff09",
+        "name": "TSV-prod-20261029-PermissionedValidationLib",
+        "status": "TASK_NOT_FOUND_AFTER_APPROVAL_GENERATION"
+      },
+      {
+        "uuid": "94728a29-b36b-4a13-84a4-54f1e25ea6d9",
+        "name": "TSV-prod-20261029-TSVLPManagerLib",
+        "status": "TASK_NOT_FOUND_AFTER_APPROVAL_GENERATION"
+      },
+      {
+        "uuid": "4db0b73a-d938-4cde-a4b6-7b46c443b160",
+        "name": "TSV-prod-20261029-LPPositionMath",
+        "status": "TASK_NOT_FOUND_AFTER_APPROVAL_GENERATION"
+      },
+      {
+        "uuid": "1a5e47a0-6b21-4654-903c-d39af8fb6ea6",
+        "name": "TSV-prod-20261029-PermissionsAdapterFactory",
+        "status": "TASK_NOT_FOUND_AFTER_APPROVAL_GENERATION"
+      },
+      {
+        "uuid": "3daf40e8-e50e-430f-a213-385aad703216",
+        "name": "TSV-prod-20261029-TSVHookProxyFactoryV1",
+        "status": "TASK_NOT_FOUND_AFTER_APPROVAL_GENERATION"
+      },
+      {
+        "uuid": "1b6b2910-316d-4e0f-ae20-be58424c69b6",
+        "name": "TSV-prod-20261029-TSVVolumeLedgerV1",
+        "status": "TASK_NOT_FOUND_AFTER_APPROVAL_GENERATION"
+      },
+      {
+        "uuid": "1f311801-92eb-4fa6-ad05-3838309eddae",
+        "name": "TSV-prod-20261029-TSVHookV1",
+        "status": "TASK_NOT_FOUND_AFTER_APPROVAL_GENERATION"
+      }
+    ],
+    "approvalSignatures": [
+      {
+        "approval_address": "0x148828cA0b08f9882336794E4FE196c975C11aFc",
+        "signature": ""
+      }
+    ],
+    "note": "Initial request returned approval generated (10020); corrected envelope/new UUID request returned approval already exists (10021). Both data fields empty and no tasks found. Deployment request parsing and approval deduplication rule are unverified.",
+    "authentication": "VERIFIED",
+    "preparedBatch1": "batch1-prepared-request.json",
+    "requestSubmitted": true,
+    "approvalUrl": "https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16539?_region_=GLOBAL",
+    "createResult": "Approval instance generated successfully; error_code 10020; data empty",
+    "correctedRequest": {
+      "file": "batch1-request-with-dept.json",
+      "deptName": "Dex",
+      "source": "user explicitly supplied request envelope",
+      "submitted": true,
+      "toolSchemaLimitation": "Currently exposed create tool declares only top-level tasks; request and deptName are absent. No resubmission attempted.",
+      "tasksUnchanged": true,
+      "uuidStrategy": "All seven UUIDs regenerated immediately before this send.",
+      "lastUuidRefresh": "2026-10-29T07:23:39.669569+00:00",
+      "submittedAt": "2026-10-29T07:24:50.128192+00:00",
+      "exactSubmittedRequest": "requests/batch1-20261029T072433Z.json",
+      "sha256": "935cc0504c71f7c485fc1c064259f0a41dcd61802e1b97720e29d882e0e40894",
+      "serverErrorCode": "10021",
+      "response": "batch1-corrected-mcp-response-20261029T072433Z.json"
+    },
+    "uuidPolicy": "Before every create request send, generate a fresh UUID for every task and archive the exact submitted payload. Status queries use UUIDs from that specific submission. Check prior submissions before retrying to avoid duplicate deployments.",
+    "latestSubmittedTasks": [
+      {
+        "uuid": "332766f5-8075-43c3-bb0b-f8519c4f7d3b",
+        "name": "TSV-prod-20261029-PermissionedValidationLib"
+      },
+      {
+        "uuid": "0bea7484-53ab-4912-97a4-8cf24a727b00",
+        "name": "TSV-prod-20261029-TSVLPManagerLib"
+      },
+      {
+        "uuid": "8e970349-5049-4401-a3ad-c606cb22258b",
+        "name": "TSV-prod-20261029-LPPositionMath"
+      },
+      {
+        "uuid": "7fedfe49-a5c7-4592-a09e-28770fe5bbd0",
+        "name": "TSV-prod-20261029-PermissionsAdapterFactory"
+      },
+      {
+        "uuid": "e3c9c05d-a299-4daa-9827-eb9b6031fd95",
+        "name": "TSV-prod-20261029-TSVHookProxyFactoryV1"
+      },
+      {
+        "uuid": "93b594b2-0f9a-4c93-a930-1dce3a4a68d6",
+        "name": "TSV-prod-20261029-TSVVolumeLedgerV1"
+      },
+      {
+        "uuid": "4e1acf8c-3561-49c2-94f9-5bb304eeacc7",
+        "name": "TSV-prod-20261029-TSVHookV1"
+      }
+    ],
+    "envelopeAcceptance": "UNVERIFIED: approval-layer response does not prove deployment handler parsed request/deptName/tasks",
+    "approvalDeduplication": "Server reused instance 16539; exact deduplication scope/key unknown. Changed task UUIDs did not create a new approval.",
+    "operationGuide": "https://okg-block.sg.larksuite.com/docx/Y26NdBx1JofeoNx51w6lmn1LgEc",
+    "latestSingleSubmission": {
+      "preparedAt": "2026-10-29T08:11:09.134231+00:00",
+      "request": "requests/single-permissioned-validation-lib-20261029T081109Z.json",
+      "uuid": "52b0593b-0c97-4885-9895-f5d74b9bd4b3",
+      "previousUuid": "9d67f662-ed03-402b-880a-5a8ce2424fe0",
+      "name": "TSV-prod-20261029-PermissionedValidationLib",
+      "sha256": "a9d048be89bd30b2d3fcff70f88cba40ef6321ed615432538331e04e1f00bcff",
+      "status": "SENT_APPROVAL_ALREADY_EXISTS",
+      "taskCount": 1,
+      "response": "single-permissioned-validation-lib-response-20261029T081109Z.json",
+      "sentAt": "2026-10-29T08:11:23.357073+00:00",
+      "approvalInstance": 16539,
+      "serverErrorCode": "10021",
+      "requestId": "NRI_16ba85f583e04724bfa0e30911f0534a",
+      "taskStatus": "任务不存在",
+      "broadcastConfirmed": false
+    },
+    "latestBatchSubmission": {
+      "preparedAt": "2026-10-29T09:01:31.569926+00:00",
+      "request": "requests/batch1-20261029T090131Z.json",
+      "sha256": "89c120f87bb572091e9e1f623a5632bb88144055069f9a71b5551c73d9090785",
+      "mapping": [
+        {
+          "name": "TSV-prod-20261029-PermissionedValidationLib",
+          "previousUuid": "280dc81d-89e0-4e04-8be1-82b5c6b3d0c4",
+          "newUuid": "332766f5-8075-43c3-bb0b-f8519c4f7d3b"
+        },
+        {
+          "name": "TSV-prod-20261029-TSVLPManagerLib",
+          "previousUuid": "84b3901f-1a44-485b-af8b-78d83ca9d7f8",
+          "newUuid": "0bea7484-53ab-4912-97a4-8cf24a727b00"
+        },
+        {
+          "name": "TSV-prod-20261029-LPPositionMath",
+          "previousUuid": "9613ff5a-d594-4f73-8a96-e7c072915ca3",
+          "newUuid": "8e970349-5049-4401-a3ad-c606cb22258b"
+        },
+        {
+          "name": "TSV-prod-20261029-PermissionsAdapterFactory",
+          "previousUuid": "cfa2b093-0c2f-4169-be44-5c1a58c54851",
+          "newUuid": "7fedfe49-a5c7-4592-a09e-28770fe5bbd0"
+        },
+        {
+          "name": "TSV-prod-20261029-TSVHookProxyFactoryV1",
+          "previousUuid": "9a94e791-a653-442c-8679-2ceb71fd5dbd",
+          "newUuid": "e3c9c05d-a299-4daa-9827-eb9b6031fd95"
+        },
+        {
+          "name": "TSV-prod-20261029-TSVVolumeLedgerV1",
+          "previousUuid": "2f7dd585-fcdf-48a1-8386-77b6b9260a36",
+          "newUuid": "93b594b2-0f9a-4c93-a930-1dce3a4a68d6"
+        },
+        {
+          "name": "TSV-prod-20261029-TSVHookV1",
+          "previousUuid": "04fbe857-e98b-4547-9846-f1570ccf2ebd",
+          "newUuid": "4e1acf8c-3561-49c2-94f9-5bb304eeacc7"
+        }
+      ],
+      "status": "SENT_APPROVAL_ALREADY_EXISTS",
+      "taskCount": 7,
+      "response": "batch1-mcp-response-20261029T090131Z.json",
+      "sentAt": "2026-10-29T09:01:52.654051+00:00",
+      "approvalInstance": 16539,
+      "serverErrorCode": "10021",
+      "requestId": "NRI_64bc12d5e15a437891a8fb1ce2c6b515",
+      "statusResponse": "batch1-mcp-status-20261029T090131Z.json",
+      "taskStatus": "all 7 UUIDs return 任务不存在",
+      "broadcastConfirmed": false
+    }
+  },
+  "hookProxyExecutionChannel": "UNRESOLVED: current MCP supports CREATE but no target/to for factory call",
+  "deploymentSubmitted": true,
+  "transactions": [],
+  "build": {
+    "status": "SUCCESS_WITH_WARNINGS",
+    "compiler": "0.8.26",
+    "evmVersion": "cancun",
+    "optimizerRuns": 200,
+    "viaIR": true,
+    "bytecodeHash": "none",
+    "scope": "explicit deployment entry sources; not full repository test validation",
+    "cliRemapping": "@uniswap/v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
+    "artifactInventory": "build-inventory.json",
+    "v4PeripheryCommit": "9969eec44cfdf07e24b41de47f40276a58401976",
+    "openzeppelinVersion": "5.5.0"
+  },
+  "deploymentSubmittedMeaning": "MCP create request submitted, not evidence of chain broadcast",
+  "broadcastConfirmed": false,
+  "latestCheck": {
+    "at": "2026-10-29T09:01:52.654051+00:00",
+    "record": "batch1-mcp-status-20261029T090131Z.json",
+    "submission": "requests/batch1-20261029T090131Z.json",
+    "tasksFound": 0,
+    "broadcastConfirmed": false
+  },
+  "sourceSuperseded": {
+    "at": "2026-10-29T09:05:44.365976+00:00",
+    "previousCommit": "90929552fd557fd67b9debafa905bafffb40ed86",
+    "newSelectedMainCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+    "reason": "User requested refresh after main updated",
+    "oldRunPreserved": true,
+    "oldPayloadsReusableForNewSource": false,
+    "newBuildRequired": true
+  }
+}

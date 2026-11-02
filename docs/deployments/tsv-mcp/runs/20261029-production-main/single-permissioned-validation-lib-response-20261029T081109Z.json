@@ -1,0 +1,21 @@
+{
+  "uuid": "52b0593b-0c97-4885-9895-f5d74b9bd4b3",
+  "createResponse": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"code\":0,\"msg\":\"Approval instance already exists, please wait for approval. https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16539?_region_=GLOBAL\",\"error_code\":\"10021\",\"error_message\":\"Approval instance already exists, please wait for approval. https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16539?_region_=GLOBAL\",\"detailMsg\":\"\",\"data\":{},\"requestId\":\"NRI_16ba85f583e04724bfa0e30911f0534a\"}"
+      }
+    ],
+    "isError": false
+  },
+  "statusResponse": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"code\":-1,\"msg\":\"任务不存在\",\"data\":null,\"detailMsg\":null,\"msg_detail\":null}"
+      }
+    ],
+    "isError": false
+  }
+}

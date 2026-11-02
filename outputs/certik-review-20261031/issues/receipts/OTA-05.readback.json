@@ -1,0 +1,71 @@
+{
+  "id": 10031,
+  "iid": 36,
+  "project_id": 18199,
+  "title": "[CertiK｜低风险｜OTA-05][audit-fix] 历史 Q 被重新准入为 U 绕过证券控制",
+  "description": "## 来源与修复范围\n\n来源：[CertiK TSV 初审报告（原始 PDF）](https://gitlab.okg.com/web3-dex/tsv/uploads/4b71892b28b1a3f8a9851a862d66ee15/CertiK-PRE-OKX-TSV---Audit__preliminary-20261030T231203Z.pdf)，第 26,27 页，编号 **OTA-05**，原报告等级 **Low**。原报告状态为 Pending；以下状态是 2026-10-31 独立代码复核结论，不代表 CertiK 已确认关闭。\n\n**修复目标分支：`audit/2026-10-27-6402443-fix`（audit-fix）。请本项单独提交修复/验证记录，建立对应 MR，不与其他审计项混成一个不可独立验收的变更。**\n\n- 报告审计 commit：`85623cd73ab6248b4acec71f478f30088c4deec3`。\n- audit-fix 复核 commit：`543dcd34e882eead3a9f2391540c704105fbc693`。\n- main 对照 commit：`a8bfc93aa2cf40142e6511e5069d90f65b59f420`；本 Issue 的修复目标是 audit-fix。\n\n## 双基线复核\n\n- **audit-fix：仍存在；文档要求限制准入**\n- **main：仍存在；文档要求限制准入**\n\n成立，属于管理员违反资产身份约束时产生的跨池控制缺口。已有注释是风险接受说明，不是链上修复。\n\n### 原因与实现\n\ndisableQuoteTokenPoolRegister 将 Q.registered 清零但保留旧池交易。W/U 准入只拒绝当前 registered 的 Q，未永久记录曾经作为 Q。若旧 Q 再成为新证券 B 的 U，旧证券 A 的 W_A/Q 池仍把它当 Q，不经过 B 的股票侧许可、暂停和额度逻辑。\n\n### 影响与利用前提\n\n需要 SYMBOL_ADMIN 执行不兼容准入；普通用户不能自行把 Q 注册为 U。关闭新池准入并不移除历史池或改变历史资产身份。两个基线的 PermissionedValidationLib 都明确把这项规则交给治理。\n\n## audit-fix 处理要求与验收条件\n\n- [ ] 增加不可逆的历史 quote 身份记录，阻止曾作为 Q 的地址后续被准入为 U 或 W；关闭新池准入不得抹除该历史身份。\n- [ ] 仅向后追加安全存储或使用审核过的命名空间；已部署代理的升级方案需从完整 QuoteTokenRegistered 历史回填，包括当前已禁用的 Q。\n- [ ] 覆盖历史 Q 禁用后尝试成为 U/W 被拒绝，旧池按原生命周期继续交易，合法新 U/Q 不受影响。\n- [ ] 在本 Issue 记录最终处理、对应 MR/完整 commit、验证命令与结果，并提供供 CertiK 复核的证据；已修复项以复核和回归补全验收，不制造无意义的重复代码改动。\n\n### 修复建议及注意事项\n\n若资产准入较频繁或由多个团队操作，建议增加不可逆的 everQuote 身份标记，禁止历史 Q 进入 U/W。既有部署升级必须从完整历史补齐，不能只读取当前 registered=true。若流程上接受，建立历史身份登记和准入检查，并向审计方按“已知风险/外部约束”说明，不能声称已修复。\n\n## 代码证据（固定 commit）\n\n- main：[ `src/v1/libraries/PermissionedValidationLib.sol:139` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/libraries/PermissionedValidationLib.sol#L139)；`function _validateAssetIdentities(address w, address u) private view {`\n- main：[ `src/v1/core/TSVRegistryV1.sol:526` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/core/TSVRegistryV1.sol#L526)；`function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode)`\n- audit-fix：[ `src/v1/libraries/PermissionedValidationLib.sol:139` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/543dcd34e882eead3a9f2391540c704105fbc693/src/v1/libraries/PermissionedValidationLib.sol#L139)；`function _validateAssetIdentities(address w, address u) private view {`\n\n## 已有验证与边界\n\n静态调用链复核；未执行该项动态攻击 PoC。\n\n本次为报告逐项复核，未发送生产交易；mock 边界测试不代表完整端到端攻击或现网资产/角色配置已经确认。\n\n## 报告原文\n\n<details>\n<summary>展开 PDF 原文文字提取（保留原始内容，版式以附件 PDF 为准）</summary>\n\n```text\n[PDF page 26]\nOTA-05    OKX TSV - AUDIT\n\n\nOTA-05             Historical Quote Reuse As Underlying Bypasses New Security\n                   Controls\n\n\n\n\n Category          Severity     Location                                                                                  Status\n\n\n Design                Low      core/TSVRegistryV1.sol: 461~462; libraries/PermissionedValidationLib.sol:                    Pending\n Issue                          145~146\n\n\n  Description\n\n\n TSVRegistryV1     assigns quote tokens Q to the non-stock side of W/Q pools and binds each permissioned wrapper W and\nits underlying U to a security.  disableQuoteTokenPoolRegister          stops a Q from being used in newly registered pools while\ndeliberately preserving existing pools, whereas      registerPermissionedCurrency         is expected to prevent an asset from\nacquiring a conflicting stock identity.\n\nThe quote-disable operation removes the only on-chain marker consulted by permissioned asset admission. An account with\n\n SYMBOL_ADMIN_ROLE      can therefore clear a historical Q's current registration flag even while an existing     W_A/Q   pool remains\nactive:\n\n\n  // TSVRegistryV1.disableQuoteTokenPoolRegister(address,bytes32) —\n  src/v1/core/TSVRegistryV1.sol:461-470\n      function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode)\n          external\n          onlyRole(SYMBOL_ADMIN_ROLE)\n      {\n          _requireReasonCode(reasonCode);\n          QuoteTokenRecord storage config = quoteTokens[quote];\n          if (!config.registered) revert InvalidStatus();\n          config.registered = false;\n          emit QuoteTokenDisabled(quote, reasonCode);\n      }\n\n\nThe project documentation explicitly prohibits reusing a historically registered quote token as W or U. However, this invariant\nis enforced through the administrative admission procedure rather than by the contracts. The conflicting identity can therefore\nbe created only if an account holding     SYMBOL_ADMIN_ROLE      violates the documented admission rule and registers a verified\nwrapper whose underlying is the historical quote token.\n\nIf the administrator subsequently registers a new wrapper       W_B   whose underlying is that Q,    _validateAssetIdentities\nchecks only the current    registered    value. Because the disable operation set this value to false, the historical quote passes\nthe identity check and becomes the canonical underlying of security B:\n\n[PDF page 27]\nOTA-05    OKX TSV - AUDIT\n\n\n\n\n\n  // PermissionedValidationLib._validateAssetIdentities(address,address) —\n  src/v1/libraries/PermissionedValidationLib.sol:150-157\n          if (\n              u.code.length == 0 || w == u || _isSystem(w) || _isSystem(u) ||\n  r.getQuoteToken(w).registered\n                  || r.getQuoteToken(u).registered || r.getUnderlying(w).securityId !=\n  0\n                  || r.getCurrencyUnderlying(u) != address(0)\n                  || _readAddressArgument(\n                          r.permissionsAdapterFactory(),\n  IPermissionsAdapterFactory.permissionsAdapterOf.selector, u\n                      ) != address(0)\n          ) revert InvalidPermissionedConfig();\n\n\nExisting pools retain the securityId     captured when they were registered. Their operation gate continues to evaluate that\nstored security even after one of the pool assets acquires a new underlying role:\n\n\n  // TSVRegistryV1._isOperationAllowed(bytes32,SecurityOperationCheckType) —\n  src/v1/core/TSVRegistryV1.sol:810-819\n          PoolRecord storage pool = pools[poolId];\n          if (!isKnownPool(poolId)) return false;\n          PoolLifecycle lifecycle = pool.lifecycle;\n          if (checkType == SecurityOperationCheckType.TRADE) {\n              if (lifecycle != PoolLifecycle.LIST) return false;\n          } else if (checkType == SecurityOperationCheckType.LP) {\n              if (lifecycle == PoolLifecycle.DELIST) return false;\n          }\n          return _isSecurityOperationAllowed(pool.securityId, checkType);\n      }\n\n\nAs a result, Q can continue trading directly as the quote leg of the historical W_A/Q   pool while simultaneously serving as the\nunderlying of security B through   W_B . The historical pool remains governed and accounted for under security A: its lifecycle\nand pause checks use A, its volume is charged to A's quota, and its multiplier and issuer permission checks apply to       W_A  .\nParticipants eligible for pool A can therefore trade Q without security B's pause state, quota, legal-share multiplier, or issuer\npermission policy being applied. This leaves the underlying asset of security B circulating through a pool outside B's\ncompliance and accounting domain.\n\n\n  Recommendation\n\nPersist append-only asset-role markers such as     everQuote   ,  everUnderlying    , and  everWrapper   , set them when an\naddress first acquires each role, and reject every registration that would create a conflicting historical role. Before upgrading\nexisting deployments, derive and migrate these markers from quote records, underlying bindings, factory adapters, and all\nstored pool keys, including disabled assets. Detect any pre-existing role collision during migration and pause the affected\npools until governance assigns unambiguous asset identities and reconciles their security and quota accounting.\n```\n\n</details>",
+  "state": "opened",
+  "created_at": "2026-10-31T07:09:07.843Z",
+  "updated_at": "2026-10-31T07:09:07.843Z",
+  "closed_at": null,
+  "closed_by": null,
+  "labels": [],
+  "milestone": null,
+  "assignees": [],
+  "author": {
+    "id": 2461,
+    "username": "zewei.lu",
+    "public_email": null,
+    "name": "zewei.lu@okg.com",
+    "state": "active",
+    "locked": false,
+    "avatar_url": "https://secure.gravatar.com/avatar/8f6a06ace9e6e5d42b74fbb4b3309b3ab7c5c4de1ebfd3070324dcef6def5413?s=80&d=identicon",
+    "web_url": "https://gitlab.okg.com/zewei.lu"
+  },
+  "type": "ISSUE",
+  "assignee": null,
+  "user_notes_count": 0,
+  "merge_requests_count": 0,
+  "upvotes": 0,
+  "downvotes": 0,
+  "start_date": null,
+  "due_date": null,
+  "confidential": false,
+  "discussion_locked": null,
+  "issue_type": "issue",
+  "web_url": "https://gitlab.okg.com/web3-dex/tsv/-/work_items/36",
+  "time_stats": {
+    "time_estimate": 0,
+    "total_time_spent": 0,
+    "human_time_estimate": null,
+    "human_total_time_spent": null
+  },
+  "task_completion_status": {
+    "count": 4,
+    "completed_count": 0
+  },
+  "weight": null,
+  "blocking_issues_count": 0,
+  "has_tasks": false,
+  "_links": {
+    "self": "https://gitlab.okg.com/api/v4/projects/18199/issues/36",
+    "notes": "https://gitlab.okg.com/api/v4/projects/18199/issues/36/notes",
+    "award_emoji": "https://gitlab.okg.com/api/v4/projects/18199/issues/36/award_emoji",
+    "project": "https://gitlab.okg.com/api/v4/projects/18199",
+    "closed_as_duplicate_of": null
+  },
+  "references": {
+    "short": "#36",
+    "relative": "#36",
+    "full": "web3-dex/tsv#36"
+  },
+  "severity": "UNKNOWN",
+  "subscribed": true,
+  "moved_to_id": null,
+  "imported": false,
+  "imported_from": "none",
+  "service_desk_reply_to": null,
+  "epic_iid": null,
+  "epic": null,
+  "iteration": null
+}

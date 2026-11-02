@@ -1,0 +1,25 @@
+{
+  "contract": "TSVSwapRouterV1Proxy",
+  "uuid": "a211496a-e8ee-407d-9646-8a4c0d83a064",
+  "address": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+  "txHash": "0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593",
+  "block": 74502370,
+  "confirmationsAtCheck": 51,
+  "checks": {
+    "receiptStatus": 1,
+    "creationCalldataMatches": true,
+    "runtimeMatches": true,
+    "erc1967ImplementationMatches": true,
+    "initializedDependenciesMatch": true,
+    "reinitializationReverts": true,
+    "reinitializationResponse": {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": 3,
+        "message": "execution reverted",
+        "data": "0xf92ee8a9"
+      },
+      "id": 1
+    }
+  }
+}

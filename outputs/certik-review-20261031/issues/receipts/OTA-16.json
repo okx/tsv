@@ -1,0 +1,71 @@
+{
+  "id": 10038,
+  "iid": 43,
+  "project_id": 18199,
+  "title": "[CertiK｜提示级｜OTA-16][audit-fix] 强退执行价格与滑点可导致 LP 损失",
+  "description": "## 来源与修复范围\n\n来源：[CertiK TSV 初审报告（原始 PDF）](https://gitlab.okg.com/web3-dex/tsv/uploads/4b71892b28b1a3f8a9851a862d66ee15/CertiK-PRE-OKX-TSV---Audit__preliminary-20261030T231203Z.pdf)，第 38 页，编号 **OTA-16**，原报告等级 **Informational**。原报告状态为 Pending；以下状态是 2026-10-31 独立代码复核结论，不代表 CertiK 已确认关闭。\n\n**修复目标分支：`audit/2026-10-27-6402443-fix`（audit-fix）。请本项单独提交修复/验证记录，建立对应 MR，不与其他审计项混成一个不可独立验收的变更。**\n\n- 报告审计 commit：`85623cd73ab6248b4acec71f478f30088c4deec3`。\n- audit-fix 复核 commit：`543dcd34e882eead3a9f2391540c704105fbc693`。\n- main 对照 commit：`a8bfc93aa2cf40142e6511e5069d90f65b59f420`；本 Issue 的修复目标是 audit-fix。\n\n## 双基线复核\n\n- **audit-fix：仍存在；TSV 强退另有资格限制**\n- **main：仍存在；TSV 强退范围更广**\n\n成立，但应解释为受权强退的价格执行风险，而非任何人可无权限强退或收走 LP 资产。\n\n### 原因与实现\n\n强退调用方指定 amount0Min/amount1Min，没有 deadline，也没有独立预言机价格约束。设置 0 等于放弃最低本金收款限制；最低金额检查主要针对本金而非全部手续费。LP 无法像普通主动撤资一样拒绝管理员这次烧毁。\n\n### 影响与利用前提\n\n需要强退操作发生，且操作员错误/恶意设置最小值，或执行时池价已不利。audit-fix 的 TSV 强退还要求至少一侧发行方允许 UNWIND；main 删除该条件，使获准 FORCE_EXIT_ADMIN 可以对更广的 LP 位置强退。main 的 TSV 路径资产仍发送 LP，不能据此说管理员直接拿走资金。\n\n## audit-fix 处理要求与验收条件\n\n- [ ] 明确 TSV 与发行方强退的价格保护、报价时效、最小本金收款和执行责任，给出操作工具/参数校验及审核清单。\n- [ ] 按协议的合规强退可执行性要求设计有效期及价格偏离/最小价值保护；单独添加 deadline 不能解决池价操纵，不能简单要求两个 amountMin 都非零（单边仓位可能合法）。\n- [ ] 覆盖陈旧报价、不利价格、零最小值策略、正常和单边位置；保留 audit-fix 的发行方 UNWIND 资格语义，若变更强退范围需显式说明并验证。\n- [ ] 在本 Issue 记录最终处理、对应 MR/完整 commit、验证命令与结果，并提供供 CertiK 复核的证据；已修复项以复核和回归补全验收，不制造无意义的重复代码改动。\n\n### 修复建议及注意事项\n\n先规定强退报价、最小收款、价格偏离校验和操作复核；deadline 只能防陈旧请求，不能单独阻止操纵价格。是否加入强制 oracle/价格边界要与合规强退的可执行性权衡，价格约束过严也可能阻止必须执行的退出。建议明确接受的权限与价格风险。\n\n## 代码证据（固定 commit）\n\n- main：[ `src/v1/periphery/TSVLPManagerV1.sol:136` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/periphery/TSVLPManagerV1.sol#L136)；`function unwindPositionByTsv(uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)`\n- main：[ `src/v1/libraries/TSVLPManagerLib.sol:150` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/libraries/TSVLPManagerLib.sol#L150)；`params[0] = abi.encode(tokenId, amount0Min, amount1Min, hookData);`\n- audit-fix：[ `src/v1/libraries/TSVLPManagerLib.sol:123` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/543dcd34e882eead3a9f2391540c704105fbc693/src/v1/libraries/TSVLPManagerLib.sol#L123)；`bool isUnwindable0 = _getLpStatus(p.factory, poolKey.currency0, lp);`\n\n## 已有验证与边界\n\n静态调用链复核；未执行该项动态攻击 PoC。\n\n本次为报告逐项复核，未发送生产交易；mock 边界测试不代表完整端到端攻击或现网资产/角色配置已经确认。\n\n## 报告原文\n\n<details>\n<summary>展开 PDF 原文文字提取（保留原始内容，版式以附件 PDF 为准）</summary>\n\n```text\n[PDF page 38]\nOTA-16     OKX TSV - AUDIT\n\n\nOTA-16               Forced Exit May Cause LP Loss\n\n\n\n\n Category               Severity                    Location                                                                       Status\n\n\n Design Issue                Informational          periphery/TSVLPManagerV1.sol: 139~164, 174~201                                     Pending\n\n\n  Description\n\n\n unwindPosition       is initiated by the owner of a verified adapter, and         unwindPositionByTsv         is initiated by\n\n FORCE_EXIT_ADMIN_ROLE         . Both entries take     amount0Min      and   amount1Min      from that caller and pass them into a full-\nposition   BURN_POSITION      . Neither entry has a deadline. A zero minimum disables that side's check. A nonzero minimum\nbounds only principal after fees.\n\nOn success the position NFT is burned, and the liquidity is converted once, at the pool price at execution, into both assets\nand delivered to the LP. A minimum that is too low still lets that fill succeed. The LP receives the asset mix produced at the\nunfavorable price, and the value received can be materially below what the position could have returned at a normal price.\nThe position no longer exists, so the LP cannot reject the fill or exit again under the LP's own minimums.\n\n\n  Recommendation\n\nThe current design gives the authorized forced-exit caller control over              amount0Min      and   amount1Min     . Operators should\nderive these values from recent, independently verified price data and the position’s expected principal outputs, applying\ndocumented slippage limits before executing a forced exit.\n\nIf enforceable LP protection is required, add an execution deadline and an on-chain price-deviation or minimum-value\nconstraint. Operator-supplied minimum amounts alone do not protect the LP against a compromised or negligent forced-exit\noperator.\n```\n\n</details>",
+  "state": "opened",
+  "created_at": "2026-10-31T07:09:23.297Z",
+  "updated_at": "2026-10-31T07:09:23.297Z",
+  "closed_at": null,
+  "closed_by": null,
+  "labels": [],
+  "milestone": null,
+  "assignees": [],
+  "author": {
+    "id": 2461,
+    "username": "zewei.lu",
+    "public_email": null,
+    "name": "zewei.lu@okg.com",
+    "state": "active",
+    "locked": false,
+    "avatar_url": "https://secure.gravatar.com/avatar/8f6a06ace9e6e5d42b74fbb4b3309b3ab7c5c4de1ebfd3070324dcef6def5413?s=80&d=identicon",
+    "web_url": "https://gitlab.okg.com/zewei.lu"
+  },
+  "type": "ISSUE",
+  "assignee": null,
+  "user_notes_count": 0,
+  "merge_requests_count": 0,
+  "upvotes": 0,
+  "downvotes": 0,
+  "start_date": null,
+  "due_date": null,
+  "confidential": false,
+  "discussion_locked": null,
+  "issue_type": "issue",
+  "web_url": "https://gitlab.okg.com/web3-dex/tsv/-/work_items/43",
+  "time_stats": {
+    "time_estimate": 0,
+    "total_time_spent": 0,
+    "human_time_estimate": null,
+    "human_total_time_spent": null
+  },
+  "task_completion_status": {
+    "count": 4,
+    "completed_count": 0
+  },
+  "weight": null,
+  "blocking_issues_count": 0,
+  "has_tasks": false,
+  "_links": {
+    "self": "https://gitlab.okg.com/api/v4/projects/18199/issues/43",
+    "notes": "https://gitlab.okg.com/api/v4/projects/18199/issues/43/notes",
+    "award_emoji": "https://gitlab.okg.com/api/v4/projects/18199/issues/43/award_emoji",
+    "project": "https://gitlab.okg.com/api/v4/projects/18199",
+    "closed_as_duplicate_of": null
+  },
+  "references": {
+    "short": "#43",
+    "relative": "#43",
+    "full": "web3-dex/tsv#43"
+  },
+  "severity": "UNKNOWN",
+  "subscribed": true,
+  "moved_to_id": null,
+  "imported": false,
+  "imported_from": "none",
+  "service_desk_reply_to": null,
+  "epic_iid": null,
+  "epic": null,
+  "iteration": null
+}

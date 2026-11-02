@@ -1,0 +1,71 @@
+{
+  "id": 10034,
+  "iid": 39,
+  "project_id": 18199,
+  "title": "[CertiK｜低风险｜OTA-08][audit-fix] 停止 Q 的新池准入却阻断已有池 Direct 卖出（修复验收与回归）",
+  "description": "## 来源与修复范围\n\n来源：[CertiK TSV 初审报告（原始 PDF）](https://gitlab.okg.com/web3-dex/tsv/uploads/4b71892b28b1a3f8a9851a862d66ee15/CertiK-PRE-OKX-TSV---Audit__preliminary-20261030T231203Z.pdf)，第 32 页，编号 **OTA-08**，原报告等级 **Low**。原报告状态为 Pending；以下状态是 2026-10-31 独立代码复核结论，不代表 CertiK 已确认关闭。\n\n**修复目标分支：`audit/2026-10-27-6402443-fix`（audit-fix）。请本项单独提交修复/验证记录，建立对应 MR，不与其他审计项混成一个不可独立验收的变更。**\n\n- 报告审计 commit：`85623cd73ab6248b4acec71f478f30088c4deec3`。\n- audit-fix 复核 commit：`543dcd34e882eead3a9f2391540c704105fbc693`。\n- main 对照 commit：`a8bfc93aa2cf40142e6511e5069d90f65b59f420`；本 Issue 的修复目标是 audit-fix。\n\n## 双基线复核\n\n- **audit-fix：已修复该门槛；仅允许输出给 participant**\n- **main：仍存在；与 audit-fix 行为不同**\n\n明确的分支差异。main 混用了“新池准入标志”和“已有池交易许可”。\n\n### 原因与实现\n\nmain 的 Direct 路径对 Q 输出额外要求 getQuoteToken(outputCurrency).registered。关闭 Q 的未来建池资格后，Registry 仍可能返回旧池 isTradable=true，但 main 在进入 _swap 前就以 InvalidRequest 回退。audit-fix 只检查 recipient==participant，没有读取这个 Q 准入标志。\n\n### 影响与利用前提\n\n只影响该 Direct 路径、以 Q 为输出的卖出方向；不是整个池双向停摆，其他 Router 入口也不必然失败。main 允许 adapter 收取 Q 输出的能力是业务需要，不能通过简单覆盖为 audit-fix 文件而无意移除该能力。\n\n## audit-fix 处理要求与验收条件\n\n- [ ] audit-fix 当前已经移除 Direct 路径对 Q.registered 的依赖，应保留此行为并补正式回归，不要求重复改写。\n- [ ] 覆盖关闭 Q 新池准入后，已有 LIST 且允许交易的池 Direct 卖出仍可执行；未知池、暂停/下市池仍按正确门槛拒绝。\n- [ ] 记录与 main 的差异及合并约束：若合入 main 的 adapter 收款支持，必须保留收款授权，同时不得重新引入 Q.registered 运行时交易限制。\n- [ ] 在本 Issue 记录最终处理、对应 MR/完整 commit、验证命令与结果，并提供供 CertiK 复核的证据；已修复项以复核和回归补全验收，不制造无意义的重复代码改动。\n\n### 修复建议及注意事项\n\nmain 应从已注册池、其股票/报价身份和生命周期确认交易合法性，移除对新池准入 registered 的运行时依赖，同时保留 participant 或获准 adapter 的收款限制。补测试：禁用新池后旧池 Direct 卖出继续、未登记池/非交易状态仍拒绝。audit-fix 不需要重复修本项，但合并 main 时需防回归。\n\n## 代码证据（固定 commit）\n\n- main：[ `src/v1/periphery/TSVSwapRouterV1.sol:133` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/periphery/TSVSwapRouterV1.sol#L133)；`bool recipientAllowed = isStockOutput`\n- audit-fix：[ `src/v1/periphery/TSVSwapRouterV1.sol:125` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/543dcd34e882eead3a9f2391540c704105fbc693/src/v1/periphery/TSVSwapRouterV1.sol#L125)；`if (recipient != participant) revert InvalidRequest();`\n- main：[ `src/v1/core/TSVRegistryV1.sol:526` ](https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/core/TSVRegistryV1.sol#L526)；`function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode)`\n\n## 已有验证与边界\n\n调用两个真实 Router，以 mock 隔离 Registry 边界：同一有效形状的 Direct 卖出请求在 Q.registered=false 时，main 返回 InvalidRequest；audit-fix 到达后续 isTradable 检查的哨兵回退。此测试证明早期门槛差异，不宣称完整 swap 已成功。\n\n本次为报告逐项复核，未发送生产交易；mock 边界测试不代表完整端到端攻击或现网资产/角色配置已经确认。\n\n本地针对性测试：`test_OTA08_DisabledQuoteDirectPathComparison`，两个基线均 PASS。PASS 包含问题存在的成功复现，不等于漏洞已修复。正式修复 MR 应将对应场景加入仓库测试。\n\n## 报告原文\n\n<details>\n<summary>展开 PDF 原文文字提取（保留原始内容，版式以附件 PDF 为准）</summary>\n\n```text\n[PDF page 32]\nOTA-08    OKX TSV - AUDIT\n\n\nOTA-08              Quote Admission Flag Incorrectly Blocks Existing Direct Swaps\n\n\n\n\n Category           Severity     Location                                                                                    Status\n\n\n Volatile                Low     core/TSVRegistryV1.sol: 461~462; periphery/TSVSwapRouterV1.sol: 114                             Pending\n Code                            ~115\n\n\n  Description\n\n\n TSVRegistryV1.disableQuoteTokenPoolRegister               allows an account holding     SYMBOL_ADMIN_ROLE        to prevent a quote\ntoken from being used in future pool registrations. The operation preserves the quote metadata and does not modify any\npool that already uses the token.\n\nAn existing pool remains tradable after this operation because its runtime gate evaluates the stored pool lifecycle and the\nsecurity-level pause state without checking the quote token's current         registered     value. The existing tests also encode this\nintended behavior by asserting that both operation gates remain enabled after quote registration is disabled.\n\nHowever,    swapExactInputFromContractDirect            reuses the new-pool admission flag as a live-swap condition. When an\napproved adapter submits a swap through an existing           LIST   pool with the disabled Q as output, the router classifies Q as a\nnon-stock output and requires      getQuoteToken(outputCurrency).registered              to remain true. The request therefore reverts\nwith  InvalidRequest      before reaching    _swap   , even when the recipient is the participant or the calling adapter:\n\n\n  // TSVSwapRouterV1.swapExactInputFromContractDirect(...) —\n  src/v1/periphery/TSVSwapRouterV1.sol:132-137\n          bool isStockOutput = registry.getCurrencyUnderlying(outputCurrency) !=\n  address(0);\n          bool recipientAllowed = isStockOutput\n              ? recipient == participant\n              : registry.getQuoteToken(outputCurrency).registered\n                  && (recipient == participant || recipient == msg.sender);\n          if (!recipientAllowed) revert InvalidRequest();\n\n\nThe same pool can still accept the reverse Direct swap direction because its output is the stock currency, and\n\n swapExactInputFromContract          and  swapExactInput       do not apply the quote-registration condition. Consequently, disabling\nQ for future pool admission breaks quote-output execution only for integrations that use the Direct adapter route, producing\ndirection- and route-dependent failures for a pool that the Registry continues to report as tradable.\n\n\n  Recommendation\n\nUse   QuoteTokenRecord.registered          exclusively as a new-pool admission flag. For Direct swaps against an existing pool,\nderive the quote identity from the registered pool record and apply only the intended recipient restrictions, regardless of\nwhether future registration has been disabled. If disabling a quote token is instead intended to stop its existing markets,\nintroduce a separate runtime trading status and enforce it consistently across every swap entry point.\n```\n\n</details>",
+  "state": "opened",
+  "created_at": "2026-10-31T07:09:14.264Z",
+  "updated_at": "2026-10-31T07:09:14.264Z",
+  "closed_at": null,
+  "closed_by": null,
+  "labels": [],
+  "milestone": null,
+  "assignees": [],
+  "author": {
+    "id": 2461,
+    "username": "zewei.lu",
+    "public_email": null,
+    "name": "zewei.lu@okg.com",
+    "state": "active",
+    "locked": false,
+    "avatar_url": "https://secure.gravatar.com/avatar/8f6a06ace9e6e5d42b74fbb4b3309b3ab7c5c4de1ebfd3070324dcef6def5413?s=80&d=identicon",
+    "web_url": "https://gitlab.okg.com/zewei.lu"
+  },
+  "type": "ISSUE",
+  "assignee": null,
+  "user_notes_count": 0,
+  "merge_requests_count": 0,
+  "upvotes": 0,
+  "downvotes": 0,
+  "start_date": null,
+  "due_date": null,
+  "confidential": false,
+  "discussion_locked": null,
+  "issue_type": "issue",
+  "web_url": "https://gitlab.okg.com/web3-dex/tsv/-/work_items/39",
+  "time_stats": {
+    "time_estimate": 0,
+    "total_time_spent": 0,
+    "human_time_estimate": null,
+    "human_total_time_spent": null
+  },
+  "task_completion_status": {
+    "count": 4,
+    "completed_count": 0
+  },
+  "weight": null,
+  "blocking_issues_count": 0,
+  "has_tasks": false,
+  "_links": {
+    "self": "https://gitlab.okg.com/api/v4/projects/18199/issues/39",
+    "notes": "https://gitlab.okg.com/api/v4/projects/18199/issues/39/notes",
+    "award_emoji": "https://gitlab.okg.com/api/v4/projects/18199/issues/39/award_emoji",
+    "project": "https://gitlab.okg.com/api/v4/projects/18199",
+    "closed_as_duplicate_of": null
+  },
+  "references": {
+    "short": "#39",
+    "relative": "#39",
+    "full": "web3-dex/tsv#39"
+  },
+  "severity": "UNKNOWN",
+  "subscribed": true,
+  "moved_to_id": null,
+  "imported": false,
+  "imported_from": "none",
+  "service_desk_reply_to": null,
+  "epic_iid": null,
+  "epic": null,
+  "iteration": null
+}

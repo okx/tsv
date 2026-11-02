@@ -1,0 +1,25 @@
+{
+  "contract": "TSVVolumeLedgerV1Proxy",
+  "uuid": "b9ac9696-3260-44ba-9dcd-33daa91de077",
+  "address": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+  "txHash": "0x92fd88c9521aab24894108ecdc8d6dce58f303a45b7f1fe4c001017cf8c9b82e",
+  "block": 74502320,
+  "confirmationsAtCheck": 101,
+  "checks": {
+    "receiptStatus": 1,
+    "creationCalldataMatches": true,
+    "runtimeMatches": true,
+    "erc1967ImplementationMatches": true,
+    "initializedDependenciesMatch": true,
+    "reinitializationReverts": true,
+    "reinitializationResponse": {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": 3,
+        "message": "execution reverted",
+        "data": "0xf92ee8a9"
+      },
+      "id": 1
+    }
+  }
+}

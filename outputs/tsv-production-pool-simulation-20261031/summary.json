@@ -1,0 +1,115 @@
+{
+  "status": "CONDITIONAL_FORK_FLOW_PASSED_PRODUCTION_NOT_YET_READY",
+  "scope": "Production TSV deployments on a local Foundry fork only; no mainnet transactions and no private keys",
+  "snapshotBlock": 74651998,
+  "chainId": 196,
+  "sourceCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+  "token": "MSTR",
+  "underlying": "0xf83D29cA0F926CEf42597ac57e807ad452Ce5B43",
+  "permissionedToken": "0xE1218F57c5FE7d11088Ac4682781906f3C4b0BFF",
+  "quote": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+  "legalShareAdapter": "0xb7e043949745296276480ac907819443bb3a1521",
+  "productionContracts": {
+    "TSVRegistryV1": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+    "TSVVolumeLedgerV1": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+    "TSVSwapRouterV1": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+    "TSVLPManagerV1": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+    "TSVHookV1": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff"
+  },
+  "coreImplementations": {
+    "TSVRegistryV1": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+    "TSVVolumeLedgerV1": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
+    "TSVSwapRouterV1": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+    "TSVLPManagerV1": "0x98f9398f865b58c868b7750449f7188c639e4175",
+    "TSVHookV1": "0x6422ef382cfe42b200aec323236c005c604550f7"
+  },
+  "pool": {
+    "id": "0xf62655a1d9e9acb0410b69c3d03493c4c4571800f111b149f4e44e08db414149",
+    "currency0": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+    "currency1": "0xE1218F57c5FE7d11088Ac4682781906f3C4b0BFF",
+    "fee": 3000,
+    "feePercent": "0.3",
+    "tickSpacing": 60,
+    "sqrtPriceX96": "7922816251426433759354395033",
+    "initialPriceAssumption": "1 MSTR = 100 USDC; illustrative, not a market quote",
+    "initialTick": -46055,
+    "lpTicks": [
+      -887220,
+      887220
+    ]
+  },
+  "results": {
+    "poolInitialized": true,
+    "positionTokenId": 1,
+    "liquidity": "9900000",
+    "LP_MSTR": "0.99",
+    "LP_USDC": "99",
+    "buyInputUSDC": "1",
+    "buyOutputMSTR": "0.009869",
+    "sellInputMSTR": "0.005",
+    "sellOutputUSDC": "0.506017",
+    "dailyQuotaShares": "1000",
+    "usedSharesAfterBuy": "0.009869",
+    "usedSharesAfterSell": "0.014869",
+    "balancesVerifiedAgainstReturnValues": true,
+    "LP_NFT_OwnerAndLiquidityVerified": true
+  },
+  "baselineErrors": {
+    "initializePool": "NoVerifiedAdapter()",
+    "mintLP": "Unauthorized()",
+    "swap": "PoolNotTradable()"
+  },
+  "currentProductionGaps": [
+    "MSTR W has not passed Factory verification",
+    "MSTR W/U/security/LegalShareAdapter have not been registered",
+    "MSTR W swappingEnabled is false",
+    "Selected actor lacks production SBT LP/SWAP eligibility",
+    "Selected actor has no MSTR; production issuer investor registration and transferable funding must be arranged",
+    "Security daily quota must be set after registration"
+  ],
+  "forkOnlyPreparation": [
+    "Impersonate TSV administrator and W owner; use their real production methods",
+    "Assume issuer Global Registry role for issuer master using fork-only role storage override; execute genuine investor registration and addWallet",
+    "Issue 2 MSTR through the actual production issuer issueTokens method; genuine verification deposit of 1 raw unit succeeds",
+    "Assume the selected registered SBT identity is held by actor using one scoped SBT verify mock",
+    "Provide 200 synthetic USDC in fork-only storage",
+    "Factory verify W, register MSTR tier 1/security/adapter, enable W swaps, grant admin VOLUME_ORACLE_ROLE and set quota 1000 shares"
+  ],
+  "assumptions": {
+    "actor": "0x31846cfea0c2b5eea300bc8c4af50ed563a9f042",
+    "issuerMaster": "0x551e841e6fb54431a0664C8776784F6d7E611428",
+    "assumedIssuerRegistryRole": "0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929",
+    "SBT_ID_assumedHeld": "61447665466135527063317911408577726362905873396052804937951574812930195048448",
+    "issuerCheckerMocked": false,
+    "underlyingTransferMocked": false,
+    "coreBytecodeReplaced": false,
+    "coreMethodsMocked": false,
+    "mainnetTransactionsSent": 0
+  },
+  "mainnetPostcheck": {
+    "checkedBlock": 74652521,
+    "registeredUnderlying": [
+      "0x0000000000000000000000000000000000000000"
+    ],
+    "factoryVerifiedUnderlying": [
+      "0x0000000000000000000000000000000000000000"
+    ],
+    "swappingEnabled": [
+      false
+    ],
+    "actorHasLpIdentity": [
+      false
+    ],
+    "actorUStockBalance": [
+      0
+    ],
+    "lpNextTokenId": [
+      1
+    ],
+    "WAlreadyPlatformWallet": [
+      true
+    ]
+  },
+  "diagnosticNote": "Early direct balance-injection diagnostics did not update Securitize investor-level accounting and produced Tokens Locked. This is not evidence that all production holdings are locked; the final successful scenario uses actual issuer registration and issuance instead.",
+  "validation": "4 tests passed, including actual return values, underlying/quote balance deltas, LP NFT ownership/liquidity and ledger legal-share usage."
+}

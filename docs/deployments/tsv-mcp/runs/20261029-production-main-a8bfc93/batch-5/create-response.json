@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Tool call failed: HTTP 500"
+    }
+  ],
+  "isError": false
+}

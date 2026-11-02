@@ -1,0 +1,587 @@
+{
+  "network": {
+    "name": "XLayer",
+    "chainId": 196,
+    "rpcUrl": "https://rpc.xlayer.tech"
+  },
+  "privilegeAddress": "0xeb84007545644e10c1a47502438377f7cd192904",
+  "registryInitialAdmin": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+  "dependencies": {
+    "poolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+    "permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
+    "positionDescriptor": "0x9e9fbbef0e1bd752e83de5acff3d0c936a9e5a4b",
+    "wokb": "0xe538905cf8410324e03a5a23c1c177a474d59b2b"
+  },
+  "configuration": {
+    "unsubscribeGasLimit": 200000,
+    "deliveryGasLimit": 500000,
+    "gasValueProvenance": "Explicitly confirmed by deployment continuation using same preproduction constructor parameters: unsubscribe 200000, delivery 500000.",
+    "lpConstructorRegistryArgumentRemoved": true
+  },
+  "scope": {
+    "createW": false,
+    "businessConfiguration": false,
+    "initializeProxiesAtomically": true
+  },
+  "legalShareAdapter": {
+    "underlyingU": null,
+    "status": "DEFERRED_NO_U_PROVIDED"
+  },
+  "status": "ALL_15_CORE_CONTRACTS_DEPLOYED_AND_INITIALIZED",
+  "createdAt": "2026-10-29T09:07:47.987560+00:00",
+  "source": {
+    "branch": "origin/main",
+    "commit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+    "worktree": ".production-tsv-main-a8bfc93-20261029",
+    "previousRun": "20261029-production-main"
+  },
+  "mcp": {
+    "deptName": "Dex",
+    "approvalSignatures": [
+      {
+        "approval_address": "0x148828cA0b08f9882336794E4FE196c975C11aFc",
+        "signature": ""
+      }
+    ],
+    "tasksSubmitted": [
+      {
+        "uuid": "df8ba5a5-c4cb-49e4-a4f1-3052b2654709",
+        "task_id": 9084,
+        "ref_order_id": "3431c498-1e85-47f7-9173-f077fe97d713",
+        "chain_id": 196,
+        "task_status": 3,
+        "name": "TSV-prod-20261029-a8bfc93-PermissionedValidationLib"
+      },
+      {
+        "uuid": "f054087a-f51d-48e0-b13c-a237c733be0d",
+        "task_id": 9085,
+        "ref_order_id": "271dd38f-d16a-47bd-bcfe-b3419b1dd0de",
+        "chain_id": 196,
+        "task_status": 3,
+        "name": "TSV-prod-20261029-a8bfc93-TSVLPManagerLib"
+      },
+      {
+        "uuid": "e454683b-05f8-4a3f-91e1-e3c1eab178a8",
+        "task_id": 9086,
+        "ref_order_id": "cdd390ba-8712-469a-aab5-bc340b2112ce",
+        "chain_id": 196,
+        "task_status": 3,
+        "name": "TSV-prod-20261029-a8bfc93-LPPositionMath"
+      },
+      {
+        "uuid": "0ba3a436-f61b-4e87-8655-25b3eaa7c4e7",
+        "task_id": 9087,
+        "ref_order_id": "be2850f4-395a-42ee-a9f4-474fdbfa3032",
+        "chain_id": 196,
+        "task_status": 3,
+        "name": "TSV-prod-20261029-a8bfc93-PermissionsAdapterFactory"
+      },
+      {
+        "uuid": "bf8b4359-5746-4f5b-87af-afe645037320",
+        "task_id": 9088,
+        "ref_order_id": "7b35abc7-f8c8-42cb-9fba-16691cd99546",
+        "chain_id": 196,
+        "task_status": 3,
+        "name": "TSV-prod-20261029-a8bfc93-TSVHookProxyFactoryV1"
+      },
+      {
+        "uuid": "684b2c39-d4b2-4ed8-aabc-e1b7dad77729",
+        "task_id": 9089,
+        "ref_order_id": "d6f62606-4acc-41a2-a21f-e012bd46d56b",
+        "chain_id": 196,
+        "task_status": 3,
+        "name": "TSV-prod-20261029-a8bfc93-TSVVolumeLedgerV1"
+      },
+      {
+        "uuid": "a360ae64-3088-4121-a02b-46be0bb74e89",
+        "task_id": 9090,
+        "ref_order_id": "6df0ea5e-3f98-418a-b9a8-adb211bc10d5",
+        "chain_id": 196,
+        "task_status": 3,
+        "name": "TSV-prod-20261029-a8bfc93-TSVHookV1"
+      }
+    ],
+    "latestBatchSubmission": {
+      "preparedAt": "2026-10-29T10:42:42.030722+00:00",
+      "request": "requests/batch1-flat-20261029T104242Z.json",
+      "sha256": "f070adffdc61abd0e9e64834ac4fc3e6ebb3d656658e9d289154eac332a699cf",
+      "mapping": [
+        {
+          "name": "TSV-prod-20261029-a8bfc93-PermissionedValidationLib",
+          "previousUuid": "c02fd72c-99b1-4db6-9735-b09f9dcc9259",
+          "newUuid": "df8ba5a5-c4cb-49e4-a4f1-3052b2654709"
+        },
+        {
+          "name": "TSV-prod-20261029-a8bfc93-TSVLPManagerLib",
+          "previousUuid": "95305eab-2e2e-4b0f-9309-1aa42e8ab7ed",
+          "newUuid": "f054087a-f51d-48e0-b13c-a237c733be0d"
+        },
+        {
+          "name": "TSV-prod-20261029-a8bfc93-LPPositionMath",
+          "previousUuid": "a562b89b-ff7f-471a-b1f9-95ad471c1a16",
+          "newUuid": "e454683b-05f8-4a3f-91e1-e3c1eab178a8"
+        },
+        {
+          "name": "TSV-prod-20261029-a8bfc93-PermissionsAdapterFactory",
+          "previousUuid": "829feedf-05c3-474b-84ef-49cf88f6753e",
+          "newUuid": "0ba3a436-f61b-4e87-8655-25b3eaa7c4e7"
+        },
+        {
+          "name": "TSV-prod-20261029-a8bfc93-TSVHookProxyFactoryV1",
+          "previousUuid": "ae96db19-05c8-43b5-bdc1-54760f7c1b36",
+          "newUuid": "bf8b4359-5746-4f5b-87af-afe645037320"
+        },
+        {
+          "name": "TSV-prod-20261029-a8bfc93-TSVVolumeLedgerV1",
+          "previousUuid": "2923b4f7-8836-4b3b-8acb-33d128425ca2",
+          "newUuid": "684b2c39-d4b2-4ed8-aabc-e1b7dad77729"
+        },
+        {
+          "name": "TSV-prod-20261029-a8bfc93-TSVHookV1",
+          "previousUuid": "f2a11744-0243-48c2-8222-3271c3c11447",
+          "newUuid": "a360ae64-3088-4121-a02b-46be0bb74e89"
+        }
+      ],
+      "response": "batch1-flat-response-20261029T104242Z.json",
+      "statusResponse": "batch1-flat-status-20261029T104242Z.json",
+      "status": "TASKS_CREATED",
+      "wireShape": "top-level deptName / tasks",
+      "taskCount": 7,
+      "sourceCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+      "sentAt": "2026-10-29T10:43:14.552097+00:00",
+      "serverCode": 0,
+      "tasksCreated": [
+        {
+          "uuid": "df8ba5a5-c4cb-49e4-a4f1-3052b2654709",
+          "task_id": 9084,
+          "ref_order_id": "3431c498-1e85-47f7-9173-f077fe97d713",
+          "chain_id": 196,
+          "task_status": 3
+        },
+        {
+          "uuid": "f054087a-f51d-48e0-b13c-a237c733be0d",
+          "task_id": 9085,
+          "ref_order_id": "271dd38f-d16a-47bd-bcfe-b3419b1dd0de",
+          "chain_id": 196,
+          "task_status": 3
+        },
+        {
+          "uuid": "e454683b-05f8-4a3f-91e1-e3c1eab178a8",
+          "task_id": 9086,
+          "ref_order_id": "cdd390ba-8712-469a-aab5-bc340b2112ce",
+          "chain_id": 196,
+          "task_status": 3
+        },
+        {
+          "uuid": "0ba3a436-f61b-4e87-8655-25b3eaa7c4e7",
+          "task_id": 9087,
+          "ref_order_id": "be2850f4-395a-42ee-a9f4-474fdbfa3032",
+          "chain_id": 196,
+          "task_status": 3
+        },
+        {
+          "uuid": "bf8b4359-5746-4f5b-87af-afe645037320",
+          "task_id": 9088,
+          "ref_order_id": "7b35abc7-f8c8-42cb-9fba-16691cd99546",
+          "chain_id": 196,
+          "task_status": 3
+        },
+        {
+          "uuid": "684b2c39-d4b2-4ed8-aabc-e1b7dad77729",
+          "task_id": 9089,
+          "ref_order_id": "d6f62606-4acc-41a2-a21f-e012bd46d56b",
+          "chain_id": 196,
+          "task_status": 3
+        },
+        {
+          "uuid": "a360ae64-3088-4121-a02b-46be0bb74e89",
+          "task_id": 9090,
+          "ref_order_id": "6df0ea5e-3f98-418a-b9a8-adb211bc10d5",
+          "chain_id": 196,
+          "task_status": 3
+        }
+      ]
+    },
+    "approvalUrl": "https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16545?_region_=GLOBAL",
+    "envelopeAcceptance": "Nested request returned tasks不能为空; flat deptName/tasks returned seven created deployment tasks.",
+    "latestSingleSubmission": {
+      "preparedAt": "2026-10-29T09:37:47.295489+00:00",
+      "request": "requests/single-permissioned-validation-lib-20261029T093747Z.json",
+      "uuid": "f27389d3-dfc4-4582-a18e-41cf27f12b95",
+      "previousUuid": "620cca61-dfd7-4cd5-9128-10d6f0d71e73",
+      "name": "TSV-prod-20261029-a8bfc93-PermissionedValidationLib",
+      "sha256": "c9e1eb8bfbab31eed9eef7ae307a9887250c2a6ae9fe6f4625b1d57af817ed4e",
+      "status": "SENT_NEW_APPROVAL_GENERATED",
+      "taskCount": 1,
+      "sourceCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+      "response": "single-permissioned-validation-lib-response-20261029T093747Z.json",
+      "sentAt": "2026-10-29T09:38:01.751887+00:00",
+      "serverErrorCode": "10020",
+      "approvalInstance": 16546,
+      "requestId": "NRI_0c744c0f44b54ccab81e6d80908c5fd3",
+      "taskStatus": "任务不存在",
+      "broadcastConfirmed": false
+    },
+    "latestApprovalUrl": "https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16546?_region_=GLOBAL",
+    "requestShape": "top-level deptName and tasks; no request wrapper",
+    "latestTaskStates": [
+      {
+        "contract": "PermissionedValidationLib",
+        "uuid": "df8ba5a5-c4cb-49e4-a4f1-3052b2654709",
+        "taskId": 9084,
+        "task_status_name": "TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS",
+        "tx_hash": "0xaafdde4c340db103a23d50383a5cf82539241779192822ef6244fde7c22c8af4",
+        "contract_address_from_receipt": "0x8db3a851e94b38e258f801f835e2e7deeb217538"
+      },
+      {
+        "contract": "TSVLPManagerLib",
+        "uuid": "f054087a-f51d-48e0-b13c-a237c733be0d",
+        "taskId": 9085,
+        "task_status_name": "TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS",
+        "tx_hash": "0x65ecb02f8ab68328f151b820602abe0cd2c7f620357e1d62cd5b25c7d51d9ce1",
+        "contract_address_from_receipt": "0x1fb638662581dcdd02f3908459030c337f521114"
+      },
+      {
+        "contract": "LPPositionMath",
+        "uuid": "e454683b-05f8-4a3f-91e1-e3c1eab178a8",
+        "taskId": 9086,
+        "task_status_name": "TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS",
+        "tx_hash": "0xe67b1655509e3ab671570e33e94ead8c93b0d6730fa5c4a8e8e84faab339cd84",
+        "contract_address_from_receipt": "0xe3334c3a8bf40cb9079ed0cb26cd8e696f76d6f4"
+      },
+      {
+        "contract": "PermissionsAdapterFactory",
+        "uuid": "0ba3a436-f61b-4e87-8655-25b3eaa7c4e7",
+        "taskId": 9087,
+        "task_status_name": "TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS",
+        "tx_hash": "0x095adb2cf02d432f4214d62532ca0bf6390a3b720903a51b84bf4992e2dce63b",
+        "contract_address_from_receipt": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba"
+      },
+      {
+        "contract": "TSVHookProxyFactoryV1",
+        "uuid": "bf8b4359-5746-4f5b-87af-afe645037320",
+        "taskId": 9088,
+        "task_status_name": "TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS",
+        "tx_hash": "0x9e3824788a9e19d3804b8dd857d679ae5bae1fbc619cf5ddcaad4f4f201d170f",
+        "contract_address_from_receipt": "0xed28206bf9a16e4dc64b893563a48a1bb1e34c60"
+      },
+      {
+        "contract": "TSVVolumeLedgerV1",
+        "uuid": "684b2c39-d4b2-4ed8-aabc-e1b7dad77729",
+        "taskId": 9089,
+        "task_status_name": "TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS",
+        "tx_hash": "0x68537719cd158d11cc8410491d508443903219683728805e9710743e4fe7204f",
+        "contract_address_from_receipt": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3"
+      },
+      {
+        "contract": "TSVHookV1",
+        "uuid": "a360ae64-3088-4121-a02b-46be0bb74e89",
+        "taskId": 9090,
+        "task_status_name": "TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS",
+        "tx_hash": "0x13946a49b8be69e47d288bb055cb19955d94950b9c67c58773da155be699ef0e",
+        "contract_address_from_receipt": "0x6422ef382cfe42b200aec323236c005c604550f7"
+      }
+    ]
+  },
+  "broadcastConfirmed": true,
+  "transactions": [
+    {
+      "contract": "PermissionedValidationLib",
+      "taskId": 9084,
+      "uuid": "df8ba5a5-c4cb-49e4-a4f1-3052b2654709",
+      "txHash": "0xaafdde4c340db103a23d50383a5cf82539241779192822ef6244fde7c22c8af4",
+      "address": "0x8db3a851e94b38e258f801f835e2e7deeb217538",
+      "block": 74501535,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVLPManagerLib",
+      "taskId": 9085,
+      "uuid": "f054087a-f51d-48e0-b13c-a237c733be0d",
+      "txHash": "0x65ecb02f8ab68328f151b820602abe0cd2c7f620357e1d62cd5b25c7d51d9ce1",
+      "address": "0x1fb638662581dcdd02f3908459030c337f521114",
+      "block": 74501545,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "LPPositionMath",
+      "taskId": 9086,
+      "uuid": "e454683b-05f8-4a3f-91e1-e3c1eab178a8",
+      "txHash": "0xe67b1655509e3ab671570e33e94ead8c93b0d6730fa5c4a8e8e84faab339cd84",
+      "address": "0xe3334c3a8bf40cb9079ed0cb26cd8e696f76d6f4",
+      "block": 74501555,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "PermissionsAdapterFactory",
+      "taskId": 9087,
+      "uuid": "0ba3a436-f61b-4e87-8655-25b3eaa7c4e7",
+      "txHash": "0x095adb2cf02d432f4214d62532ca0bf6390a3b720903a51b84bf4992e2dce63b",
+      "address": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+      "block": 74501565,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVHookProxyFactoryV1",
+      "taskId": 9088,
+      "uuid": "bf8b4359-5746-4f5b-87af-afe645037320",
+      "txHash": "0x9e3824788a9e19d3804b8dd857d679ae5bae1fbc619cf5ddcaad4f4f201d170f",
+      "address": "0xed28206bf9a16e4dc64b893563a48a1bb1e34c60",
+      "block": 74501575,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVVolumeLedgerV1",
+      "taskId": 9089,
+      "uuid": "684b2c39-d4b2-4ed8-aabc-e1b7dad77729",
+      "txHash": "0x68537719cd158d11cc8410491d508443903219683728805e9710743e4fe7204f",
+      "address": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
+      "block": 74501585,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVHookV1",
+      "taskId": 9090,
+      "uuid": "a360ae64-3088-4121-a02b-46be0bb74e89",
+      "txHash": "0x13946a49b8be69e47d288bb055cb19955d94950b9c67c58773da155be699ef0e",
+      "address": "0x6422ef382cfe42b200aec323236c005c604550f7",
+      "block": 74501595,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVRegistryV1",
+      "uuid": "75b5aef4-5c8e-4258-9259-afb773328b9d",
+      "txHash": "0x7bf8aaab36b25aed30eb6b240e4441c4904eb113d8da416c007541619b91e0d5",
+      "address": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+      "block": 74502150,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVSwapRouterV1",
+      "uuid": "9b91a97e-305d-4ecc-aa41-4def90e0977f",
+      "txHash": "0x969eb07b3e9fcbc3d385c4886ed9e17188fa28b08cfc987cc000118d1762bc9c",
+      "address": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+      "block": 74502160,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVRegistryV1Proxy",
+      "uuid": "60ec6c40-ed36-48d9-91b0-a5e95cce67ee",
+      "txHash": "0x46ea485908f82be0c370d72999ed99c1daa40ec7f9c4ee34edf62067600a0013",
+      "address": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+      "block": 74502235,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVVolumeLedgerV1Proxy",
+      "uuid": "b9ac9696-3260-44ba-9dcd-33daa91de077",
+      "txHash": "0x92fd88c9521aab24894108ecdc8d6dce58f303a45b7f1fe4c001017cf8c9b82e",
+      "address": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+      "block": 74502320,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVSwapRouterV1Proxy",
+      "uuid": "a211496a-e8ee-407d-9646-8a4c0d83a064",
+      "txHash": "0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593",
+      "address": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+      "block": 74502370,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVLPManagerV1",
+      "uuid": "12d0de6a-54d3-455a-a837-51383837e86b",
+      "txHash": "0xf3658c4213c9d3ba49abe31d0130da3c5b1c1a00f4ddc9f6af73af867147d323",
+      "address": "0x98f9398f865b58c868b7750449f7188c639e4175",
+      "block": 74502340,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVLPManagerV1Proxy",
+      "uuid": "4958e3c5-1935-4b23-a806-6cf94f0c6189",
+      "txHash": "0xa748817a5039ad02cdd16d6fd2f297b36cfee571f3b508e61102d037ec5d878e",
+      "address": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+      "block": 74502470,
+      "receiptStatus": 1
+    },
+    {
+      "contract": "TSVHookV1Proxy",
+      "txHash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501",
+      "address": "0xF151416e74d6B4Ae00197e8D8E4f4765283B3fff",
+      "block": 74560445,
+      "receiptStatus": 1,
+      "deploymentChannel": "USER_MANUAL_FACTORY_CALL"
+    }
+  ],
+  "build": {
+    "status": "SUCCESS_WITH_WARNINGS",
+    "compiler": "0.8.26",
+    "forgeVersion": "1.7.1",
+    "evmVersion": "cancun",
+    "optimizer": true,
+    "optimizerRuns": 200,
+    "viaIR": true,
+    "bytecodeHash": "none",
+    "scope": "explicit deployment entry sources; 172 compiled files; not full repository test validation",
+    "cliRemapping": "@uniswap/v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
+    "v4PeripheryCommit": "9969eec44cfdf07e24b41de47f40276a58401976",
+    "sbtCommit": "a4c53ccbf7de65a3f415a706d22a506a215b68fc",
+    "openzeppelinVersion": "5.5.0",
+    "lpManagerConstructorArgs": 7
+  },
+  "latestCheck": {
+    "at": "2026-10-29T10:47:31.308419+00:00",
+    "record": "batch1-chain-verification.json",
+    "tasksFound": 7,
+    "tasksSuccess": 7,
+    "chainVerified": 7,
+    "minimumConfirmations": 209
+  },
+  "remainingDeployment": "Core deployment complete. Business binding, assets, pools and quotas are a separate configuration phase.",
+  "completedBatches": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "dependentBatchTasks": {
+    "2": [
+      {
+        "uuid": "75b5aef4-5c8e-4258-9259-afb773328b9d",
+        "task_id": 9091,
+        "ref_order_id": "9289fb27-e2d6-4d72-95ad-5a136c79f355",
+        "chain_id": 196,
+        "task_status": 3
+      },
+      {
+        "uuid": "9b91a97e-305d-4ecc-aa41-4def90e0977f",
+        "task_id": 9092,
+        "ref_order_id": "86120599-179c-4920-bda7-6d30ab5e7fb0",
+        "chain_id": 196,
+        "task_status": 3
+      }
+    ],
+    "3": [
+      {
+        "uuid": "60ec6c40-ed36-48d9-91b0-a5e95cce67ee",
+        "task_id": 9093,
+        "ref_order_id": "1dbb7ed2-c93c-4916-aea1-9043b62af36f",
+        "chain_id": 196,
+        "task_status": 3
+      }
+    ],
+    "4": [
+      {
+        "uuid": "b9ac9696-3260-44ba-9dcd-33daa91de077",
+        "task_id": 9094,
+        "ref_order_id": "7b17bf83-a333-44c2-99ba-025ac4b82dd3",
+        "chain_id": 196,
+        "task_status": 3
+      },
+      {
+        "uuid": "a211496a-e8ee-407d-9646-8a4c0d83a064",
+        "task_id": 9095,
+        "ref_order_id": "eb3de0a7-ee0f-4e26-857d-bd68cc38732a",
+        "chain_id": 196,
+        "task_status": 3
+      },
+      {
+        "uuid": "12d0de6a-54d3-455a-a837-51383837e86b",
+        "task_id": 9096,
+        "ref_order_id": "c8860d44-b86f-4542-99b8-8417be2fedd7",
+        "chain_id": 196,
+        "task_status": 3
+      }
+    ]
+  },
+  "manualHookDeployment": "manual-hook-deployment.json",
+  "supportingBootstrap": {
+    "status": "NOT_DEPLOYED_NOT_NEEDED_MANUAL_FACTORY_COMPLETED",
+    "testResult": "2 passed, 0 failed",
+    "userSelected": "manual Factory invocation instead",
+    "source": "supporting-contracts/TSVHookProxyMcpBootstrap.sol"
+  },
+  "registrationExport": {
+    "createdAt": "2026-10-30T03:11:55.269696+00:00",
+    "directory": "contract-registration",
+    "archive": "TSV-production-contract-registration-20261029.zip",
+    "archiveSha256": "15097abd364d9ea4edeb24517ceadc47a8bd0a6060a127b48133c376cf545ca0",
+    "contractFiles": 15,
+    "deployed": 15,
+    "pending": 0,
+    "pendingFieldsUserConfirmed": [
+      "module_name",
+      "visibility_scope",
+      "业务来源",
+      "业务版本 ID",
+      "合约属性",
+      "合约范围",
+      "main_developer",
+      "是否进行活跃检查"
+    ],
+    "abiMode": "Raw ABI for direct contracts; proxy + implementation interface merged for proxy records",
+    "validation": "All 21 fields present; ABI source and constructors checked; deployment block timestamps checked; package CRC and checksums verified",
+    "submittedToAssetRegistry": false,
+    "status": "UPDATED_ALL_15_DEPLOYED",
+    "hookRecord": "contract-registration/contracts/15_TSVHookV1Proxy.json"
+  },
+  "latestReadinessCheck": {
+    "checkedAt": "2026-10-30T03:10:16.216588+00:00",
+    "block": 74560777,
+    "status": "DEPLOYED_INITIALIZED_NOT_BUSINESS_CONFIGURED",
+    "deployedContractsVerified": 15,
+    "initializedProxiesVerified": 5,
+    "hookProxyDeployed": true,
+    "registryBusinessBindingsConfigured": false,
+    "sbtConfigured": false,
+    "initialAdminUpgradeRoleVerified": true,
+    "readOnly": true,
+    "evidence": [
+      "final-checks.json",
+      "contract-registration-chain-snapshot.json"
+    ]
+  },
+  "hookManualDeployment": {
+    "contract": "TSVHookV1Proxy",
+    "address": "0xF151416e74d6B4Ae00197e8D8E4f4765283B3fff",
+    "txHash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501",
+    "block": 74560445,
+    "deploymentTimeUTC": "2026-10-30T03:04:41+00:00",
+    "deploymentTimeShanghai": "2026-10-30T11:04:41+08:00",
+    "deploymentChannel": "USER_MANUAL_FACTORY_CALL",
+    "transactionSender": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+    "taskId": null,
+    "uuid": null,
+    "confirmationsAtCheck": 282,
+    "checks": {
+      "receiptStatus": 1,
+      "factoryCalldataMatchesPreparedParameters": true,
+      "factoryEventAndSaltMatches": true,
+      "runtimeMatchesCompiledProxy": true,
+      "erc1967ImplementationMatches": true,
+      "hookPermissionBits": "0x3fff",
+      "initializedDependencies": {
+        "poolManager()": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+        "registry()": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+        "ledger()": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+        "router()": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+        "lpManager()": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76"
+      },
+      "reinitializationReverts": true,
+      "reinitializationResponse": {
+        "jsonrpc": "2.0",
+        "error": {
+          "code": 3,
+          "message": "execution reverted",
+          "data": "0xf92ee8a9"
+        },
+        "id": 1
+      }
+    }
+  },
+  "finalDeploymentChecks": "final-checks.json",
+  "governanceUpgradeChecks": "final-checks.json",
+  "businessReady": false,
+  "businessReadyReason": "Registry component/SBT bindings remain zero; no business setup performed."
+}

@@ -1,0 +1,21 @@
+{
+  "uuid": "f27389d3-dfc4-4582-a18e-41cf27f12b95",
+  "createResponse": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"code\":0,\"msg\":\"Approval instance generated successfully. https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16546?_region_=GLOBAL\",\"error_code\":\"10020\",\"error_message\":\"Approval instance generated successfully. https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16546?_region_=GLOBAL\",\"detailMsg\":\"\",\"data\":{},\"requestId\":\"NRI_0c744c0f44b54ccab81e6d80908c5fd3\"}"
+      }
+    ],
+    "isError": false
+  },
+  "statusResponse": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"code\":-1,\"msg\":\"任务不存在\",\"data\":null,\"detailMsg\":null,\"msg_detail\":null}"
+      }
+    ],
+    "isError": false
+  }
+}
