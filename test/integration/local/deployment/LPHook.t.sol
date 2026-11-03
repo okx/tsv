@@ -23,6 +23,7 @@ import {IAllowlistChecker} from "tsv-v1/vendor/permissionedPools/interfaces/IAll
 import {ITSVPermissionedRegistry} from "tsv-v1/interfaces/ITSVPermissionedRegistry.sol";
 import {TSVHookV1} from "tsv-v1/core/TSVHookV1.sol";
 import {TSVLPManagerLib} from "tsv-v1/libraries/TSVLPManagerLib.sol";
+import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVERC1967Proxy} from "tsv-v1/deployment/TSVERC1967Proxy.sol";
 import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
@@ -289,7 +290,7 @@ contract LPHookTest is Test {
         assertEq(stock.balanceOf(alice), 0);
         assertEq(stock.balanceOf(address(this)), 0);
         assertEq(registry.getPoolTickCount(PoolId.unwrap(key.toId())), 0);
-        vm.expectRevert(bytes("NOT_MINTED"));
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, tokenId));
         lp.ownerOf(tokenId);
     }
 
