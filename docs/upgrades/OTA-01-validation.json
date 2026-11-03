@@ -1,0 +1,58 @@
+{
+  "productionBaseline": {
+    "block": 74915874,
+    "registryProxy": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+    "currentImplementation": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+    "deploymentImplementation": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+    "matchesProductionDeployment": true,
+    "deploymentCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420"
+  },
+  "releaseBranch": "release-prod-V0.0.1-20261029",
+  "compatibility": {
+    "storageLayoutUnchanged": true,
+    "registryStorageEntries": 14,
+    "abiUnchanged": {
+      "TSVRegistryV1": true,
+      "PermissionedValidationLib": true,
+      "ERC8056DirectLegalShareAdapter": true
+    },
+    "runtimeBytecodeBytes": {
+      "TSVRegistryV1": 16982,
+      "PermissionedValidationLib": 3926,
+      "ERC8056DirectLegalShareAdapter": 994
+    },
+    "productionBaseCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+    "unchangedAbiSha256": {
+      "TSVRegistryV1": "2e1f883e636a91223dafd52597f482a0da54488abf39295b854515ae8fb4f5da",
+      "PermissionedValidationLib": "6dcb3b5b87d46b9158eade917481b3f9678c5abbd7e23beb075d74a6ce2abab8",
+      "ERC8056DirectLegalShareAdapter": "b4f9accfea030839d33561f380fe54fc7b5432f2235d5ec73468992a897e898f"
+    }
+  },
+  "regressionBeforeFix": {
+    "expected_failures": [
+      "testRejectsUnderlyingWithoutMultiplierInterface",
+      "testAdmissionRejectsZeroLiveMultiplierAndRollsBackListing"
+    ],
+    "reason": "Both incorrectly succeeded on the unmodified production source baseline."
+  },
+  "focusedSuite": {
+    "command": "FOUNDRY_PROFILE=ota01 forge test -vv",
+    "passed": 54,
+    "failed": 0,
+    "fuzzRunsPerProperty": 256
+  },
+  "expandedRegistryRun": {
+    "total": 95,
+    "passed": 90,
+    "failed": 5,
+    "sameFailuresReproducedOnUnmodifiedBaseline": true,
+    "existingFailureNames": [
+      "testAdditionalIdentityValidationAndReadFailuresDoNotMeanRevocation",
+      "testBusinessOperatorsCannotChangeAdminConfigurationOrOracleQuota",
+      "testGovernorOnlyEnvironmentSettings",
+      "testInvalidIdentityRegistrationAndUpdateAreAtomic",
+      "testSbtConfigurationAndUpdateEventsWithMalformedReadsAtomic"
+    ]
+  },
+  "mainnetWrites": 0
+}

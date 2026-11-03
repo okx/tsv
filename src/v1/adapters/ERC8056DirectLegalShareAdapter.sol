@@ -21,7 +21,9 @@ contract ERC8056DirectLegalShareAdapter is IDirectLegalShareAdapter {
     constructor(address currency_) {
         if (currency_ == address(0) || currency_.code.length == 0) revert InvalidAdapterConfig();
         uint8 decimals_ = IERC8056DirectMultiplierSource(currency_).decimals();
-        if (decimals_ > 18) revert InvalidAdapterConfig();
+        if (decimals_ > 18 || IERC8056DirectMultiplierSource(currency_).uiMultiplier() == 0) {
+            revert InvalidAdapterConfig();
+        }
         poolCurrency = currency_;
     }
 

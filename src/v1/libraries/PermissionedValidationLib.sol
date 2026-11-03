@@ -52,7 +52,7 @@ library PermissionedValidationLib {
         _validateQuoteIdentity(quote);
     }
 
-    /// @dev Validates a legal-share adapter's interface support and bound underlying currency.
+    /// @dev Validates interface support, bound underlying, and a currently available nonzero multiplier.
     /// @param adapter Candidate legal-share adapter to validate.
     /// @param currency Canonical underlying U expected by the adapter.
     function validateLegalShareAdapter(address adapter, address currency) external view {
@@ -65,12 +65,19 @@ library PermissionedValidationLib {
             abi.encodeWithSelector(IERC165.supportsInterface.selector, type(IDirectLegalShareAdapter).interfaceId)
         );
         uint256 supported;
-        if (result.length >= 32) assembly ("memory-safe") {
-            supported := mload(add(result, 32))
+        if (result.length >= 32) {
+            assembly ("memory-safe") {
+                supported := mload(add(result, 32))
+            }
         }
-        if (!ok || supported != 1 || _readAddress(adapter, IDirectLegalShareAdapter.poolCurrency.selector) != currency) {
+        if (!ok || supported != 1 || _readAddress(adapter, IDirectLegalShareAdapter.poolCurrency.selector) != currency)
+        {
             revert InvalidConfig();
         }
+        if (
+            _staticWord(adapter, IDirectLegalShareAdapter.currentMultiplier.selector, uint256(uint160(currency)), 36)
+                == 0
+        ) revert InvalidConfig();
     }
 
     /// @dev Shared strict getter decoding avoids duplicating external-call code across admission checks.

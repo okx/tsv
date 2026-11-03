@@ -2,11 +2,68 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC8056TestToken} from "../../../../lib/TestToken/erc8056/ERC8056TestToken.sol";
 import {ERC8056DirectLegalShareAdapter} from "tsv-v1/adapters/ERC8056DirectLegalShareAdapter.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 
+contract PlainERC20WithoutMultiplier is ERC20 {
+    constructor() ERC20("Plain ERC20", "PLAIN") {}
+}
+
 contract ERC8056DirectLegalShareAdapterTest is Test {
+    function testRejectsUnderlyingWithoutMultiplierInterface() public {
+        ERC20 token = new PlainERC20WithoutMultiplier();
+
+        vm.expectRevert();
+        new ERC8056DirectLegalShareAdapter(address(token));
+    }
+
+    function testRejectsZeroMultiplierAtConstruction() public {
+        ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
+        vm.mockCall(address(token), abi.encodeWithSignature("uiMultiplier()"), abi.encode(uint256(0)));
+
+        vm.expectRevert(ERC8056DirectLegalShareAdapter.InvalidAdapterConfig.selector);
+        new ERC8056DirectLegalShareAdapter(address(token));
+    }
+
+    function testRejectsRevertingMultiplierAtConstruction() public {
+        ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
+        bytes memory reason = abi.encodeWithSignature("MultiplierUnavailable()");
+        vm.mockCallRevert(address(token), abi.encodeWithSignature("uiMultiplier()"), reason);
+
+        vm.expectRevert(reason);
+        new ERC8056DirectLegalShareAdapter(address(token));
+    }
+
+    function testRejectsMalformedMultiplierAtConstruction() public {
+        ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
+        uint256[3] memory lengths = [uint256(0), 1, 31];
+        for (uint256 i; i < lengths.length; ++i) {
+            vm.mockCall(address(token), abi.encodeWithSignature("uiMultiplier()"), new bytes(lengths[i]));
+            vm.expectRevert();
+            new ERC8056DirectLegalShareAdapter(address(token));
+            vm.clearMockedCalls();
+        }
+    }
+
+    function testAcceptsSmallPositiveMultiplierAtConstruction() public {
+        ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
+        vm.mockCall(address(token), abi.encodeWithSignature("uiMultiplier()"), abi.encode(uint256(1)));
+
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
+        assertEq(adapter.currentMultiplier(address(token)), 1);
+    }
+
+    function testRuntimeStillRejectsZeroMultiplierAfterDeployment() public {
+        ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
+        ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
+        vm.mockCall(address(token), abi.encodeWithSignature("uiMultiplier()"), abi.encode(uint256(0)));
+
+        vm.expectRevert(ERC8056DirectLegalShareAdapter.InvalidAdapterConfig.selector);
+        adapter.currentMultiplier(address(token));
+    }
+
     function testConvertsUsingMultiplierActiveAtCallTime() public {
         ERC8056TestToken token = new ERC8056TestToken("Stock", "STK", 18, 0);
         ERC8056DirectLegalShareAdapter adapter = new ERC8056DirectLegalShareAdapter(address(token));
