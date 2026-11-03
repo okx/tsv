@@ -1,0 +1,2026 @@
+{
+  "chainId": 196,
+  "snapshot_block": 74821961,
+  "snapshot_timestamp": 1793590997,
+  "discovery_query": "https://dune.com/queries/9053939",
+  "dune_watermark": 74820517,
+  "rpc_tail_from_block": 74819517,
+  "rpc_tail_to_block": 74821961,
+  "events": [
+    {
+      "service": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "wallet": "0xcca82354ab36f485fcf1e2ed775877fbfff55b88",
+      "wallet_type": 2,
+      "event": "special_added",
+      "event_caller": "0x7309c1b0ea2abee47115118bf81133bedf04cba7",
+      "transaction_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+      "transaction_to": "0x7309c1b0ea2abee47115118bf81133bedf04cba7",
+      "transaction_hash": "0x48d246dd775cb5f2a85b6ca841282de115960a92a8f58b96a916b1a21878ebef",
+      "block": 74530206,
+      "log_index": 31,
+      "receipt_verified": true,
+      "token": "MSTR"
+    },
+    {
+      "service": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "wallet": "0xcca82354ab36f485fcf1e2ed775877fbfff55b88",
+      "wallet_type": 2,
+      "event": "special_added",
+      "event_caller": "0x389f975c90a445f07acfa4653ffef17dcd66d598",
+      "transaction_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+      "transaction_to": "0x389f975c90a445f07acfa4653ffef17dcd66d598",
+      "transaction_hash": "0x6ab12739ac44a28c6eeaf8cf283ddb2d65ff5c1666ab26da1ab417a2ee157978",
+      "block": 74532618,
+      "log_index": 0,
+      "receipt_verified": true,
+      "token": "BTGO"
+    },
+    {
+      "service": "0x3c946e6491707792592996c896ccca43b8353392",
+      "wallet": "0xbb543c77436645c8b95b64eec39e3c0d48d4842b",
+      "wallet_type": 2,
+      "event": "special_added",
+      "event_caller": "0x4bdac3a15f06c40f834a23b824cf16328ade54ce",
+      "transaction_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+      "transaction_to": "0x4bdac3a15f06c40f834a23b824cf16328ade54ce",
+      "transaction_hash": "0x9b6cd335714501a27e1051afb1276eb956fd436e04fae3628a5db4124a672f02",
+      "block": 74534049,
+      "log_index": 2,
+      "receipt_verified": true,
+      "token": "SECZ"
+    },
+    {
+      "service": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "wallet": "0xe1218f57c5fe7d11088ac4682781906f3c4b0bff",
+      "wallet_type": 2,
+      "event": "special_added",
+      "event_caller": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+      "transaction_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+      "transaction_to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "transaction_hash": "0xaa1e742f428bdb90502a84c1b9efa839acd2111c3da0f1bc335080990004c1e4",
+      "block": 74625670,
+      "log_index": 15,
+      "receipt_verified": true,
+      "token": "MSTR"
+    },
+    {
+      "service": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "wallet": "0x02f21252b936435f13241ed815ecfb54bf7474ed",
+      "wallet_type": 2,
+      "event": "special_added",
+      "event_caller": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+      "transaction_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+      "transaction_to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "transaction_hash": "0xaa1e742f428bdb90502a84c1b9efa839acd2111c3da0f1bc335080990004c1e4",
+      "block": 74625670,
+      "log_index": 16,
+      "receipt_verified": true,
+      "token": "MSTR"
+    },
+    {
+      "service": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "wallet": "0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b",
+      "wallet_type": 2,
+      "event": "special_added",
+      "event_caller": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+      "transaction_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+      "transaction_to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "transaction_hash": "0x700cb63369dc5a027d2817082ec57bd5b38fafe1e339a019dcf33bdf01d30c05",
+      "block": 74625953,
+      "log_index": 29,
+      "receipt_verified": true,
+      "token": "BTGO"
+    },
+    {
+      "service": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "wallet": "0x02f21252b936435f13241ed815ecfb54bf7474ed",
+      "wallet_type": 2,
+      "event": "special_added",
+      "event_caller": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+      "transaction_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+      "transaction_to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "transaction_hash": "0x700cb63369dc5a027d2817082ec57bd5b38fafe1e339a019dcf33bdf01d30c05",
+      "block": 74625953,
+      "log_index": 30,
+      "receipt_verified": true,
+      "token": "BTGO"
+    }
+  ],
+  "addresses": [
+    {
+      "address": "0x02f21252b936435f13241ed815ecfb54bf7474ed",
+      "explicitly_requested": false,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 2
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": true
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 2
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": true
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [
+        {
+          "service": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+          "wallet": "0x02f21252b936435f13241ed815ecfb54bf7474ed",
+          "wallet_type": 2,
+          "event": "special_added",
+          "event_caller": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "transaction_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "transaction_to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+          "transaction_hash": "0xaa1e742f428bdb90502a84c1b9efa839acd2111c3da0f1bc335080990004c1e4",
+          "block": 74625670,
+          "log_index": 16,
+          "receipt_verified": true
+        },
+        {
+          "service": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+          "wallet": "0x02f21252b936435f13241ed815ecfb54bf7474ed",
+          "wallet_type": 2,
+          "event": "special_added",
+          "event_caller": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "transaction_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "transaction_to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+          "transaction_hash": "0x700cb63369dc5a027d2817082ec57bd5b38fafe1e339a019dcf33bdf01d30c05",
+          "block": 74625953,
+          "log_index": 30,
+          "receipt_verified": true
+        }
+      ],
+      "held_assets_allowed": [
+        "MSTR",
+        "BTGO"
+      ]
+    },
+    {
+      "address": "0x224467f6640abe0a62d1be98187912627b59722a",
+      "explicitly_requested": true,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [],
+      "held_assets_allowed": []
+    },
+    {
+      "address": "0x410881510e69a46526ce0f9b39431f673845a173",
+      "explicitly_requested": true,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [],
+      "held_assets_allowed": []
+    },
+    {
+      "address": "0x7f559367e0cf2d1808edd27a50f447356af7863c",
+      "explicitly_requested": true,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [],
+      "held_assets_allowed": []
+    },
+    {
+      "address": "0xbb543c77436645c8b95b64eec39e3c0d48d4842b",
+      "explicitly_requested": false,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 2
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": true
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [
+        {
+          "service": "0x3c946e6491707792592996c896ccca43b8353392",
+          "wallet": "0xbb543c77436645c8b95b64eec39e3c0d48d4842b",
+          "wallet_type": 2,
+          "event": "special_added",
+          "event_caller": "0x4bdac3a15f06c40f834a23b824cf16328ade54ce",
+          "transaction_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+          "transaction_to": "0x4bdac3a15f06c40f834a23b824cf16328ade54ce",
+          "transaction_hash": "0x9b6cd335714501a27e1051afb1276eb956fd436e04fae3628a5db4124a672f02",
+          "block": 74534049,
+          "log_index": 2,
+          "receipt_verified": true
+        }
+      ],
+      "held_assets_allowed": [
+        "SECZ"
+      ]
+    },
+    {
+      "address": "0xc2cebe8485f666874667e500b36028ab2a297f8f",
+      "explicitly_requested": true,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [],
+      "held_assets_allowed": []
+    },
+    {
+      "address": "0xcca82354ab36f485fcf1e2ed775877fbfff55b88",
+      "explicitly_requested": false,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 2
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": true
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 2
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": true
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [
+        {
+          "service": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+          "wallet": "0xcca82354ab36f485fcf1e2ed775877fbfff55b88",
+          "wallet_type": 2,
+          "event": "special_added",
+          "event_caller": "0x7309c1b0ea2abee47115118bf81133bedf04cba7",
+          "transaction_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+          "transaction_to": "0x7309c1b0ea2abee47115118bf81133bedf04cba7",
+          "transaction_hash": "0x48d246dd775cb5f2a85b6ca841282de115960a92a8f58b96a916b1a21878ebef",
+          "block": 74530206,
+          "log_index": 31,
+          "receipt_verified": true
+        },
+        {
+          "service": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+          "wallet": "0xcca82354ab36f485fcf1e2ed775877fbfff55b88",
+          "wallet_type": 2,
+          "event": "special_added",
+          "event_caller": "0x389f975c90a445f07acfa4653ffef17dcd66d598",
+          "transaction_from": "0x984034e7ab7aca0b9998071dfd06caf6eade98b2",
+          "transaction_to": "0x389f975c90a445f07acfa4653ffef17dcd66d598",
+          "transaction_hash": "0x6ab12739ac44a28c6eeaf8cf283ddb2d65ff5c1666ab26da1ab417a2ee157978",
+          "block": 74532618,
+          "log_index": 0,
+          "receipt_verified": true
+        }
+      ],
+      "held_assets_allowed": [
+        "MSTR",
+        "BTGO"
+      ]
+    },
+    {
+      "address": "0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b",
+      "explicitly_requested": false,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 2
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": true
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [
+        {
+          "service": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+          "wallet": "0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b",
+          "wallet_type": 2,
+          "event": "special_added",
+          "event_caller": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "transaction_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "transaction_to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+          "transaction_hash": "0x700cb63369dc5a027d2817082ec57bd5b38fafe1e339a019dcf33bdf01d30c05",
+          "block": 74625953,
+          "log_index": 29,
+          "receipt_verified": true
+        }
+      ],
+      "held_assets_allowed": [
+        "BTGO"
+      ]
+    },
+    {
+      "address": "0xe1218f57c5fe7d11088ac4682781906f3c4b0bff",
+      "explicitly_requested": false,
+      "assets": {
+        "MSTR": {
+          "walletType": {
+            "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 2
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": true
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "BTGO": {
+          "walletType": {
+            "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        },
+        "SECZ": {
+          "walletType": {
+            "to": "0x3c946e6491707792592996c896ccca43b8353392",
+            "signature": "getWalletType(address)",
+            "ok": true,
+            "value": 0
+          },
+          "registered": {
+            "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+            "signature": "isWallet(address)",
+            "ok": true,
+            "value": false
+          },
+          "whitelisted": {
+            "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+            "signature": "checkWhitelisted(address)",
+            "ok": true,
+            "value": false
+          },
+          "issuerMask": {
+            "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+            "signature": "checkAllowlist(address,address)",
+            "ok": true,
+            "value": "0x0000"
+          },
+          "balance": {
+            "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+            "signature": "balanceOf(address)",
+            "ok": true,
+            "value": 0
+          }
+        }
+      },
+      "history": [
+        {
+          "service": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+          "wallet": "0xe1218f57c5fe7d11088ac4682781906f3c4b0bff",
+          "wallet_type": 2,
+          "event": "special_added",
+          "event_caller": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "transaction_from": "0xdfc603076ea75895dd4d59c6e2ee5038f881cb74",
+          "transaction_to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+          "transaction_hash": "0xaa1e742f428bdb90502a84c1b9efa839acd2111c3da0f1bc335080990004c1e4",
+          "block": 74625670,
+          "log_index": 15,
+          "receipt_verified": true
+        }
+      ],
+      "held_assets_allowed": [
+        "MSTR"
+      ]
+    }
+  ],
+  "calls": {
+    "MSTR.walletManager": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb"
+    },
+    "MSTR.compliance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6"
+    },
+    "BTGO.walletManager": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0xa96982eeb325b9051cfbac970ede179a903d85df"
+    },
+    "MSTR.registry": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+    },
+    "SECZ.registry": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+    },
+    "BTGO.compliance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0"
+    },
+    "BTGO.registry": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+    },
+    "SECZ.walletManager": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0x3c946e6491707792592996c896ccca43b8353392"
+    },
+    "SECZ.compliance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "getDSService(uint256)",
+      "ok": true,
+      "value": "0xdc558a87642119468d2cf14beaa4f47f77381743"
+    },
+    "MSTR.0x02f21252b936435f13241ed815ecfb54bf7474ed.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0x02f21252b936435f13241ed815ecfb54bf7474ed.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0x224467f6640abe0a62d1be98187912627b59722a.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0x02f21252b936435f13241ed815ecfb54bf7474ed.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0x02f21252b936435f13241ed815ecfb54bf7474ed.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 2
+    },
+    "MSTR.0x02f21252b936435f13241ed815ecfb54bf7474ed.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": true
+    },
+    "MSTR.0x224467f6640abe0a62d1be98187912627b59722a.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0x224467f6640abe0a62d1be98187912627b59722a.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0x224467f6640abe0a62d1be98187912627b59722a.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0x224467f6640abe0a62d1be98187912627b59722a.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0x410881510e69a46526ce0f9b39431f673845a173.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0x410881510e69a46526ce0f9b39431f673845a173.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0x410881510e69a46526ce0f9b39431f673845a173.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0x410881510e69a46526ce0f9b39431f673845a173.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0x7f559367e0cf2d1808edd27a50f447356af7863c.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0x410881510e69a46526ce0f9b39431f673845a173.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0x7f559367e0cf2d1808edd27a50f447356af7863c.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0x7f559367e0cf2d1808edd27a50f447356af7863c.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0x7f559367e0cf2d1808edd27a50f447356af7863c.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0x7f559367e0cf2d1808edd27a50f447356af7863c.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0xc2cebe8485f666874667e500b36028ab2a297f8f.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0xc2cebe8485f666874667e500b36028ab2a297f8f.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0xc2cebe8485f666874667e500b36028ab2a297f8f.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0xc2cebe8485f666874667e500b36028ab2a297f8f.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0xc2cebe8485f666874667e500b36028ab2a297f8f.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 2
+    },
+    "MSTR.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": true
+    },
+    "MSTR.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "MSTR.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.walletType": {
+      "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 2
+    },
+    "MSTR.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "MSTR.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.whitelisted": {
+      "to": "0x2fc11ad109c41ab1d347d45d32a31eb3d09e66f6",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": true
+    },
+    "MSTR.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "MSTR.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.balance": {
+      "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0x02f21252b936435f13241ed815ecfb54bf7474ed.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 2
+    },
+    "BTGO.0x02f21252b936435f13241ed815ecfb54bf7474ed.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0x02f21252b936435f13241ed815ecfb54bf7474ed.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": true
+    },
+    "BTGO.0x02f21252b936435f13241ed815ecfb54bf7474ed.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0x02f21252b936435f13241ed815ecfb54bf7474ed.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0x224467f6640abe0a62d1be98187912627b59722a.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0x224467f6640abe0a62d1be98187912627b59722a.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0x224467f6640abe0a62d1be98187912627b59722a.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0x224467f6640abe0a62d1be98187912627b59722a.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0x224467f6640abe0a62d1be98187912627b59722a.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0x410881510e69a46526ce0f9b39431f673845a173.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0x410881510e69a46526ce0f9b39431f673845a173.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0x410881510e69a46526ce0f9b39431f673845a173.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0x410881510e69a46526ce0f9b39431f673845a173.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0x410881510e69a46526ce0f9b39431f673845a173.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0x7f559367e0cf2d1808edd27a50f447356af7863c.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0x7f559367e0cf2d1808edd27a50f447356af7863c.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0x7f559367e0cf2d1808edd27a50f447356af7863c.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0x7f559367e0cf2d1808edd27a50f447356af7863c.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0x7f559367e0cf2d1808edd27a50f447356af7863c.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0xc2cebe8485f666874667e500b36028ab2a297f8f.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0xc2cebe8485f666874667e500b36028ab2a297f8f.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0xc2cebe8485f666874667e500b36028ab2a297f8f.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0xc2cebe8485f666874667e500b36028ab2a297f8f.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0xc2cebe8485f666874667e500b36028ab2a297f8f.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 2
+    },
+    "BTGO.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": true
+    },
+    "BTGO.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 2
+    },
+    "BTGO.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": true
+    },
+    "BTGO.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.walletType": {
+      "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "BTGO.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "BTGO.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.whitelisted": {
+      "to": "0x10ec8b3504d3e376465ebd4d7d576d5b5775a1e0",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "BTGO.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.balance": {
+      "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0x02f21252b936435f13241ed815ecfb54bf7474ed.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0x02f21252b936435f13241ed815ecfb54bf7474ed.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0x02f21252b936435f13241ed815ecfb54bf7474ed.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0x02f21252b936435f13241ed815ecfb54bf7474ed.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0x02f21252b936435f13241ed815ecfb54bf7474ed.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0x224467f6640abe0a62d1be98187912627b59722a.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0x224467f6640abe0a62d1be98187912627b59722a.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0x224467f6640abe0a62d1be98187912627b59722a.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0x224467f6640abe0a62d1be98187912627b59722a.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0x410881510e69a46526ce0f9b39431f673845a173.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0x410881510e69a46526ce0f9b39431f673845a173.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0x224467f6640abe0a62d1be98187912627b59722a.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0x410881510e69a46526ce0f9b39431f673845a173.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0x410881510e69a46526ce0f9b39431f673845a173.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0x7f559367e0cf2d1808edd27a50f447356af7863c.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0x7f559367e0cf2d1808edd27a50f447356af7863c.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0x410881510e69a46526ce0f9b39431f673845a173.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0x7f559367e0cf2d1808edd27a50f447356af7863c.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0x7f559367e0cf2d1808edd27a50f447356af7863c.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0x7f559367e0cf2d1808edd27a50f447356af7863c.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 2
+    },
+    "SECZ.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": true
+    },
+    "SECZ.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0xbb543c77436645c8b95b64eec39e3c0d48d4842b.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xc2cebe8485f666874667e500b36028ab2a297f8f.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xc2cebe8485f666874667e500b36028ab2a297f8f.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xc2cebe8485f666874667e500b36028ab2a297f8f.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0xc2cebe8485f666874667e500b36028ab2a297f8f.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xc2cebe8485f666874667e500b36028ab2a297f8f.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xcca82354ab36f485fcf1e2ed775877fbfff55b88.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.walletType": {
+      "to": "0x3c946e6491707792592996c896ccca43b8353392",
+      "signature": "getWalletType(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    },
+    "SECZ.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.registered": {
+      "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+      "signature": "isWallet(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.whitelisted": {
+      "to": "0xdc558a87642119468d2cf14beaa4f47f77381743",
+      "signature": "checkWhitelisted(address)",
+      "ok": true,
+      "value": false
+    },
+    "SECZ.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.issuerMask": {
+      "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec",
+      "signature": "checkAllowlist(address,address)",
+      "ok": true,
+      "value": "0x0000"
+    },
+    "SECZ.0xe1218f57c5fe7d11088ac4682781906f3c4b0bff.balance": {
+      "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "signature": "balanceOf(address)",
+      "ok": true,
+      "value": 0
+    }
+  },
+  "writes_sent": 0,
+  "limitations": [
+    "Current services only. Prior replaced services or preloaded/migrated state without matching events are not enumerated.",
+    "checkWhitelisted is recipient identity eligibility; transfer amount, source locks, country rules and other controls may still block a transaction."
+  ]
+}

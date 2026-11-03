@@ -1,0 +1,150 @@
+{
+  "block": 74848469,
+  "wallet": "0xc2cebe8485f666874667e500b36028ab2a297f8f",
+  "registry": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+  "tokens": {
+    "0x28ccb07e804c6541634c07f1809f7eaae3b523b0": {
+      "symbol": "RWT",
+      "decimals": 18,
+      "balanceRaw": 199851463290795687215,
+      "underlyingRecord": [
+        "0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3",
+        "0x1501e20d4990f4a33f3807a9482af910bdcd3f68",
+        18,
+        true
+      ],
+      "security": [
+        "0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3",
+        2,
+        true,
+        [
+          "0x220d89b1d44e1fb2f5b11abc3026d2452e072caae3dc9eda4e328c47c264e0e8",
+          "0xd36db48432822b53fcd058b2442b561bc7efba0a2fc7cbe28128db2ec5d39327",
+          "0xcaba439292b23398ddabe09f68668d3969c3d2d3eea90108b3c2ee9766d5c0a3",
+          "0x2381e6bf537895fd0506f01019f4a1712c8e6aee70504262f3ed05cb70c12b41",
+          "0x3c4819dd89f20dbb51dfd23becb6c89d97399b5cd996f09cc4f08e863137dcaf"
+        ],
+        3,
+        1
+      ],
+      "pools": [
+        {
+          "id": "0x220d89b1d44e1fb2f5b11abc3026d2452e072caae3dc9eda4e328c47c264e0e8",
+          "key": [
+            "0x4cf5b1073ec81b45419358c63a2bafc83842c60d",
+            "0xb0a8640210a0da1a59d95bd51e39b3fa488c244e",
+            3000,
+            60,
+            "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+          ],
+          "lifecycle": 0,
+          "tickCount": 0,
+          "tradable": false
+        },
+        {
+          "id": "0xd36db48432822b53fcd058b2442b561bc7efba0a2fc7cbe28128db2ec5d39327",
+          "key": [
+            "0x4cf5b1073ec81b45419358c63a2bafc83842c60d",
+            "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+            2000,
+            40,
+            "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+          ],
+          "lifecycle": 0,
+          "tickCount": 0,
+          "tradable": false
+        },
+        {
+          "id": "0xcaba439292b23398ddabe09f68668d3969c3d2d3eea90108b3c2ee9766d5c0a3",
+          "key": [
+            "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+            "0xf6bb667b55d0cacdb9d2bb9d75d78b4ebe1f1b6c",
+            2000,
+            40,
+            "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+          ],
+          "lifecycle": 1,
+          "tickCount": 88,
+          "tradable": false
+        },
+        {
+          "id": "0x2381e6bf537895fd0506f01019f4a1712c8e6aee70504262f3ed05cb70c12b41",
+          "key": [
+            "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+            "0xf6bb667b55d0cacdb9d2bb9d75d78b4ebe1f1b6c",
+            2000,
+            60,
+            "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+          ],
+          "lifecycle": 1,
+          "tickCount": 0,
+          "tradable": false
+        },
+        {
+          "id": "0x3c4819dd89f20dbb51dfd23becb6c89d97399b5cd996f09cc4f08e863137dcaf",
+          "key": [
+            "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+            "0xf6bb667b55d0cacdb9d2bb9d75d78b4ebe1f1b6c",
+            2000,
+            20,
+            "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+          ],
+          "lifecycle": 1,
+          "tickCount": 0,
+          "tradable": false
+        }
+      ]
+    },
+    "0xad090f3fcac8237a600ddf3cc87651d55a5a5d6e": {
+      "symbol": "M8056",
+      "decimals": 18,
+      "balanceRaw": 0,
+      "underlyingRecord": [
+        "0x2d78039578887e1e6be9e4e7a05eb190ae9ae70c407c6e9411add8b341c3a91d",
+        "0xc21c79f20d202fe3ebb7db00c12075f3d9abf3f0",
+        18,
+        true
+      ],
+      "security": [
+        "0x2d78039578887e1e6be9e4e7a05eb190ae9ae70c407c6e9411add8b341c3a91d",
+        1,
+        true,
+        [
+          "0x5f1622e4507eccffbd8ad0ad1ad13bcf9994247004d9faae8eae9d29fd6c75c3",
+          "0x4e0e523571051b6be981f2ca5abb03f0602017cbf40a8c632b9a13d56f07a16d"
+        ],
+        0,
+        0
+      ],
+      "pools": [
+        {
+          "id": "0x5f1622e4507eccffbd8ad0ad1ad13bcf9994247004d9faae8eae9d29fd6c75c3",
+          "key": [
+            "0x1e4a5963abfd975d8c9021ce480b42188849d41d",
+            "0xf60ad4d2ef8f6d812df752646a3a3683800bae43",
+            3000,
+            60,
+            "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+          ],
+          "lifecycle": 0,
+          "tickCount": 0,
+          "tradable": false
+        },
+        {
+          "id": "0x4e0e523571051b6be981f2ca5abb03f0602017cbf40a8c632b9a13d56f07a16d",
+          "key": [
+            "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+            "0xf60ad4d2ef8f6d812df752646a3a3683800bae43",
+            3000,
+            60,
+            "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+          ],
+          "lifecycle": 0,
+          "tickCount": 0,
+          "tradable": false
+        }
+      ]
+    }
+  },
+  "writes_sent": 0
+}

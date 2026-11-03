@@ -1,7 +1,0 @@
-#solidity-auditor-memory v1	key	status	scans	sha	title	kind
-tsvregistryv1|replacelegalshareadapter|intra-day-unit-mix	KNOWN	2	f597879	Adapter replacement can mix legal-share units within the daily cap	FINDING
-tsvregistryv1|registertoken|mutable-adapter-implementation	KNOWN	2	f597879	Adapter proxy logic may change after registration	LEAD
-tsvlpmanagerv1|settle|zero-delta-min-output-bypass	NEW	1	f597879	A zero output bypasses the LP minimum	FINDING
-tsvregistryv1|registertoken|mutable-token-implementation	NEW	1	f597879	Token proxy behavior may change after approval	LEAD
-tsvregistryv1|relistsecurity|stale-market-status-on-relist	NEW	1	f597879	Relisting can reuse an old open market status	LEAD
-tsvdatainboxv1|accept|sequence-saturation-lock	NEW	1	f597879	A maximum report sequence can block later reports	LEAD

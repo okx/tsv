@@ -1,0 +1,111 @@
+{
+  "contract": "TSVHookV1",
+  "address": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+  "snapshotBlock": 74575585,
+  "transactions": [
+    {
+      "hash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501",
+      "chainId": 196,
+      "contract": "TSVHookV1",
+      "contractAddress": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+      "kind": "factory-create2-and-initialize",
+      "blockNumber": 74560445,
+      "blockHash": "0xec5813d319292abf81a7a8cae1a84b4927db16585ad9aa831f591a62cdd1e4b3",
+      "transactionIndex": 4,
+      "time": "2026-10-30T11:04:41+08:00",
+      "from": "0xace2b3e7c752d5debca72210141d464371b3b9b1",
+      "to": "0xed28206bf9a16e4dc64b893563a48a1bb1e34c60",
+      "createdAddress": null,
+      "status": "SUCCESS",
+      "valueWei": "0",
+      "gasUsed": 272560,
+      "effectiveGasPriceWei": "20000001",
+      "feeWei": "5451200272560",
+      "calldata": "0x37e9ccea0000000000000000000000006422ef382cfe42b200aec323236c005c604550f70000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000f33201000000000000000000000000000000000000000000000000000000000000000000000000a41459457a000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea0000000000000000000000009b43d49b1a6d41aa22ac788442eb5cb5bbc543c5000000000000000000000000c58d2bf7ad7cb023760e767e9050be3f15cad6860000000000000000000000009418a8ccb8170814d27c7f3db99e1b9f8c4a7b7600000000000000000000000000000000000000000000000000000000",
+      "call": {
+        "function": "deploy",
+        "signature": "deploy(address,bytes,bytes32)",
+        "selector": "0x37e9ccea",
+        "parameters": {
+          "implementation": "0x6422ef382cfe42b200aec323236c005c604550f7",
+          "initData": "0x1459457a000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea0000000000000000000000009b43d49b1a6d41aa22ac788442eb5cb5bbc543c5000000000000000000000000c58d2bf7ad7cb023760e767e9050be3f15cad6860000000000000000000000009418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+          "salt": "0x000000000000000000000000000000000000000000000000f332010000000000"
+        }
+      },
+      "annotations": {},
+      "events": [
+        {
+          "event": "Upgraded",
+          "signature": "Upgraded(address)",
+          "address": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+          "logIndex": 10,
+          "parameters": {
+            "implementation": "0x6422ef382cfe42b200aec323236c005c604550f7"
+          }
+        },
+        {
+          "event": "Initialized",
+          "signature": "Initialized(uint64)",
+          "address": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+          "logIndex": 11,
+          "parameters": {
+            "version": "1"
+          }
+        }
+      ],
+      "purpose": "部署代理并原子初始化。初始化 TSVHookV1 代理的业务依赖和初始权限。",
+      "purposeBasis": "根据解码函数、参数及回执事件解释；不代表能够证明调用人的主观意图。",
+      "explorerUrl": "https://www.oklink.com/zh-hans/x-layer/evm/tx/0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501",
+      "initializer": {
+        "function": "initialize",
+        "signature": "initialize(address,address,address,address,address)",
+        "selector": "0x1459457a",
+        "parameters": {
+          "poolManager_": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+          "registry_": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "ledger_": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+          "router_": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+          "lpManager_": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76"
+        }
+      }
+    }
+  ],
+  "internalCalls": [
+    {
+      "hash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501",
+      "blockNumber": 74560445,
+      "time": "2026-10-30T11:04:41+08:00",
+      "type": "CREATE2",
+      "from": "0xed28206bf9a16e4dc64b893563a48a1bb1e34c60",
+      "to": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+      "function": "TSVERC1967Proxy.constructor(address,bytes)",
+      "parameters": {
+        "implementation": "0x6422ef382cfe42b200aec323236c005c604550f7",
+        "initData": "0x1459457a000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea0000000000000000000000009b43d49b1a6d41aa22ac788442eb5cb5bbc543c5000000000000000000000000c58d2bf7ad7cb023760e767e9050be3f15cad6860000000000000000000000009418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+        "salt": "0x000000000000000000000000000000000000000000000000f332010000000000"
+      },
+      "purpose": "以满足 Hook flags 的地址部署代理。",
+      "evidence": "Explorer 高级内部表 + Factory 输入 + 回执事件。",
+      "rawTraceAvailable": false
+    },
+    {
+      "hash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501",
+      "blockNumber": 74560445,
+      "time": "2026-10-30T11:04:41+08:00",
+      "type": "DELEGATECALL",
+      "from": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+      "to": "0x6422ef382cfe42b200aec323236c005c604550f7",
+      "function": "initialize(address,address,address,address,address)",
+      "parameters": {
+        "poolManager_": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+        "registry_": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+        "ledger_": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+        "router_": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+        "lpManager_": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76"
+      },
+      "purpose": "在代理存储上下文执行业务函数；与父交易合并计数。",
+      "evidence": "Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。",
+      "rawTraceAvailable": false
+    }
+  ]
+}

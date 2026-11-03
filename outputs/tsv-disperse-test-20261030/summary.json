@@ -1,0 +1,117 @@
+{
+  "status": "DEPLOYED_AND_10_RECIPIENTS_PAID",
+  "chainId": 196,
+  "contractName": "MockSecuritizeDisperse",
+  "contractAddress": "0xe6c3702b8f3ac9d096dd38e5267082fd0c003a9c",
+  "admin": "0xc2cebe8485f666874667e500b36028ab2a297f8f",
+  "operator": "0xc2cebe8485f666874667e500b36028ab2a297f8f",
+  "payoutToken": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+  "symbol": "USDC",
+  "perRecipient": "0.1",
+  "total": "1",
+  "paidEventCount": 10,
+  "dispersedEventCount": 1,
+  "duplicateWindowSeconds": 600,
+  "runtimeMatchesArtifact": true,
+  "gasPaidWei": "31850921592546",
+  "gasPaidOKB": "3.1850921592546e-05",
+  "transactions": [
+    {
+      "purpose": "deploy",
+      "hash": "0xd6bc39884998c9043c4c7d1397bfa219741b749768086ad0180d4231b72b3159",
+      "block": 74584270,
+      "status": 1
+    },
+    {
+      "purpose": "grant-operator",
+      "hash": "0x03b99c3e3592c0dfd55cd1943d8c2c9261158a462ccf8977e80f642ba27f758e",
+      "block": 74584272,
+      "status": 1
+    },
+    {
+      "purpose": "approve-1-USDC",
+      "hash": "0x478af35cad289fe6dee64d4edf2c18303ab925ada87e939f83a96baced747f17",
+      "block": 74584273,
+      "status": 1
+    },
+    {
+      "purpose": "disperse-10-recipients",
+      "hash": "0xff1ab3c949069c280ed18929b7fa4e2bc75d878a4284d4aafa489c5e7c14f6c5",
+      "block": 74584275,
+      "status": 1
+    }
+  ],
+  "recipients": [
+    {
+      "index": 1,
+      "address": "0x94F4f3CD90922d042C2c224E26EB3C9C76241aD1",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 2,
+      "address": "0xCE72E4136916bE377231AaA176c87B76347E4dB9",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 3,
+      "address": "0xfD3C93bdA97143d44f855084b66F56A82D5AA9E5",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 4,
+      "address": "0xfD27e6bC1d11A6C28F1443f886f8ec1a20AB55aC",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 5,
+      "address": "0xa9D5dAF4A56e80f3Ba4Cb1f763810c0238BA61C8",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 6,
+      "address": "0x361b6F2A0e75d5a809f2EDacddB3D09d08484224",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 7,
+      "address": "0x6D4d6065a4CE50789b57A754240EAFD0c64Ad16d",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 8,
+      "address": "0x94Ab11de4341380608e89132ccF5f6D67f8c4C8d",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 9,
+      "address": "0xe07B2E4CaEbc9BF33fa2ed688649b809c68F3074",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    },
+    {
+      "index": 10,
+      "address": "0x0B48F768da197EFB18260859Bc18A613D033D91A",
+      "balanceRaw": "100000",
+      "receivedUsdc": "0.1"
+    }
+  ],
+  "privateKeys": "Local .env.disperse-recipients only; ignored by Git; mode 0600; never uploaded",
+  "verification": "live-verification.json",
+  "larkTransactionLog": "https://okg-block.sg.larksuite.com/docx/YU5JdyR8DokY8fxd3yclI2wIgId",
+  "completedAt": "2026-10-30T09:42:20.563426+00:00",
+  "larkRecordVerified": true,
+  "larkBlockId": "doxlgZCLBP0AljmU4X67QpaHpEd",
+  "subsequentUsdcRecovery": {
+    "status": "ALL_10_RECIPIENT_USDC_BALANCES_ZERO",
+    "totalRecoveredUsdc": "1",
+    "summary": "usdc-recovery/summary.json"
+  }
+}

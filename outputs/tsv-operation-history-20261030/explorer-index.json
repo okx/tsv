@@ -1,0 +1,104 @@
+{
+  "source": "OKLink public address UI, transaction status/type = ALL, no zero-value filtering; extracted 2026-10-30",
+  "TSVRegistryV1": {
+    "transactionCount": 13,
+    "hashes": [
+      "0x9e38c625fd7611948b844a2340c0dab20fc66d3799eae7f227752090365b886f",
+      "0xe693f661a048af0bdb3a48f793eb08f17c538559f8d89831c7cbbb7c3063f53e",
+      "0xdd8192600d2c1ca797340d0507f6d004535992b557a125c4745e473c5acce568",
+      "0x845a8f1a2ae2e91f44f17ddc2afaf5467c0e44b4e9e1e07780adf1c5c0db7c28",
+      "0x31e3ca9cb4d61d0b852cee237e39a70b7ddba0cf42a0e230dea35dfeb882cebb",
+      "0xd06ea9f069e87579cd81921a98438f3e4ba1d9606e77a7ec07a11643b2c756c4",
+      "0xfa58545d4290d0887de56c397ae6fbaee4a152d3fd45efc1da7cdcf69695b29d",
+      "0x68fd2d5f645990f7211f7de6bfaeec5f65a12ce399845278b3b3bca6e85a9065",
+      "0xd8f8ea1eb09def09ac4034cdb9385850911a2ee94807731e3964fef63e00fd84",
+      "0xd26449084e03d7c0c1d7a824bbe5a10dfd6aa74dacc701ce212e6a78f24475ed",
+      "0x914c7cf00db97a9794017d3d6b637b129737d44ff4d44758162b2a6ada995315",
+      "0xb4b3cd843ba735177f1f18171c4edaf807eb8a04bd0f3a3e369c890cfbb00529",
+      "0x46ea485908f82be0c370d72999ed99c1daa40ec7f9c4ee34edf62067600a0013"
+    ],
+    "internalBasicCount": 0,
+    "internalAdvancedCount": 20,
+    "internalAdvancedHashes": [
+      "0x9e38c625fd7611948b844a2340c0dab20fc66d3799eae7f227752090365b886f",
+      "0xe693f661a048af0bdb3a48f793eb08f17c538559f8d89831c7cbbb7c3063f53e",
+      "0xdd8192600d2c1ca797340d0507f6d004535992b557a125c4745e473c5acce568",
+      "0x845a8f1a2ae2e91f44f17ddc2afaf5467c0e44b4e9e1e07780adf1c5c0db7c28",
+      "0x31e3ca9cb4d61d0b852cee237e39a70b7ddba0cf42a0e230dea35dfeb882cebb",
+      "0xd06ea9f069e87579cd81921a98438f3e4ba1d9606e77a7ec07a11643b2c756c4",
+      "0xfa58545d4290d0887de56c397ae6fbaee4a152d3fd45efc1da7cdcf69695b29d",
+      "0x68fd2d5f645990f7211f7de6bfaeec5f65a12ce399845278b3b3bca6e85a9065",
+      "0xd8f8ea1eb09def09ac4034cdb9385850911a2ee94807731e3964fef63e00fd84",
+      "0xd26449084e03d7c0c1d7a824bbe5a10dfd6aa74dacc701ce212e6a78f24475ed",
+      "0x914c7cf00db97a9794017d3d6b637b129737d44ff4d44758162b2a6ada995315",
+      "0xb4b3cd843ba735177f1f18171c4edaf807eb8a04bd0f3a3e369c890cfbb00529",
+      "0x46ea485908f82be0c370d72999ed99c1daa40ec7f9c4ee34edf62067600a0013",
+      "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2"
+    ],
+    "internalDateRange": [
+      "2026/05/03",
+      "2026/10/30"
+    ]
+  },
+  "TSVVolumeLedgerV1": {
+    "transactionCount": 1,
+    "hashes": [
+      "0x92fd88c9521aab24894108ecdc8d6dce58f303a45b7f1fe4c001017cf8c9b82e"
+    ],
+    "internalBasicCount": 0,
+    "internalAdvancedCount": 1,
+    "internalAdvancedHashes": [
+      "0x92fd88c9521aab24894108ecdc8d6dce58f303a45b7f1fe4c001017cf8c9b82e"
+    ],
+    "internalDateRange": [
+      "2026/05/02",
+      "2026/10/30"
+    ]
+  },
+  "TSVSwapRouterV1": {
+    "transactionCount": 2,
+    "hashes": [
+      "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593"
+    ],
+    "internalBasicCount": 0,
+    "internalAdvancedCount": 4,
+    "internalAdvancedHashes": [
+      "0xac57a60941536345d3682cad8399e60e65da3e77cb69ae59a3e86472c11baec2",
+      "0x06cdf55287f58a76c21f5732572796b9cc4d3adf834704c474e84bd2e713f593"
+    ],
+    "internalDateRange": [
+      "2026/05/03",
+      "2026/10/30"
+    ]
+  },
+  "TSVLPManagerV1": {
+    "transactionCount": 1,
+    "hashes": [
+      "0xa748817a5039ad02cdd16d6fd2f297b36cfee571f3b508e61102d037ec5d878e"
+    ],
+    "internalBasicCount": 0,
+    "internalAdvancedCount": 1,
+    "internalAdvancedHashes": [
+      "0xa748817a5039ad02cdd16d6fd2f297b36cfee571f3b508e61102d037ec5d878e"
+    ],
+    "internalDateRange": [
+      "2026/05/02",
+      "2026/10/30"
+    ]
+  },
+  "TSVHookV1": {
+    "transactionCount": 0,
+    "hashes": [],
+    "internalBasicCount": 1,
+    "internalAdvancedCount": 2,
+    "internalAdvancedHashes": [
+      "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501"
+    ],
+    "internalDateRange": [
+      "2026/05/03",
+      "2026/10/30"
+    ],
+    "note": "Factory CREATE2 into proxy, then proxy delegatecall into implementation; two internal rows, one parent transaction."
+  }
+}

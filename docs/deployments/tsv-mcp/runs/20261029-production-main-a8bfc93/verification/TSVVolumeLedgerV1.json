@@ -1,0 +1,18 @@
+{
+  "contract": "TSVVolumeLedgerV1",
+  "uuid": "684b2c39-d4b2-4ed8-aabc-e1b7dad77729",
+  "taskId": 9089,
+  "address": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
+  "txHash": "0x68537719cd158d11cc8410491d508443903219683728805e9710743e4fe7204f",
+  "block": 74501585,
+  "confirmationsAtCheck": 219,
+  "checks": {
+    "creationInputMatchesSubmittedJson": true,
+    "receiptStatus": 1,
+    "creationTransaction": true,
+    "deployerMatches": true,
+    "runtimeMatchesCompiledArtifactWithPatchedImmutables": true,
+    "runtimeCodeBytes": 4036,
+    "runtimeSha256": "91895f9510244b5d24618a28941f88c464f573d2d8bc12dcd63a63755a1308a6"
+  }
+}

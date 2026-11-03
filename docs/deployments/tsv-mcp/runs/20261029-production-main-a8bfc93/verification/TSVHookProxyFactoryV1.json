@@ -1,0 +1,19 @@
+{
+  "contract": "TSVHookProxyFactoryV1",
+  "uuid": "bf8b4359-5746-4f5b-87af-afe645037320",
+  "taskId": 9088,
+  "address": "0xed28206bf9a16e4dc64b893563a48a1bb1e34c60",
+  "txHash": "0x9e3824788a9e19d3804b8dd857d679ae5bae1fbc619cf5ddcaad4f4f201d170f",
+  "block": 74501575,
+  "confirmationsAtCheck": 229,
+  "checks": {
+    "creationInputMatchesSubmittedJson": true,
+    "receiptStatus": 1,
+    "creationTransaction": true,
+    "deployerMatches": true,
+    "runtimeMatchesCompiledArtifactWithPatchedImmutables": true,
+    "runtimeCodeBytes": 1502,
+    "runtimeSha256": "1016874a1f90a87ef1a81e5b00a7a6905e5eb68fc86c251fc95c89f16f2b93d3",
+    "requiredHookFlagsMatches": true
+  }
+}

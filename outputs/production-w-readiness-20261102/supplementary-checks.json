@@ -1,0 +1,89 @@
+{
+  "MSTR.verificationSimulation": {
+    "to": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+    "signature": "verifyPermissionsAdapter(address)",
+    "block": 74820994,
+    "ok": false,
+    "error": {
+      "code": 3,
+      "message": "execution reverted",
+      "data": "0x35d7c67c000000000000000000000000e1218f57c5fe7d11088ac4682781906f3c4b0bff"
+    }
+  },
+  "MSTR.wRegisteredInvestor": {
+    "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+    "signature": "isWallet(address)",
+    "block": 74820994,
+    "ok": true,
+    "value": [
+      false
+    ]
+  },
+  "MSTR.wWalletType": {
+    "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb",
+    "signature": "getWalletType(address)",
+    "block": 74820994,
+    "ok": true,
+    "value": [
+      2
+    ]
+  },
+  "BTGO.verificationSimulation": {
+    "to": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+    "signature": "verifyPermissionsAdapter(address)",
+    "block": 74820994,
+    "ok": false,
+    "error": {
+      "code": 3,
+      "message": "execution reverted",
+      "data": "0x35d7c67c000000000000000000000000d5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b"
+    }
+  },
+  "BTGO.wRegisteredInvestor": {
+    "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+    "signature": "isWallet(address)",
+    "block": 74820994,
+    "ok": true,
+    "value": [
+      false
+    ]
+  },
+  "BTGO.wWalletType": {
+    "to": "0xa96982eeb325b9051cfbac970ede179a903d85df",
+    "signature": "getWalletType(address)",
+    "block": 74820994,
+    "ok": true,
+    "value": [
+      2
+    ]
+  },
+  "SECZ.verificationSimulation": {
+    "to": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+    "signature": "verifyPermissionsAdapter(address)",
+    "block": 74820994,
+    "ok": false,
+    "error": {
+      "code": 3,
+      "message": "execution reverted",
+      "data": "0x35d7c67c000000000000000000000000c71874b5ee1fb75ee21228981e818375920b7516"
+    }
+  },
+  "SECZ.wRegisteredInvestor": {
+    "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3",
+    "signature": "isWallet(address)",
+    "block": 74820994,
+    "ok": true,
+    "value": [
+      false
+    ]
+  },
+  "SECZ.wWalletType": {
+    "to": "0x3c946e6491707792592996c896ccca43b8353392",
+    "signature": "getWalletType(address)",
+    "block": 74820994,
+    "ok": true,
+    "value": [
+      0
+    ]
+  }
+}

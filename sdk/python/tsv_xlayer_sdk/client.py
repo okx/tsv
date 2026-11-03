@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 from typing import Mapping
@@ -115,9 +116,15 @@ class ExecutionClient:
             key = key.strip()
             if key not in _LOCAL_ENV_KEYS:
                 continue
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
-                value = value[1:-1]
+            # Parse dotenv quoting/comments without executing shell expansions.
+            # In particular, a quoted key followed by an address comment is one value.
+            try:
+                parts = shlex.split(value, comments=True, posix=True)
+            except ValueError:
+                raise ValueError(f"invalid quoting in local environment variable {key}") from None
+            if len(parts) > 1:
+                raise ValueError(f"unexpected trailing text in local environment variable {key}")
+            value = parts[0] if parts else ""
             values[key] = value
         return values
 
@@ -160,6 +167,10 @@ class ExecutionClient:
             env.get("XLAYER_PRIVATE_KEY", ""),
             env.get("TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY", ""),
         }
+        # Error messages may escape a malformed configured value. Redact any
+        # embedded key itself as well as the full value, without logging it.
+        for key_name in ("XLAYER_PRIVATE_KEY", "TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY"):
+            secrets.update(re.findall(r"(?:0x)?[0-9a-fA-F]{64}", env.get(key_name, "")))
         for value in list(secrets):
             if value:
                 text = text.replace(value, "[REDACTED]")

@@ -1,0 +1,278 @@
+{
+  "block": 74821821,
+  "rpc": "https://rpc.xlayer.tech",
+  "addresses": {
+    "0x7f559367e0cf2d1808edd27a50f447356af7863c": {
+      "MSTR": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43"
+        }
+      },
+      "BTGO": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xa96982eeb325b9051cfbac970ede179a903d85df"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f"
+        }
+      },
+      "SECZ": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x3c946e6491707792592996c896ccca43b8353392"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c"
+        }
+      }
+    },
+    "0x410881510e69a46526ce0f9b39431f673845a173": {
+      "MSTR": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43"
+        }
+      },
+      "BTGO": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xa96982eeb325b9051cfbac970ede179a903d85df"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f"
+        }
+      },
+      "SECZ": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x3c946e6491707792592996c896ccca43b8353392"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c"
+        }
+      }
+    },
+    "0xc2cebe8485f666874667e500b36028ab2a297f8f": {
+      "MSTR": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43"
+        }
+      },
+      "BTGO": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xa96982eeb325b9051cfbac970ede179a903d85df"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f"
+        }
+      },
+      "SECZ": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x3c946e6491707792592996c896ccca43b8353392"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c"
+        }
+      }
+    },
+    "0x224467f6640abe0a62d1be98187912627b59722a": {
+      "MSTR": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x0ab2890fc2b921fe9ccd1ca58f64cef758acd1bb"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43"
+        }
+      },
+      "BTGO": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xa96982eeb325b9051cfbac970ede179a903d85df"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f"
+        }
+      },
+      "SECZ": {
+        "getWalletType(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x3c946e6491707792592996c896ccca43b8353392"
+        },
+        "isWallet(address)": {
+          "ok": true,
+          "value": false,
+          "to": "0x017d40856467f36b0b86775314f04ba8ed0d65b3"
+        },
+        "checkAllowlist(address,address)": {
+          "ok": true,
+          "value": "0x0000",
+          "to": "0x09e4ef4da58d13edcc8c10d02c89dd8ed119f9ec"
+        },
+        "balanceOf(address)": {
+          "ok": true,
+          "value": 0,
+          "to": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c"
+        }
+      }
+    }
+  }
+}

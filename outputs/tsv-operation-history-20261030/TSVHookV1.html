@@ -1,0 +1,120 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TSVHookV1 操作记录</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:1150px;margin:32px auto;padding:0 24px;color:#18212e}h1{font-size:28px}h2{font-size:22px;margin-top:38px}h3{font-size:18px}a{color:#165caa}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f8;padding:16px;border-radius:8px;font:13px/1.6 ui-monospace,monospace}table{border-collapse:collapse;width:100%}th,td{text-align:left;border-bottom:1px solid #dbe2e8;padding:10px;vertical-align:top}code{overflow-wrap:anywhere}.note{background:#eef5fc;padding:16px;border-radius:8px}.success{color:#16713c}</style><body><p><a href="index.html">返回总览</a> · <a href="TSVHookV1.json">JSON 记录</a></p><h1>TSVHookV1</h1><p><code>0xf151416e74d6b4ae00197e8d8e4f4765283b3fff</code></p><p class="note">X Layer Mainnet，chainId 196。区块 74502235–74575585；截止 2026-10-30T15:17:01+08:00。按唯一交易 hash 计数，内部调用不会重复算作新增交易。用途依据函数和事件解释。</p><p>直接交易：核对 OKLink 地址历史全部状态/全部类型，并逐笔读取 RPC 原文。事件：连续扫描 734 个区间，无间隙，获得 25 条日志。内部调用：核对高级视图（包含零金额），保留调用边及参数重建依据；公开 RPC 不提供原始 trace，无法证明索引未覆盖的无事件内部调用绝对不存在。链下 eth_call、估算 Gas、签名前取消及未上链请求不属于链上历史。</p><p>独立交易 1 笔；高级内部索引 2 行。</p><article id="0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501"><h2>2026-10-30T11:04:41+08:00 · deploy</h2><p><a href="https://www.oklink.com/zh-hans/x-layer/evm/tx/0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501">0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501</a></p><p class="success">执行成功 · 区块 74560445</p><p><b>目的：</b>部署代理并原子初始化。初始化 TSVHookV1 代理的业务依赖和初始权限。</p><p>发送方：<code>0xace2b3e7c752d5debca72210141d464371b3b9b1</code><br>交易接收方：<code>0xed28206bf9a16e4dc64b893563a48a1bb1e34c60</code><br>目标代理：<code>0xf151416e74d6b4ae00197e8d8e4f4765283b3fff</code></p><h3>完整参数</h3><pre>{
+  &quot;function&quot;: &quot;deploy&quot;,
+  &quot;signature&quot;: &quot;deploy(address,bytes,bytes32)&quot;,
+  &quot;selector&quot;: &quot;0x37e9ccea&quot;,
+  &quot;parameters&quot;: {
+    &quot;implementation&quot;: &quot;0x6422ef382cfe42b200aec323236c005c604550f7&quot;,
+    &quot;initData&quot;: &quot;0x1459457a000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea0000000000000000000000009b43d49b1a6d41aa22ac788442eb5cb5bbc543c5000000000000000000000000c58d2bf7ad7cb023760e767e9050be3f15cad6860000000000000000000000009418a8ccb8170814d27c7f3db99e1b9f8c4a7b76&quot;,
+    &quot;salt&quot;: &quot;0x000000000000000000000000000000000000000000000000f332010000000000&quot;
+  }
+}</pre><h3>同笔交易中的初始化参数</h3><pre>{
+  &quot;function&quot;: &quot;initialize&quot;,
+  &quot;signature&quot;: &quot;initialize(address,address,address,address,address)&quot;,
+  &quot;selector&quot;: &quot;0x1459457a&quot;,
+  &quot;parameters&quot;: {
+    &quot;poolManager_&quot;: &quot;0x360e68faccca8ca495c1b759fd9eee466db9fb32&quot;,
+    &quot;registry_&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+    &quot;ledger_&quot;: &quot;0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5&quot;,
+    &quot;router_&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+    &quot;lpManager_&quot;: &quot;0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76&quot;
+  }
+}</pre><h3>回执事件</h3><pre>[
+  {
+    &quot;event&quot;: &quot;Upgraded&quot;,
+    &quot;signature&quot;: &quot;Upgraded(address)&quot;,
+    &quot;address&quot;: &quot;0xf151416e74d6b4ae00197e8d8e4f4765283b3fff&quot;,
+    &quot;logIndex&quot;: 10,
+    &quot;parameters&quot;: {
+      &quot;implementation&quot;: &quot;0x6422ef382cfe42b200aec323236c005c604550f7&quot;
+    }
+  },
+  {
+    &quot;event&quot;: &quot;Initialized&quot;,
+    &quot;signature&quot;: &quot;Initialized(uint64)&quot;,
+    &quot;address&quot;: &quot;0xf151416e74d6b4ae00197e8d8e4f4765283b3fff&quot;,
+    &quot;logIndex&quot;: 11,
+    &quot;parameters&quot;: {
+      &quot;version&quot;: &quot;1&quot;
+    }
+  }
+]</pre><details><summary>内部调用记录（含来源说明）</summary><pre>[
+  {
+    &quot;hash&quot;: &quot;0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501&quot;,
+    &quot;blockNumber&quot;: 74560445,
+    &quot;time&quot;: &quot;2026-10-30T11:04:41+08:00&quot;,
+    &quot;type&quot;: &quot;CREATE2&quot;,
+    &quot;from&quot;: &quot;0xed28206bf9a16e4dc64b893563a48a1bb1e34c60&quot;,
+    &quot;to&quot;: &quot;0xf151416e74d6b4ae00197e8d8e4f4765283b3fff&quot;,
+    &quot;function&quot;: &quot;TSVERC1967Proxy.constructor(address,bytes)&quot;,
+    &quot;parameters&quot;: {
+      &quot;implementation&quot;: &quot;0x6422ef382cfe42b200aec323236c005c604550f7&quot;,
+      &quot;initData&quot;: &quot;0x1459457a000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea0000000000000000000000009b43d49b1a6d41aa22ac788442eb5cb5bbc543c5000000000000000000000000c58d2bf7ad7cb023760e767e9050be3f15cad6860000000000000000000000009418a8ccb8170814d27c7f3db99e1b9f8c4a7b76&quot;,
+      &quot;salt&quot;: &quot;0x000000000000000000000000000000000000000000000000f332010000000000&quot;
+    },
+    &quot;purpose&quot;: &quot;以满足 Hook flags 的地址部署代理。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级内部表 + Factory 输入 + 回执事件。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501&quot;,
+    &quot;blockNumber&quot;: 74560445,
+    &quot;time&quot;: &quot;2026-10-30T11:04:41+08:00&quot;,
+    &quot;type&quot;: &quot;DELEGATECALL&quot;,
+    &quot;from&quot;: &quot;0xf151416e74d6b4ae00197e8d8e4f4765283b3fff&quot;,
+    &quot;to&quot;: &quot;0x6422ef382cfe42b200aec323236c005c604550f7&quot;,
+    &quot;function&quot;: &quot;initialize(address,address,address,address,address)&quot;,
+    &quot;parameters&quot;: {
+      &quot;poolManager_&quot;: &quot;0x360e68faccca8ca495c1b759fd9eee466db9fb32&quot;,
+      &quot;registry_&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+      &quot;ledger_&quot;: &quot;0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5&quot;,
+      &quot;router_&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+      &quot;lpManager_&quot;: &quot;0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76&quot;
+    },
+    &quot;purpose&quot;: &quot;在代理存储上下文执行业务函数；与父交易合并计数。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  }
+]</pre></details><details><summary>原始 calldata / Gas / 回执</summary><pre>{
+  &quot;calldata&quot;: &quot;0x37e9ccea0000000000000000000000006422ef382cfe42b200aec323236c005c604550f70000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000f33201000000000000000000000000000000000000000000000000000000000000000000000000a41459457a000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea0000000000000000000000009b43d49b1a6d41aa22ac788442eb5cb5bbc543c5000000000000000000000000c58d2bf7ad7cb023760e767e9050be3f15cad6860000000000000000000000009418a8ccb8170814d27c7f3db99e1b9f8c4a7b7600000000000000000000000000000000000000000000000000000000&quot;,
+  &quot;valueWei&quot;: &quot;0&quot;,
+  &quot;gasUsed&quot;: 272560,
+  &quot;effectiveGasPriceWei&quot;: &quot;20000001&quot;,
+  &quot;feeWei&quot;: &quot;5451200272560&quot;
+}</pre><a href="raw-records.html#af742412eae33f468c4c2f29edcccd377bb73420c54cda52a14a614c80b687fe">交易原文</a> · <a href="raw-records.html#bfe0478159b3674cffb06dddff979fe146defa506c6eb7ffb391dcd754f5f02f">回执原文</a></details></article><h2>本地址全部内部调用边</h2><pre>[
+  {
+    &quot;hash&quot;: &quot;0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501&quot;,
+    &quot;blockNumber&quot;: 74560445,
+    &quot;time&quot;: &quot;2026-10-30T11:04:41+08:00&quot;,
+    &quot;type&quot;: &quot;CREATE2&quot;,
+    &quot;from&quot;: &quot;0xed28206bf9a16e4dc64b893563a48a1bb1e34c60&quot;,
+    &quot;to&quot;: &quot;0xf151416e74d6b4ae00197e8d8e4f4765283b3fff&quot;,
+    &quot;function&quot;: &quot;TSVERC1967Proxy.constructor(address,bytes)&quot;,
+    &quot;parameters&quot;: {
+      &quot;implementation&quot;: &quot;0x6422ef382cfe42b200aec323236c005c604550f7&quot;,
+      &quot;initData&quot;: &quot;0x1459457a000000000000000000000000360e68faccca8ca495c1b759fd9eee466db9fb320000000000000000000000005bd7ea82642b49ebdfc3fbc0e656941c165392ea0000000000000000000000009b43d49b1a6d41aa22ac788442eb5cb5bbc543c5000000000000000000000000c58d2bf7ad7cb023760e767e9050be3f15cad6860000000000000000000000009418a8ccb8170814d27c7f3db99e1b9f8c4a7b76&quot;,
+      &quot;salt&quot;: &quot;0x000000000000000000000000000000000000000000000000f332010000000000&quot;
+    },
+    &quot;purpose&quot;: &quot;以满足 Hook flags 的地址部署代理。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级内部表 + Factory 输入 + 回执事件。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  },
+  {
+    &quot;hash&quot;: &quot;0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501&quot;,
+    &quot;blockNumber&quot;: 74560445,
+    &quot;time&quot;: &quot;2026-10-30T11:04:41+08:00&quot;,
+    &quot;type&quot;: &quot;DELEGATECALL&quot;,
+    &quot;from&quot;: &quot;0xf151416e74d6b4ae00197e8d8e4f4765283b3fff&quot;,
+    &quot;to&quot;: &quot;0x6422ef382cfe42b200aec323236c005c604550f7&quot;,
+    &quot;function&quot;: &quot;initialize(address,address,address,address,address)&quot;,
+    &quot;parameters&quot;: {
+      &quot;poolManager_&quot;: &quot;0x360e68faccca8ca495c1b759fd9eee466db9fb32&quot;,
+      &quot;registry_&quot;: &quot;0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea&quot;,
+      &quot;ledger_&quot;: &quot;0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5&quot;,
+      &quot;router_&quot;: &quot;0xc58d2bf7ad7cb023760e767e9050be3f15cad686&quot;,
+      &quot;lpManager_&quot;: &quot;0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76&quot;
+    },
+    &quot;purpose&quot;: &quot;在代理存储上下文执行业务函数；与父交易合并计数。&quot;,
+    &quot;evidence&quot;: &quot;Explorer 高级内部索引 + 原始父交易/构造 initializer 参数。&quot;,
+    &quot;rawTraceAvailable&quot;: false
+  }
+]</pre></body></html>

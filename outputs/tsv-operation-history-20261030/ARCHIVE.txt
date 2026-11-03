@@ -1,0 +1,10 @@
+The 818 original raw/ JSON files are preserved as exact UTF-8 texts in raw-records.json.
+Each entry retains its original relative path and SHA-256. raw-records.html provides
+a browsable copy, and the contract reports link to the corresponding entry.
+
+To reconstruct the original layout for scripts or historical checksum manifests:
+    python3 outputs/tsv-operation-history-20261030/restore_raw_records.py
+
+The restore command checks every hash and refuses to overwrite changed evidence.
+Historical data fields that name raw/ files continue to use the original paths.
+This consolidation changes file packaging only, not the historical RPC contents.

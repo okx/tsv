@@ -1,0 +1,26 @@
+2026-10-30 Mock 分红测试 USDC 全部回收（X Layer Mainnet，chainId 196）
+回收目标：原分发 EOA 0xc2cebe8485f666874667e500b36028ab2a297f8f。USDC 合约 0xb6ceceab302e2e4948951ee7843fc24e92933061，6 decimals。
+从本次生成的 10 个测试账户各回收 0.1 USDC，共 1 USDC。因账户没有 OKB，由原分发 EOA 分别补足转账 Gas，再由各账户签名 transfer。
+账户 1 / fund-USDC-transfer-gas：0xb362176f3229be2965eb6f67231a394bdb033049fe7a1ce3a2b5f5684ea378cf，区块 74584805，receipt.status=1。
+账户 1 / recover-all-USDC：0x1484438cb2464190b6af46a12c8ee4a86e5fda18ee12b8c657039cb746935c7f，区块 74584807，receipt.status=1。
+账户 2 / fund-USDC-transfer-gas：0x0c92df7b1257341784666f9519a2b50213e64218c9637a0c565271d41a819cbc，区块 74584878，receipt.status=1。
+账户 2 / recover-all-USDC：0x21f6fa4f2a644bf15f2f3063b8691666efb21e6a51ad156c7920a275b997927f，区块 74584881，receipt.status=1。
+账户 3 / fund-USDC-transfer-gas：0x7e14d50e7f6f3c8b4fb966b96151d739f51c9882251aa35946e7f0a61a82365a，区块 74584914，receipt.status=1。
+账户 3 / recover-all-USDC：0xa140f162ad879f5c08c2bb8e48270669d6c9458b330415cb8dae074d40d6f10f，区块 74584973，receipt.status=1。
+账户 4 / fund-USDC-transfer-gas：0xfd94dca8b60730b7d7cbce2aa37464f4cc57d90b6730640d6beec2dfa31fa5ff，区块 74584975，receipt.status=1。
+账户 4 / recover-all-USDC：0xe048e8d170c47874f049e06d16e70fd32501fab4212a1d138a01d66f30500c22，区块 74584978，receipt.status=1。
+账户 5 / fund-USDC-transfer-gas：0x418c91751a2d3617495f92f62b2a35dacae1c70d196d126fe6ebb15f878f2d32，区块 74584981，receipt.status=1。
+账户 5 / recover-all-USDC：0x4482d0f9cf35136e16f04fc3c64b897952fe8192e46482221441b8d4c0bad7ed，区块 74584985，receipt.status=1。
+账户 6 / fund-USDC-transfer-gas：0xa983ba369cc51e7fb6a17c0142e2e0bda25a18179819e1b59ab04baf3d1ed112，区块 74585034，receipt.status=1。
+账户 6 / recover-all-USDC：0xad6b3264542bbcd54fbe669fd180e0e4b8e82a8c5d216a5c50827500915b988f，区块 74585037，receipt.status=1。
+账户 7 / fund-USDC-transfer-gas：0x08d4bb5ff58ee15356f6e6a133c19ad3f26e689bd7196064b516fd0296153fc6，区块 74585040，receipt.status=1。
+账户 7 / recover-all-USDC：0xbfccee7442778846dbec7d4c4c128623097fa0420d151dce00d0282d1d18c879，区块 74585043，receipt.status=1。
+账户 8 / fund-USDC-transfer-gas：0x34755736c6d5113c01f0b096e91e08d94003b212ce3d53276e66947c47b01e0b，区块 74585046，receipt.status=1。
+账户 8 / recover-all-USDC：0xff1c2eb43cf3e56c6a9071f0afc1a74c8a85150eba8bd3ce029fee4ca4f2b6bb，区块 74585050，receipt.status=1。
+账户 9 / fund-USDC-transfer-gas：0x768c89d49edcbbefd2c98ef46008aecb23df8f97657c6374276b2efcc2aa0e46，区块 74585053，receipt.status=1。
+账户 9 / recover-all-USDC：0x5c087933927f3f488c6006a26d880d1cebb036116cc4a1ab74853d821b815249，区块 74585057，receipt.status=1。
+账户 10 / fund-USDC-transfer-gas：0x1bb742e7390d43dcf10f438d3dd1c72f635f97f6ac963751441fce01287202e7，区块 74585060，receipt.status=1。
+账户 10 / recover-all-USDC：0x87c8768a6b0dc0ddf59c05a99f2c31048875696ced9a3be728abcb7ca3ba66c7，区块 74585064，receipt.status=1。
+最终核验区块 74585064：10 个账户 USDC 全部为 0，目标钱包余额从 26.585534 增加到 27.585534 USDC，Mock 合约 USDC 为 0。
+20 笔交易总 Gas 0.00001224940061247 OKB；测试账户合计剩余 0.0000038140001907 OKB Gas 余量，未作为 USDC 回收。
+交易、回执、参数和核验结果归档于 outputs/tsv-disperse-test-20261030/usdc-recovery；不包含私钥。
