@@ -1,8 +1,0 @@
-Configuration:
-Init code hash: 0xc54751a5c17c636561e20a98e66126961f17c5b34432e3c5283b3372ee3b8545
-Regex patterns: ["3fff$"]
-
-Starting to generate deterministic contract address with 2 threads...
-Successfully found contract address in 6.526584ms
-Address: 0xF151416e74d6B4Ae00197e8D8E4f4765283B3fff
-Salt: 0x000000000000000000000000000000000000000000000000f332010000000000 (17524070199563649024)

@@ -10,12 +10,6 @@
     "failed": 0,
     "fuzz_runs": 256
   },
-  "certik_revalidation": {
-    "main_passed": 5,
-    "audit_fix_passed": 5,
-    "failed": 0,
-    "note": "PASS includes successful reproduction of findings, not only corrected behavior."
-  },
   "operations_scripts": {
     "compiled": 4,
     "solc": "0.8.26",
@@ -28,9 +22,6 @@
     "sha256_verified": 818,
     "repeated_restore_idempotent": true
   },
-  "html_local_references": {
-    "missing": 0
-  },
   "scope": "No src/v1 implementation changes. No subrepository commit/push. No on-chain transactions for MR validation.",
   "rwt_quote_fork": {
     "passed": 1,
@@ -38,5 +29,21 @@
     "block": 74848469,
     "conditional_usdc_out": "192.555913",
     "note": "Only the trade-admission result is overridden. Real quota/Ledger checks remain active. Current production/preproduction trade pauses are not changed."
+  },
+  "records_cleanup_20261103": {
+    "mcp_successful_deployments": 20,
+    "core_deployments": 14,
+    "adapter_deployments": 6,
+    "unused_duplicate_adapters": 3,
+    "submitted_batch_json_matches_original": 7,
+    "archive_sha256_files_verified": 71,
+    "validator_negative_checks_passed": [
+      "mismatched creation calldata",
+      "failed receipt",
+      "unlisted archive file"
+    ],
+    "skill_frontmatter_valid": true,
+    "review_artifacts_retained": 0,
+    "scope": "Artifact and Skill changes only; no chain transactions or subrepository push."
   }
 }

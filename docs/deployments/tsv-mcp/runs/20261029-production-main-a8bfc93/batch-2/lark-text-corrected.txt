@@ -1,5 +1,0 @@
-2026-10-29｜TSV 生产部署｜第二批：Registry 与 Router 实现合约
-版本 main a8bfc93aa2cf40142e6511e5069d90f65b59f420；XLayer 196；部署地址 0xeb84007545644e10c1a47502438377f7cd192904。
-TSVRegistryV1：0xf68f1d1d990352eeb83fc68ab705a98114bbbf13；交易 0x7bf8aaab36b25aed30eb6b240e4441c4904eb113d8da416c007541619b91e0d5；区块 74502150。
-TSVSwapRouterV1：0x1bb8de0128ce24cc32398cff58cd1c1afc944599；交易 0x969eb07b3e9fcbc3d385c4886ed9e17188fa28b08cfc987cc000118d1762bc9c；区块 74502160。
-两笔回执 status=1、创建 calldata 与请求一致、运行代码及 immutable/库链接地址与构建产物匹配。本批仅实现合约，代理和角色初始化属于后续批次。完整证据 batch-2/chain-verification.json。

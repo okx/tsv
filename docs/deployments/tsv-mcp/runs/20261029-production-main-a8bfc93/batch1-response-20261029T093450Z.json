@@ -1,9 +1,0 @@
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{\"code\":0,\"msg\":\"Approval instance generated successfully. https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16545?_region_=GLOBAL\",\"error_code\":\"10020\",\"error_message\":\"Approval instance generated successfully. https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16545?_region_=GLOBAL\",\"detailMsg\":\"\",\"data\":{},\"requestId\":\"NRI_a7e2e0ff0732442fb82135282cf3026a\"}"
-    }
-  ],
-  "isError": false
-}

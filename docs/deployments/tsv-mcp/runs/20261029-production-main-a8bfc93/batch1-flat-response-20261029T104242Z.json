@@ -1,9 +1,0 @@
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"tasks\":[{\"uuid\":\"df8ba5a5-c4cb-49e4-a4f1-3052b2654709\",\"task_id\":9084,\"ref_order_id\":\"3431c498-1e85-47f7-9173-f077fe97d713\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"f054087a-f51d-48e0-b13c-a237c733be0d\",\"task_id\":9085,\"ref_order_id\":\"271dd38f-d16a-47bd-bcfe-b3419b1dd0de\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"e454683b-05f8-4a3f-91e1-e3c1eab178a8\",\"task_id\":9086,\"ref_order_id\":\"cdd390ba-8712-469a-aab5-bc340b2112ce\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"0ba3a436-f61b-4e87-8655-25b3eaa7c4e7\",\"task_id\":9087,\"ref_order_id\":\"be2850f4-395a-42ee-a9f4-474fdbfa3032\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"bf8b4359-5746-4f5b-87af-afe645037320\",\"task_id\":9088,\"ref_order_id\":\"7b35abc7-f8c8-42cb-9fba-16691cd99546\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"684b2c39-d4b2-4ed8-aabc-e1b7dad77729\",\"task_id\":9089,\"ref_order_id\":\"d6f62606-4acc-41a2-a21f-e012bd46d56b\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"a360ae64-3088-4121-a02b-46be0bb74e89\",\"task_id\":9090,\"ref_order_id\":\"6df0ea5e-3f98-418a-b9a8-adb211bc10d5\",\"chain_id\":196,\"task_status\":3}]},\"detailMsg\":null,\"msg_detail\":null}"
-    }
-  ],
-  "isError": false
-}

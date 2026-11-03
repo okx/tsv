@@ -24,7 +24,7 @@
 | 部署记录模板 | [`DEPLOYMENT_MANIFEST_V1.example.json`](./DEPLOYMENT_MANIFEST_V1.example.json) | 当前五组件地址、外部依赖、角色、资产和发布证据字段 |
 | 测试 | [`../test/README.md`](../test/README.md) | 可执行测试目录、fixture 边界和命令 |
 | 测试覆盖记录 | [`TEST_COVERAGE_V1.md`](./TEST_COVERAGE_V1.md) | 当前测试文件与代码能力的映射 |
-| 测试维护与验证边界 | [`TEST_SPEC_V1.md`](./TEST_SPEC_V1.md) · [`TEST_GAPS_V1.md`](./TEST_GAPS_V1.md) · [`OPERATIONS_TEST_REVIEW_V1.md`](./OPERATIONS_TEST_REVIEW_V1.md) | 当前测试应保护的行为、外部验证缺口和运营测试位置 |
+| 测试维护与验证边界 | [`TEST_SPEC_V1.md`](./TEST_SPEC_V1.md) · [`TEST_GAPS_V1.md`](./TEST_GAPS_V1.md) | 当前测试应保护的行为、外部验证缺口和运营测试位置 |
 | 适配器实现 | [`TSV_ADAPTER_IMPLEMENTATION_V1.md`](./TSV_ADAPTER_IMPLEMENTATION_V1.md) | 仓库集成的 DEX Adapter 接口边界 |
 
 ## 设计稿与历史材料
@@ -35,7 +35,6 @@
 - [`REGISTRY_OBJECT_MODEL_DESIGN.md`](./REGISTRY_OBJECT_MODEL_DESIGN.md)
 - [`TSV_REGISTRY_V1_OPTIMIZATION_DESIGN.md`](./TSV_REGISTRY_V1_OPTIMIZATION_DESIGN.md)
 - [`TSV_CONTRACT_DESIGN_LP_V1.md`](./TSV_CONTRACT_DESIGN_LP_V1.md) · [English](./TSV_CONTRACT_DESIGN_LP_V1_EN.md)
-- [`reviews/`](./reviews/) 下的审计、评审和 x-ray 文件：对应生成日期的历史证据。
 
 历史材料应保留其日期和当时结论，不应被当作对当前源码的描述。若要引用其中的 ABI、状态机或测试结果，先在当前源码和测试中重新核对。
 
@@ -46,4 +45,3 @@
 - **准入新资产：**阅读 [`PERMISSIONED_REGISTRY_V1.md`](./PERMISSIONED_REGISTRY_V1.md) 与 [`TOKEN_ADMISSION_STANDARD_V1.md`](./TOKEN_ADMISSION_STANDARD_V1.md)。
 - **部署或升级：**使用 [`DEPLOYMENT_CHECKLIST_V1.md`](./DEPLOYMENT_CHECKLIST_V1.md)；该清单不替代发布审批或链上核验。
 - **维护测试：**查看 [`../test/README.md`](../test/README.md) 和现有 `.t.sol` 测试。
-- **查历史安全问题：**从 [`reviews/README.md`](./reviews/README.md) 查阅对应日期报告，不能据此推断问题仍存在或已经修复。

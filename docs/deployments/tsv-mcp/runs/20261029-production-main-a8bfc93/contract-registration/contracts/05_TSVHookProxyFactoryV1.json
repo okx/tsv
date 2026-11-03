@@ -135,8 +135,7 @@
   },
   "_代码来源": {
     "source_path": "src/v1/deployment/TSVHookProxyFactoryV1.sol",
-    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/deployment/TSVHookProxyFactoryV1.sol",
-    "artifact": "artifacts/TSVHookProxyFactoryV1.json"
+    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/deployment/TSVHookProxyFactoryV1.sol"
   },
   "_部署证据": {
     "交易哈希": "0x9e3824788a9e19d3804b8dd857d679ae5bae1fbc619cf5ddcaad4f4f201d170f",
@@ -169,7 +168,7 @@
   "_升级与所有权说明": "直接部署的普通合约/库，无代理升级机制和独立 owner；部署者不因部署自动获得协议管理权限。",
   "_ABI说明": {
     "模式": "本次编译产物原始完整 ABI",
-    "来源": "artifacts/TSVHookProxyFactoryV1.json",
+    "来源": "本文件 ABI 字段（生产构建产物 ABI，原 artifact 未归档）",
     "artifact_sha256": "b3c14ee098dd9e27df7c0039d8c20daa9a1b57606166cdc384f9ccc3521b3cb6"
   }
 }

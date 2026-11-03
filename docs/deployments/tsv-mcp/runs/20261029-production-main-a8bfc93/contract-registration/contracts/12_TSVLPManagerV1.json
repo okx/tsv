@@ -1870,8 +1870,7 @@
   },
   "_代码来源": {
     "source_path": "src/v1/periphery/TSVLPManagerV1.sol",
-    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/periphery/TSVLPManagerV1.sol",
-    "artifact": "artifacts/TSVLPManagerV1.json"
+    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/periphery/TSVLPManagerV1.sol"
   },
   "_部署证据": {
     "交易哈希": "0xf3658c4213c9d3ba49abe31d0130da3c5b1c1a00f4ddc9f6af73af867147d323",
@@ -1914,7 +1913,7 @@
   },
   "_ABI说明": {
     "模式": "本次编译产物原始完整 ABI",
-    "来源": "artifacts/TSVLPManagerV1.json",
+    "来源": "本文件 ABI 字段（生产构建产物 ABI，原 artifact 未归档）",
     "artifact_sha256": "45c30797d87b79181bd2e351085236456254df6ca09f95343ca18f78138dde9d"
   }
 }

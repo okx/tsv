@@ -1,9 +1,0 @@
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"tasks\":[{\"uuid\":\"60ec6c40-ed36-48d9-91b0-a5e95cce67ee\",\"task_id\":9093,\"ref_order_id\":\"1dbb7ed2-c93c-4916-aea1-9043b62af36f\",\"chain_id\":196,\"task_status\":3}]},\"detailMsg\":null,\"msg_detail\":null}"
-    }
-  ],
-  "isError": false
-}

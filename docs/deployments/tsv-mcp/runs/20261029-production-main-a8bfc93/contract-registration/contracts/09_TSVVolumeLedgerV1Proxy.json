@@ -531,8 +531,7 @@
   },
   "_代码来源": {
     "source_path": "src/v1/deployment/TSVERC1967Proxy.sol",
-    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/deployment/TSVERC1967Proxy.sol",
-    "artifact": "artifacts/TSVERC1967Proxy.json"
+    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/deployment/TSVERC1967Proxy.sol"
   },
   "_部署证据": {
     "交易哈希": "0x92fd88c9521aab24894108ecdc8d6dce58f303a45b7f1fe4c001017cf8c9b82e",
@@ -577,6 +576,7 @@
     "构造函数": "取 TSVERC1967Proxy 的 constructor(address,bytes)",
     "包含": "代理自身 tsvImplementation()/fallback/错误/事件，以及实现合约的函数、错误、事件和接收接口；排除实现合约构造函数。",
     "逻辑ABI来源": "artifacts/TSVVolumeLedgerV1.json",
-    "代理ABI来源": "artifacts/TSVERC1967Proxy.json"
+    "代理ABI来源": "artifacts/TSVERC1967Proxy.json",
+    "来源": "本文件 ABI 字段（生产构建产物 ABI，原 artifact 未归档）"
   }
 }

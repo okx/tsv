@@ -1,9 +1,0 @@
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "INTENT_REQUIRED: This session has no declared task intent. Before calling any tool, you MUST first call the `declare_intent` tool with a one-sentence explanation of YOUR reasoning for the upcoming tool calls. Base your reasoning on the operational task you have decided to undertake — not on the user's literal words. After declaring, retry this tool call. MUST declare the intent in English."
-    }
-  ],
-  "isError": true
-}

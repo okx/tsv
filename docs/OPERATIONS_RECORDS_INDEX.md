@@ -1,6 +1,6 @@
 # TSV 运维工具与历史记录索引
 
-本次归档以 `main` 的 `a8bfc93aa2cf40142e6511e5069d90f65b59f420` 为基础，补充此前未入库的工具和操作证据。`src/v1` 业务合约不在此次变更范围内；CertiK Issue 索引也不表示全部审计问题已完成修复。
+本次归档以 `main` 的 `a8bfc93aa2cf40142e6511e5069d90f65b59f420` 为基础，补充此前未入库的工具和操作证据。`src/v1` 业务合约不在此次变更范围内。
 
 ## 工具
 
@@ -14,19 +14,16 @@
 
 这些脚本有链上写入能力。构建或测试不等于广播授权；实际使用时仍应确认目标、参数和签名人，并先模拟交易。
 
-## 部署与审计
+## MCP 成功部署记录
 
 | 内容 | 路径 |
 | --- | --- |
-| MCP 部署计划、请求与响应、逐批地址和回执 | [deployments/tsv-mcp](deployments/tsv-mcp/) |
-| 最终生产地址清单 | [production-deployment-addresses.json](deployments/tsv-mcp/runs/20261029-production-main-a8bfc93/production-deployment-addresses.json) |
-| 每个生产合约的登记资料与 ABI | [contract-registration](deployments/tsv-mcp/runs/20261029-production-main-a8bfc93/contract-registration/) |
-| 原审计报告、截图及 Issue 复核记录 | [reviews/lark-audit-2026-10-27](reviews/lark-audit-2026-10-27/) |
-| CertiK 双基线复核及 15 项 Issue 回执 | [review.html](../outputs/certik-review-20261031/review.html) |
-| 历史预审资料 | [x-ray](../x-ray/) |
+| MCP 成功部署的请求、最终状态和链上回执 | [deployments/tsv-mcp](deployments/tsv-mcp/) |
+| MCP 部署地址清单（不含其他渠道部署） | [mcp-deployment-addresses.json](deployments/tsv-mcp/runs/20261029-production-main-a8bfc93/mcp-deployment-addresses.json) |
+| MCP 成功部署合约的登记资料与 ABI | [contract-registration](deployments/tsv-mcp/runs/20261029-production-main-a8bfc93/contract-registration/) |
 | 后端监听池和查询 W/U 的接口说明 | [POOL_MONITORING_AND_WU_LOOKUP_V1.md](POOL_MONITORING_AND_WU_LOOKUP_V1.md) |
 
-编译产物、build-info、原始运行日志、ZIP 副本、本地签名配置和临时工作树不在归档中。历史 checksum 文件保留原貌，可能列出未入库的可重建编译产物；不能将其当作当前归档目录的完整文件清单。
+部署流程见 [tsv-mcp-deploy Skill](../.agents/skills/tsv-mcp-deploy/SKILL.md)。deployments 仅保留已成功的 MCP EOA 创建操作及其证据；失败、等待、计划、重试过程和其他渠道部署均不保留。审计及 review 报告另行管理。每个 run 的 SHA256SUMS.json 对应当前归档文件。
 
 ## 链上记录与模拟
 
@@ -56,8 +53,4 @@
 ```sh
 PYTHONPATH=sdk/python python3 -m unittest discover -s sdk/python/tests -v
 forge test --root lib/TestToken/securitize-disperse -vv
-python3 outputs/certik-review-20261031/verification/run.py --baseline main
-python3 outputs/certik-review-20261031/verification/run.py --baseline audit-fix
 ```
-
-CertiK 复核测试的运行器按当前 checkout 解析依赖路径，测试使用固定源码快照；PASS 同时包含成功复现已有问题的情形，并不表示该基线无漏洞。按仓库原有方式准备依赖后再运行这些命令。

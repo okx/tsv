@@ -919,8 +919,7 @@
   },
   "_代码来源": {
     "source_path": "src/v1/periphery/TSVSwapRouterV1.sol",
-    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/periphery/TSVSwapRouterV1.sol",
-    "artifact": "artifacts/TSVSwapRouterV1.json"
+    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/periphery/TSVSwapRouterV1.sol"
   },
   "_部署证据": {
     "交易哈希": "0x969eb07b3e9fcbc3d385c4886ed9e17188fa28b08cfc987cc000118d1762bc9c",
@@ -963,7 +962,7 @@
   },
   "_ABI说明": {
     "模式": "本次编译产物原始完整 ABI",
-    "来源": "artifacts/TSVSwapRouterV1.json",
+    "来源": "本文件 ABI 字段（生产构建产物 ABI，原 artifact 未归档）",
     "artifact_sha256": "87da6a1dfe6f64efaf4f257b9640164f81a3d74763d2c4b685f0aa531c3d9e2c"
   }
 }

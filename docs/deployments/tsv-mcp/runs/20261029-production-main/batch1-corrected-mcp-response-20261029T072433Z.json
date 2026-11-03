@@ -1,9 +1,0 @@
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{\"code\":0,\"msg\":\"Approval instance already exists, please wait for approval. https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16539?_region_=GLOBAL\",\"error_code\":\"10021\",\"error_message\":\"Approval instance already exists, please wait for approval. https://pmboss.okg.com/newboss/okbossPlatform/approval/instance/16539?_region_=GLOBAL\",\"detailMsg\":\"\",\"data\":{},\"requestId\":\"NRI_85400a212d49447786d01ed9ece58bf1\"}"
-    }
-  ],
-  "isError": false
-}

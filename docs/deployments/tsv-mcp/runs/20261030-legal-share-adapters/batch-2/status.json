@@ -1,0 +1,47 @@
+{
+  "checkedAt": "2026-10-30T09:43:44.409Z",
+  "tasks": [
+    {
+      "attempt": 3,
+      "uuid": "62028719-d22c-4378-8251-ee3efc644634",
+      "name": "TSV-20261030-MSTR-ERC8056DirectLegalShareAdapter",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"62028719-d22c-4378-8251-ee3efc644634\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0xefce06eed01375ad823431f91ed616c404d3db9b74e27f3af555b717ebb7a5e2\"},\"detailMsg\":null,\"msg_detail\":null}"
+          }
+        ],
+        "isError": false
+      }
+    },
+    {
+      "attempt": 3,
+      "uuid": "dd8df1d1-c681-488e-8da5-f5ea9b19f99d",
+      "name": "TSV-20261030-BTGO-ERC8056DirectLegalShareAdapter",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"dd8df1d1-c681-488e-8da5-f5ea9b19f99d\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0xfa8d13909b6743f195ed26bef8d3e42599dd52eba6d29e9f735f30bbbb84f286\"},\"detailMsg\":null,\"msg_detail\":null}"
+          }
+        ],
+        "isError": false
+      }
+    },
+    {
+      "attempt": 3,
+      "uuid": "fd7501a6-4b41-4500-ba33-eed63b734274",
+      "name": "TSV-20261030-SECZ-ERC8056DirectLegalShareAdapter",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"uuid\":\"fd7501a6-4b41-4500-ba33-eed63b734274\",\"chain_id\":196,\"task_status\":11,\"task_status_name\":\"TASK_BROADCAST_SUCCESS_AND_TRANSACTION_SUCCESS\",\"contract_address\":null,\"tx_hash\":\"0xe928ef7976caa25eec6898a744e5b93bd6e2f3a50c3651ce3dd086295a2a8f8d\"},\"detailMsg\":null,\"msg_detail\":null}"
+          }
+        ],
+        "isError": false
+      }
+    }
+  ]
+}

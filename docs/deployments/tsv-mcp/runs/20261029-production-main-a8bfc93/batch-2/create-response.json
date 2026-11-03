@@ -1,9 +1,0 @@
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{\"code\":0,\"msg\":\"success\",\"data\":{\"tasks\":[{\"uuid\":\"75b5aef4-5c8e-4258-9259-afb773328b9d\",\"task_id\":9091,\"ref_order_id\":\"9289fb27-e2d6-4d72-95ad-5a136c79f355\",\"chain_id\":196,\"task_status\":3},{\"uuid\":\"9b91a97e-305d-4ecc-aa41-4def90e0977f\",\"task_id\":9092,\"ref_order_id\":\"86120599-179c-4920-bda7-6d30ab5e7fb0\",\"chain_id\":196,\"task_status\":3}]},\"detailMsg\":null,\"msg_detail\":null}"
-    }
-  ],
-  "isError": false
-}

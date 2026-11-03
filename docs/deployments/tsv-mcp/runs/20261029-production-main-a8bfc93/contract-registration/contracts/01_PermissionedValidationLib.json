@@ -159,8 +159,7 @@
   },
   "_代码来源": {
     "source_path": "src/v1/libraries/PermissionedValidationLib.sol",
-    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/libraries/PermissionedValidationLib.sol",
-    "artifact": "artifacts/PermissionedValidationLib.json"
+    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/libraries/PermissionedValidationLib.sol"
   },
   "_部署证据": {
     "交易哈希": "0xaafdde4c340db103a23d50383a5cf82539241779192822ef6244fde7c22c8af4",
@@ -193,7 +192,7 @@
   "_升级与所有权说明": "直接部署的普通合约/库，无代理升级机制和独立 owner；部署者不因部署自动获得协议管理权限。",
   "_ABI说明": {
     "模式": "本次编译产物原始完整 ABI",
-    "来源": "artifacts/PermissionedValidationLib.json",
+    "来源": "本文件 ABI 字段（生产构建产物 ABI，原 artifact 未归档）",
     "artifact_sha256": "68c866a8b9a9356c926ec7a79eea2f3c19da63871727264b8c7062103163c83f"
   }
 }

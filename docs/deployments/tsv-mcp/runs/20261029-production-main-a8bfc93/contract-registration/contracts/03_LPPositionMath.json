@@ -87,8 +87,7 @@
   },
   "_代码来源": {
     "source_path": "src/v1/vendor/permissionedPools/libraries/LPPositionMath.sol",
-    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/vendor/permissionedPools/libraries/LPPositionMath.sol",
-    "artifact": "artifacts/LPPositionMath.json"
+    "source_link": "https://gitlab.okg.com/web3-dex/tsv/-/blob/a8bfc93aa2cf40142e6511e5069d90f65b59f420/src/v1/vendor/permissionedPools/libraries/LPPositionMath.sol"
   },
   "_部署证据": {
     "交易哈希": "0xe67b1655509e3ab671570e33e94ead8c93b0d6730fa5c4a8e8e84faab339cd84",
@@ -121,7 +120,7 @@
   "_升级与所有权说明": "直接部署的普通合约/库，无代理升级机制和独立 owner；部署者不因部署自动获得协议管理权限。",
   "_ABI说明": {
     "模式": "本次编译产物原始完整 ABI",
-    "来源": "artifacts/LPPositionMath.json",
+    "来源": "本文件 ABI 字段（生产构建产物 ABI，原 artifact 未归档）",
     "artifact_sha256": "304cf0f2939abd434577877c8be9fadec34bbb7b206e4d5b5c8f3fb3833b921e"
   }
 }
