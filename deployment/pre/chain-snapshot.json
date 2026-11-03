@@ -1,0 +1,54 @@
+{
+  "chainId": 196,
+  "block": 74921811,
+  "rpcUrl": "https://rpc.xlayer.tech",
+  "implementations": {
+    "TSVRegistryV1": "0x6b168962366eb82bb7d05c4b454706868614140d",
+    "TSVVolumeLedgerV1": "0x643566f75d354ba0b07be70aec2a6c2611a5eb80",
+    "TSVSwapRouterV1": "0x8e9c6d0ef779e44c54fced3d9708812817a71c7d",
+    "TSVLPManagerV1": "0x7134e7fdfe515d9d0c6c679580dcc84cf4189464",
+    "TSVHookV1": "0x2e0643409b49d6eef91a0dff8c22cbf1bc04f53d"
+  },
+  "registryBindings": {
+    "permissionsAdapterFactory()": "0x92cdb229613da8ca45e375cf69df4b3b645ff48d",
+    "participantSbt()": "0x053ecef8ccb8844322bee86290dae016b9843b6d",
+    "permissionedPoolManager()": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+    "hook()": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff",
+    "lpManager()": "0xf73d8683b948564d2795c62a2a909012ea168d29",
+    "permissionedValidationLibrary()": "0xb60e6270370334727e03694d4bb842c4319f0dc1"
+  },
+  "unavailableReads": [],
+  "linkedLibraryEvidence": [
+    {
+      "contract": "TSVLPManagerLib",
+      "address": "0xe2d66e16c2db1537a941a015f101541a5be1b2ce",
+      "identification": "PUSH20 link target in current LPManager and matching Solidity library methodIdentifiers; not full source verification",
+      "runtimeCodeBytes": 9885,
+      "selectorMatches": {
+        "checkPositionAction(ITSVPermissionedRegistry,uint256,bytes,address,mapping(uint256 => address) storage,mapping(uint256 => PositionInfo) storage,mapping(bytes25 => PoolKey) storage)": true,
+        "checkSettlementAction(ITSVPermissionedRegistry,uint256,bytes,address)": true,
+        "initializePool(IPoolManager,IPermissionsAdapterFactory,ITSVPermissionedRegistry,PoolKey,uint160)": true,
+        "pay(IPoolManager,IPermissionsAdapterFactory,address,address,uint256,address)": true,
+        "requireRegistryNotPaused(ITSVPermissionedRegistry)": true,
+        "requireRole(ITSVPermissionedRegistry,bytes32)": true,
+        "requireUnwindAdmin(IPermissionsAdapterFactory,address,address)": true,
+        "sweep(IPermissionsAdapterFactory,address,address)": true,
+        "tryDeliverAsset(IPoolManager,uint256,address,address,uint256)": true,
+        "unsubscribe(mapping(uint256 => PositionInfo) storage,mapping(uint256 => ISubscriber) storage,uint256,uint256)": true,
+        "unwindPosition(TSVLPManagerLib.UnwindParams,mapping(uint256 => PositionInfo) storage,mapping(uint256 => ISubscriber) storage,mapping(uint256 => address) storage)": true,
+        "unwindPositionByTsv(TSVLPManagerLib.UnwindParams,mapping(uint256 => PositionInfo) storage,mapping(uint256 => ISubscriber) storage,mapping(uint256 => address) storage)": true,
+        "updatePoolTickCount(ITSVPermissionedRegistry,PoolKey,int256)": true,
+        "validateLiquidityCurrency(IPermissionsAdapterFactory,address,IHooks,address)": true
+      }
+    },
+    {
+      "contract": "LPPositionMath",
+      "address": "0x70df85a68bc948496dfcac1750f9f68135d1dad2",
+      "identification": "PUSH20 link targets in current LPManager implementation plus function selector checks",
+      "runtimeCodeBytes": 1677,
+      "selectorMatches": {
+        "getSqrtPriceAtTick(int24)": true
+      }
+    }
+  ]
+}

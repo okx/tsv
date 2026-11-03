@@ -9,7 +9,7 @@
 
 每批保留实际提交的完整 `request.json` 和最终成功状态 `status.json`。交易文件包含 input、回执及运行时代码或核验结果；UUID、hash、地址可与 manifest 逐项关联。重复部署同样成功上链，因此保留，并明确其用途。
 
-`contract-registration/contracts/` 保留这 14 个 MCP 部署合约的登记资料和 ABI；其中关联代理地址只说明组件关系，不把其他渠道部署计为 MCP 操作。地址及状态均为记录时的历史快照，不表示当前已完成业务配置。
+合约地址统一维护于 [deployment/pre](../../../deployment/pre/addresses.json) 和 [deployment/prod](../../../deployment/prod/addresses.json)，合约登记资料及 ABI 位于 [deployment/prod/contracts](../../../deployment/prod/contracts/)。本目录只保存部署过程证据；请求、回执和 manifest 中的地址属于历史证据，不作为独立当前地址表。
 
 每个 run 的 `SHA256SUMS.json` 为当前归档文件生成摘要，不包含自身。校验示例：
 
