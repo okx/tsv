@@ -6,26 +6,11 @@
 - Scope: The 16 broadcast transactions for the RWT/USDC registration, pool creation, liquidity provision, quota configuration, and test trade described below. The receipt for each transaction was verified as successful (`status 0x1`).
 - Security Notice: This document does not contain RPC credentials or private keys.
 
-## Deployment Metadata
+## 地址入口
 
-- Deployment date: 2026-10-14
-- Deployment status: Confirmed
-- Source verification: Not performed (`false`)
+预发地址统一维护于 [deployment/pre/addresses.json](../../deployment/pre/addresses.json)。本文保留操作过程及交易证据，不再维护独立部署地址表。
 
-## Proxy Contracts
-
-- `TSVRegistryV1`: `0x2233ea2044ffa04ccceeef0b9adfe0799505a908`
-- `TSVVolumeLedgerV1`: `0x4fbffbe7ca5ce0fc3af30c9f305e0f6365ff3bc2`
-- `TSVSwapRouterV1`: `0xe5df3ab010bb20094f490dfcf61b6e2d9a3311c8`
-- `TSVLPManagerV1`: `0xf73d8683b948564d2795c62a2a909012ea168d29`
-- `TSVHookV1`: `0xbc6d8c8a8b681872a93554116f01268f80c9ffff`
-
-## Factories
-
-- `PermissionsAdapterFactory` (currently bound): `0x038b77f3355afe8aea10c6c2b7be9312d8148e3f`
-- `PermissionsAdapterFactory` (new standalone deployment): `0x92cdb229613dA8ca45E375cf69dF4b3b645FF48D`
-- `TSVHookProxyFactoryV1`: `0x3c3e76f4beb314713901183ed6e511928e1d2a99`
-- `SmartWalletFactory`: `0x1eb8d87d616f31591cfd21f30458c8168b1c1b80`
+## Historical Standalone Factory Deployment
 
 The new standalone `PermissionsAdapterFactory` is bound to PoolManager
 `0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32`, but the Registry, Swap Router,
@@ -33,14 +18,7 @@ and LP Manager still reference the currently bound Factory above. Its deployment
 transaction is `0x37bc142199016be5e476f632308bde2fe869216f64eefa607fe008b2267f40b2`
 (`status 0x1`). Source verification was not performed.
 
-## Assets and Operation-Specific Contracts
-
-- RWT pool currency W: `0x4cf5b1073ec81b45419358c63a2bafc83842c60d`
-- Underlying U corresponding to W: `0x28Ccb07e804c6541634C07f1809f7Eaae3B523B0`
-- QuoteToken Q (used as USDC in this operation): `0xb0A8640210A0dA1a59d95Bd51E39b3FA488c244e`
-- Legal-share Adapter: `0x1501e20d4990f4A33f3807a9482AF910bDcD3F68`
-- RWT Security ID: `0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3`
-- Pool ID: `0x220d89b1d44e1fb2f5b11abc3026d2452e072caae3dc9eda4e328c47c264e0e8`
+This paragraph records the original observation date; current Registry bindings are listed in the pre address catalog.
 
 ## Transaction Details
 

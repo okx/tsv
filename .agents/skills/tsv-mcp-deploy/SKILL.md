@@ -31,12 +31,18 @@ HTTP 500、审批存在、任务暂不存在或响应丢失均不能证明没有
 
 - `manifest.json`：固定版本/构建信息、部署来源、任务 UUID、hash、地址、用途与核验结果。
 - `batch-*/request.json`：实际提交的完整 JSON；`status.json`：最终成功状态原文。请求批次若部分成功，只归档成功任务并注明是从原请求提取的子集，不能称为完整原请求。
-- `transactions/<hash>.json`：交易、receipt、runtime 或核验结果；合约 ABI 和必要登记资料。
+- `transactions/<hash>.json`：交易、receipt、runtime 或核验结果；过程需要的 ABI 可保留。独立合约登记资料维护在 `deployment/<pre|prod>/contracts/`。
 - `SHA256SUMS.json`：当前归档文件相对路径及 SHA-256，不包含自身。
 
 失败、等待审批、计划、轮询中间状态、重试过程、Lark 通知、审计/review 和非 MCP 交易不进入 deployments。执行过程可在本地临时工作目录保留待核对信息，完成后不随成功记录提交。成功但重复的部署仍须记录，并注明 canonical/unused duplicate，不能遗漏真实交易。
 
 用 `python3 .agents/skills/tsv-mcp-deploy/scripts/validate_records.py <run-dir>` 校验归档。该脚本检查现有证据的一致性，不代替 RPC 链上核验。不得记录签名私钥、API 凭据或带鉴权的 RPC URL。
+
+## 地址与过程的分工
+
+`deployment/pre/addresses.json` 和 `deployment/prod/addresses.json` 是环境地址清单入口，包含代理、当前实现、库、Factory、外部依赖、资产及 Adapter。记录来源和核验区块；历史实现、重复部署或未采用合约单独标记，不冒充当前使用版本。登记资料放在相应环境的 `contracts/`，冻结的发布地址放在 `releases/`。非 MCP 渠道确认成功的合约也可登记地址，但不计入 MCP 成功部署次数。
+
+`docs/deployments/` 只维护部署过程与证据，不重复维护独立地址汇总表。原始请求、状态、回执和 manifest 中作为证据的地址必须保留，不能为消除地址重复而修改原文。完成部署或升级后同步环境清单，并以相对路径在两处互相引用。
 
 ## TSV 边界
 

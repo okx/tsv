@@ -19,8 +19,8 @@
 | 内容 | 路径 |
 | --- | --- |
 | MCP 成功部署的请求、最终状态和链上回执 | [deployments/tsv-mcp](deployments/tsv-mcp/) |
-| MCP 部署地址清单（不含其他渠道部署） | [mcp-deployment-addresses.json](deployments/tsv-mcp/runs/20261029-production-main-a8bfc93/mcp-deployment-addresses.json) |
-| MCP 成功部署合约的登记资料与 ABI | [contract-registration](deployments/tsv-mcp/runs/20261029-production-main-a8bfc93/contract-registration/) |
+| pre / prod 合约地址清单 | [deployment](../deployment/README.md) |
+| MCP 成功部署合约的登记资料与 ABI | [production contracts](../deployment/prod/contracts/) |
 | 后端监听池和查询 W/U 的接口说明 | [POOL_MONITORING_AND_WU_LOOKUP_V1.md](POOL_MONITORING_AND_WU_LOOKUP_V1.md) |
 
 部署流程见 [tsv-mcp-deploy Skill](../.agents/skills/tsv-mcp-deploy/SKILL.md)。deployments 仅保留已成功的 MCP EOA 创建操作及其证据；失败、等待、计划、重试过程和其他渠道部署均不保留。审计及 review 报告另行管理。每个 run 的 SHA256SUMS.json 对应当前归档文件。

@@ -1,0 +1,90 @@
+{
+  "network": "X Layer Mainnet",
+  "chainId": 196,
+  "catalogDate": "2026-11-03",
+  "verification": {
+    "block": 74921811,
+    "scope": "EIP-1967 implementation slots and Registry bindings read at this block; other addresses are explicitly sourced historical records, not a fresh check of all configuration or permissions."
+  },
+  "environment": "prod",
+  "initialDeploymentDate": "2026-10-29",
+  "initialDeploymentCommit": "a8bfc93aa2cf40142e6511e5069d90f65b59f420",
+  "releaseBranch": "release/prod/V0.0.1-2026102",
+  "proxies": {
+    "TSVRegistryV1": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+    "TSVVolumeLedgerV1": "0x9b43d49b1a6d41aa22ac788442eb5cb5bbc543c5",
+    "TSVSwapRouterV1": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+    "TSVLPManagerV1": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+    "TSVHookV1": "0xF151416e74d6B4Ae00197e8D8E4f4765283B3fff"
+  },
+  "implementations": {
+    "TSVRegistryV1": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+    "TSVVolumeLedgerV1": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
+    "TSVSwapRouterV1": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+    "TSVLPManagerV1": "0x98f9398f865b58c868b7750449f7188c639e4175",
+    "TSVHookV1": "0x6422ef382cfe42b200aec323236c005c604550f7"
+  },
+  "libraries": {
+    "PermissionedValidationLib": "0x8db3a851e94b38e258f801f835e2e7deeb217538",
+    "TSVLPManagerLib": "0x1fb638662581dcdd02f3908459030c337f521114",
+    "LPPositionMath": "0xe3334c3a8bf40cb9079ed0cb26cd8e696f76d6f4"
+  },
+  "factories": {
+    "PermissionsAdapterFactory": "0x4c750656fca58da2a2e0402bd1ab0b39d134bdba",
+    "TSVHookProxyFactoryV1": "0xed28206bf9a16e4dc64b893563a48a1bb1e34c60"
+  },
+  "dependencies": {
+    "PoolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+    "Permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
+    "PositionDescriptor": "0x9e9fbbef0e1bd752e83de5acff3d0c936a9e5a4b",
+    "WOKB": "0xe538905cf8410324e03a5a23c1c177a474d59b2b",
+    "SBT": "0x2d7b601fb9a54f62e7257b19f18be315d2d76f9c"
+  },
+  "recordedAssets": {
+    "MSTR": {
+      "U": "0xf83d29ca0f926cef42597ac57e807ad452ce5b43",
+      "W": "0xe1218f57c5fe7d11088ac4682781906f3c4b0bff",
+      "LegalShareAdapter": "0xb7e043949745296276480ac907819443bb3a1521"
+    },
+    "BTGO": {
+      "U": "0xa57157574e6efd4e26f08b97caa0bee6c8a80e4f",
+      "W": "0xd5cf2ce52694249cff1741c0ce7ebc3f7c0c4c3b",
+      "LegalShareAdapter": "0x936a2215aa1c18a3e71837d1ff3300bc1ed55c3c"
+    },
+    "SECZ": {
+      "U": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "W": "0xc71874b5ee1fb75ee21228981e818375920b7516",
+      "LegalShareAdapter": "0x5b6bf58fe97361eca2721666be532c7889c9c4ae"
+    }
+  },
+  "recordedQuoteTokens": {
+    "USDC": "0xb6ceceab302e2e4948951ee7843fc24e92933061"
+  },
+  "unusedDuplicateAdapters": {
+    "MSTR": "0x280d1cd0912d906e8ce6f122c18524a92a23a6e7",
+    "BTGO": "0x373479d7327e95f14a7a33aa651b02369996d6c4",
+    "SECZ": "0x4d971c1c62db2ef4f4c2ac36b830aafcdf2acf39"
+  },
+  "recordedIntegrations": {
+    "TSV_DEX_ADAPTER": "0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0"
+  },
+  "deploymentChannels": {
+    "MCP": "Core libraries, factories, implementations, four business proxies and six LegalShareAdapters; see docs process manifests.",
+    "TSVHookV1Proxy": {
+      "channel": "USER_MANUAL_FACTORY_CALL",
+      "transactionHash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501"
+    }
+  },
+  "sources": [
+    "chain-snapshot.json",
+    "releases/20261029-mcp-addresses.json",
+    "../../docs/deployments/tsv-mcp/runs/20261030-legal-share-adapters/manifest.json",
+    "../../outputs/production-w-readiness-20261102/chain-snapshot.json",
+    "../../outputs/tsv-operation-history-20261030/state-at-snapshot.json"
+  ],
+  "notes": [
+    "Initial deployment source is a8bfc93; newer main commits do not imply a production upgrade.",
+    "Hook proxy is included in the address catalog even though it was not deployed through MCP.",
+    "The three duplicate adapters succeeded on chain but are recorded as unused; token and external adapter entries reflect historical records."
+  ]
+}

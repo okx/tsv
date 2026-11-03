@@ -2225,7 +2225,7 @@
     "核验区块": 74560777,
     "核验时间_UTC": "2026-10-30T03:10:16.216588+00:00",
     "区块链浏览器源码认证": "本次未进行",
-    "证据路径": "verification/TSVRegistryV1.json"
+    "证据路径": "../../../docs/deployments/tsv-mcp/runs/20261029-production-main-a8bfc93/verification/TSVRegistryV1.json"
   },
   "_字段解释": {
     "状态": "登记草稿中的事实说明，不代表已选择平台状态枚举或启用业务。",
