@@ -130,10 +130,10 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
             request.zeroForOne ? request.key.currency1 : request.key.currency0
         );
         bool isStockOutput = registry.getCurrencyUnderlying(outputCurrency) != address(0);
+        // Quote registration gates new pools; _swap validates the existing pool's trading status.
         bool recipientAllowed = isStockOutput
             ? recipient == participant
-            : registry.getQuoteToken(outputCurrency).registered
-                && (recipient == participant || recipient == msg.sender);
+            : (recipient == participant || recipient == msg.sender);
         if (!recipientAllowed) revert InvalidRequest();
         bool isUnderlyingInput = registry.getCurrencyUnderlying(inputCurrency) != address(0);
         if ((isUnderlyingInput && payer != address(0)) || (!isUnderlyingInput && payer != msg.sender)) {
