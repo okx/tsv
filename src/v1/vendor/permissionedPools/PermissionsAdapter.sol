@@ -6,13 +6,14 @@ import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step
 import {ERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC20 as SafeERC20} from "solmate/src/tokens/ERC20.sol";
+import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {IPermissionsAdapter} from "./interfaces/IPermissionsAdapter.sol";
 import {IAllowlistChecker} from "./interfaces/IAllowlistChecker.sol";
 import {PermissionFlag} from "./libraries/PermissionFlags.sol";
 
 contract PermissionsAdapter is ERC20, Ownable2Step, IPermissionsAdapter {
-    using SafeERC20 for IERC20;
+    using SafeTransferLib for SafeERC20;
 
     /// @inheritdoc IPermissionsAdapter
     address public immutable POOL_MANAGER;
@@ -53,7 +54,7 @@ contract PermissionsAdapter is ERC20, Ownable2Step, IPermissionsAdapter {
 
     /// @inheritdoc IPermissionsAdapter
     function depositForVerification(uint256 amount) external {
-        PERMISSIONED_TOKEN.safeTransferFrom(msg.sender, address(this), amount);
+        SafeERC20(address(PERMISSIONED_TOKEN)).safeTransferFrom(msg.sender, address(this), amount);
         emit VerificationDeposit(msg.sender, amount);
     }
 
@@ -136,7 +137,7 @@ contract PermissionsAdapter is ERC20, Ownable2Step, IPermissionsAdapter {
 
     function _unwrap(address account, uint256 amount) internal {
         _burn(account, amount);
-        PERMISSIONED_TOKEN.safeTransfer(account, amount);
+        SafeERC20(address(PERMISSIONED_TOKEN)).safeTransfer(account, amount);
     }
 
     /// @dev Low-level staticcall + ABI-layout validation. try/catch doesn't catch return-data decode failures,
