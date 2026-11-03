@@ -332,6 +332,9 @@ contract TSVRegistryV1 is TSVGoverned {
     {
         _requireReasonCode(reasonCode);
         if (participantSbt == address(0)) revert SbtNotConfigured();
+        bytes2 supportedPermissions =
+            PermissionFlag.unwrap(PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED);
+        if ((PermissionFlag.unwrap(permissions) & ~supportedPermissions) != bytes2(0)) revert InvalidConfig();
         bool registered = sbtIdentityConfig[tokenId].registered;
         if (PermissionFlag.unwrap(permissions) == PermissionFlag.unwrap(PermissionFlags.NONE)) {
             if (registered) _removeIdentity(tokenId);
@@ -343,10 +346,7 @@ contract TSVRegistryV1 is TSVGoverned {
             }
             sbtIdentityConfig[tokenId] = SbtIdentityConfig(true, permissions);
         }
-        // `permissionsOf` returns this raw vendor bitmask, while `isSbtAllowed`
-        // only treats SWAP_ALLOWED and LIQUIDITY_ALLOWED as TSV permissions.
-        // Consumers must not interpret other stored bits, such as UNWIND_ALLOWED
-        // or ALL_ALLOWED, as current TSV operation privileges.
+        // Only TSV swap/LP bits are configurable here; issuer unwind permissions belong to its checker.
         emit SbtConfigChanged(participantSbt, tokenId, permissions, reasonCode);
     }
 
