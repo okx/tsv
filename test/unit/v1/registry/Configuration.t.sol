@@ -197,19 +197,19 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         registry.setSbtConfig(cap + 1, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
     }
 
-    function testUnrelatedPermissionBitsDoNotAuthorizeSwapOrLiquidity() public {
+    function testUnrelatedPermissionBitsCannotBeConfiguredOrRequested() public {
         address holder = makeAddr("unwind-only-holder");
         identitySbt.setCredential(holder, 7, true);
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.setSbtConfig(7, PermissionFlags.UNWIND_ALLOWED, bytes32("TEST"));
-        assertTrue(registry.hasCredential(holder));
+        assertFalse(registry.hasCredential(holder));
         assertFalse(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, holder));
         assertFalse(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, holder));
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.isSbtAllowed(PermissionFlags.UNWIND_ALLOWED, holder);
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.setSbtConfig(7, PermissionFlags.ALL_ALLOWED, bytes32("TEST"));
-        assertTrue(registry.isSbtAllowed(PermissionFlags.SWAP_ALLOWED, holder));
-        assertTrue(registry.isSbtAllowed(PermissionFlags.LIQUIDITY_ALLOWED, holder));
-        assertEq(registry.sbtTokenIds().length, 1);
+        assertEq(registry.sbtTokenIds().length, 0);
     }
 
     function testFuzzHeldIdentityPermissionsAreUnion(uint8 first, uint8 second, uint8 holders, bool paused) public {
