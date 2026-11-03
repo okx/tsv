@@ -56,8 +56,8 @@ abstract contract PermissionedPositionManager is PositionManager {
         PERMISSIONS_ADAPTER_FACTORY = _permissionsAdapterFactory;
         DELIVERY_GAS_LIMIT = _deliveryGasLimit;
         /// @dev The EIP712 domain separator still uses "Uniswap v4 Positions NFT" as the name
-        name = "Uniswap v4 Permissioned Positions NFT";
-        symbol = "UNI-V4-PERM-POSM";
+        _name = "Uniswap v4 Permissioned Positions NFT";
+        _symbol = "UNI-V4-PERM-POSM";
     }
 
     /// @notice Force-exit the LP from a position. Burns the NFT, unwinds liquidity, and delivers each currency.
@@ -100,7 +100,7 @@ abstract contract PermissionedPositionManager is PositionManager {
 
         // Approve so BURN_POSITION passes onlyIfApproved.
         // ERC-721 _burn clears getApproved as part of its teardown, so the approval is self-cleaning.
-        getApproved[tokenId] = msg.sender;
+        _tokenApprovals[tokenId] = msg.sender;
 
         // Burn the position; settle both currencies as 6909 claims to this contract.
         bytes memory actions =
@@ -146,11 +146,8 @@ abstract contract PermissionedPositionManager is PositionManager {
         revert TransferDisabled();
     }
 
-    function safeTransferFrom(address, address, uint256) public pure virtual override {
-        revert TransferDisabled();
-    }
-
-    function safeTransferFrom(address, address, uint256, bytes calldata) public pure virtual override {
+    /// @dev ERC721 forwards the three-argument overload here.
+    function safeTransferFrom(address, address, uint256, bytes memory) public pure virtual override {
         revert TransferDisabled();
     }
 

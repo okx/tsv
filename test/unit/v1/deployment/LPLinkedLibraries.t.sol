@@ -19,6 +19,7 @@ import {CustomRevert} from "tsv-v1/vendor/permissionedPools/base/Notifier.sol";
 import {ISubscriber} from "v4-periphery/interfaces/ISubscriber.sol";
 import {INotifier} from "v4-periphery/interfaces/INotifier.sol";
 import {IERC721Permit_v4} from "v4-periphery/interfaces/IERC721Permit_v4.sol";
+import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {LPPositionMath} from "tsv-v1/vendor/permissionedPools/libraries/LPPositionMath.sol";
 import {TickMath} from "lib/v4-periphery/lib/v4-core/src/libraries/TickMath.sol";
 import {LiquidityAmounts} from "v4-periphery/libraries/LiquidityAmounts.sol";
@@ -261,7 +262,7 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
         lp.unwindPosition(tokenId, 0, 0, "");
         assertEq(manager.delivered(owner, Currency.unwrap(key.currency0)), 11);
         assertEq(manager.delivered(owner, Currency.unwrap(key.currency1)), 1);
-        vm.expectRevert(bytes("NOT_MINTED"));
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, tokenId));
         lp.ownerOf(tokenId);
     }
 

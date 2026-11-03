@@ -105,8 +105,8 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         registry = _registry;
         nextTokenId = 1;
         // The EIP712 signing name remains "Uniswap v4 Positions NFT" for upstream compatibility.
-        name = "Uniswap v4 Permissioned Positions NFT";
-        symbol = "UNI-V4-PERM-POSM";
+        _name = "Uniswap v4 Permissioned Positions NFT";
+        _symbol = "UNI-V4-PERM-POSM";
     }
 
     /// @notice Registers and initializes a pool atomically at the supplied initial price.
@@ -156,7 +156,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
             ),
             positionInfo,
             subscriber,
-            getApproved
+            _tokenApprovals
         );
     }
 
@@ -193,7 +193,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
             ),
             positionInfo,
             subscriber,
-            getApproved
+            _tokenApprovals
         );
     }
 
@@ -364,7 +364,7 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     ///      admission and position policies must account for these bounds if full forced exits are required.
     function _handlePositionAction(uint256 action, bytes calldata params) private {
         PoolKey memory poolKey = TSVLPManagerLib.checkPositionAction(
-            registry, action, params, msgSender(), _ownerOf, positionInfo, poolKeys
+            registry, action, params, msgSender(), _owners, positionInfo, poolKeys
         );
         PermissionedPositionManager._handleAction(action, params);
         if (action == Actions.MINT_POSITION) {
