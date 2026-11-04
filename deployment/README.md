@@ -13,6 +13,6 @@
 
 生产初始发布的冻结地址位于 [prod/releases/20261029-mcp-addresses.json](prod/releases/20261029-mcp-addresses.json)，原 MCP 部署合约登记资料与 ABI 位于 [prod/contracts/](prod/contracts/)。这些历史登记资料描述其部署时点，不随代理以后升级自动变成新实现资料。
 
-部署过程、完整 MCP 请求、最终状态、交易回执及核验记录位于 [docs/deployments/](../docs/deployments/tsv-mcp/README.md)。过程原文包含地址以便核对，但 docs 不再维护独立地址汇总表。
+公开部署步骤见 [docs/deployments/](../docs/deployments/README.md)。完整 MCP 请求、最终状态、交易回执及核验记录保留在 `ops/deployment`，不随 main 分发。地址清单中的 `archivedSources` 标明原始证据的分支、固定 commit 和相对路径；应在该 commit 的同名地址文件位置解析这些路径。历史登记资料中引用的原始记录也在该分支保留。docs 不维护独立地址汇总表。
 
 旧预发业务操作流水迁至 [docs/operations/xlayer-pre-20261015.md](../docs/operations/xlayer-pre-20261015.md)。脚本中的运行配置用于执行输入，不因本次文档整理自动改写；与清单冲突时必须核对目标和链上绑定后再执行。
