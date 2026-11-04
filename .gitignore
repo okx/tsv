@@ -34,3 +34,4 @@ dployment/history/
 /deployment/prod/contracts/
 /deployment/pre/chain-snapshot.json
 /deployment/prod/chain-snapshot.json
+/deployment/prod/releases/

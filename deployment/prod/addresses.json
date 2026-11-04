@@ -75,9 +75,7 @@
       "transactionHash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501"
     }
   },
-  "sources": [
-    "releases/20261029-mcp-addresses.json"
-  ],
+  "sources": [],
   "notes": [
     "Initial deployment source is a8bfc93; newer main commits do not imply a production upgrade.",
     "Hook proxy is included in the address catalog even though it was not deployed through MCP.",
@@ -91,7 +89,8 @@
       "chain-snapshot.json",
       "../../docs/deployments/tsv-mcp/runs/20261030-legal-share-adapters/manifest.json",
       "../../outputs/production-w-readiness-20261102/chain-snapshot.json",
-      "../../outputs/tsv-operation-history-20261030/state-at-snapshot.json"
+      "../../outputs/tsv-operation-history-20261030/state-at-snapshot.json",
+      "releases/20261029-mcp-addresses.json"
     ]
   }
 }
