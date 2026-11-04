@@ -1,15 +1,13 @@
 # XLayer TSV Python SDK
 
-This repository-native SDK runs the allowlisted Foundry operations through a shared simulate-then-broadcast flow. Public X Layer addresses are fixed in `script/xlayer/deployment.json`; private keys stay in the local environment file.
+This repository-native SDK runs the allowlisted Foundry operations through a shared simulate-then-broadcast flow. A reviewed deployment JSON must be explicitly supplied; no live environment is selected by default. Private keys stay in the local environment file.
 
 ## Use
 
-Create the local key file once and set the operator key:
+Copy and fill [the deployment template](../../script/xlayer/deployment.example.json), then explicitly select it. Unfilled placeholders are rejected. Configure signing material through a local environment file or process environment:
 
 ```sh
-test -f script/xlayer/.env.xlayer || cp script/xlayer/.env.xlayer.example script/xlayer/.env.xlayer
-# Edit script/xlayer/.env.xlayer and set XLAYER_PRIVATE_KEY.
-python3 script/xlayer/operate.py
+python3 script/xlayer/operate.py --deployment /path/to/reviewed-deployment.json --env-file /path/to/local.env
 ```
 
 Amounts are raw token units. `XLAYER_PRIVATE_KEY` signs and pays for transactions; neither side requires a backend signer. `XLAYER_RPC_URL` is an optional override. Keys cannot be supplied through `Operation.inputs`.
@@ -17,6 +15,8 @@ Amounts are raw token units. `XLAYER_PRIVATE_KEY` signs and pays for transaction
 `PermissionsAdapterFactoryMigrationRequest` formats the Registry action, replacement Factory, and three distinct reason codes for `Target.REGISTRY_OPERATION`:
 
 ```python
+from pathlib import Path
+
 from tsv_xlayer_sdk import (
     ExecutionClient,
     Operation,
@@ -31,13 +31,13 @@ request = PermissionsAdapterFactoryMigrationRequest(
     resume_reason_code="resume-reason",
 )
 operation = Operation(Target.REGISTRY_OPERATION, "Replace PermissionsAdapterFactory", request.env())
-client = ExecutionClient()
+client = ExecutionClient(deployment_file=Path("/path/to/reviewed-deployment.json"))
 simulation = client.simulate(operation)
 if simulation.result.succeeded:
     result = client.broadcast(simulation, "BROADCAST")
 ```
 
-The operation also requires the security inventory configured in `deployment.json` to have no listed pools, plus the operator's Registry admin and upgrade roles. It permanently grants the signer emergency pause/resume roles; any W unrecognized by the new Factory will fail Factory validation after the switch. Simulate before broadcast and use the exact `BROADCAST` confirmation.
+The operation also requires the security inventory configured in the explicitly selected deployment JSON to have no listed pools, plus the operator's Registry admin and upgrade roles. It permanently grants the signer emergency pause/resume roles; any W unrecognized by the new Factory will fail Factory validation after the switch. Simulate before broadcast and use the exact `BROADCAST` confirmation.
 
 ## DexRouter + TSVAdapter
 

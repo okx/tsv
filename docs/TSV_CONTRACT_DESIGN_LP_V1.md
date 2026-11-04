@@ -101,23 +101,9 @@ LPManager 对受限资产侧查询该标志；至少一个受限资产侧允许�
 
 ## 4. LP 的 SBT 执行原则
 
-依据用户提供的 Enforcement 摘录：接口、AMM Router 和 AMM Liquidity Pool 合约在可执行报价及流动性等交易前验证参与者钱包具有有效、未撤销的 SBT；证券代币另行限制只向白名单钱包转账。
+本设计将参与者身份校验与发行方代币准入分开：普通 Swap 和 LP 操作读取 Registry 配置的身份权限，底层代币继续执行发行方自己的转账限制。暂停、强退和其他特殊路径以当前合约实现为准。
 
-![用户提供的 SBT Enforcement 摘录](./assets/tsv-sbt-enforcement-excerpt.png)
-
-该摘录作为本设计的需求来源，不在本文中推断其出处或法律效力。
-
-**普通 LP**：新增、增加、减少、销毁及领取手续费均必须验证参与者的有效 SBT。移除不能沿用 Uniswap “撤销 holder 资格后仍可自行退出”的例外。**发行方强退**：可以不检查被退出 LP 的 SBT，因为该 LP 很可能已失去 SBT；以独立 owner 授权及发行方 UNWIND_ALLOWED 标志执行。
-
-新增/增加继续要求 Registry 的 `LIQUIDITY_ALLOWED`。普通移除的已确认最低要求是“有效、未撤销的 SBT”；是否同时要求 SBT 配置仍授予 LP 操作位，不能自动从“必须持有 SBT”推导。实现时须明确这一细节。`hasCredential` 忽略 SBT 暂停，不能单独代表所有“有效”条件。
-
-NFT owner 与执行者可能不同：上游支持授权 operator。必须校验实际参与者，并防止 operator 替失去 SBT 的 owner 绕过移除门禁。建议普通操作的 owner 和执行者均通过相应身份检查，具体 operator 策略待确认；当前移除实现只检查 owner。若产品后续限定 owner-only，可相应简化。底层资产接收方仍需满足 CET 的转账合规。
-
-### 4.1 流程图符号与范围
-
-以下采用标准程序流程图符号：圆角终止符表示开始/结束，平行四边形表示输入/输出，矩形表示处理，菱形表示判断，双边矩形表示子过程。实线箭头表示控制流，带标签的虚线箭头表示异常传播至事务回滚；判断均标明分支结果。发行方配置与资产准入是前置条件，不混入每次 LP 交易的执行步骤。
-
-初始化图对应本文记载的实现；普通 LP 与 unwind 图表示目标设计，包括待接入的 Hook 上下文和 UNWIND_ALLOWED，实现缺口见第 11 节。资金交付与 withdrawClaim 图保留本文记载的现有行为。原子事务遇到未处理异常时整体回滚；unwind 中隔离的实物交付失败仅回滚该次尝试，并进入下一兜底分支。
+当前身份配置和执行边界见 [Registry 说明](PERMISSIONED_REGISTRY_V1.md) 与 [当前接口规格](CODING_SPEC_V1.md)。
 
 ## 5. 初始化池：initializePool
 

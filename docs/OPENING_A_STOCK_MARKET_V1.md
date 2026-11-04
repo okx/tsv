@@ -26,7 +26,7 @@
 - Hook initializer 绑定 PM、Registry、Ledger、Router 和 LP Manager。
 - Registry 使用 `bindComponents(hook, lpManager, factory, sbt)` 一次绑定 Hook、LP Manager、Factory、Factory 的 PM 和 SBT。该函数不绑定 Router 或 Ledger。
 
-当前根目录的 `script/complete-local-deployment.py` 来自旧 DataInbox/Anchor 架构，不是当前代码的部署流程。`docs/DEPLOYMENT_MANIFEST_V1.example.json` 是当前五组件的发布记录模板，不会部署合约，也不构成实际部署证据。仓库尚无与当前源码匹配的完整生产部署脚本；发布前须按当前 constructors/initializers 编写并独立审查部署自动化。
+旧架构部署工具已归档到运维分支，不作为当前代码的部署流程。`docs/DEPLOYMENT_MANIFEST_V1.example.json` 是当前五组件的发布记录模板，不会部署合约，也不构成实际部署证据。仓库尚无与当前源码匹配的完整生产部署脚本；发布前须按当前 constructors/initializers 编写并独立审查部署自动化。
 
 ## 3. 配置权限和发行方组件
 

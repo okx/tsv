@@ -3,6 +3,8 @@ import contextlib
 import importlib.util
 import io
 import os
+import json
+import tempfile
 from pathlib import Path
 import sys
 import unittest
@@ -24,7 +26,11 @@ def address(index):
 
 class DexRouterAuthTest(unittest.TestCase):
     def setUp(self):
-        self.client = ExecutionClient(root=ROOT)
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.deployment_file = Path(self.directory.name) / "deployment.json"
+        self.deployment_file.write_text(json.dumps({"chainId": 196, "rpcUrl": "https://example.invalid", "environment": {}}))
+        self.client = ExecutionClient(root=ROOT, deployment_file=self.deployment_file)
         self.process = patch.dict(os.environ, {"XLAYER_PRIVATE_KEY": "<mock-operator-key>"}, clear=True)
         self.process.start()
         self.addCleanup(self.process.stop)
@@ -95,7 +101,7 @@ class DexRouterAuthTest(unittest.TestCase):
              patch.object(ExecutionClient, "simulate", side_effect=lambda op: Simulation(op, result, "mock")) as simulate, \
              patch.object(ExecutionClient, "broadcast") as broadcast, \
              patch("builtins.input", return_value=""), contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(operate.main(), 0)
+            self.assertEqual(operate.main(["--deployment", str(self.deployment_file)]), 0)
         simulate.assert_called_once()
         broadcast.assert_not_called()
 

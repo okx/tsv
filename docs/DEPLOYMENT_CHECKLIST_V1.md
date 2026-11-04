@@ -1,6 +1,6 @@
 # TSV V1 部署与发布检查
 
-本文从当前构造器、initializer 和绑定入口整理发布检查项；它不是已经验证的部署脚本。当前根目录 `script/complete-local-deployment.py` 仍引用已删除的 DataInbox/Governance Anchor 架构，不能用于当前合约。`docs/DEPLOYMENT_MANIFEST_V1.example.json` 是当前五组件的发布记录模板，不是部署脚本或已填充的部署记录。仓库未提供与当前源码匹配的完整目标链部署脚本。
+本文从当前构造器、initializer 和绑定入口整理发布检查项；它不是已经验证的部署脚本。旧架构的部署补全工具已归档到运维分支，不作为当前合约的部署入口。`docs/DEPLOYMENT_MANIFEST_V1.example.json` 是当前五组件的发布记录模板，不是部署脚本或已填充的部署记录。仓库未提供与当前源码匹配的完整目标链部署脚本。
 
 ## 1. 锁定构建和外部依赖
 
