@@ -1,0 +1,11 @@
+No files changed, compilation skipped
+
+Warning: This is a nightly build of Foundry. It is recommended to use the latest stable version. To mute this warning set `FOUNDRY_DISABLE_NIGHTLY_WARNING` in your environment. 
+
+Warning: Found unknown `remappings_generate` config for profile `soldeer` defined in foundry.toml.
+Error: error sending request for url ([REDACTED]/)
+
+Context:
+- Error #0: client error (Connect)
+- Error #1: dns error
+- Error #2: failed to lookup address information: nodename nor servname provided, or not known

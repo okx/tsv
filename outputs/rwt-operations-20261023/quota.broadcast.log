@@ -1,0 +1,41 @@
+No files changed, compilation skipped
+Script ran successfully.
+
+== Logs ==
+  XLayer chainId: 196
+  Ledger: 0x4FBFfBE7cA5ce0fc3AF30C9F305E0F6365ff3bC2
+  Operator: 0x224467f6640AbE0A62D1be98187912627b59722A
+  Security ID:
+  0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3
+  Operation reason:
+  0x9de9cf765c2e244fcb27c13d6dd7941b7336219205cf5133c8bd8c27bacc77b3
+  Previous quota WAD: 100000000000000000000
+  New quota WAD: 100000000000000000000
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 196
+
+Estimated gas price: 0.040000001 gwei
+
+Estimated total gas used for script: 65208
+
+Estimated amount required: 0.000002608320065208 ETH
+
+==========================
+
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+
+Transactions saved to: /Users/oker/meili/yunshan.fang_dacs_at_okg.com/117/Desktop/gitlab/tsv/broadcast/VolumeLedgerOperations.s.sol/196/run-latest.json
+
+Sensitive values saved to: /Users/oker/meili/yunshan.fang_dacs_at_okg.com/117/Desktop/gitlab/tsv/cache/VolumeLedgerOperations.s.sol/196/run-latest.json
+
+
+Warning: This is a nightly build of Foundry. It is recommended to use the latest stable version. To mute this warning set `FOUNDRY_DISABLE_NIGHTLY_WARNING` in your environment. 
+
+Warning: Found unknown `remappings_generate` config for profile `soldeer` defined in foundry.toml.

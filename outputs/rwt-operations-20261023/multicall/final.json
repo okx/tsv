@@ -1,0 +1,16 @@
+{
+  "block": 73969342,
+  "poolid": "0x2381e6bf537895fd0506f01019f4a1712c8e6aee70504262f3ed05cb70c12b41",
+  "activeLiquidity": 0,
+  "positionCount": 0,
+  "pauseMode": 0,
+  "quotaWad": "100000000000000000000",
+  "usedWad": "0",
+  "ESTDay": 20749,
+  "usdcBalanceRaw": "846306",
+  "rwtBalanceRaw": "1025302062433495875759",
+  "sqrtPriceX96": "79228162514264337593543950336000000",
+  "tick": 276324,
+  "protocolFee": 0,
+  "lpFee": 2000
+}

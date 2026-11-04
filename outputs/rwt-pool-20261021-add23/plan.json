@@ -1,0 +1,14 @@
+{
+  "pool_id": "0xcaba439292b23398ddabe09f68668d3969c3d2d3eea90108b3c2ee9766d5c0a3",
+  "owner": "0x224467f6640abe0a62d1be98187912627b59722a",
+  "sqrt_price_x96": "79251684450176330750507479513401434",
+  "tick": 276329,
+  "tick_lower": 275720,
+  "tick_upper": 276920,
+  "quote_amount_max": 23000000,
+  "estimated_liquidity": 791443376188868,
+  "estimated_rwt_raw": 23779108026286146777,
+  "estimated_rwt": "23.779108026286146777",
+  "rwt_amount_max": 23780000000000000000,
+  "rwt_cap": "23.78"
+}

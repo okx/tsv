@@ -1,0 +1,22 @@
+[
+  {
+    "transactionHash": "0x82ecc631822d884b5ab1df6df29a9724079a9e5656e186e635dab5dfb10e8688",
+    "previousMode": 0,
+    "newMode": 2
+  },
+  {
+    "transactionHash": "0x2b5c3595428595cdf4aed400b9280b5a251c32b9b2a80e739c89aa448e74ea10",
+    "previousMode": 2,
+    "newMode": 0
+  },
+  {
+    "transactionHash": "0x020080d2c76bc193dc218738eb2267375a29c38026aa5f7d5f22751861561ca3",
+    "previousMode": 0,
+    "newMode": 1
+  },
+  {
+    "transactionHash": "0xe91c0ea158fd37cbdb7d7151ee1d227e1a38fb630cb69c600d6803721e11a08b",
+    "previousMode": 1,
+    "newMode": 0
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "transactions": [
+    {
+      "hash": "0x884de1b9ec3480a9b78a7d22cda4c91314df2a1bee11c827808a3899a42c8c58",
+      "transactionType": "CALL",
+      "contractAddress": "0x4fbffbe7ca5ce0fc3af30c9f305e0f6365ff3bc2",
+      "function": "setUsedWad(bytes32,(uint256,uint256)[],bytes32)",
+      "arguments": [
+        "0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3",
+        [
+          [
+            20749,
+            0
+          ]
+        ],
+        "0x3e0ab734ab4645c5933a8d171d5a802fce890c9ad62ab8a7ffb73fde358af388"
+      ],
+      "nonce": 1634,
+      "input": "0x00c372b3e29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e300000000000000000000000000000000000000000000000000000000000000603e0ab734ab4645c5933a8d171d5a802fce890c9ad62ab8a7ffb73fde358af3880000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000510d0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "source": "eth_getTransactionByHash, decoded calldata, sorted by sender nonce"
+}

@@ -1,0 +1,34 @@
+{
+  "chainId": 196,
+  "registry": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+  "operator": "0x224467f6640AbE0A62D1be98187912627b59722A",
+  "block": 74489763,
+  "startNonce": 1650,
+  "nativeBalance": "141037648743534930",
+  "grants": [
+    {
+      "role": "HALT_REPORTER_ROLE",
+      "roleHash": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+      "account": "0x3936b9299821a108bda6dc31caf3ebd2ff7add3c",
+      "before": false
+    },
+    {
+      "role": "HALT_REPORTER_ROLE",
+      "roleHash": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+      "account": "0x94b9097cca1a368f7bd6aba0e38a6333bfd42936",
+      "before": false
+    },
+    {
+      "role": "FORCE_EXIT_ADMIN_ROLE",
+      "roleHash": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+      "account": "0x466ef4a1008772af2d0fa52cd2fc8b5391863a76",
+      "before": false
+    },
+    {
+      "role": "FORCE_EXIT_ADMIN_ROLE",
+      "roleHash": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+      "account": "0x323ef02b3ce1a90d631f461a1eeec23cd639651f",
+      "before": false
+    }
+  ]
+}
