@@ -11,7 +11,7 @@
 
 核验范围以每份清单的 `verification` 和来源说明为准：当前实现与 Registry 绑定来自固定区块回读；代币、外部集成及历史记录来自所列存档，不把所有历史地址宣称为最新已启用配置。pre 的实现源码 commit 尚未由本次地址整理确认，保留为 null；prod 的初始发布 commit 见清单，不能将当前 main 的 commit 当作已部署版本。
 
-生产初始发布的冻结地址位于 [prod/releases/20261029-mcp-addresses.json](prod/releases/20261029-mcp-addresses.json)。历史合约登记资料、部署 ABI 和 pre/prod 链上快照完整保留在 `ops/deployment` 的 commit `298ee17bd657a7fb57106b19c3a0a24628226320`，路径分别为 `deployment/prod/contracts/`、`deployment/pre/chain-snapshot.json` 和 `deployment/prod/chain-snapshot.json`。这些资料描述其记录时点，不随代理以后升级自动变成新实现资料。
+生产初始发布的冻结记录保留在下述运维归档的 `deployment/prod/releases/`，不在 main 维护重复地址表。历史发布记录、合约登记资料、部署 ABI 和 pre/prod 链上快照完整保留在 `ops/deployment` 的 commit `298ee17bd657a7fb57106b19c3a0a24628226320`，路径分别为 `deployment/prod/releases/`、`deployment/prod/contracts/`、`deployment/pre/chain-snapshot.json` 和 `deployment/prod/chain-snapshot.json`。这些资料描述其记录时点，不随代理以后升级自动变成新实现资料。
 
 公开部署步骤见 [docs/deployments/](../docs/deployments/README.md)。完整 MCP 请求、最终状态、交易回执及核验记录保留在 `ops/deployment`，不随 main 分发。地址清单中的 `archivedSources` 标明原始证据的分支、固定 commit 和相对路径；应在该 commit 的同名地址文件位置解析这些路径。历史登记资料中引用的原始记录也在该分支保留。docs 不维护独立地址汇总表。
 

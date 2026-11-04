@@ -6,7 +6,7 @@
 | `ops/deployment` | 同步 main 的代码，另保留 MCP 工作流、部署原始证据、运行日志和做市工具 | 不将整个分支合并回 main |
 | `release/prod/<version>-<YYYYMMDD>` | 指定 main commit 的正式发布快照 | 发版时创建并冻结；不以创建分支代替部署验收 |
 
-`outputs/`、`docs/deployments/tsv-mcp/`、`.agents/skills/tsv-mcp-deploy/`、`deployment/prod/contracts/` 及 pre/prod 的 `chain-snapshot.json` 属于运维专属路径。main 的 `.gitignore` 忽略这些运维专属路径；忽略规则不等于删除已有历史，也不构成访问权限隔离。
+`outputs/`、`docs/deployments/tsv-mcp/`、`.agents/skills/tsv-mcp-deploy/`、`deployment/prod/contracts/`、`deployment/prod/releases/` 及 pre/prod 的 `chain-snapshot.json` 属于运维专属路径。main 的 `.gitignore` 忽略这些运维专属路径；忽略规则不等于删除已有历史，也不构成访问权限隔离。
 
 ## 日常修改
 
@@ -21,7 +21,7 @@ main 将删除运维专属路径，直接合并可能把这些删除带入运维
 git fetch origin main ops/deployment
 git merge --no-ff --no-commit "$SOURCE_COMMIT"
 # HEAD 仍是合并前的运维 commit，从它恢复运维专属路径。
-git restore --source=HEAD --staged --worktree -- outputs docs/deployments/tsv-mcp .agents/skills/tsv-mcp-deploy deployment/prod/contracts deployment/pre/chain-snapshot.json deployment/prod/chain-snapshot.json
+git restore --source=HEAD --staged --worktree -- outputs docs/deployments/tsv-mcp .agents/skills/tsv-mcp-deploy deployment/prod/contracts deployment/prod/releases deployment/pre/chain-snapshot.json deployment/prod/chain-snapshot.json
 # 检查差异并解决其余冲突，验证构建和测试后再提交本次同步。
 ```
 
