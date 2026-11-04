@@ -23,7 +23,7 @@ Gas 合计：0.000022128501106425 OKB。
 | #10 | 0xd6ddf0051659dfb66cfc664873490474b89fca5e15f0dccdccff4cac60a98834 | 74500758 |
 | #11 | 0x947c7e3ab8eb0d92fef8cbba2897db08af584707f4332dc1ff89c51017257e8a | 74500826 |
 
-交易记录已追加并回读验证：https://okg-block.sg.larksuite.com/docx/YU5JdyR8DokY8fxd3yclI2wIgId
+交易记录已追加并回读验证：(internal reference removed)
 
 操作通过独立项目中的 SDK simulate/broadcast 流程执行；复制版 SDK 添加撤出目标并修正带引号及尾注释配置的解析，原 SDK 和原密钥文件未改动。完整回执在 position-*-verified.json 与 position-*-forge-broadcast.json。
 

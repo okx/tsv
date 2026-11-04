@@ -1,7 +1,6 @@
 {
   "storage": [
     {
-      "astId": 5001,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "permissionsAdapterFactory",
       "offset": 0,
@@ -9,7 +8,6 @@
       "type": "t_address"
     },
     {
-      "astId": 5004,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "permissionedPoolManager",
       "offset": 0,
@@ -17,7 +15,6 @@
       "type": "t_address"
     },
     {
-      "astId": 5007,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "hook",
       "offset": 0,
@@ -25,7 +22,6 @@
       "type": "t_address"
     },
     {
-      "astId": 5010,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "lpManager",
       "offset": 0,
@@ -33,7 +29,6 @@
       "type": "t_address"
     },
     {
-      "astId": 5013,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "participantSbt",
       "offset": 0,
@@ -41,15 +36,13 @@
       "type": "t_address"
     },
     {
-      "astId": 5019,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "sbtIdentityConfig",
       "offset": 0,
       "slot": "5",
-      "type": "t_mapping(t_uint256,t_struct(SbtIdentityConfig)8467_storage)"
+      "type": "t_mapping(t_uint256,t_struct(SbtIdentityConfig)_storage)"
     },
     {
-      "astId": 5023,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "identityTokenIds",
       "offset": 0,
@@ -57,23 +50,20 @@
       "type": "t_array(t_uint256)dyn_storage"
     },
     {
-      "astId": 5029,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "securities",
       "offset": 0,
       "slot": "7",
-      "type": "t_mapping(t_bytes32,t_struct(SecurityRecord)8417_storage)"
+      "type": "t_mapping(t_bytes32,t_struct(SecurityRecord)_storage)"
     },
     {
-      "astId": 5035,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "tiers",
       "offset": 0,
       "slot": "8",
-      "type": "t_mapping(t_uint8,t_struct(TierPolicyRecord)8389_storage)"
+      "type": "t_mapping(t_uint8,t_struct(TierPolicyRecord)_storage)"
     },
     {
-      "astId": 5040,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "currencyUnderlying",
       "offset": 0,
@@ -81,31 +71,27 @@
       "type": "t_mapping(t_address,t_address)"
     },
     {
-      "astId": 5046,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "underlyings",
       "offset": 0,
       "slot": "10",
-      "type": "t_mapping(t_address,t_struct(UnderlyingRecord)8366_storage)"
+      "type": "t_mapping(t_address,t_struct(UnderlyingRecord)_storage)"
     },
     {
-      "astId": 5052,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "quoteTokens",
       "offset": 0,
       "slot": "11",
-      "type": "t_mapping(t_address,t_struct(QuoteTokenRecord)8373_storage)"
+      "type": "t_mapping(t_address,t_struct(QuoteTokenRecord)_storage)"
     },
     {
-      "astId": 5058,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "pools",
       "offset": 0,
       "slot": "12",
-      "type": "t_mapping(t_bytes32,t_struct(PoolRecord)8439_storage)"
+      "type": "t_mapping(t_bytes32,t_struct(PoolRecord)_storage)"
     },
     {
-      "astId": 5061,
       "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
       "label": "emergencyPauseEnable",
       "offset": 0,
@@ -120,16 +106,16 @@
       "numberOfBytes": "20"
     },
     "t_array(t_bytes32)dyn_storage": {
+      "base": "t_bytes32",
       "encoding": "dynamic_array",
       "label": "bytes32[]",
-      "numberOfBytes": "32",
-      "base": "t_bytes32"
+      "numberOfBytes": "32"
     },
     "t_array(t_uint256)dyn_storage": {
+      "base": "t_uint256",
       "encoding": "dynamic_array",
       "label": "uint256[]",
-      "numberOfBytes": "32",
-      "base": "t_uint256"
+      "numberOfBytes": "32"
     },
     "t_bool": {
       "encoding": "inplace",
@@ -141,19 +127,14 @@
       "label": "bytes32",
       "numberOfBytes": "32"
     },
-    "t_contract(IHooks)2266": {
+    "t_contract(IHooks)": {
       "encoding": "inplace",
       "label": "contract IHooks",
       "numberOfBytes": "20"
     },
-    "t_enum(PoolLifecycle)8355": {
+    "t_enum(PoolLifecycle)": {
       "encoding": "inplace",
       "label": "enum PoolLifecycle",
-      "numberOfBytes": "1"
-    },
-    "t_enum(SecurityPauseMode)8346": {
-      "encoding": "inplace",
-      "label": "enum SecurityPauseMode",
       "numberOfBytes": "1"
     },
     "t_int24": {
@@ -168,71 +149,67 @@
       "numberOfBytes": "32",
       "value": "t_address"
     },
-    "t_mapping(t_address,t_struct(QuoteTokenRecord)8373_storage)": {
+    "t_mapping(t_address,t_struct(QuoteTokenRecord)_storage)": {
       "encoding": "mapping",
       "key": "t_address",
       "label": "mapping(address => struct QuoteTokenRecord)",
       "numberOfBytes": "32",
-      "value": "t_struct(QuoteTokenRecord)8373_storage"
+      "value": "t_struct(QuoteTokenRecord)_storage"
     },
-    "t_mapping(t_address,t_struct(UnderlyingRecord)8366_storage)": {
+    "t_mapping(t_address,t_struct(UnderlyingRecord)_storage)": {
       "encoding": "mapping",
       "key": "t_address",
       "label": "mapping(address => struct UnderlyingRecord)",
       "numberOfBytes": "32",
-      "value": "t_struct(UnderlyingRecord)8366_storage"
+      "value": "t_struct(UnderlyingRecord)_storage"
     },
-    "t_mapping(t_bytes32,t_struct(PoolRecord)8439_storage)": {
+    "t_mapping(t_bytes32,t_struct(PoolRecord)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes32",
       "label": "mapping(bytes32 => struct PoolRecord)",
       "numberOfBytes": "32",
-      "value": "t_struct(PoolRecord)8439_storage"
+      "value": "t_struct(PoolRecord)_storage"
     },
-    "t_mapping(t_bytes32,t_struct(SecurityRecord)8417_storage)": {
+    "t_mapping(t_bytes32,t_struct(SecurityRecord)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes32",
       "label": "mapping(bytes32 => struct SecurityRecord)",
       "numberOfBytes": "32",
-      "value": "t_struct(SecurityRecord)8417_storage"
+      "value": "t_struct(SecurityRecord)_storage"
     },
-    "t_mapping(t_uint256,t_struct(SbtIdentityConfig)8467_storage)": {
+    "t_mapping(t_uint256,t_struct(SbtIdentityConfig)_storage)": {
       "encoding": "mapping",
       "key": "t_uint256",
       "label": "mapping(uint256 => struct SbtIdentityConfig)",
       "numberOfBytes": "32",
-      "value": "t_struct(SbtIdentityConfig)8467_storage"
+      "value": "t_struct(SbtIdentityConfig)_storage"
     },
-    "t_mapping(t_uint8,t_struct(TierPolicyRecord)8389_storage)": {
+    "t_mapping(t_uint8,t_struct(TierPolicyRecord)_storage)": {
       "encoding": "mapping",
       "key": "t_uint8",
       "label": "mapping(uint8 => struct TierPolicyRecord)",
       "numberOfBytes": "32",
-      "value": "t_struct(TierPolicyRecord)8389_storage"
+      "value": "t_struct(TierPolicyRecord)_storage"
     },
-    "t_struct(PoolKey)3676_storage": {
+    "t_struct(PoolKey)_storage": {
       "encoding": "inplace",
       "label": "struct PoolKey",
-      "numberOfBytes": "96",
       "members": [
         {
-          "astId": 3661,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "currency0",
           "offset": 0,
           "slot": "0",
-          "type": "t_userDefinedValueType(Currency)3330"
+          "type": "t_userDefinedValueType(Currency)"
         },
         {
-          "astId": 3665,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "currency1",
           "offset": 0,
           "slot": "1",
-          "type": "t_userDefinedValueType(Currency)3330"
+          "type": "t_userDefinedValueType(Currency)"
         },
         {
-          "astId": 3668,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "fee",
           "offset": 20,
@@ -240,7 +217,6 @@
           "type": "t_uint24"
         },
         {
-          "astId": 3671,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "tickSpacing",
           "offset": 23,
@@ -248,30 +224,27 @@
           "type": "t_int24"
         },
         {
-          "astId": 3675,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "hooks",
           "offset": 0,
           "slot": "2",
-          "type": "t_contract(IHooks)2266"
+          "type": "t_contract(IHooks)"
         }
-      ]
+      ],
+      "numberOfBytes": "96"
     },
-    "t_struct(PoolRecord)8439_storage": {
+    "t_struct(PoolRecord)_storage": {
       "encoding": "inplace",
       "label": "struct PoolRecord",
-      "numberOfBytes": "224",
       "members": [
         {
-          "astId": 8422,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "key",
           "offset": 0,
           "slot": "0",
-          "type": "t_struct(PoolKey)3676_storage"
+          "type": "t_struct(PoolKey)_storage"
         },
         {
-          "astId": 8425,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "securityId",
           "offset": 0,
@@ -279,7 +252,6 @@
           "type": "t_bytes32"
         },
         {
-          "astId": 8428,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "tierId",
           "offset": 0,
@@ -287,15 +259,13 @@
           "type": "t_uint8"
         },
         {
-          "astId": 8432,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "lifecycle",
           "offset": 1,
           "slot": "4",
-          "type": "t_enum(PoolLifecycle)8355"
+          "type": "t_enum(PoolLifecycle)"
         },
         {
-          "astId": 8435,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "tickCount",
           "offset": 0,
@@ -303,22 +273,20 @@
           "type": "t_uint256"
         },
         {
-          "astId": 8438,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "poolSecurityIndex",
           "offset": 0,
           "slot": "6",
           "type": "t_uint256"
         }
-      ]
+      ],
+      "numberOfBytes": "224"
     },
-    "t_struct(QuoteTokenRecord)8373_storage": {
+    "t_struct(QuoteTokenRecord)_storage": {
       "encoding": "inplace",
       "label": "struct QuoteTokenRecord",
-      "numberOfBytes": "32",
       "members": [
         {
-          "astId": 8369,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "rawDecimals",
           "offset": 0,
@@ -326,22 +294,20 @@
           "type": "t_uint8"
         },
         {
-          "astId": 8372,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "registered",
           "offset": 1,
           "slot": "0",
           "type": "t_bool"
         }
-      ]
+      ],
+      "numberOfBytes": "32"
     },
-    "t_struct(SbtIdentityConfig)8467_storage": {
+    "t_struct(SbtIdentityConfig)_storage": {
       "encoding": "inplace",
       "label": "struct SbtIdentityConfig",
-      "numberOfBytes": "32",
       "members": [
         {
-          "astId": 8463,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "registered",
           "offset": 0,
@@ -349,22 +315,20 @@
           "type": "t_bool"
         },
         {
-          "astId": 8466,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "permissions",
           "offset": 1,
           "slot": "0",
-          "type": "t_userDefinedValueType(PermissionFlag)8744"
+          "type": "t_userDefinedValueType(PermissionFlag)"
         }
-      ]
+      ],
+      "numberOfBytes": "32"
     },
-    "t_struct(SecurityRecord)8417_storage": {
+    "t_struct(SecurityRecord)_storage": {
       "encoding": "inplace",
       "label": "struct SecurityRecord",
-      "numberOfBytes": "160",
       "members": [
         {
-          "astId": 8399,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "securityId",
           "offset": 0,
@@ -372,7 +336,6 @@
           "type": "t_bytes32"
         },
         {
-          "astId": 8402,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "tierId",
           "offset": 0,
@@ -380,7 +343,6 @@
           "type": "t_uint8"
         },
         {
-          "astId": 8405,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "listed",
           "offset": 1,
@@ -388,7 +350,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 8409,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "poolIds",
           "offset": 0,
@@ -396,7 +357,6 @@
           "type": "t_array(t_bytes32)dyn_storage"
         },
         {
-          "astId": 8412,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "listedPoolCount",
           "offset": 0,
@@ -404,37 +364,20 @@
           "type": "t_uint32"
         },
         {
-          "astId": 8416,
-          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
-          "label": "securityState",
-          "offset": 0,
-          "slot": "4",
-          "type": "t_struct(SecurityStateRecord)8395_storage"
-        }
-      ]
-    },
-    "t_struct(SecurityStateRecord)8395_storage": {
-      "encoding": "inplace",
-      "label": "struct SecurityStateRecord",
-      "numberOfBytes": "32",
-      "members": [
-        {
-          "astId": 8394,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "pauseMode",
-          "offset": 0,
-          "slot": "0",
-          "type": "t_enum(SecurityPauseMode)8346"
+          "offset": 4,
+          "slot": "3",
+          "type": "t_uint8"
         }
-      ]
+      ],
+      "numberOfBytes": "128"
     },
-    "t_struct(TierPolicyRecord)8389_storage": {
+    "t_struct(TierPolicyRecord)_storage": {
       "encoding": "inplace",
       "label": "struct TierPolicyRecord",
-      "numberOfBytes": "32",
       "members": [
         {
-          "astId": 8385,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "maxListed",
           "offset": 0,
@@ -442,22 +385,20 @@
           "type": "t_uint32"
         },
         {
-          "astId": 8388,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "listedCount",
           "offset": 4,
           "slot": "0",
           "type": "t_uint32"
         }
-      ]
+      ],
+      "numberOfBytes": "32"
     },
-    "t_struct(UnderlyingRecord)8366_storage": {
+    "t_struct(UnderlyingRecord)_storage": {
       "encoding": "inplace",
       "label": "struct UnderlyingRecord",
-      "numberOfBytes": "64",
       "members": [
         {
-          "astId": 8358,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "securityId",
           "offset": 0,
@@ -465,7 +406,6 @@
           "type": "t_bytes32"
         },
         {
-          "astId": 8360,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "legalShareAdapter",
           "offset": 0,
@@ -473,7 +413,6 @@
           "type": "t_address"
         },
         {
-          "astId": 8362,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "rawDecimals",
           "offset": 20,
@@ -481,14 +420,14 @@
           "type": "t_uint8"
         },
         {
-          "astId": 8365,
           "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
           "label": "registered",
           "offset": 21,
           "slot": "1",
           "type": "t_bool"
         }
-      ]
+      ],
+      "numberOfBytes": "64"
     },
     "t_uint24": {
       "encoding": "inplace",
@@ -510,12 +449,12 @@
       "label": "uint8",
       "numberOfBytes": "1"
     },
-    "t_userDefinedValueType(Currency)3330": {
+    "t_userDefinedValueType(Currency)": {
       "encoding": "inplace",
       "label": "Currency",
       "numberOfBytes": "20"
     },
-    "t_userDefinedValueType(PermissionFlag)8744": {
+    "t_userDefinedValueType(PermissionFlag)": {
       "encoding": "inplace",
       "label": "PermissionFlag",
       "numberOfBytes": "2"

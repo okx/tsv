@@ -23,7 +23,7 @@
 | MCP 成功部署合约的登记资料与 ABI | [production contracts](../deployment/prod/contracts/) |
 | 后端监听池和查询 W/U 的接口说明 | [POOL_MONITORING_AND_WU_LOOKUP_V1.md](POOL_MONITORING_AND_WU_LOOKUP_V1.md) |
 
-部署流程见 [tsv-mcp-deploy Skill](../.agents/skills/tsv-mcp-deploy/SKILL.md)。deployments 仅保留已成功的 MCP EOA 创建操作及其证据；失败、等待、计划、重试过程和其他渠道部署均不保留。审计及 review 报告另行管理。每个 run 的 SHA256SUMS.json 对应当前归档文件。
+部署流程见 私有部署工具（不作为公开仓库依赖）。deployments 仅保留已成功的 MCP EOA 创建操作及其证据；失败、等待、计划、重试过程和其他渠道部署均不保留。审计及 review 报告另行管理。每个 run 的 SHA256SUMS.json 对应当前归档文件。
 
 ## 链上记录与模拟
 
@@ -46,7 +46,7 @@
 
 ## 依赖版本
 
-`lib/dex-adapters` 仅指向已存在的远程提交 `f8db6a29c548106f3172d211e54a782f7bbc802f`。此次不提交或推送 DEX 子仓库的本地补丁。
+历史版本曾使用 DEX 子模块；公开主仓已移除该依赖，当前通过部署地址和公开 ABI 接入。历史部署记录不定义当前外部实现。
 
 ## 验证入口
 

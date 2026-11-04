@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script, console2} from "forge-std/Script.sol";
@@ -41,7 +41,9 @@ contract BurnAndDelistTSVPools is Script {
         for (uint256 i; i < burnCount; ++i) {
             uint256 positionId = vm.envUint(string.concat("TSV_LP_BURN_POSITION_", vm.toString(i)));
             require(positionId != 0, "position ID must be greater than zero");
-            for (uint256 j; j < i; ++j) require(positionIds[j] != positionId, "duplicate position ID");
+            for (uint256 j; j < i; ++j) {
+                require(positionIds[j] != positionId, "duplicate position ID");
+            }
             require(lp.ownerOf(positionId) == owner, "signer does not own position");
             require(lp.getPositionLiquidity(positionId) == 0, "position still has liquidity");
             (PoolKey memory key,) = lp.getPoolAndPositionInfo(positionId);
@@ -96,9 +98,8 @@ contract BurnAndDelistTSVPools is Script {
         vm.stopBroadcast();
 
         for (uint256 i; i < burnCount; ++i) {
-            (bool stillExists,) = address(lp).staticcall(
-                abi.encodeWithSelector(bytes4(keccak256("ownerOf(uint256)")), positionIds[i])
-            );
+            (bool stillExists,) =
+                address(lp).staticcall(abi.encodeWithSelector(bytes4(keccak256("ownerOf(uint256)")), positionIds[i]));
             require(!stillExists, "position NFT was not burned");
         }
         for (uint256 i; i < delistCount; ++i) {

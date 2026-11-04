@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Vm} from "forge-std/Vm.sol";
@@ -142,7 +142,6 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         w2.updateSwappingEnabled(true);
         assertEq(ledger.usedWad(SECURITY, DAY), alreadyUsed);
         assertEq(registry.getTierPolicy(1).listedCount, 1);
-        vm.prank(alice);
         (uint256 paid,) = _submitSwap(
             SwapRequest(
                 second,
@@ -163,7 +162,6 @@ contract TSVWrappedSwapTest is WrappedSwapFixture {
         );
         vm.recordLogs();
         _swap(true, 1e16);
-        vm.prank(alice);
         _submitSwap(
             SwapRequest(
                 second,

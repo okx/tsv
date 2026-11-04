@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {SwapRequest} from "tsv-v1/types/TSVTypes.sol";
@@ -65,9 +65,7 @@ contract TSVContractDirectSwapTest is WrappedSwapFixture {
         bytes32 beforeState = _digest();
 
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
-        swapAdapter.swapExactInputDirect(
-            router, request, address(0), alice, makeAddr("unrelated-quote-recipient")
-        );
+        swapAdapter.swapExactInputDirect(router, request, address(0), alice, makeAddr("unrelated-quote-recipient"));
 
         assertEq(_digest(), beforeState);
         assertEq(router.msgSender(), address(0));
@@ -81,9 +79,7 @@ contract TSVContractDirectSwapTest is WrappedSwapFixture {
         uint256 underlyingBefore = underlying.balanceOf(alice);
         uint256 aliceBefore = quote.balanceOf(alice);
         (uint256 paid, uint256 received) =
-            swapAdapter.swapExactInputDirect(
-                router, _request(false, amount), address(swapAdapter), alice, alice
-            );
+            swapAdapter.swapExactInputDirect(router, _request(false, amount), address(swapAdapter), alice, alice);
         assertEq(paid, amount);
         assertGt(received, 0);
         assertEq(quote.balanceOf(address(swapAdapter)), 123);
@@ -135,9 +131,7 @@ contract TSVContractDirectSwapTest is WrappedSwapFixture {
         quote.mint(address(swapAdapter), 1e16);
         swapAdapter.approveToken(address(quote), address(router));
         quote.setCallback(address(this), abi.encodeCall(this.assertDirectLock, ()));
-        swapAdapter.swapExactInputDirect(
-            router, _request(false, 1e16), address(swapAdapter), alice, alice
-        );
+        swapAdapter.swapExactInputDirect(router, _request(false, 1e16), address(swapAdapter), alice, alice);
         assertEq(router.msgSender(), address(0));
     }
 

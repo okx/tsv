@@ -224,9 +224,9 @@ Factory 验证成功不等于以上 Registry、池和用户权限配置均已完
 
 ## 10. 源码依据
 
-- [PermissionsAdapterFactory.sol](src/v1/vendor/permissionedPools/PermissionsAdapterFactory.sol)：创建、Factory 映射与验证条件。
-- [PermissionsAdapter.sol](src/v1/vendor/permissionedPools/PermissionsAdapter.sol)：验证存款、owner 权限、wrapper/Hook 白名单和 Swap 开关。
-- [TSVProtocol.s.sol](script/TSVProtocol.s.sol)：部署及配置调用顺序。
+- [PermissionsAdapterFactory.sol](../src/v1/vendor/permissionedPools/PermissionsAdapterFactory.sol)：创建、Factory 映射与验证条件。
+- [PermissionsAdapter.sol](../src/v1/vendor/permissionedPools/PermissionsAdapter.sol)：验证存款、owner 权限、wrapper/Hook 白名单和 Swap 开关。
+- [TSVProtocol.s.sol](../script/TSVProtocol.s.sol)：部署及配置调用顺序。
 
 
 cast send "$PERMISSIONED_TOKEN" 'setUIMultiplier(uint256,uint256)' "$UI_NEW_MULTIPLIER" "$UI_EFFECTIVE_AT" --private-key "$PRIVATE_KEY" --rpc-url "$RPC_URL"

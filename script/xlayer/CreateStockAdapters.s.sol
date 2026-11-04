@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -54,7 +54,9 @@ contract CreateStockAdapters is Script {
             );
             require(registry.getCurrencyUnderlying(underlying) == address(0), "stock U is already a registered W");
             require(!registry.getQuoteToken(underlying).registered, "stock U is an active quote token");
-            for (uint256 j; j < i; ++j) require(underlyings[j] != underlying, "duplicate stock U in list");
+            for (uint256 j; j < i; ++j) {
+                require(underlyings[j] != underlying, "duplicate stock U in list");
+            }
 
             underlyings[i] = underlying;
             owners[i] = initialOwner;

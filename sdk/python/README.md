@@ -41,7 +41,7 @@ The operation also requires the security inventory configured in `deployment.jso
 
 ## DexRouter + TSVAdapter
 
-The SDK targets the unsigned three-field `MoreInfo(PoolKey key, uint256 expectedMultiplier, uint256 amountIn)` ABI, pinned by `lib/dex-adapters` at commit `80800d56`. Use a matching deployed Adapter and configure its DexRouter allowlist and the TSV Router Adapter allowlist. Previous signed deployments are incompatible.
+The SDK targets the unsigned three-field `MoreInfo(PoolKey key, uint256 expectedMultiplier, uint256 amountIn)` ABI, described by `src/v1/interfaces/external/ITSVDEXAdapter.sol`. Use a matching deployed Adapter and configure its DexRouter allowlist and the TSV Router Adapter allowlist. Previous signed deployments are incompatible.
 
 `DexRouterTradeRequest.amount_in` / `TSV_DEX_AMOUNT_IN` is the positive outer DexRouter funding amount for both sides. Sales transfer U directly into W and encode that exact amount in MoreInfo, preserving surplus U. Purchases transfer Q to the Adapter, encode MoreInfo.amountIn = 0 and consume the live Q balance, including previous donations. No backend signature, nonce or authorization deadline is encoded. Remove `nonce` from Python request construction; the legacy `TSV_DEX_NONCE` and `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY` settings are unnecessary.
 
@@ -52,11 +52,9 @@ Exact sale amounts do not prove ownership of prefunded U: the Adapter trusts the
 ## Validation
 
 ```sh
-python3 -m unittest discover -s sdk/python/tests -v
-forge test --match-path test/integration/local/trading/DexAdapter.t.sol --skip SecuritizeTSVChecker.sol -vv
+PYTHONPATH=sdk/python python3 -m unittest discover -s sdk/python/tests -v
+forge test --match-path test/unit/v1/operations/DexAdapterCalldata.t.sol -vv
 forge build script/xlayer/TradeDexRouterTSV.s.sol
 ```
 
-Tests require no signer environment variable and do not broadcast transactions. Legacy signer values are still redacted from child-process output if present in an inherited environment.
-
-Validation: 8 Python tests and 13 local integration tests passed; the trade script compiled. The integration command excludes the unrelated `src/v1/vendor/SecuritizeTSVChecker.sol`, whose relative imports are missing on the current main branch. This is not a full-repository build result.
+The tests validate repository-owned operator encoding and TSV Router boundaries without a private adapter checkout. They do not execute or verify an external adapter implementation. Before a live operation, check the configured public contract addresses, code, ABI, router binding and both allowlists.

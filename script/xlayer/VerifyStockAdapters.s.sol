@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -44,7 +44,9 @@ contract VerifyStockAdapters is Script {
             if (verifiedUnderlying == address(0)) {
                 require(IERC20(underlying).balanceOf(depositor) >= amount, "depositor lacks verification U");
             }
-            for (uint256 j; j < i; ++j) require(wrappers[j] != wrapped, "duplicate W in verification list");
+            for (uint256 j; j < i; ++j) {
+                require(wrappers[j] != wrapped, "duplicate W in verification list");
+            }
 
             wrappers[i] = wrapped;
             underlyings[i] = underlying;

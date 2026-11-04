@@ -1,55 +1,48 @@
 {
   "storage": [
     {
-      "astId": 3651,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
-      "label": "name",
+      "label": "_name",
       "offset": 0,
       "slot": "0",
       "type": "t_string_storage"
     },
     {
-      "astId": 3653,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
-      "label": "symbol",
+      "label": "_symbol",
       "offset": 0,
       "slot": "1",
       "type": "t_string_storage"
     },
     {
-      "astId": 3664,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
-      "label": "_ownerOf",
+      "label": "_owners",
       "offset": 0,
       "slot": "2",
       "type": "t_mapping(t_uint256,t_address)"
     },
     {
-      "astId": 3668,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
-      "label": "_balanceOf",
+      "label": "_balances",
       "offset": 0,
       "slot": "3",
       "type": "t_mapping(t_address,t_uint256)"
     },
     {
-      "astId": 3717,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
-      "label": "getApproved",
+      "label": "_tokenApprovals",
       "offset": 0,
       "slot": "4",
       "type": "t_mapping(t_uint256,t_address)"
     },
     {
-      "astId": 3723,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
-      "label": "isApprovedForAll",
+      "label": "_operatorApprovals",
       "offset": 0,
       "slot": "5",
       "type": "t_mapping(t_address,t_mapping(t_address,t_bool))"
     },
     {
-      "astId": 18155,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
       "label": "nonces",
       "offset": 0,
@@ -57,15 +50,13 @@
       "type": "t_mapping(t_address,t_mapping(t_uint256,t_uint256))"
     },
     {
-      "astId": 17624,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
       "label": "subscriber",
       "offset": 0,
       "slot": "7",
-      "type": "t_mapping(t_uint256,t_contract(ISubscriber)9038)"
+      "type": "t_mapping(t_uint256,t_contract(ISubscriber))"
     },
     {
-      "astId": 15289,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
       "label": "nextTokenId",
       "offset": 0,
@@ -73,36 +64,25 @@
       "type": "t_uint256"
     },
     {
-      "astId": 15297,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
       "label": "positionInfo",
       "offset": 0,
       "slot": "9",
-      "type": "t_mapping(t_uint256,t_userDefinedValueType(PositionInfo)9995)"
+      "type": "t_mapping(t_uint256,t_userDefinedValueType(PositionInfo))"
     },
     {
-      "astId": 15302,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
       "label": "poolKeys",
       "offset": 0,
       "slot": "10",
-      "type": "t_mapping(t_bytes25,t_struct(PoolKey)7693_storage)"
+      "type": "t_mapping(t_bytes25,t_struct(PoolKey)_storage)"
     },
     {
-      "astId": 12693,
       "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
       "label": "registry",
       "offset": 0,
       "slot": "11",
-      "type": "t_contract(ITSVPermissionedRegistry)10630"
-    },
-    {
-      "astId": 12697,
-      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
-      "label": "__gap",
-      "offset": 0,
-      "slot": "12",
-      "type": "t_array(t_uint256)48_storage"
+      "type": "t_contract(ITSVPermissionedRegistry)"
     }
   ],
   "types": {
@@ -110,12 +90,6 @@
       "encoding": "inplace",
       "label": "address",
       "numberOfBytes": "20"
-    },
-    "t_array(t_uint256)48_storage": {
-      "encoding": "inplace",
-      "label": "uint256[48]",
-      "numberOfBytes": "1536",
-      "base": "t_uint256"
     },
     "t_bool": {
       "encoding": "inplace",
@@ -127,17 +101,17 @@
       "label": "bytes25",
       "numberOfBytes": "25"
     },
-    "t_contract(IHooks)4440": {
+    "t_contract(IHooks)": {
       "encoding": "inplace",
       "label": "contract IHooks",
       "numberOfBytes": "20"
     },
-    "t_contract(ISubscriber)9038": {
+    "t_contract(ISubscriber)": {
       "encoding": "inplace",
       "label": "contract ISubscriber",
       "numberOfBytes": "20"
     },
-    "t_contract(ITSVPermissionedRegistry)10630": {
+    "t_contract(ITSVPermissionedRegistry)": {
       "encoding": "inplace",
       "label": "contract ITSVPermissionedRegistry",
       "numberOfBytes": "20"
@@ -175,12 +149,12 @@
       "numberOfBytes": "32",
       "value": "t_uint256"
     },
-    "t_mapping(t_bytes25,t_struct(PoolKey)7693_storage)": {
+    "t_mapping(t_bytes25,t_struct(PoolKey)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes25",
       "label": "mapping(bytes25 => struct PoolKey)",
       "numberOfBytes": "32",
-      "value": "t_struct(PoolKey)7693_storage"
+      "value": "t_struct(PoolKey)_storage"
     },
     "t_mapping(t_uint256,t_address)": {
       "encoding": "mapping",
@@ -189,12 +163,12 @@
       "numberOfBytes": "32",
       "value": "t_address"
     },
-    "t_mapping(t_uint256,t_contract(ISubscriber)9038)": {
+    "t_mapping(t_uint256,t_contract(ISubscriber))": {
       "encoding": "mapping",
       "key": "t_uint256",
       "label": "mapping(uint256 => contract ISubscriber)",
       "numberOfBytes": "32",
-      "value": "t_contract(ISubscriber)9038"
+      "value": "t_contract(ISubscriber)"
     },
     "t_mapping(t_uint256,t_uint256)": {
       "encoding": "mapping",
@@ -203,41 +177,37 @@
       "numberOfBytes": "32",
       "value": "t_uint256"
     },
-    "t_mapping(t_uint256,t_userDefinedValueType(PositionInfo)9995)": {
+    "t_mapping(t_uint256,t_userDefinedValueType(PositionInfo))": {
       "encoding": "mapping",
       "key": "t_uint256",
       "label": "mapping(uint256 => PositionInfo)",
       "numberOfBytes": "32",
-      "value": "t_userDefinedValueType(PositionInfo)9995"
+      "value": "t_userDefinedValueType(PositionInfo)"
     },
     "t_string_storage": {
       "encoding": "bytes",
       "label": "string",
       "numberOfBytes": "32"
     },
-    "t_struct(PoolKey)7693_storage": {
+    "t_struct(PoolKey)_storage": {
       "encoding": "inplace",
       "label": "struct PoolKey",
-      "numberOfBytes": "96",
       "members": [
         {
-          "astId": 7678,
           "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
           "label": "currency0",
           "offset": 0,
           "slot": "0",
-          "type": "t_userDefinedValueType(Currency)7347"
+          "type": "t_userDefinedValueType(Currency)"
         },
         {
-          "astId": 7682,
           "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
           "label": "currency1",
           "offset": 0,
           "slot": "1",
-          "type": "t_userDefinedValueType(Currency)7347"
+          "type": "t_userDefinedValueType(Currency)"
         },
         {
-          "astId": 7685,
           "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
           "label": "fee",
           "offset": 20,
@@ -245,7 +215,6 @@
           "type": "t_uint24"
         },
         {
-          "astId": 7688,
           "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
           "label": "tickSpacing",
           "offset": 23,
@@ -253,14 +222,14 @@
           "type": "t_int24"
         },
         {
-          "astId": 7692,
           "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
           "label": "hooks",
           "offset": 0,
           "slot": "2",
-          "type": "t_contract(IHooks)4440"
+          "type": "t_contract(IHooks)"
         }
-      ]
+      ],
+      "numberOfBytes": "96"
     },
     "t_uint24": {
       "encoding": "inplace",
@@ -272,12 +241,12 @@
       "label": "uint256",
       "numberOfBytes": "32"
     },
-    "t_userDefinedValueType(Currency)7347": {
+    "t_userDefinedValueType(Currency)": {
       "encoding": "inplace",
       "label": "Currency",
       "numberOfBytes": "20"
     },
-    "t_userDefinedValueType(PositionInfo)9995": {
+    "t_userDefinedValueType(PositionInfo)": {
       "encoding": "inplace",
       "label": "PositionInfo",
       "numberOfBytes": "32"

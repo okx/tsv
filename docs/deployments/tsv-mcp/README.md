@@ -18,4 +18,4 @@ python3 .agents/skills/tsv-mcp-deploy/scripts/validate_records.py docs/deploymen
 python3 .agents/skills/tsv-mcp-deploy/scripts/validate_records.py docs/deployments/tsv-mcp/runs/20261030-legal-share-adapters
 ```
 
-后续部署流程见 [tsv-mcp-deploy Skill](../../../.agents/skills/tsv-mcp-deploy/SKILL.md)。
+后续部署流程见 内部运维工具（不作为公开仓库依赖）。

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {
@@ -62,7 +62,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         | (uint256(1) << Actions.MINT_6909) | (uint256(1) << Actions.UNWIND_WITH_FALLBACK);
 
     ITSVPermissionedRegistry public registry;
-
 
     modifier onlyRole(bytes32 role) {
         TSVLPManagerLib.requireRole(registry, role);
@@ -363,9 +362,8 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     ///      Legal-share quotas, especially with small multipliers, cannot substitute for raw amount limits;
     ///      admission and position policies must account for these bounds if full forced exits are required.
     function _handlePositionAction(uint256 action, bytes calldata params) private {
-        PoolKey memory poolKey = TSVLPManagerLib.checkPositionAction(
-            registry, action, params, msgSender(), _owners, positionInfo, poolKeys
-        );
+        PoolKey memory poolKey =
+            TSVLPManagerLib.checkPositionAction(registry, action, params, msgSender(), _owners, positionInfo, poolKeys);
         PermissionedPositionManager._handleAction(action, params);
         if (action == Actions.MINT_POSITION) {
             _updatePoolTickCount(poolKey, 1);

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
@@ -101,7 +101,9 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         whenRegistryNotPaused
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (adapter == address(0) || (allowed && adapter.code.length == 0)) revert InvalidAdapter();
+        if (adapter == address(0) || (allowed && adapter.code.length == 0)) {
+            revert InvalidAdapter();
+        }
         isAdapterAllowed[adapter] = allowed;
         emit AdapterAuthorizationUpdated(adapter, allowed);
     }
@@ -116,24 +118,13 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         address payer,
         address participant,
         address recipient
-    )
-        external
-        whenRegistryNotPaused
-        isNotLocked
-        onlyAllowedAdapter
-        returns (uint256 actualIn, uint256 actualOut)
-    {
-        address inputCurrency = Currency.unwrap(
-            request.zeroForOne ? request.key.currency0 : request.key.currency1
-        );
-        address outputCurrency = Currency.unwrap(
-            request.zeroForOne ? request.key.currency1 : request.key.currency0
-        );
+    ) external whenRegistryNotPaused isNotLocked onlyAllowedAdapter returns (uint256 actualIn, uint256 actualOut) {
+        address inputCurrency = Currency.unwrap(request.zeroForOne ? request.key.currency0 : request.key.currency1);
+        address outputCurrency = Currency.unwrap(request.zeroForOne ? request.key.currency1 : request.key.currency0);
         bool isStockOutput = registry.getCurrencyUnderlying(outputCurrency) != address(0);
         // Quote registration gates new pools; _swap validates the existing pool's trading status.
-        bool recipientAllowed = isStockOutput
-            ? recipient == participant
-            : (recipient == participant || recipient == msg.sender);
+        bool recipientAllowed =
+            isStockOutput ? recipient == participant : (recipient == participant || recipient == msg.sender);
         if (!recipientAllowed) revert InvalidRequest();
         bool isUnderlyingInput = registry.getCurrencyUnderlying(inputCurrency) != address(0);
         if ((isUnderlyingInput && payer != address(0)) || (!isUnderlyingInput && payer != msg.sender)) {
@@ -188,9 +179,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         address underlying = registry.getCurrencyUnderlying(currencyAddress);
         if (underlying == address(0)) {
             if (activePayer == address(0)) revert InvalidPayer();
-            TSVPermissionedSettlementLib.transferFromPayer(
-                currencyAddress, activePayer, address(poolManager), amount
-            );
+            TSVPermissionedSettlementLib.transferFromPayer(currencyAddress, activePayer, address(poolManager), amount);
         } else {
             if (PERMISSIONS_ADAPTER_FACTORY.verifiedPermissionsAdapterOf(currencyAddress) != underlying) {
                 revert InvalidAdapter();
@@ -205,9 +194,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     }
 
     function _payStandard(Currency currency, address payer, uint256 amount) internal override {
-        TSVPermissionedSettlementLib.transferFromPayer(
-            Currency.unwrap(currency), payer, address(poolManager), amount
-        );
+        TSVPermissionedSettlementLib.transferFromPayer(Currency.unwrap(currency), payer, address(poolManager), amount);
     }
 
     function _payPermissionedFromPayer(
@@ -232,12 +219,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
     /// @param recipient Address that receives the swap output.
     /// @dev U is transferred from a nonzero payer into W before unlocking; Q is transferred from payer
     ///      directly to PoolManager after sync. A zero payer means U was prefunded in W. Swaps must fill fully.
-    function _swap(
-        SwapRequest memory request,
-        address payer,
-        address participant,
-        address recipient
-    )
+    function _swap(SwapRequest memory request, address payer, address participant, address recipient)
         private
         returns (uint256 actualIn, uint256 actualOut)
     {
@@ -296,11 +278,7 @@ contract TSVSwapRouterV1 is Initializable, UUPSUpgradeable, PermissionedV4Router
         params[1] = abi.encode(input, request.amountSpecified);
         params[2] = abi.encode(output, request.limitAmount);
         return abi.encode(
-            abi.encodePacked(
-                uint8(Actions.SWAP_EXACT_IN_SINGLE),
-                uint8(Actions.SETTLE_ALL),
-                uint8(Actions.TAKE_ALL)
-            ),
+            abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL)),
             params
         );
     }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
@@ -77,8 +77,7 @@ contract LPHookTest is Test {
             IPositionDescriptor(address(0)),
             IWETH9(address(0)),
             IPermissionsAdapterFactory(address(factory)),
-            500_000,
-            ITSVPermissionedRegistry(address(registry))
+            500_000
         );
         lp = TSVLPManagerV1(
             payable(address(
@@ -245,7 +244,9 @@ contract LPHookTest is Test {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bytes32 eventId = tsv
             ? keccak256("TsvPositionUnwound(uint256,address,address,address,address,uint256,uint256,uint256,uint256)")
-            : keccak256("IssuerPositionUnwound(uint256,address,address,address,address,uint256,uint256,uint256,uint256)");
+            : keccak256(
+                "IssuerPositionUnwound(uint256,address,address,address,address,uint256,uint256,uint256,uint256)"
+            );
         uint256 matched;
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter != address(lp) || logs[i].topics.length == 0 || logs[i].topics[0] != eventId) {
@@ -269,19 +270,14 @@ contract LPHookTest is Test {
             assertEq(token1, Currency.unwrap(key.currency1));
             bool stockIs0 = token0 == address(stock);
             assertEq(stockIs0 ? lpAmount0 : lpAmount1, underlying.balanceOf(alice) - lpStockBefore);
-            assertEq(
-                stockIs0 ? issuerAmount0 : issuerAmount1, underlying.balanceOf(address(this)) - issuerStockBefore
-            );
+            assertEq(stockIs0 ? issuerAmount0 : issuerAmount1, underlying.balanceOf(address(this)) - issuerStockBefore);
             assertEq(stockIs0 ? lpAmount1 : lpAmount0, quote.balanceOf(alice) - lpQuoteBefore);
-            assertEq(
-                stockIs0 ? issuerAmount1 : issuerAmount0, quote.balanceOf(address(this)) - issuerQuoteBefore
-            );
+            assertEq(stockIs0 ? issuerAmount1 : issuerAmount0, quote.balanceOf(address(this)) - issuerQuoteBefore);
             if (empty) {
                 assertEq(lpAmount0 + issuerAmount0 + lpAmount1 + issuerAmount1, 0);
             } else {
-                uint256 stockReceived = fallbackToIssuer
-                    ? (stockIs0 ? issuerAmount0 : issuerAmount1)
-                    : (stockIs0 ? lpAmount0 : lpAmount1);
+                uint256 stockReceived =
+                    fallbackToIssuer ? (stockIs0 ? issuerAmount0 : issuerAmount1) : (stockIs0 ? lpAmount0 : lpAmount1);
                 assertGt(stockReceived, 0);
                 assertGt(stockIs0 ? lpAmount1 : lpAmount0, 0);
             }

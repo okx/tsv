@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 /// @notice Trusted LP Manager context used by the Hook to identify authorized forced removals.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script, console2} from "forge-std/Script.sol";
@@ -56,8 +56,7 @@ contract ForceExitAndDelistZeroLiquidityTSV is Script {
         require(c.registry.getPoolLifeCycle(c.poolId) != PoolLifecycle.DELIST, "pool already delisted");
         c.forceExitRoleAlreadyHeld = c.registry.hasRole(c.lp.FORCE_EXIT_ADMIN_ROLE(), c.operator);
         require(
-            c.registry.getPoolTickCount(c.poolId) == c.positionCount,
-            "pool has positions outside the selected NFTs"
+            c.registry.getPoolTickCount(c.poolId) == c.positionCount, "pool has positions outside the selected NFTs"
         );
 
         console2.log("XLayer chainId:", block.chainid);
@@ -86,7 +85,9 @@ contract ForceExitAndDelistZeroLiquidityTSV is Script {
         address expectedOwner = vm.envAddress(string.concat("TSV_FORCE_EXIT_EXPECTED_OWNER_", suffix));
         require(positionId != 0, "position ID must be greater than zero");
         require(expectedOwner != address(0) && expectedOwner != c.operator, "expected owner must be another wallet");
-        for (uint256 j; j < index; ++j) require(priorIds[j] != positionId, "duplicate position ID");
+        for (uint256 j; j < index; ++j) {
+            require(priorIds[j] != positionId, "duplicate position ID");
+        }
         require(c.lp.ownerOf(positionId) == expectedOwner, "position owner changed");
         require(c.lp.getPositionLiquidity(positionId) == 0, "position still has liquidity");
         (PoolKey memory key,) = c.lp.getPoolAndPositionInfo(positionId);
@@ -109,9 +110,8 @@ contract ForceExitAndDelistZeroLiquidityTSV is Script {
     function _verify(Context memory c, uint256[] memory positionIds) private view {
         require(c.registry.hasRole(c.lp.FORCE_EXIT_ADMIN_ROLE(), c.operator), "FORCE_EXIT_ADMIN_ROLE was not retained");
         for (uint256 i; i < positionIds.length; ++i) {
-            (bool stillExists,) = address(c.lp).staticcall(
-                abi.encodeWithSelector(bytes4(keccak256("ownerOf(uint256)")), positionIds[i])
-            );
+            (bool stillExists,) =
+                address(c.lp).staticcall(abi.encodeWithSelector(bytes4(keccak256("ownerOf(uint256)")), positionIds[i]));
             require(!stillExists, "position NFT was not burned");
         }
         require(c.registry.getPoolTickCount(c.poolId) == 0, "pool tick count is not zero");

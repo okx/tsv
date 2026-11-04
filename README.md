@@ -49,13 +49,15 @@ See [`docs/SYSTEMS_OVERVIEW.md`](docs/SYSTEMS_OVERVIEW.md) for call flows and ro
 
 ## Build and test
 
-Requirements: Foundry, Git submodules, and network access for dependency installation. Some submodules may require repository access.
+Requirements: Python 3.11+, Foundry (validated with 1.7.1), Git submodules, and network access for dependency installation. All submodules use public HTTPS repositories. SBT, issuer checkers and DEX adapters are external contracts; no private implementation checkout is required.
 
 ```sh
 git submodule update --init --recursive
 forge soldeer install
+make build
 make check
 make test
+make artifacts-check
 ```
 
 The compiler configuration is Solidity 0.8.26, Cancun, via-IR, and optimizer runs 200, as set in [`foundry.toml`](foundry.toml). The default test profile runs unit tests and local PoolManager integrations; it excludes `test/integration/xlayer/`, which currently contains no executable fork tests.
@@ -104,4 +106,12 @@ docs/                 Current code guide and explicitly labeled historical desig
 
 ## Deployment boundary
 
-The repository contains contract implementations, tests, and an X Layer configuration directory, but no completed production deployment record. `test/integration/xlayer/` has no executable fork suite. Production Factory, PoolManager, SBT, issuer tokens, roles, and transfers must be verified on the target deployment; local mocks are not evidence of those external systems.
+Public preproduction and production address inventories are maintained in [`deployment/`](deployment/README.md), with successful deployment evidence in [`docs/deployments/`](docs/deployments/tsv-mcp/README.md). These historical records do not mean that current main is the deployed implementation. `test/integration/xlayer/` has no executable fork suite. Production Factory, PoolManager, SBT, issuer tokens, roles, and transfers must be verified on the target deployment; local mocks are not evidence of those external systems.
+
+## License
+
+First-party TSV code is intended to use BUSL-1.1. The [LICENSE](LICENSE) Parameters are an explicitly unfinished draft pending the rights holder, additional grant, change date and conversion license. Complete them before publication. Third-party licenses remain unchanged; see [licensing status](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## External contracts
+
+This repository does not distribute private SBT or DEX-adapter implementations. Integration scripts use the public ABI boundary and deployment-configured addresses. The incomplete standalone Securitize checker copy is not included; issuers may supply an existing checker implementing `IAllowlistChecker`. Deployment addresses must be independently verified, and this repository's tests do not audit those external implementations.

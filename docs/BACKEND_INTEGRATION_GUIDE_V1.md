@@ -1,6 +1,6 @@
-# TSV V1 后端接入 Guide
+# TSV V1 后端接入指南
 
-![Image](https://internal-api-drive-stream-sg.larksuite.com/space/api/box/stream/download/authcode/?code=M2UxYTZkNzUzZDRhYzhlNDdmZjg3YThhMGYxYWJhY2VfNjc1MDdjOTg1ODBiYmJkOTMzNzg3YzE4NDFiZWZjNTdfSUQ6NzY5NjM2MTg2NDQzMDcxODcyN18xNzkyNDg1NzQ5OjE3OTI1NzIxNDlfVjM)
+
 
 本指南按 Uniswap [Managing Liquidity](https://developers.uniswap.org/docs/protocols/v4/guides/managing-liquidity/overview) 的方式组织：前置条件、ABI、编码、提交。**LP 与 Swap 的调用入口不同，以下分别说明。**
 
@@ -34,13 +34,13 @@
 
 可以申请仓库阅读权限：https://gitlab\.okg\.com/web3\-dex/tsv
 
-[TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd?from=vcFollow)
+TSV合约地址（主网测试/预发）
 
 ### 版本与测试环境边界
 
-- 地址来源：[TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd)，正文核对日期 **2026-10-21**。这是 X Layer **主网测试/预发**，不是测试网；`deploymentStatus` 等元数据为来源文档记录，不代表本次链上验证结果。
+- 地址来源：TSV合约地址（主网测试/预发），正文核对日期 **2026-10-21**。这是 X Layer **主网测试/预发**，不是测试网；`deploymentStatus` 等元数据为来源文档记录，不代表本次链上验证结果。
 - 本文沿用该文档指定的 Factory；仓库旧部署记录可能属于其他阶段。使用前回读 `registry.permissionsAdapterFactory()`、Router/LP Manager 的 `PERMISSIONS_ADAPTER_FACTORY()` 和 PoolManager 绑定，不能混用不同环境。AA 业务入口与 TSV 部署清单中的 SmartWalletFactory 分列如下，不假定两者可互换。
-- **ABI artifacts 存在版本滞后**：当前源码为 `applySecurityStatus(bytes32,uint8,bool,bytes32)`，`getSecurity` 返回顶层 `pauseMode`；审阅基准的 `docs/artifacts/TSVRegistryV1.abi.json` 仍为三参数 setter 和嵌套 `securityState.pauseMode`，Registry 接口 artifact 也保留旧返回结构。不要混用。应从目标发布构建重新导出 ABI，并核对代理实现、部署区块、编译参数及链接库地址；本次文档修订未重新生成 artifacts。
+- **ABI artifacts 与源码同步维护**：`docs/artifacts/` 通过 `make artifacts` 从当前构建重新生成，`make artifacts-check` 检查漂移。当前接口为 `applySecurityStatus(bytes32,uint8,bool,bytes32)`，`getSecurity` 返回顶层 `pauseMode`。接入生产时仍需使用目标发布版本的 ABI，并核对代理实现、部署区块、编译参数及链接库地址；当前源码快照不代表已部署版本。
 - **强退事件金额已修复**：股票侧观察底层代币 U 的余额差，报价币侧观察 Q 的余额差，见 Unwind 小节。事件签名不变；历史事件不会被修复回填。
 - 不从地址文档复制私钥、签名密钥或其他凭证到仓库。以下仅列非敏感测试配置。本接入不需要 TokenApprove；需要支付资产的调用者仍须按对应入口直接授权 LP Manager 或 Swap Router。
 
@@ -1303,13 +1303,13 @@ This document uses three distinct terms: the **PermissionsAdapter token** is the
 }
 ```
 
-[TSV合约地址（主网测试/预发）](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd?from=vcFollow)
+TSV合约地址（主网测试/预发）
 
 ### Version and test-environment boundaries
 
-- Address source: [TSV contract addresses (mainnet testing / staging)](https://okg-block.sg.larksuite.com/wiki/Jafww6KotiXI0GkecnUln4kfgqd), body reviewed on **2026-10-21**. This is X Layer **mainnet testing / staging**, not testnet. Deployment metadata is copied from that document, not independently verified on-chain in this revision.
+- Address source: TSV contract addresses (mainnet testing / staging), body reviewed on **2026-10-21**. This is X Layer **mainnet testing / staging**, not testnet. Deployment metadata is copied from that document, not independently verified on-chain in this revision.
 - Use the designated Factory rather than silently substituting an older repository deployment record. Before use, read `registry.permissionsAdapterFactory()`, Router/LP Manager `PERMISSIONS_ADAPTER_FACTORY()`, and their PoolManager bindings. The external AA entry and the TSV manifest's SmartWalletFactory are listed separately; do not assume interchangeability.
-- **ABI artifacts lag source**: current source uses `applySecurityStatus(bytes32,uint8,bool,bytes32)` and a top-level `getSecurity().pauseMode`. At the review baseline, `docs/artifacts/TSVRegistryV1.abi.json` still has the three-argument setter and nested `securityState.pauseMode`; the Registry interface artifact also retains the old return shape. Do not mix versions. Regenerate ABIs from the target release build and verify proxy implementation, deployment block, compiler settings and linked libraries. This documentation revision does not regenerate artifacts.
+- **ABI snapshots follow source**: regenerate `docs/artifacts/` with `make artifacts` and detect drift with `make artifacts-check`. Current interfaces use `applySecurityStatus(bytes32,uint8,bool,bytes32)` and a top-level `getSecurity().pauseMode`. Production integrations must still use the target release ABI and verify proxy implementation, deployment block, compiler settings and linked libraries; source snapshots are not deployed-version evidence.
 - **Unwind event amounts are fixed**: stock receipts use underlying-token U balance deltas; quote receipts use Q balance deltas. See Unwind below. Event signatures are unchanged; historical logs are not backfilled.
 - Never copy private keys, signing keys or credentials into the repository. Only non-sensitive test configuration is listed below. This integration does not require TokenApprove; paying callers must still approve LP Manager or Swap Router directly as required by the selected entry point.
 

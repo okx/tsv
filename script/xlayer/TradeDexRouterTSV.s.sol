@@ -1,12 +1,11 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
-import {IERC20} from "dex-adapters/interfaces/IERC20.sol";
-import {ITSVSwapRouter} from "dex-adapters/interfaces/ITSVSwapRouter.sol";
-import {TSVAdapter} from "dex-adapters/adapters/uniswap-v4/TSVAdapter.sol";
-import {SafeERC20} from "dex-adapters/libraries/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ITSVDEXAdapter, ITSVRouterSettlement} from "tsv-v1/interfaces/external/ITSVDEXAdapter.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IDexRouter, IDexApproveProxy} from "../../lib/dexrouter-interfaces/IDexRouter.sol";
 
 interface ITSVRouterAdapterPolicy {
@@ -33,7 +32,7 @@ contract TradeDexRouterTSV is Script {
         address stockUnderlying;
         address participant;
         address receiver;
-        ITSVSwapRouter.PoolKey key;
+        ITSVDEXAdapter.PoolKey key;
         uint256 amountIn;
         uint256 minReturn;
         uint256 expectedMultiplier;
@@ -52,8 +51,8 @@ contract TradeDexRouterTSV is Script {
         TradeConfig memory c = _readConfig(trader);
         _validate(c, trader);
 
-        TSVAdapter.MoreInfo memory info =
-            TSVAdapter.MoreInfo({key: c.key, expectedMultiplier: c.expectedMultiplier, amountIn: c.amountIn});
+        ITSVDEXAdapter.MoreInfo memory info =
+            ITSVDEXAdapter.MoreInfo({key: c.key, expectedMultiplier: c.expectedMultiplier, amountIn: c.amountIn});
         bytes memory moreInfo = _buildMoreInfo(c.isBuy, info);
         IDexRouter.RouterPath[] memory paths = _paths(c, moreInfo);
         IDexRouter.BaseRequest memory request = IDexRouter.BaseRequest({
@@ -126,7 +125,7 @@ contract TradeDexRouterTSV is Script {
             c.participant == trader && c.receiver == c.participant, "participant/receiver must be the signing wallet"
         );
         require(c.receiver != address(0), "receiver must be nonzero");
-        TSVAdapter adapter = TSVAdapter(c.adapter);
+        ITSVDEXAdapter adapter = ITSVDEXAdapter(c.adapter);
         require(adapter.TSV_ROUTER() == c.tsvRouter, "adapter TSV router mismatch");
         require(adapter.isDexRouter(c.dexRouter), "DexRouter is not allowlisted by TSVAdapter");
         require(
@@ -137,7 +136,7 @@ contract TradeDexRouterTSV is Script {
         require(approveProxy.tokenApprove() == c.tokenApprove, "TokenApproveProxy target mismatch");
         require(approveProxy.isAllowedProxy(c.dexRouter), "DexRouter is not allowed by TokenApproveProxy");
         require(c.stockCurrency == c.key.currency0 || c.stockCurrency == c.key.currency1, "stock W is not in PoolKey");
-        ITSVSwapRouter router = ITSVSwapRouter(c.tsvRouter);
+        ITSVRouterSettlement router = ITSVRouterSettlement(c.tsvRouter);
         require(
             router.settlementCurrency(c.stockCurrency) == c.stockUnderlying && c.stockUnderlying != c.stockCurrency,
             "W settlement currency does not match supplied U"
@@ -188,7 +187,7 @@ contract TradeDexRouterTSV is Script {
     }
 
     /// @dev Both sides fund DexRouter; purchases encode zero because the Adapter uses its live Q balance.
-    function _buildMoreInfo(bool isBuy, TSVAdapter.MoreInfo memory info) internal pure returns (bytes memory) {
+    function _buildMoreInfo(bool isBuy, ITSVDEXAdapter.MoreInfo memory info) internal pure returns (bytes memory) {
         if (isBuy) info.amountIn = 0;
         return abi.encode(info);
     }

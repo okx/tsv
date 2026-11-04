@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
@@ -75,13 +75,11 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
         bytes32 before_ = _digest();
         SwapRequest memory request = _request(false, 1e22);
         vm.expectRevert();
-        vm.prank(alice);
         _submitSwap(request);
         assertEq(_digest(), before_);
         request = _request(true, 1e16);
         request.limitAmount = 1e22;
         vm.expectRevert();
-        vm.prank(alice);
         _submitSwap(request);
         assertEq(_digest(), before_);
         _swap(false, 1e16);
@@ -101,7 +99,6 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
         else request.key.hooks = IHooks(address(this));
         bytes32 before_ = _digest();
         vm.expectRevert();
-        vm.prank(alice);
         _submitSwap(request);
         assertEq(_digest(), before_);
     }
@@ -126,7 +123,6 @@ contract TSVWrappedBoundariesTest is WrappedSwapFixture {
     function testRevertedEntryReleasesLockForNextSwap() public {
         SwapRequest memory request = _request(true, 0);
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
-        vm.prank(alice);
         _submitSwap(request);
         assertEq(router.msgSender(), address(0));
         _swap(true, 1e16);

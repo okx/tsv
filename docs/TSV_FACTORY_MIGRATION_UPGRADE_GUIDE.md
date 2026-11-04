@@ -1,5 +1,7 @@
 # TSV Factory 替换与五个代理合约升级指南
 
+> 历史方案与源码快照，不能直接视为当前版本可执行的升级手册。本文引用的 `script/finalize-factory-migration.py` 和 `test/integration/local/deployment/FactoryMigration.t.sol` 未随当前仓库提供；下方相应命令和内嵌源码仅保留为历史记录。生产迁移前需要针对目标版本重新验证。
+
 本方案用于：保留 Registry、Router、LP Manager、Hook、Ledger 的代理地址和已有资产、池、LP NFT，将三个组件使用的 PermissionsAdapterFactory 同步替换，并升级五个组件的实现。
 
 **不能把原有 `upgrade-all` 命令中的 Factory 地址换掉后直接执行。** 当前 Router 的旧实现会拒绝 Factory 不同的新实现；Registry 的 `bindComponents()` 不能重绑；新部署的普通 Factory 不认识旧 Adapter。
@@ -12,8 +14,8 @@
 | --- | --- |
 | [`UpgradePermissionsFactory.s.sol`](../script/UpgradePermissionsFactory.s.sol) | Forge 入口：读取部署快照、完整演练、部署准备合约、授权、原子升级、回读、撤销授权 |
 | [`TSVFactoryMigration.sol`](../script/lib/TSVFactoryMigration.sol) | 兼容 Factory、Registry 迁移实现、Router 过渡实现、一次性升级协调合约 |
-| [`finalize-factory-migration.py`](../script/finalize-factory-migration.py) | 校验真实交易回执及链上状态，备份并更新部署清单 |
-| [`FactoryMigration.t.sol`](../test/integration/local/deployment/FactoryMigration.t.sol) | 真实 PoolManager 的迁移及交易／LP 回归测试 |
+| `finalize-factory-migration.py`（当前未提供） | 历史方案中的回执校验及部署清单更新工具 |
+| `FactoryMigration.t.sol`（当前未提供） | 历史方案中的迁移及交易／LP 回归测试 |
 
 本方案新增 Factory 使用当前仓库的 `PermissionsAdapter` 实现。它不会修改已经部署的 Adapter，也不会升级 DSToken、SBT、PoolManager、Legal-share Adapter 或外部 DexRouter／TSVAdapter。如果你的目标还包括修改 Adapter 的包装／解包逻辑，需要另行实现并验证，不能仅替换 Factory 地址。
 

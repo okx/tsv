@@ -1,2123 +1,2188 @@
 [
   {
-    "type": "function",
+    "inputs": [],
     "name": "DEFAULT_ADMIN_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "EMERGENCY_PAUSER_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "EMERGENCY_RESUMER_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "FORCE_EXIT_ADMIN_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "HALT_REPORTER_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
+    "name": "MAX_SBT_IDENTITIES",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "POOL_CREATOR_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "REVOKE_EXIT_EXECUTOR_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "SYMBOL_ADMIN_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "UPGRADE_ADMIN_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "UPGRADE_INTERFACE_VERSION",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "string",
         "name": "",
-        "type": "string",
-        "internalType": "string"
+        "type": "string"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "VOLUME_ORACLE_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "WITHDRAW_CLAIM_ROLE",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum SecurityPauseMode",
+        "name": "mode",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "enable",
+        "type": "bool"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "applySecurityStatus",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "mode",
-        "type": "uint8",
-        "internalType": "enum SecurityPauseMode"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "batchUpdatePoolLifeCycle",
     "inputs": [
       {
+        "internalType": "bytes32[]",
         "name": "poolIds",
-        "type": "bytes32[]",
-        "internalType": "bytes32[]"
+        "type": "bytes32[]"
       },
       {
+        "internalType": "enum PoolLifecycle",
         "name": "lifecycle",
-        "type": "uint8",
-        "internalType": "enum PoolLifecycle"
+        "type": "uint8"
       },
       {
+        "internalType": "bytes32",
         "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "batchUpdatePoolLifeCycle",
     "outputs": [
       {
+        "internalType": "uint256",
         "name": "changedCount",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "uint256"
       }
     ],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "bindComponents",
     "inputs": [
       {
+        "internalType": "address",
         "name": "hook_",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "internalType": "address",
         "name": "lpManager_",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "internalType": "address",
         "name": "factory",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "internalType": "address",
         "name": "sbt_",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
+    "name": "bindComponents",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "delistSecurity",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "quote",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "disableQuoteTokenPoolRegister",
-    "inputs": [
-      {
-        "name": "quote",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "u",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "disableUnderlyingPoolRegister",
-    "inputs": [
-      {
-        "name": "u",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "emergencyPauseEnable",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "getCurrencyUnderlying",
     "inputs": [
       {
+        "internalType": "address",
         "name": "w",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
+    "name": "getCurrencyUnderlying",
     "outputs": [
       {
+        "internalType": "address",
         "name": "underlying",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      }
+    ],
     "name": "getListPoolCountBySecurity",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "uint32",
         "name": "count",
-        "type": "uint32",
-        "internalType": "uint32"
+        "type": "uint32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      }
+    ],
     "name": "getPool",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct PoolRecord",
         "components": [
           {
-            "name": "key",
-            "type": "tuple",
-            "internalType": "struct PoolKey",
             "components": [
               {
+                "internalType": "Currency",
                 "name": "currency0",
-                "type": "address",
-                "internalType": "Currency"
+                "type": "address"
               },
               {
+                "internalType": "Currency",
                 "name": "currency1",
-                "type": "address",
-                "internalType": "Currency"
+                "type": "address"
               },
               {
+                "internalType": "uint24",
                 "name": "fee",
-                "type": "uint24",
-                "internalType": "uint24"
+                "type": "uint24"
               },
               {
+                "internalType": "int24",
                 "name": "tickSpacing",
-                "type": "int24",
-                "internalType": "int24"
+                "type": "int24"
               },
               {
+                "internalType": "contract IHooks",
                 "name": "hooks",
-                "type": "address",
-                "internalType": "contract IHooks"
+                "type": "address"
               }
-            ]
+            ],
+            "internalType": "struct PoolKey",
+            "name": "key",
+            "type": "tuple"
           },
           {
+            "internalType": "bytes32",
             "name": "securityId",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            "type": "bytes32"
           },
           {
+            "internalType": "uint8",
             "name": "tierId",
-            "type": "uint8",
-            "internalType": "uint8"
+            "type": "uint8"
           },
           {
+            "internalType": "enum PoolLifecycle",
             "name": "lifecycle",
-            "type": "uint8",
-            "internalType": "enum PoolLifecycle"
+            "type": "uint8"
           },
           {
+            "internalType": "uint256",
             "name": "tickCount",
-            "type": "uint256",
-            "internalType": "uint256"
+            "type": "uint256"
           },
           {
+            "internalType": "uint256",
             "name": "poolSecurityIndex",
-            "type": "uint256",
-            "internalType": "uint256"
+            "type": "uint256"
           }
-        ]
+        ],
+        "internalType": "struct PoolRecord",
+        "name": "",
+        "type": "tuple"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "getPoolLifeCycle",
     "inputs": [
       {
-        "name": "key",
-        "type": "tuple",
-        "internalType": "struct PoolKey",
         "components": [
           {
+            "internalType": "Currency",
             "name": "currency0",
-            "type": "address",
-            "internalType": "Currency"
+            "type": "address"
           },
           {
+            "internalType": "Currency",
             "name": "currency1",
-            "type": "address",
-            "internalType": "Currency"
+            "type": "address"
           },
           {
+            "internalType": "uint24",
             "name": "fee",
-            "type": "uint24",
-            "internalType": "uint24"
+            "type": "uint24"
           },
           {
+            "internalType": "int24",
             "name": "tickSpacing",
-            "type": "int24",
-            "internalType": "int24"
+            "type": "int24"
           },
           {
+            "internalType": "contract IHooks",
             "name": "hooks",
-            "type": "address",
-            "internalType": "contract IHooks"
+            "type": "address"
           }
-        ]
+        ],
+        "internalType": "struct PoolKey",
+        "name": "key",
+        "type": "tuple"
       }
     ],
+    "name": "getPoolLifeCycle",
     "outputs": [
       {
+        "internalType": "enum PoolLifecycle",
         "name": "lifecycle",
-        "type": "uint8",
-        "internalType": "enum PoolLifecycle"
+        "type": "uint8"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "getPoolLifeCycle",
     "inputs": [
       {
+        "internalType": "bytes32",
         "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "getPoolLifeCycle",
     "outputs": [
       {
+        "internalType": "enum PoolLifecycle",
         "name": "lifecycle",
-        "type": "uint8",
-        "internalType": "enum PoolLifecycle"
+        "type": "uint8"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      }
+    ],
     "name": "getPoolTickCount",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "uint256",
         "name": "count",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "uint256"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "quote",
+        "type": "address"
+      }
+    ],
     "name": "getQuoteToken",
-    "inputs": [
-      {
-        "name": "quote",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
     "outputs": [
       {
-        "name": "",
-        "type": "tuple",
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "rawDecimals",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "registered",
+            "type": "bool"
+          }
+        ],
         "internalType": "struct QuoteTokenRecord",
-        "components": [
-          {
-            "name": "rawDecimals",
-            "type": "uint8",
-            "internalType": "uint8"
-          },
-          {
-            "name": "registered",
-            "type": "bool",
-            "internalType": "bool"
-          }
-        ]
+        "name": "",
+        "type": "tuple"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
     "name": "getRoleAdmin",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      }
+    ],
     "name": "getSecurity",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
-        "name": "record",
-        "type": "tuple",
-        "internalType": "struct SecurityRecord",
         "components": [
           {
+            "internalType": "bytes32",
             "name": "securityId",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            "type": "bytes32"
           },
           {
+            "internalType": "uint8",
             "name": "tierId",
-            "type": "uint8",
-            "internalType": "uint8"
+            "type": "uint8"
           },
           {
+            "internalType": "bool",
             "name": "listed",
-            "type": "bool",
-            "internalType": "bool"
+            "type": "bool"
           },
           {
+            "internalType": "bytes32[]",
             "name": "poolIds",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]"
+            "type": "bytes32[]"
           },
           {
+            "internalType": "uint32",
             "name": "listedPoolCount",
-            "type": "uint32",
-            "internalType": "uint32"
+            "type": "uint32"
           },
           {
-            "name": "securityState",
-            "type": "tuple",
-            "internalType": "struct SecurityStateRecord",
-            "components": [
-              {
-                "name": "pauseMode",
-                "type": "uint8",
-                "internalType": "enum SecurityPauseMode"
-              }
-            ]
+            "internalType": "uint8",
+            "name": "pauseMode",
+            "type": "uint8"
           }
-        ]
+        ],
+        "internalType": "struct SecurityRecord",
+        "name": "record",
+        "type": "tuple"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      }
+    ],
     "name": "getSecurityPauseMode",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "uint8",
         "name": "mode",
-        "type": "uint8",
-        "internalType": "enum SecurityPauseMode"
+        "type": "uint8"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "tierId",
+        "type": "uint8"
+      }
+    ],
     "name": "getTierPolicy",
-    "inputs": [
-      {
-        "name": "tierId",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
     "outputs": [
       {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct TierPolicyRecord",
         "components": [
           {
+            "internalType": "uint32",
             "name": "maxListed",
-            "type": "uint32",
-            "internalType": "uint32"
+            "type": "uint32"
           },
           {
+            "internalType": "uint32",
             "name": "listedCount",
-            "type": "uint32",
-            "internalType": "uint32"
+            "type": "uint32"
           }
-        ]
+        ],
+        "internalType": "struct TierPolicyRecord",
+        "name": "",
+        "type": "tuple"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "u",
+        "type": "address"
+      }
+    ],
     "name": "getUnderlying",
-    "inputs": [
-      {
-        "name": "u",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
     "outputs": [
       {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct UnderlyingRecord",
         "components": [
           {
+            "internalType": "bytes32",
             "name": "securityId",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            "type": "bytes32"
           },
           {
+            "internalType": "address",
             "name": "legalShareAdapter",
-            "type": "address",
-            "internalType": "address"
+            "type": "address"
           },
           {
+            "internalType": "uint8",
             "name": "rawDecimals",
-            "type": "uint8",
-            "internalType": "uint8"
+            "type": "uint8"
           },
           {
+            "internalType": "bool",
             "name": "registered",
-            "type": "bool",
-            "internalType": "bool"
+            "type": "bool"
           }
-        ]
+        ],
+        "internalType": "struct UnderlyingRecord",
+        "name": "",
+        "type": "tuple"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "grantRole",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
     "name": "hasCredential",
-    "inputs": [
-      {
-        "name": "owner",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "held",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
     "name": "hasIdentity",
-    "inputs": [
-      {
-        "name": "owner",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "tokenId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "hasRole",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "hook",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "address",
         "name": "",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "initialize",
     "inputs": [
       {
+        "internalType": "address",
         "name": "admin",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
+    "name": "initialize",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      }
+    ],
     "name": "isKnownPool",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      }
+    ],
     "name": "isLPAllowed",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "isPaused",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "isSbtAllowed",
     "inputs": [
       {
+        "internalType": "PermissionFlag",
         "name": "permission",
-        "type": "bytes2",
-        "internalType": "PermissionFlag"
+        "type": "bytes2"
       },
       {
+        "internalType": "address",
         "name": "account",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
+    "name": "isSbtAllowed",
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      }
+    ],
     "name": "isTradable",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "lpManager",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "address",
         "name": "",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "participantSbt",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "address",
         "name": "",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "permissionedPoolManager",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "address",
         "name": "",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "permissionedValidationLibrary",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "address",
         "name": "",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "pure",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "permissionsAdapterFactory",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "address",
         "name": "",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "permissionsOf",
     "inputs": [
       {
+        "internalType": "address",
         "name": "owner",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
+    "name": "permissionsOf",
     "outputs": [
       {
+        "internalType": "PermissionFlag",
         "name": "permissions",
-        "type": "bytes2",
-        "internalType": "PermissionFlag"
+        "type": "bytes2"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [],
     "name": "proxiableUUID",
-    "inputs": [],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "registerPermissionedCurrency",
     "inputs": [
       {
-        "name": "registerParam",
-        "type": "tuple",
-        "internalType": "struct PermissionedRegisterParam",
         "components": [
           {
+            "internalType": "address",
             "name": "currency",
-            "type": "address",
-            "internalType": "address"
+            "type": "address"
           },
           {
+            "internalType": "bytes32",
             "name": "securityId",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            "type": "bytes32"
           },
           {
+            "internalType": "address",
             "name": "legalShareAdapter",
-            "type": "address",
-            "internalType": "address"
+            "type": "address"
           }
-        ]
+        ],
+        "internalType": "struct PermissionedRegisterParam",
+        "name": "registerParam",
+        "type": "tuple"
       },
       {
+        "internalType": "uint8",
         "name": "tierId",
-        "type": "uint8",
-        "internalType": "uint8"
+        "type": "uint8"
       },
       {
+        "internalType": "bytes32",
         "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "registerPermissionedCurrency",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "Currency",
+            "name": "currency0",
+            "type": "address"
+          },
+          {
+            "internalType": "Currency",
+            "name": "currency1",
+            "type": "address"
+          },
+          {
+            "internalType": "uint24",
+            "name": "fee",
+            "type": "uint24"
+          },
+          {
+            "internalType": "int24",
+            "name": "tickSpacing",
+            "type": "int24"
+          },
+          {
+            "internalType": "contract IHooks",
+            "name": "hooks",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct PoolKey",
+        "name": "key",
+        "type": "tuple"
+      }
+    ],
     "name": "registerPool",
-    "inputs": [
-      {
-        "name": "key",
-        "type": "tuple",
-        "internalType": "struct PoolKey",
-        "components": [
-          {
-            "name": "currency0",
-            "type": "address",
-            "internalType": "Currency"
-          },
-          {
-            "name": "currency1",
-            "type": "address",
-            "internalType": "Currency"
-          },
-          {
-            "name": "fee",
-            "type": "uint24",
-            "internalType": "uint24"
-          },
-          {
-            "name": "tickSpacing",
-            "type": "int24",
-            "internalType": "int24"
-          },
-          {
-            "name": "hooks",
-            "type": "address",
-            "internalType": "contract IHooks"
-          }
-        ]
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bytes32",
         "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "quote",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "registerQuoteToken",
-    "inputs": [
-      {
-        "name": "quote",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "relistSecurity",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "renounceRole",
     "inputs": [
       {
+        "internalType": "bytes32",
         "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "internalType": "address",
         "name": "callerConfirmation",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
+    "name": "renounceRole",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "replaceUnderlyingLegalShareAdapter",
     "inputs": [
       {
+        "internalType": "address",
+        "name": "newFactory",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
+    "name": "replacePermissionsAdapterFactory",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "u",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "internalType": "address",
         "name": "newAdapter",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "internalType": "bytes32",
         "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "replaceUnderlyingLegalShareAdapter",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "revokeRole",
     "inputs": [
       {
+        "internalType": "bytes32",
         "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "internalType": "address",
         "name": "account",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
     ],
+    "name": "revokeRole",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "name": "sbtIdentityConfig",
-    "inputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
     "outputs": [
       {
+        "internalType": "bool",
         "name": "registered",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       },
       {
+        "internalType": "PermissionFlag",
         "name": "permissions",
-        "type": "bytes2",
-        "internalType": "PermissionFlag"
+        "type": "bytes2"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "sbtTokenIds",
     "inputs": [],
+    "name": "sbtTokenIds",
     "outputs": [
       {
+        "internalType": "uint256[]",
         "name": "",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        "type": "uint256[]"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "setEmergencyPauseEnable",
     "inputs": [
       {
+        "internalType": "bool",
         "name": "enabled",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       },
       {
+        "internalType": "bytes32",
         "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "setEmergencyPauseEnable",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "setSbtConfig",
     "inputs": [
       {
+        "internalType": "uint256",
         "name": "tokenId",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "uint256"
       },
       {
+        "internalType": "PermissionFlag",
         "name": "permissions",
-        "type": "bytes2",
-        "internalType": "PermissionFlag"
+        "type": "bytes2"
       },
       {
+        "internalType": "bytes32",
         "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "setSbtConfig",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "setSecurityTier",
     "inputs": [
       {
+        "internalType": "bytes32",
         "name": "securityId",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "internalType": "uint8",
         "name": "tierId",
-        "type": "uint8",
-        "internalType": "uint8"
+        "type": "uint8"
       },
       {
+        "internalType": "bytes32",
         "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "setSecurityTier",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "setTierPolicy",
     "inputs": [
       {
+        "internalType": "uint8",
         "name": "tierId",
-        "type": "uint8",
-        "internalType": "uint8"
+        "type": "uint8"
       },
       {
+        "internalType": "uint32",
         "name": "maxListed",
-        "type": "uint32",
-        "internalType": "uint32"
+        "type": "uint32"
       },
       {
+        "internalType": "bytes32",
         "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "setTierPolicy",
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "supportsInterface",
     "inputs": [
       {
+        "internalType": "bytes4",
         "name": "interfaceId",
-        "type": "bytes4",
-        "internalType": "bytes4"
+        "type": "bytes4"
       }
     ],
+    "name": "supportsInterface",
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "updatePoolLifeCycle",
     "inputs": [
       {
+        "internalType": "bytes32",
         "name": "poolId",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "internalType": "enum PoolLifecycle",
         "name": "lifecycle",
-        "type": "uint8",
-        "internalType": "enum PoolLifecycle"
+        "type": "uint8"
       },
       {
+        "internalType": "bytes32",
         "name": "reasonCode",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
+    "name": "updatePoolLifeCycle",
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "updatePoolTickCount",
     "inputs": [
       {
-        "name": "key",
-        "type": "tuple",
-        "internalType": "struct PoolKey",
         "components": [
           {
+            "internalType": "Currency",
             "name": "currency0",
-            "type": "address",
-            "internalType": "Currency"
+            "type": "address"
           },
           {
+            "internalType": "Currency",
             "name": "currency1",
-            "type": "address",
-            "internalType": "Currency"
+            "type": "address"
           },
           {
+            "internalType": "uint24",
             "name": "fee",
-            "type": "uint24",
-            "internalType": "uint24"
+            "type": "uint24"
           },
           {
+            "internalType": "int24",
             "name": "tickSpacing",
-            "type": "int24",
-            "internalType": "int24"
+            "type": "int24"
           },
           {
+            "internalType": "contract IHooks",
             "name": "hooks",
-            "type": "address",
-            "internalType": "contract IHooks"
+            "type": "address"
           }
-        ]
+        ],
+        "internalType": "struct PoolKey",
+        "name": "key",
+        "type": "tuple"
       },
       {
+        "internalType": "int256",
         "name": "delta",
-        "type": "int256",
-        "internalType": "int256"
+        "type": "int256"
       }
     ],
+    "name": "updatePoolTickCount",
     "outputs": [
       {
+        "internalType": "bool",
         "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "type": "bool"
       }
     ],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "type": "function",
-    "name": "upgradeToAndCall",
     "inputs": [
       {
+        "internalType": "address",
         "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "internalType": "bytes",
         "name": "data",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "bytes"
       }
     ],
+    "name": "upgradeToAndCall",
     "outputs": [],
-    "stateMutability": "payable"
+    "stateMutability": "payable",
+    "type": "function"
   },
   {
-    "type": "event",
-    "name": "ComponentsBound",
+    "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "address",
         "name": "hook",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "address",
         "name": "lpManager",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "address",
         "name": "factory",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "address",
         "name": "poolManager",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        "type": "address"
       },
       {
-        "name": "sbt",
-        "type": "address",
         "indexed": false,
-        "internalType": "address"
+        "internalType": "address",
+        "name": "sbt",
+        "type": "address"
       }
     ],
-    "anonymous": false
+    "name": "ComponentsBound",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "EmergencyPauseChanged",
+    "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "bool",
         "name": "enabled",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
+        "type": "bool"
       },
       {
+        "indexed": true,
+        "internalType": "address",
         "name": "operator",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        "type": "address"
       },
       {
-        "name": "reasonCode",
-        "type": "bytes32",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "EmergencyPauseChanged",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "Initialized",
+    "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "uint64",
         "name": "version",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
+        "type": "uint64"
       }
     ],
-    "anonymous": false
+    "name": "Initialized",
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "currency",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "underlying",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "PermissionedCurrencyRegistered",
-    "inputs": [
-      {
-        "name": "currency",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "underlying",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "PoolLifecycleChanged",
+    "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousFactory",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newFactory",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "poolManager",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
+    "name": "PermissionsAdapterFactoryReplaced",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "poolId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "securityId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "indexed": false,
+        "internalType": "enum PoolLifecycle",
         "name": "oldLifecycle",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "enum PoolLifecycle"
+        "type": "uint8"
       },
       {
+        "indexed": false,
+        "internalType": "enum PoolLifecycle",
         "name": "newLifecycle",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "enum PoolLifecycle"
+        "type": "uint8"
       },
       {
-        "name": "reasonCode",
-        "type": "bytes32",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "PoolLifecycleChanged",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "PoolRegistered",
+    "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "poolId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "securityId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "indexed": true,
+        "internalType": "uint8",
         "name": "tierId",
-        "type": "uint8",
-        "indexed": true,
-        "internalType": "uint8"
+        "type": "uint8"
       },
       {
+        "indexed": false,
+        "internalType": "enum PoolLifecycle",
         "name": "lifecycle",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "enum PoolLifecycle"
+        "type": "uint8"
       }
     ],
-    "anonymous": false
+    "name": "PoolRegistered",
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "quote",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "QuoteTokenDisabled",
-    "inputs": [
-      {
-        "name": "quote",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "quote",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "rawDecimals",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "QuoteTokenRegistered",
-    "inputs": [
-      {
-        "name": "quote",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "rawDecimals",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "RoleAdminChanged",
+    "anonymous": false,
     "inputs": [
       {
-        "name": "role",
-        "type": "bytes32",
         "indexed": true,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
       },
       {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "previousAdminRole",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "newAdminRole",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "RoleAdminChanged",
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
     "name": "RoleGranted",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
     "name": "RoleRevoked",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "SbtConfigChanged",
+    "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "address",
         "name": "sbt",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "uint256",
         "name": "tokenId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        "type": "uint256"
       },
       {
+        "indexed": false,
+        "internalType": "PermissionFlag",
         "name": "permissions",
-        "type": "bytes2",
-        "indexed": false,
-        "internalType": "PermissionFlag"
+        "type": "bytes2"
       },
       {
-        "name": "reasonCode",
-        "type": "bytes32",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "SbtConfigChanged",
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "SecurityDelisted",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "tierId",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
+      }
+    ],
     "name": "SecurityListed",
-    "inputs": [
-      {
-        "name": "securityId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "tierId",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "reasonCode",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "SecurityStatusChanged",
+    "anonymous": false,
     "inputs": [
       {
-        "name": "securityId",
-        "type": "bytes32",
         "indexed": true,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
       },
       {
+        "indexed": false,
+        "internalType": "uint8",
         "name": "oldPauseMode",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "enum SecurityPauseMode"
+        "type": "uint8"
       },
       {
+        "indexed": false,
+        "internalType": "uint8",
         "name": "newPauseMode",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "enum SecurityPauseMode"
+        "type": "uint8"
       }
     ],
-    "anonymous": false
+    "name": "SecurityStatusChanged",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "SecurityTierChanged",
+    "anonymous": false,
     "inputs": [
       {
-        "name": "securityId",
-        "type": "bytes32",
         "indexed": true,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "securityId",
+        "type": "bytes32"
       },
       {
+        "indexed": false,
+        "internalType": "uint8",
         "name": "oldTierId",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
+        "type": "uint8"
       },
       {
+        "indexed": false,
+        "internalType": "uint8",
         "name": "newTierId",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
+        "type": "uint8"
       },
       {
-        "name": "reasonCode",
-        "type": "bytes32",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "SecurityTierChanged",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "TierPolicyChanged",
+    "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "uint8",
         "name": "tierId",
-        "type": "uint8",
-        "indexed": true,
-        "internalType": "uint8"
+        "type": "uint8"
       },
       {
+        "indexed": false,
+        "internalType": "uint32",
         "name": "maxListed",
-        "type": "uint32",
-        "indexed": false,
-        "internalType": "uint32"
+        "type": "uint32"
       },
       {
-        "name": "reasonCode",
-        "type": "bytes32",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "TierPolicyChanged",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "UnderlyingBound",
+    "anonymous": false,
     "inputs": [
       {
-        "name": "underlying",
-        "type": "address",
         "indexed": true,
-        "internalType": "address"
+        "internalType": "address",
+        "name": "underlying",
+        "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "securityId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        "type": "bytes32"
       },
       {
+        "indexed": false,
+        "internalType": "address",
         "name": "legalShareAdapter",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "uint8",
         "name": "rawDecimals",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
+        "type": "uint8"
       },
       {
-        "name": "reasonCode",
-        "type": "bytes32",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "UnderlyingBound",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "UnderlyingLegalShareAdapterChanged",
+    "anonymous": false,
     "inputs": [
       {
-        "name": "underlying",
-        "type": "address",
         "indexed": true,
-        "internalType": "address"
+        "internalType": "address",
+        "name": "underlying",
+        "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "address",
         "name": "oldAdapter",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "address",
         "name": "newAdapter",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        "type": "address"
       },
       {
-        "name": "reasonCode",
-        "type": "bytes32",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "UnderlyingLegalShareAdapterChanged",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "UnderlyingPoolRegisterDisabled",
+    "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "address",
         "name": "underlying",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        "type": "address"
       },
       {
-        "name": "reasonCode",
-        "type": "bytes32",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "bytes32",
+        "name": "reasonCode",
+        "type": "bytes32"
       }
     ],
-    "anonymous": false
+    "name": "UnderlyingPoolRegisterDisabled",
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "Upgraded",
+    "anonymous": false,
     "inputs": [
       {
-        "name": "implementation",
-        "type": "address",
         "indexed": true,
-        "internalType": "address"
+        "internalType": "address",
+        "name": "implementation",
+        "type": "address"
       }
     ],
-    "anonymous": false
+    "name": "Upgraded",
+    "type": "event"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "AccessControlBadConfirmation",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
-    "name": "AccessControlUnauthorizedAccount",
     "inputs": [
       {
+        "internalType": "address",
         "name": "account",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       },
       {
+        "internalType": "bytes32",
         "name": "neededRole",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
-    ]
+    ],
+    "name": "AccessControlUnauthorizedAccount",
+    "type": "error"
   },
   {
-    "type": "error",
-    "name": "AddressEmptyCode",
     "inputs": [
       {
+        "internalType": "address",
         "name": "target",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
-    ]
+    ],
+    "name": "AddressEmptyCode",
+    "type": "error"
   },
   {
-    "type": "error",
-    "name": "ERC1967InvalidImplementation",
     "inputs": [
       {
+        "internalType": "address",
         "name": "implementation",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
-    ]
+    ],
+    "name": "ERC1967InvalidImplementation",
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "ERC1967NonPayable",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "FailedCall",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "InvalidConfig",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "InvalidGovernance",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "InvalidInitialization",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "InvalidPermissionedConfig",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "InvalidPool",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "InvalidStatus",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "NotInitializing",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "PermissionedEnvironmentNotBound",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "PermissionedMetadataMismatch",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
+    "name": "SbtIdentityLimitReached",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "SbtNotConfigured",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "UUPSUnauthorizedCallContext",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
-    "name": "UUPSUnsupportedProxiableUUID",
     "inputs": [
       {
+        "internalType": "bytes32",
         "name": "slot",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "bytes32"
       }
-    ]
+    ],
+    "name": "UUPSUnsupportedProxiableUUID",
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [],
     "name": "UnauthorizedUpgrade",
-    "inputs": []
+    "type": "error"
   },
   {
-    "type": "error",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "currency",
+        "type": "address"
+      }
+    ],
     "name": "UnsupportedAsset",
-    "inputs": [
-      {
-        "name": "currency",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
+    "type": "error"
   },
   {
-    "type": "error",
-    "name": "UnverifiedPermissionedAdapter",
     "inputs": [
       {
+        "internalType": "address",
         "name": "currency",
-        "type": "address",
-        "internalType": "address"
+        "type": "address"
       }
-    ]
+    ],
+    "name": "UnverifiedPermissionedAdapter",
+    "type": "error"
   }
 ]
