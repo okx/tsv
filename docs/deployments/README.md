@@ -19,5 +19,7 @@ main 保留公开部署步骤、构建工具、ABI 和合约地址清单。MCP �
 - `docs/deployments/tsv-mcp/runs/`：成功 MCP 部署的请求、最终状态、回执与核验记录。
 - `outputs/`：历史操作、查询、模拟、分红和做市工具。
 - `.agents/skills/tsv-mcp-deploy/`：MCP 操作流程和记录校验工具。
+- `deployment/prod/contracts/`：历史合约登记资料和部署 ABI。
+- `deployment/pre/chain-snapshot.json`、`deployment/prod/chain-snapshot.json`：固定区块的链上读取证据。
 
-以上为归档位置，不是 main 中的文件链接。合约地址统一见 [pre](../../deployment/pre/addresses.json) 和 [prod](../../deployment/prod/addresses.json)；历史登记 ABI 保留于 [prod/contracts/](../../deployment/prod/contracts/)。
+以上为归档位置，不是 main 中的文件链接。合约地址统一见 [pre](../../deployment/pre/addresses.json) 和 [prod](../../deployment/prod/addresses.json)。历史登记 ABI 和链上快照由上述固定 commit 归档，当前源码 ABI 见 [artifacts/](../artifacts/README.md)。

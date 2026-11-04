@@ -29,3 +29,8 @@ dployment/history/
 /outputs/
 /docs/deployments/tsv-mcp/
 /.agents/skills/tsv-mcp-deploy/
+
+# Historical deployment metadata is archived on ops/deployment.
+/deployment/prod/contracts/
+/deployment/pre/chain-snapshot.json
+/deployment/prod/chain-snapshot.json
