@@ -1,0 +1,55 @@
+{
+  "pool_id": "0xcaba439292b23398ddabe09f68668d3969c3d2d3eea90108b3c2ee9766d5c0a3",
+  "owner": "0x224467f6640abe0a62d1be98187912627b59722a",
+  "nft_token_id": 12,
+  "liquidity_transaction": "0x52cdb04584fbc7cea15a70e21d2d3aa95f3277c303ec7e8cc0a939a00b880281",
+  "verification_block": 73784759,
+  "actual_quote_raw": 23000000,
+  "actual_rwt_raw": 23779108026286146777,
+  "actual_quote": "23",
+  "actual_rwt": "23.779108026286146777",
+  "tick_lower": 275720,
+  "tick_upper": 276920,
+  "liquidity_delta": 791443376188868,
+  "salt": 12,
+  "current_tick": 276329,
+  "sqrt_price_x96": 79251684450176330750507479513401434,
+  "lp_fee": 2000,
+  "position_liquidity": 791443376188868,
+  "position_count": 3,
+  "active_liquidity": 1127596431299100,
+  "quote_balance": 1596309,
+  "rwt_balance": 66220891973713855556,
+  "receipts": [
+    {
+      "hash": "0xdb682f24f07096813cb5e31cf4597746252cd4230b9419b0db6c2e4221f277ee",
+      "status": "0x1",
+      "block": 73784700,
+      "to": "0x28ccb07e804c6541634c07f1809f7eaae3b523b0"
+    },
+    {
+      "hash": "0x3a53b884e9bdd4ddf063c16552e3687ca8fa9089d3e016c50f3d85391dd4c3f2",
+      "status": "0x1",
+      "block": 73784698,
+      "to": "0xb6ceceab302e2e4948951ee7843fc24e92933061"
+    },
+    {
+      "hash": "0x1c49f316300fd1896c973f0e0d626ce0c1711b5ed9e5dca009eb27f17115de2f",
+      "status": "0x1",
+      "block": 73784699,
+      "to": "0xb6ceceab302e2e4948951ee7843fc24e92933061"
+    },
+    {
+      "hash": "0x6bd28fa402fbc4808ce0f0da50b4665fac0bab27b4ce744544f87c41220995c3",
+      "status": "0x1",
+      "block": 73784701,
+      "to": "0x28ccb07e804c6541634c07f1809f7eaae3b523b0"
+    },
+    {
+      "hash": "0x52cdb04584fbc7cea15a70e21d2d3aa95f3277c303ec7e8cc0a939a00b880281",
+      "status": "0x1",
+      "block": 73784702,
+      "to": "0xf73d8683b948564d2795c62a2a909012ea168d29"
+    }
+  ]
+}

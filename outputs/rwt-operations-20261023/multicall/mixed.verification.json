@@ -1,0 +1,28 @@
+{
+  "quotaWad": "100000000000000000000",
+  "internalCalls": [
+    {
+      "function": "setQuota(bytes32,uint256,bytes32)",
+      "arguments": [
+        "0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3",
+        "100000000000000000000",
+        "0x6ca775a99ffd17074e8e07e25a1e471ad135d3229fc5845e5eaed3f1bcecf10c"
+      ]
+    },
+    {
+      "function": "setUsedWad(bytes32,(uint256,uint256)[],bytes32)",
+      "arguments": [
+        "0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3",
+        [
+          [
+            20749,
+            0
+          ]
+        ],
+        "0x133f9b3c19b686dde04ffd8b1d2a544f3e3d50567ed36911d35c3a16e5f62079"
+      ]
+    }
+  ],
+  "ESTDay": 20749,
+  "usedWad": "0"
+}

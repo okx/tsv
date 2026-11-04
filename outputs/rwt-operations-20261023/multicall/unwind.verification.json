@@ -1,0 +1,30 @@
+{
+  "tokenIds": [
+    17,
+    18
+  ],
+  "bothBurned": true,
+  "usdcReturnedRaw": 199998,
+  "rwtReturnedRaw": "199999999999999998",
+  "events": [
+    {
+      "tokenId": 17,
+      "amountWords": [
+        "99999",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "tokenId": 18,
+      "amountWords": [
+        "99999",
+        "0",
+        "0",
+        "0"
+      ]
+    }
+  ],
+  "note": "\u5b9e\u9645\u5230\u8d26\u4f9d\u636e\u5e95\u5c42\u4ee3\u5e01 Transfer \u548c\u4f59\u989d\uff1b\u9000\u51fa\u4e8b\u4ef6 adapter \u4fa7\u91d1\u989d\u53ef\u80fd\u4e3a 0\u3002"
+}

@@ -1,0 +1,14 @@
+{
+  "transactions": [
+    {
+      "hash": "0x39785e9d6dc0be95da0fec947b2fed1bcfc5b9ba2449b8bf28fa4bdfe337cc90",
+      "transactionType": "CALL",
+      "contractAddress": "0xf73d8683b948564d2795c62a2a909012ea168d29",
+      "function": "initializePool((address,address,uint24,int24,address),uint160)",
+      "arguments": [
+        "(0xB6CEceAB302E2E4948951eE7843FC24E92933061, 0xF6Bb667B55d0CACdb9D2Bb9d75D78b4EbE1F1B6C, 2000, 20, 0xbC6D8c8A8b681872a93554116F01268F80C9fFfF)",
+        "79228162514264337593543950336000000"
+      ]
+    }
+  ]
+}

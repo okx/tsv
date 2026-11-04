@@ -1,0 +1,9 @@
+{
+  "latestNonce": 1629,
+  "pendingNonce": 1629,
+  "expectedFirstStatusNonce": 1629,
+  "pauseMode": 0,
+  "logRangeQuery": "RPC rejected eth_getLogs with HTTP 400; reconciliation uses exact sender nonce and broadcast artifact",
+  "broadcastArtifactStillContainsOnlyLiquidity": true,
+  "noStatusTransactionSent": true
+}

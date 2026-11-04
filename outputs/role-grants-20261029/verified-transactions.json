@@ -1,0 +1,42 @@
+[
+  {
+    "role": "HALT_REPORTER_ROLE",
+    "roleHash": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+    "account": "0x3936b9299821a108bDa6dc31Caf3Ebd2FF7ADd3C",
+    "txHash": "0x6ddb833a719639553acd7c1987104709e93a5f25bd304b4cc159f26fe5745917",
+    "nonce": 1650,
+    "block": 74489832,
+    "gasUsed": 56393,
+    "status": "success"
+  },
+  {
+    "role": "HALT_REPORTER_ROLE",
+    "roleHash": "0x3bb4716226a17af20de9bb8fb0b4eac6d19604f20e50522e7012bc46a752cd48",
+    "account": "0x94b9097cCA1A368F7bD6aBa0e38a6333bFD42936",
+    "txHash": "0xd01c44c1b31fdb4842ef3493676a1b8965054c6a0470519a61a65ae79abe06ce",
+    "nonce": 1651,
+    "block": 74489832,
+    "gasUsed": 56393,
+    "status": "success"
+  },
+  {
+    "role": "FORCE_EXIT_ADMIN_ROLE",
+    "roleHash": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+    "account": "0x466Ef4a1008772Af2D0FA52cD2Fc8b5391863a76",
+    "txHash": "0x5b7fe6ae37678b5832be32dc54bb2abe4a480664b88fc4c971430b6ffee64ab5",
+    "nonce": 1652,
+    "block": 74489833,
+    "gasUsed": 56381,
+    "status": "success"
+  },
+  {
+    "role": "FORCE_EXIT_ADMIN_ROLE",
+    "roleHash": "0xfb184699a3b1eacde7d2a547a592194816605090c2320ec2ceb56b0a38a34bee",
+    "account": "0x323ef02B3CE1a90D631f461A1EEec23cd639651f",
+    "txHash": "0xa2c3a66abce67ccdd8a0f88482e1cafc538ef19e67fd975b3e5106f45d469ed3",
+    "nonce": 1653,
+    "block": 74489834,
+    "gasUsed": 56393,
+    "status": "success"
+  }
+]

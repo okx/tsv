@@ -1,0 +1,20 @@
+{
+  "chainId": 196,
+  "poolid": "0x6fdbd1d4ac47201b20e3fcd1368503192e0dc2b72420d3ce1389f0d630d79126",
+  "currency0": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+  "currency1": "0x9f212c1DCc9e8026d30Ff38b01B72687EAab747b",
+  "fee": 2000,
+  "tickSpacing": 40,
+  "hooks": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff",
+  "sqrtPriceX96": "79228162514264337593543950336",
+  "tick": 0,
+  "securityId": "0xb5305ea27b8a8d8f365bb30fd5500981f3fc8848bc3c897b801051edeee73c7f",
+  "tierId": 2,
+  "txhash": "0xbdad0f82286bb367abd82c8feb12728fdf75bfc1f06abbefa3787aec207cda28",
+  "lifecycle": "LIST",
+  "liquidity": "0",
+  "isTradable": true,
+  "isLPAllowed": true,
+  "transactionBlock": 73954417,
+  "verificationBlock": 73954473
+}

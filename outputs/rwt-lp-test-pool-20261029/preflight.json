@@ -1,0 +1,17 @@
+{
+  "poolid": "0x3c4819dd89f20dbb51dfd23becb6c89d97399b5cd996f09cc4f08e863137dcaf",
+  "securityId": "0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3",
+  "currency0": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+  "currency1": "0xf6bb667b55d0cacdb9d2bb9d75d78b4ebe1f1b6c",
+  "underlying": "0x28ccb07e804c6541634c07f1809f7eaae3b523b0",
+  "fee": 2000,
+  "tickSpacing": 20,
+  "hooks": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff",
+  "sqrtPriceX96": "79228162514264337593543950336000000",
+  "tick": 276324,
+  "pauseMode": 0,
+  "operator": "0x224467f6640AbE0A62D1be98187912627b59722A",
+  "startNonce": 1654,
+  "block": 74493764,
+  "nativeBalance": "141033137543309370"
+}

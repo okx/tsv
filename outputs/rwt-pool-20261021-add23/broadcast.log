@@ -1,0 +1,45 @@
+No files changed, compilation skipped
+Script ran successfully.
+
+== Logs ==
+  XLayer chainId: 196
+  LP owner: 0x224467f6640AbE0A62D1be98187912627b59722A
+  Pool ID:
+  0xcaba439292b23398ddabe09f68668d3969c3d2d3eea90108b3c2ee9766d5c0a3
+  Stock U input: 0x28Ccb07e804c6541634C07f1809f7Eaae3B523B0
+  Currency0 input: 0xB6CEceAB302E2E4948951eE7843FC24E92933061
+  Currency1 input: 0x28Ccb07e804c6541634C07f1809f7Eaae3B523B0
+  Current tick: 276329
+  Tick lower: 275720
+  Tick upper: 276920
+  Maximum amount0 raw: 23000000
+  Maximum amount1 raw: 23780000000000000000
+  Liquidity: 791443376188868
+  Position token ID: 12
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 196
+
+Estimated gas price: 0.040000001 gwei
+
+Estimated total gas used for script: 1025641
+
+Estimated amount required: 0.000041025641025641 ETH
+
+==========================
+
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+
+Transactions saved to: /Users/oker/meili/yunshan.fang_dacs_at_okg.com/117/Desktop/gitlab/tsv/broadcast/AddLiquidityTSV.s.sol/196/run-latest.json
+
+Sensitive values saved to: /Users/oker/meili/yunshan.fang_dacs_at_okg.com/117/Desktop/gitlab/tsv/cache/AddLiquidityTSV.s.sol/196/run-latest.json
+
+Warning: This is a nightly build of Foundry. It is recommended to use the latest stable version. To mute this warning set `FOUNDRY_DISABLE_NIGHTLY_WARNING` in your environment. 
+
+Warning: Found unknown `remappings_generate` config for profile `soldeer` defined in foundry.toml.
