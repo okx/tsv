@@ -1,4 +1,4 @@
-.PHONY: build check test test-unit test-local test-governance test-trading test-liquidity test-operations test-invariants test-xlayer coverage artifacts artifacts-check
+.PHONY: build check test test-sdk test-unit test-local test-governance test-trading test-liquidity test-operations test-invariants test-xlayer coverage artifacts artifacts-check
 
 build:
 	forge build
@@ -9,7 +9,10 @@ check:
 	forge fmt --check
 	git diff --check
 
-test:
+test-sdk:
+	PYTHONPATH=sdk/python python3 -m unittest discover -s sdk/python/tests -v
+
+test: test-sdk
 	python3 script/check-test-layout.py
 	FOUNDRY_PROFILE=default forge test --summary
 

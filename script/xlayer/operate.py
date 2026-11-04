@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import sys
@@ -20,7 +21,6 @@ from tsv_xlayer_sdk import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEPLOYMENT_FILE = ROOT / "script/xlayer/deployment.json"
 LOCAL_ENV_FILE = ROOT / "script/xlayer/.env.xlayer"
 ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 BYTES32_RE = re.compile(r"^0x[0-9a-fA-F]{64}$")
@@ -429,13 +429,21 @@ def print_result(stdout: str, stderr: str) -> None:
         print(stderr, end="" if stderr.endswith("\n") else "\n", file=sys.stderr)
 
 
-def main() -> int:
-    if not DEPLOYMENT_FILE.is_file():
-        print(f"找不到部署配置：{DEPLOYMENT_FILE}", file=sys.stderr)
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Operate a TSV deployment selected explicitly by configuration.")
+    parser.add_argument("--deployment", type=Path, required=True, help="Reviewed deployment JSON; no default environment")
+    parser.add_argument("--env-file", type=Path, default=LOCAL_ENV_FILE, help="Local signer/RPC overrides")
+    args = parser.parse_args(argv)
+    if not args.deployment.is_file():
+        print(f"找不到部署配置：{args.deployment}", file=sys.stderr)
         return 2
-    client = ExecutionClient(root=ROOT, deployment_file=DEPLOYMENT_FILE, local_env_file=LOCAL_ENV_FILE)
-    env = client.load_public_env(DEPLOYMENT_FILE)
-    env.update(client.load_local_env(LOCAL_ENV_FILE))
+    client = ExecutionClient(root=ROOT, deployment_file=args.deployment, local_env_file=args.env_file)
+    try:
+        env = client.load_public_env(args.deployment)
+        env.update(client.load_local_env(args.env_file))
+    except (ValueError, OSError) as exc:
+        print(f"配置错误：{exc}", file=sys.stderr)
+        return 2
     env.update(os.environ)
     baseline = env.copy()
 
@@ -468,7 +476,7 @@ def main() -> int:
         return 2
     writes = choice not in ("1", "2")
     if writes and not env.get("XLAYER_PRIVATE_KEY", "").strip():
-        print(f"写操作需要私钥；请在 {LOCAL_ENV_FILE} 填写 XLAYER_PRIVATE_KEY。未执行任何交易。", file=sys.stderr)
+        print(f"写操作需要私钥；请在 {args.env_file} 填写 XLAYER_PRIVATE_KEY。未执行任何交易。", file=sys.stderr)
         return 2
     try:
         target_script, label, _ = prepare_action(choice, env)

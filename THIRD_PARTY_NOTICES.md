@@ -13,6 +13,7 @@ The first-party BUSL-1.1 draft does not replace third-party licenses.
 | Forge standard library | lib/v4-core/lib/forge-std | MIT/Apache-2.0 notices retained |
 | Public issuer test contracts | lib/TestToken/backed-token-contract and securitize-dstoken | Their original licenses remain applicable |
 | Test utilities with permissive file headers | lib/TestToken/erc8056 and securitize-disperse | Existing CC0-1.0 / Apache-2.0 headers retained |
-| Development skills | .agents/skills | Independently sourced tools; original terms are not superseded by the root draft |
 
 Finalize license compatibility and any required authorizations before distribution. External SBT, DEX adapters and issuer checkers are integrated through contract addresses and ABI boundaries; their implementations are not relicensed or bundled as private dependencies.
+
+Solmate dependencies remain in the issuer PermissionsAdapter path. Their AGPL-3.0-only notices remain applicable; the first-party BUSL draft does not grant alternate terms for them. Independently sourced development skills are maintained on the operations branch rather than redistributed as TSV first-party code.

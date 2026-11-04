@@ -27,4 +27,4 @@ participant 来自白名单 DexRouter 的 caller marker。to 在执行时确定�
 
 精确金额不等于资金归属或签名授权：W 的富余 U 不按用户记账，错误的较大 amountIn 仍可能消耗历史资金；买入则使用全部 Q。Adapter 无 nonce 防重放或独立授权 deadline，相同 payload 在资金充足时可重复执行。金额、身份和用户交易授权依赖可信 DexRouter。
 
-本次 SDK 更新不自动更换 deployment.json 的线上地址；使用前应填写与新版 ABI 一致、已完成加白的部署地址。本仓库测试 TSV 自身路由边界及操作器的 ABI 编码，不编译或运行外部 Adapter 实现；不能以这些测试代替线上 Adapter 验证。
+SDK 和 CLI 必须显式指定部署配置，不内置预发地址；使用前应填写与新版 ABI 一致、已完成加白的部署地址。本仓库测试 TSV 自身路由边界及操作器的 ABI 编码，不编译或运行外部 Adapter 实现；不能以这些测试代替线上 Adapter 验证。

@@ -24,3 +24,5 @@ main 保留公开部署步骤、构建工具、ABI 和合约地址清单。MCP �
 - `deployment/pre/chain-snapshot.json`、`deployment/prod/chain-snapshot.json`：固定区块的链上读取证据。
 
 以上为归档位置，不是 main 中的文件链接。合约地址统一见 [pre](../../deployment/pre/addresses.json) 和 [prod](../../deployment/prod/addresses.json)。历史登记 ABI 和链上快照由上述固定 commit 归档，当前源码 ABI 见 [artifacts/](../artifacts/README.md)。
+
+历史会话部署工具、专用 AA 流程和实际操作配置已另行归档到运维 commit `73e18cc0a0c49932fe78bcc12a259e4e8f05c25e`，不属于公开部署入口。公开 SDK 和参数化脚本必须显式选择配置，参见 [操作器说明](../../script/xlayer/README.md)。

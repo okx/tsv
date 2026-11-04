@@ -1,0 +1,20 @@
+{
+  "network": "X Layer Mainnet",
+  "chainId": 196,
+  "rpcUrl": "<rpc-url>",
+  "environment": {
+    "TSV_REGISTRY": "<tsv-registry>",
+    "TSV_LEDGER": "<tsv-ledger>",
+    "TSV_ROUTER": "<tsv-router>",
+    "TSV_LP_MANAGER": "<tsv-lp-manager>",
+    "TSV_HOOK": "<tsv-hook>",
+    "TSV_PERMISSIONS_ADAPTER_FACTORY": "<tsv-permissions-adapter-factory>",
+    "TSV_POOL_MANAGER": "<tsv-pool-manager>",
+    "TSV_SBT": "<tsv-sbt>",
+    "TSV_SBT_TOKEN_ID": "<tsv-sbt-token-id>",
+    "DEX_TOKEN_APPROVE": "<dex-token-approve>",
+    "DEX_TOKEN_APPROVE_PROXY": "<dex-token-approve-proxy>",
+    "DEX_ROUTER": "<dex-router>",
+    "TSV_DEX_ADAPTER": "<tsv-dex-adapter>"
+  }
+}

@@ -88,16 +88,29 @@ class ExecutionClient:
         local_env_file: Path | None = None,
     ) -> None:
         self.root = root or Path(__file__).resolve().parents[3]
-        self.deployment_file = deployment_file or self.root / "script/xlayer/deployment.json"
+        if deployment_file is None:
+            raise ValueError("deployment_file must be explicitly provided; no live deployment is selected by default")
+        self.deployment_file = Path(deployment_file)
         self.local_env_file = local_env_file or self.root / "script/xlayer/.env.xlayer"
 
     @staticmethod
     def load_public_env(path: Path) -> dict[str, str]:
         deployment = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(deployment, dict):
+            raise ValueError("deployment configuration must be an object")
         if deployment.get("chainId") != 196:
             raise ValueError(f"deployment config must target X Layer Mainnet (chainId 196): {path}")
-        values = {str(key): str(value) for key, value in deployment.get("environment", {}).items()}
-        values["XLAYER_RPC_URL"] = str(deployment["rpcUrl"])
+        configured = deployment.get("environment", {})
+        if not isinstance(configured, dict):
+            raise ValueError("deployment environment must be an object")
+        values = {str(key): str(value) for key, value in configured.items()}
+        for key, value in values.items():
+            if "<" in value or ">" in value:
+                raise ValueError(f"deployment placeholder must be filled: {key}")
+        rpc_url = deployment.get("rpcUrl")
+        if not isinstance(rpc_url, str) or not rpc_url.strip() or "<" in rpc_url or ">" in rpc_url:
+            raise ValueError("deployment rpcUrl must be explicitly configured")
+        values["XLAYER_RPC_URL"] = rpc_url
         values["XLAYER_CHAIN_ID"] = str(deployment["chainId"])
         return values
 

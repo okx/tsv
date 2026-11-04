@@ -101,25 +101,11 @@ PermissionsAdapter retains its original interface. Securitize's derived checker 
 
 LPManager queries this flag for permissioned asset legs. At least one permissioned leg must allow unwind, and the caller must satisfy Adapter owner authorization. Checker query failures revert and must not be interpreted as unwind authorization. The exited LP does not need to hold an SBT. Permissioned W retains its Adapter owner fallback; direct CET has no owner fallback and remains a claim for the LP if CET compliance rejects delivery.
 
-## 4. SBT Enforcement for LP Operations
+## 4. SBT Checks for LP Operations
 
-The user-provided Enforcement excerpt requires the interface, AMM Router, and AMM Liquidity Pool contracts to verify that the participant's wallet holds a valid, unrevoked SBT before executable quotes and transactions such as liquidity actions. The security token independently restricts transfers to allowlisted wallets.
+The design separates TSV participant permissions from issuer token admission. Ordinary swap and liquidity operations consult Registry identity permissions; issuer tokens independently apply their transfer restrictions. The current contracts define pause, forced-exit and exceptional-path behavior.
 
-![User-provided SBT Enforcement excerpt](./assets/tsv-sbt-enforcement-excerpt.png)
-
-This excerpt is a requirements input for the design. This document does not infer its provenance or legal effect.
-
-**Ordinary LP operations:** minting, increasing, decreasing, burning, and collecting fees must verify the participant's valid, unrevoked SBT. For ordinary removal and collection, the confirmed check is `Registry.hasCredential(owner)`; this does not add an issuer `LIQUIDITY_ALLOWED` requirement. Removal must not retain Uniswap's exception allowing holders to exit independently after losing eligibility. **Issuer-authorized unwind:** the exited LP's SBT need not be checked because it may already have been revoked. Unwind requires independent owner authorization and the issuer's UNWIND_ALLOWED flag.
-
-Mint/increase operations continue to require Registry `LIQUIDITY_ALLOWED` and the issuer's LP permission for each permissioned asset. Ordinary removal and collection use the SBT holding check without requiring an issuer LP bit. The complete SBT validity predicate remains to be clarified with the issuer: current `hasCredential` queries `verify` for registered identities and does not itself reject a globally paused SBT.
-
-NFT owner and executor can differ because upstream supports approved operators. The confirmed requirement checks the position owner's SBT; whether a distinct approved executor must also hold an SBT remains to be clarified. The underlying asset recipient is passed through to the actual token transfer, where CET compliance is enforced.
-
-### 4.1 Flowchart Notation and Scope
-
-The diagrams use standard program flowchart notation: rounded terminals for start/end, parallelograms for inputs/outputs, rectangles for processing, diamonds for decisions, and double-sided rectangles for subprocedures. Solid arrows show control flow; labeled dashed arrows show exceptions propagating to transaction rollback. Decisions have explicit outcomes. Issuer setup and asset admission are prerequisites, rather than steps repeated within every LP transaction.
-
-Initialization reflects the documented implementation. Ordinary LP and unwind charts describe the target design, including Hook context and UNWIND_ALLOWED integration; outstanding implementation work is listed in Section 11. Delivery and withdrawClaim charts reflect the confirmed recipient and compliance rules. Unhandled failures revert the entire atomic transaction. During unwind delivery, a failed isolated delivery attempt rolls back only that attempt and proceeds to the next permitted fallback.
+See the [Registry guide](PERMISSIONED_REGISTRY_V1.md) and [current interface specification](CODING_SPEC_V1.md) for the implemented boundaries.
 
 ## 5. Pool Initialization: initializePool
 

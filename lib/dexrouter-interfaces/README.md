@@ -1,13 +1,7 @@
 # DexRouter thin ABI
 
-`IDexRouter.sol` contains the DAG ERC-20 route structs and `dagSwapTo` entry point used by the X Layer operator. It is intentionally a small ABI interface rather than a vendored router implementation. The deployed X Layer addresses are maintained in `script/xlayer/deployment.json`:
+`IDexRouter.sol` is a small ABI boundary for the DAG ERC-20 structs and `dagSwapTo` call used by the optional operator. Its upstream source revision is recorded in the Solidity header. This directory does not contain a router implementation.
 
-- `DEX_TOKEN_APPROVE`
-- `DEX_TOKEN_APPROVE_PROXY`
-- `DEX_ROUTER`
+Supply reviewed DexRouter, TokenApprove and TokenApproveProxy addresses in an explicitly selected deployment configuration; see the [operator guide](../../script/xlayer/README.md). The operator verifies `tokenApprove()` and `isAllowedProxy(dexRouter)` before simulation.
 
-The local X Layer TSV operation uses the TokenApprove contract as the user's ERC-20 allowance spender. The proxy's `tokenApprove()` and `isAllowedProxy(dexRouter)` values are checked before simulation. The configured addresses must be reviewed against the intended deployment before any broadcast.
-
-The TSVAdapter source is the `lib/dex-adapters` submodule. Its signed-amount `MoreInfo` is constructed by `script/xlayer/TradeDexRouterTSV.s.sol`; `test/helpers/v1/TSVAdapterFixture.sol` signs local callback payloads using the same ABI and digest fields.
-
-Initialize the source dependency with `git submodule update --init lib/dex-adapters`. Do not store the operation key or `TSV_SWAP_AUTH_SIGNER_PRIVATE_KEY` in this folder; both belong in the local `script/xlayer/.env.xlayer` file.
+The external TSV adapter implementation is not a source dependency. [ITSVDEXAdapter.sol](../../src/v1/interfaces/external/ITSVDEXAdapter.sol) defines the unsigned `MoreInfo(PoolKey, expectedMultiplier, amountIn)` boundary. No backend signature or nonce is encoded. See [adapter integration](../../docs/EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) for funding and allowlist requirements. Local ABI tests do not validate the deployed external implementation.
