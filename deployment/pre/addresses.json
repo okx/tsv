@@ -74,7 +74,6 @@
     "PermissionsAdapterFactoryPreviouslyBound": "0x038b77f3355afe8aea10c6c2b7be9312d8148e3f"
   },
   "sources": [
-    "chain-snapshot.json",
     "../../script/xlayer/deployment.json",
     "../../docs/operations/xlayer-pre-20261015.md"
   ],
@@ -90,6 +89,7 @@
     "commit": "298ee17bd657a7fb57106b19c3a0a24628226320",
     "pathsRelativeTo": "deployment/pre/addresses.json",
     "paths": [
+      "chain-snapshot.json",
       "../../outputs/tsv-disperse-test-20261030/summary.json"
     ]
   }

@@ -76,7 +76,6 @@
     }
   },
   "sources": [
-    "chain-snapshot.json",
     "releases/20261029-mcp-addresses.json"
   ],
   "notes": [
@@ -89,6 +88,7 @@
     "commit": "298ee17bd657a7fb57106b19c3a0a24628226320",
     "pathsRelativeTo": "deployment/prod/addresses.json",
     "paths": [
+      "chain-snapshot.json",
       "../../docs/deployments/tsv-mcp/runs/20261030-legal-share-adapters/manifest.json",
       "../../outputs/production-w-readiness-20261102/chain-snapshot.json",
       "../../outputs/tsv-operation-history-20261030/state-at-snapshot.json"
