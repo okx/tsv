@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {ERC8056DirectLegalShareAdapterTest} from "../../unit/v1/adapters/ERC8056DirectLegalShareAdapter.t.sol";

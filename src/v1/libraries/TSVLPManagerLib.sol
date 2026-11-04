@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {
@@ -11,6 +11,7 @@ import {
     PermissionFlags,
     IHooks
 } from "../vendor/permissionedPools/PermissionedPositionManager.sol";
+import {ITSVLPRegistry} from "../interfaces/ITSVLPRegistry.sol";
 import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.sol";
 import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
 import {PositionInfo} from "v4-periphery/libraries/PositionInfoLibrary.sol";
@@ -156,9 +157,9 @@ library TSVLPManagerLib {
             issuer,
             Currency.unwrap(poolKey.currency0),
             Currency.unwrap(poolKey.currency1),
-            settlement0.balanceOf(lp) > lpBalance0Before ? settlement0.balanceOf(lp) - lpBalance0Before: 0,
+            settlement0.balanceOf(lp) > lpBalance0Before ? settlement0.balanceOf(lp) - lpBalance0Before : 0,
             0,
-            settlement1.balanceOf(lp) > lpBalance1Before ? settlement1.balanceOf(lp) - lpBalance1Before: 0,
+            settlement1.balanceOf(lp) > lpBalance1Before ? settlement1.balanceOf(lp) - lpBalance1Before : 0,
             0
         );
     }
@@ -224,10 +225,14 @@ library TSVLPManagerLib {
             issuer,
             Currency.unwrap(poolKey.currency0),
             Currency.unwrap(poolKey.currency1),
-            issuerReceived0 ? 0 : (afterBalances.lp0 > beforeBalances.lp0 ? afterBalances.lp0 - beforeBalances.lp0: 0),
-            issuerReceived0 ? (afterBalances.issuer0 > beforeBalances.issuer0 ? afterBalances.issuer0 - beforeBalances.issuer0 : 0) : 0,
+            issuerReceived0 ? 0 : (afterBalances.lp0 > beforeBalances.lp0 ? afterBalances.lp0 - beforeBalances.lp0 : 0),
+            issuerReceived0
+                ? (afterBalances.issuer0 > beforeBalances.issuer0 ? afterBalances.issuer0 - beforeBalances.issuer0 : 0)
+                : 0,
             issuerReceived1 ? 0 : (afterBalances.lp1 > beforeBalances.lp1 ? afterBalances.lp1 - beforeBalances.lp1 : 0),
-            issuerReceived1 ? (afterBalances.issuer1 > beforeBalances.issuer1 ? afterBalances.issuer1 - beforeBalances.issuer1 : 0) : 0
+            issuerReceived1
+                ? (afterBalances.issuer1 > beforeBalances.issuer1 ? afterBalances.issuer1 - beforeBalances.issuer1 : 0)
+                : 0
         );
     }
 
@@ -500,7 +505,7 @@ library TSVLPManagerLib {
             verified = true;
         }
         if (!verified) revert NoVerifiedAdapter();
-        registry.registerPool(key);
+        ITSVLPRegistry(address(registry)).registerPool(key);
         return poolManager.initialize(key, sqrtPriceX96);
     }
 
@@ -519,7 +524,7 @@ library TSVLPManagerLib {
     }
 
     function updatePoolTickCount(ITSVPermissionedRegistry registry, PoolKey memory poolKey, int256 delta) external {
-        if (!registry.updatePoolTickCount(poolKey, delta)) revert PoolTickCountUpdateFailed();
+        if (!ITSVLPRegistry(address(registry)).updatePoolTickCount(poolKey, delta)) revert PoolTickCountUpdateFailed();
     }
 
     /// @dev Lifted from PermissionedPositionManager._sweep and PositionManager._sweep.

@@ -1,12 +1,12 @@
 # DexRouter 与无签名 TSVAdapter
 
-Adapter 子模块固定到 `80800d56`，买卖均不需要后端签名。构造参数为 `(tsvRouter, initialOwner, dexRouter)`。已部署的旧签名版本不可升级，使用前须配置匹配的新版地址、Adapter 的 DexRouter 白名单和 TSV Router 的 Adapter 白名单。
+Adapter 实现不作为本仓库依赖；通过已部署地址和 `src/v1/interfaces/external/ITSVDEXAdapter.sol` 的公开 ABI 接入，买卖均不需要后端签名。已部署的旧签名版本不可升级，使用前须配置匹配的新版地址、Adapter 的 DexRouter 白名单和 TSV Router 的 Adapter 白名单。
 
 ## MoreInfo
 
 ```solidity
 struct MoreInfo {
-    ITSVSwapRouter.PoolKey key;
+    ITSVDEXAdapter.PoolKey key;
     uint256 expectedMultiplier;
     uint256 amountIn;
 }
@@ -27,4 +27,4 @@ participant 来自白名单 DexRouter 的 caller marker。to 在执行时确定�
 
 精确金额不等于资金归属或签名授权：W 的富余 U 不按用户记账，错误的较大 amountIn 仍可能消耗历史资金；买入则使用全部 Q。Adapter 无 nonce 防重放或独立授权 deadline，相同 payload 在资金充足时可重复执行。金额、身份和用户交易授权依赖可信 DexRouter。
 
-本次 SDK 更新不自动更换 deployment.json 的线上地址；使用前应填写与新版 ABI 一致、已完成加白的部署地址。测试使用本地 TSV fixture 和实际 Adapter，无需私钥，不广播链上交易。
+本次 SDK 更新不自动更换 deployment.json 的线上地址；使用前应填写与新版 ABI 一致、已完成加白的部署地址。本仓库测试 TSV 自身路由边界及操作器的 ABI 编码，不编译或运行外部 Adapter 实现；不能以这些测试代替线上 Adapter 验证。

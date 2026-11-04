@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {PermissionFlag, PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
@@ -175,20 +175,8 @@ abstract contract WrappedSwapFixture is Test {
     }
 
     function _submitSwap(SwapRequest memory request) internal returns (uint256, uint256) {
-        address inputCurrency = Currency.unwrap(
-            request.zeroForOne ? request.key.currency0 : request.key.currency1
-        );
-        address payer;
-        if (registry.getCurrencyUnderlying(inputCurrency) != address(0)) {
-            vm.prank(alice);
-            underlying.transfer(inputCurrency, request.amountSpecified);
-        } else {
-            vm.prank(alice);
-            quote.transfer(address(swapAdapter), request.amountSpecified);
-            swapAdapter.approveToken(address(quote), address(router));
-            payer = address(swapAdapter);
-        }
-        return swapAdapter.swapExactInputDirect(router, request, payer, alice, alice);
+        vm.prank(alice);
+        return router.swapExactInput(request);
     }
 
     function _setSecurityMode(SecurityPauseMode mode, bool enable) internal {

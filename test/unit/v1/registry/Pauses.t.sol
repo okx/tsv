@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
@@ -124,5 +124,4 @@ contract TSVSecurityPausesTest is FoundationFixture {
         assertEq(registry.getSecurityPauseMode(bytes32(0)), 0);
         assertEq(registry.getSecurity(keccak256("unknown")).pauseMode, 0);
     }
-
 }

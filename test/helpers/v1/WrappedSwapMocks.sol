@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -12,7 +12,10 @@ import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVPermissionedSettlementLib} from "tsv-v1/libraries/TSVPermissionedSettlementLib.sol";
 
 interface IV1MockMultiplierSource {
-    function getCurrentMultiplier() external view returns (uint256 currentMultiplier, uint256 periodsPassed, uint256 nonce);
+    function getCurrentMultiplier()
+        external
+        view
+        returns (uint256 currentMultiplier, uint256 periodsPassed, uint256 nonce);
 }
 
 /// @dev Behavior fixture for issuer U and quote Q; never deployed as a production asset.

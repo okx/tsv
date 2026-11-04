@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
@@ -42,8 +42,7 @@ contract TSVLPInitializationTest is Test {
             IPositionDescriptor(address(0)),
             IWETH9(address(0)),
             IPermissionsAdapterFactory(factory),
-            100_000,
-            ITSVPermissionedRegistry(registry)
+            100_000
         );
         implementationAddress = address(implementation);
         lp = TSVLPManagerV1(
@@ -63,12 +62,16 @@ contract TSVLPInitializationTest is Test {
         key = PoolKey(Currency.wrap(address(1)), Currency.wrap(address(2)), 3000, 60, IHooks(address(3)));
         _setVerified(key.currency0, address(0));
         _setVerified(key.currency1, address(0));
-        vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.registerPool, (key)), abi.encode(bytes32(0)));
+        vm.mockCall(
+            registry,
+            abi.encodeWithSelector(ITSVPermissionedRegistry.registerPool.selector, key),
+            abi.encode(bytes32(0))
+        );
         vm.mockCall(manager, abi.encodeCall(IPoolManager.initialize, (key, uint160(1 << 96))), abi.encode(int24(0)));
     }
 
     function testRejectsPoolWithoutVerifiedAdapterBeforeRegistration() public {
-        vm.expectCall(registry, abi.encodeCall(ITSVPermissionedRegistry.registerPool, (key)), uint64(0));
+        vm.expectCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.registerPool.selector, key), uint64(0));
         vm.expectCall(manager, abi.encodeCall(IPoolManager.initialize, (key, uint160(1 << 96))), uint64(0));
         vm.expectRevert(PermissionedPositionManager.NoVerifiedAdapter.selector);
         lp.initializePool(key, uint160(1 << 96));
@@ -93,7 +96,7 @@ contract TSVLPInitializationTest is Test {
     }
 
     function testRejectsVerifiedAdapterWithoutOwnerOnEitherSide() public {
-        vm.expectCall(registry, abi.encodeCall(ITSVPermissionedRegistry.registerPool, (key)), uint64(0));
+        vm.expectCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.registerPool.selector, key), uint64(0));
         vm.expectCall(manager, abi.encodeCall(IPoolManager.initialize, (key, uint160(1 << 96))), uint64(0));
         for (uint256 i; i < 2; ++i) {
             Currency currency = i == 0 ? key.currency0 : key.currency1;
@@ -122,7 +125,7 @@ contract TSVLPInitializationTest is Test {
     }
 
     function _initialize() private {
-        vm.expectCall(registry, abi.encodeCall(ITSVPermissionedRegistry.registerPool, (key)));
+        vm.expectCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.registerPool.selector, key));
         vm.expectCall(manager, abi.encodeCall(IPoolManager.initialize, (key, uint160(1 << 96))));
         assertEq(lp.initializePool(key, uint160(1 << 96)), 0);
     }

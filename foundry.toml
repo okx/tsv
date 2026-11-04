@@ -12,12 +12,9 @@ optimizer = true
 optimizer_runs = 200
 via_ir = true
 bytecode_hash = "none"
+extra_output = ["storageLayout"]
 
 remappings = [
-  "dex-adapters/=lib/dex-adapters/src/",
-  "lib/dex-adapters/:@interfaces/=lib/dex-adapters/src/interfaces/",
-  "lib/dex-adapters/:@libraries/=lib/dex-adapters/src/libraries/",
-  "lib/dex-adapters/:@openzeppelin/contracts/=lib/dex-adapters/lib/openzeppelin-contracts/contracts/",
   "v4-periphery/=lib/v4-periphery/src/",
   "src/v1/vendor/permissionedPools/:@openzeppelin/contracts/=lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/contracts/",
   "src/v1/vendor/permissionedPools/:@uniswap/v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
@@ -27,6 +24,7 @@ remappings = [
   "lib/v4-periphery/src/hooks/permissionedPools/:@uniswap/v4-core/src/=lib/v4-core/src/",
   "lib/v4-periphery/:solmate/=lib/v4-periphery/lib/v4-core/lib/solmate/",
   "v4-core/=lib/v4-core/src/",
+  "@uniswap/v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
   "tsv-v1/=src/v1/",
   "forge-std/=lib/v4-core/lib/forge-std/src/",
   "@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.5.0/",
@@ -73,7 +71,7 @@ runs = 64
 depth = 32
 fail_on_revert = true
 
-[profile.soldeer]
+[soldeer]
 remappings_generate = false
 
 [dependencies]

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {
@@ -369,7 +369,9 @@ contract LPLinkedLibrariesTest is LPLinkedFixture {
 
     function testTickCountFailureUpdateRollsBackEntireExit() public {
         vm.mockCall(
-            registry, abi.encodeCall(ITSVPermissionedRegistry.updatePoolTickCount, (key, int256(-1))), abi.encode(false)
+            registry,
+            abi.encodeWithSelector(ITSVPermissionedRegistry.updatePoolTickCount.selector, key, int256(-1)),
+            abi.encode(false)
         );
         vm.expectRevert(TSVLPManagerV1.PoolTickCountUpdateFailed.selector);
         lp.unwindPositionByTsv(tokenId, 0, 0, "");

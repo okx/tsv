@@ -69,7 +69,7 @@
     "TSV_DEX_ADAPTER": "0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0"
   },
   "deploymentChannels": {
-    "MCP": "Core libraries, factories, implementations, four business proxies and six LegalShareAdapters; see docs process manifests.",
+    "MCP": "Core libraries, factories, implementations, four business proxies and six LegalShareAdapters; see archived process manifests on ops/deployment.",
     "TSVHookV1Proxy": {
       "channel": "USER_MANUAL_FACTORY_CALL",
       "transactionHash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501"
@@ -77,14 +77,21 @@
   },
   "sources": [
     "chain-snapshot.json",
-    "releases/20261029-mcp-addresses.json",
-    "../../docs/deployments/tsv-mcp/runs/20261030-legal-share-adapters/manifest.json",
-    "../../outputs/production-w-readiness-20261102/chain-snapshot.json",
-    "../../outputs/tsv-operation-history-20261030/state-at-snapshot.json"
+    "releases/20261029-mcp-addresses.json"
   ],
   "notes": [
     "Initial deployment source is a8bfc93; newer main commits do not imply a production upgrade.",
     "Hook proxy is included in the address catalog even though it was not deployed through MCP.",
     "The three duplicate adapters succeeded on chain but are recorded as unused; token and external adapter entries reflect historical records."
-  ]
+  ],
+  "archivedSources": {
+    "branch": "ops/deployment",
+    "commit": "298ee17bd657a7fb57106b19c3a0a24628226320",
+    "pathsRelativeTo": "deployment/prod/addresses.json",
+    "paths": [
+      "../../docs/deployments/tsv-mcp/runs/20261030-legal-share-adapters/manifest.json",
+      "../../outputs/production-w-readiness-20261102/chain-snapshot.json",
+      "../../outputs/tsv-operation-history-20261030/state-at-snapshot.json"
+    ]
+  }
 }

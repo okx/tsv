@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script, console2} from "forge-std/Script.sol";
@@ -179,8 +179,7 @@ contract UpgradePermissionsFactory is Script {
                 oldLP.tokenDescriptor(),
                 oldLP.WETH9(),
                 IPermissionsAdapterFactory(p.newFactory),
-                oldLP.DELIVERY_GAS_LIMIT(),
-                ITSVPermissionedRegistry(p.proxies[0])
+                oldLP.DELIVERY_GAS_LIMIT()
             )
         );
         p.afterImpl[4] = address(new TSVHookV1());

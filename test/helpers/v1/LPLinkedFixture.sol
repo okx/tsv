@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
@@ -134,8 +134,7 @@ contract LPLinkedHarness is TSVLPManagerV1 {
             IPositionDescriptor(address(0)),
             IWETH9(address(0)),
             IPermissionsAdapterFactory(factory),
-            500_000,
-            ITSVPermissionedRegistry(registry_)
+            500_000
         )
     {}
 
@@ -222,7 +221,9 @@ abstract contract LPLinkedFixture is Test {
         vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isLPAllowed.selector), abi.encode(true));
         vm.mockCall(registry, abi.encodeWithSelector(ITSVPermissionedRegistry.isSbtAllowed.selector), abi.encode(true));
         vm.mockCall(
-            registry, abi.encodeCall(ITSVPermissionedRegistry.updatePoolTickCount, (key, int256(-1))), abi.encode(true)
+            registry,
+            abi.encodeWithSelector(ITSVPermissionedRegistry.updatePoolTickCount.selector, key, int256(-1)),
+            abi.encode(true)
         );
         tokenId = lp.seed(owner, key);
         _grantForceExitRole();

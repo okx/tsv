@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {PermissionFlag} from "../vendor/permissionedPools/libraries/PermissionFlags.sol";
@@ -25,6 +25,7 @@ enum PoolLifecycle {
     LIST, // Ordinary swaps and ordinary LP operations may continue through later gates.
     PAUSE // Ordinary LP operations may continue through later gates; swaps are blocked.
 }
+
 /// @notice Canonical security, precision and legal-share conversion for an underlying (U).
 struct UnderlyingRecord {
     bytes32 securityId;

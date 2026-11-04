@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {PoolKey} from "v4-core/types/PoolKey.sol";
@@ -124,11 +124,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param poolManager PoolManager returned by `factory`.
     /// @param sbt Participant SBT used for identity checks.
     event ComponentsBound(
-        address indexed hook,
-        address indexed lpManager,
-        address factory,
-        address poolManager,
-        address sbt
+        address indexed hook, address indexed lpManager, address factory, address poolManager, address sbt
     );
     event PermissionsAdapterFactoryReplaced(
         address indexed previousFactory, address indexed newFactory, address indexed poolManager, bytes32 reasonCode
@@ -199,9 +195,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param securityId Security whose operation pause mask changed.
     /// @param oldPauseMode Previous operation pause mask.
     /// @param newPauseMode New operation pause mask.
-    event SecurityStatusChanged(
-        bytes32 indexed securityId, uint8 oldPauseMode, uint8 newPauseMode
-    );
+    event SecurityStatusChanged(bytes32 indexed securityId, uint8 oldPauseMode, uint8 newPauseMode);
     /// @notice Emitted when the global emergency pause is enabled or disabled.
     /// @param enabled Whether ordinary trade and LP operations are globally paused.
     /// @param operator Account that changed the pause state.
@@ -212,7 +206,9 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param tokenId Identity token ID whose configuration changed.
     /// @param permissions TSV operation permission flags assigned to the identity.
     /// @param reasonCode Operational reason code for changing the identity configuration.
-    event SbtConfigChanged(address indexed sbt, uint256 indexed tokenId, PermissionFlag permissions, bytes32 reasonCode);
+    event SbtConfigChanged(
+        address indexed sbt, uint256 indexed tokenId, PermissionFlag permissions, bytes32 reasonCode
+    );
     /// @notice Emitted when an LP Manager registers a new TSV pool.
     /// @param poolId Raw Uniswap V4 pool ID derived from the full pool key.
     /// @param securityId Single stock security assigned to the pool.
@@ -252,10 +248,8 @@ contract TSVRegistryV1 is TSVGoverned {
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
         if (permissionsAdapterFactory != address(0)) revert InvalidStatus();
-        if (
-            hook_.code.length == 0 || lpManager_.code.length == 0 || factory.code.length == 0
-                || sbt_.code.length == 0
-        ) {
+        if (hook_.code.length == 0 || lpManager_.code.length == 0 || factory.code.length == 0 || sbt_.code.length == 0)
+        {
             revert InvalidConfig();
         }
         try ISmartWalletSbtV1(sbt_).paused() returns (bool) {}
@@ -301,8 +295,8 @@ contract TSVRegistryV1 is TSVGoverned {
         IFactoryBoundTSVComponent lpManagerComponent = IFactoryBoundTSVComponent(lpManagerAddress);
         IFactoryBoundTSVComponent routerComponent = IFactoryBoundTSVComponent(routerAddress);
         if (
-            hookComponent.poolManager() != permissionedPoolManager
-                || hookComponent.registry() != address(this) || hookComponent.lpManager() != lpManagerAddress
+            hookComponent.poolManager() != permissionedPoolManager || hookComponent.registry() != address(this)
+                || hookComponent.lpManager() != lpManagerAddress
                 || lpManagerComponent.PERMISSIONS_ADAPTER_FACTORY() != newFactory
                 || routerComponent.PERMISSIONS_ADAPTER_FACTORY() != newFactory
                 || lpManagerComponent.poolManager() != permissionedPoolManager
@@ -399,10 +393,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @param tierId Nonzero tier identifier.
     /// @param maxListed Maximum number of securities that may be listed in this tier.
     /// @param reasonCode Nonzero operational reason code for the policy change.
-    function setTierPolicy(uint8 tierId, uint32 maxListed, bytes32 reasonCode)
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
+    function setTierPolicy(uint8 tierId, uint32 maxListed, bytes32 reasonCode) external onlyRole(SYMBOL_ADMIN_ROLE) {
         _requireReasonCode(reasonCode);
         TierPolicyRecord storage tier = tiers[tierId];
         if (tierId == 0 || maxListed < tier.listedCount) revert InvalidConfig();
@@ -481,10 +472,7 @@ contract TSVRegistryV1 is TSVGoverned {
         PermissionedRegisterParam calldata registerParam,
         uint8 tierId,
         bytes32 reasonCode
-    )
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
+    ) external onlyRole(SYMBOL_ADMIN_ROLE) {
         _requireReasonCode(reasonCode);
         if (registerParam.securityId == 0) revert InvalidConfig();
         _requireEnvironment();
@@ -523,10 +511,7 @@ contract TSVRegistryV1 is TSVGoverned {
     ///      register as W or U; the historical-quote admission rule above must still be followed.
     /// @param quote Quote token address whose future pool registration should be disabled.
     /// @param reasonCode Nonzero operational reason code for disabling the quote token.
-    function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode)
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
+    function disableQuoteTokenPoolRegister(address quote, bytes32 reasonCode) external onlyRole(SYMBOL_ADMIN_ROLE) {
         _requireReasonCode(reasonCode);
         QuoteTokenRecord storage config = quoteTokens[quote];
         if (!config.registered) revert InvalidStatus();
@@ -537,10 +522,7 @@ contract TSVRegistryV1 is TSVGoverned {
     /// @notice Disables a canonical underlying for future pool registration while preserving metadata.
     /// @param u Canonical underlying whose future pool registration should be disabled.
     /// @param reasonCode Nonzero operational reason code for disabling the underlying.
-    function disableUnderlyingPoolRegister(address u, bytes32 reasonCode)
-        external
-        onlyRole(SYMBOL_ADMIN_ROLE)
-    {
+    function disableUnderlyingPoolRegister(address u, bytes32 reasonCode) external onlyRole(SYMBOL_ADMIN_ROLE) {
         _requireReasonCode(reasonCode);
         UnderlyingRecord storage config = underlyings[u];
         if (!config.registered) revert InvalidStatus();
@@ -876,6 +858,7 @@ contract TSVRegistryV1 is TSVGoverned {
         UnderlyingRecord storage config = underlyings[underlying];
         return config.registered && securities[config.securityId].listed;
     }
+
     /// @dev Applies registration and pause checks for one pool operation type.
     /// @param poolId Registered pool ID to check.
     /// @param checkType TRADE or LP operation gate to evaluate.

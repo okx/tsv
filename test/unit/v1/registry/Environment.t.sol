@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {TSVRegistryV1, ISmartWalletSbtV1} from "tsv-v1/core/TSVRegistryV1.sol";
@@ -109,7 +109,10 @@ contract TSVPermissionedEnvironmentTest is FoundationFixture {
         vm.expectRevert(errorData);
         vm.prank(stranger);
         r.bindComponents(address(h), address(lp), address(permissionsFactory), address(identitySbt));
-        vm.expectRevert(errorData);
+        bytes32 symbolRole = registry.SYMBOL_ADMIN_ROLE();
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, symbolRole)
+        );
         vm.prank(stranger);
         registry.setTierPolicy(2, 1, bytes32("TEST"));
     }

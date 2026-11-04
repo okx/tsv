@@ -7,7 +7,7 @@
 | 层级 | 位置 | 内容 | 运行方式 |
 | --- | --- | --- | --- |
 | 单元测试 | `test/unit/` | Registry、交易账本、部署初始化、权限与升级、Adapter 等合约级行为 | `make test-unit` |
-| 本地集成 | `test/integration/local/` | 使用本地 PoolManager 验证 Wrapped Swap、DEX Adapter、LP Hook 等跨合约流程 | `make test-local` |
+| 本地集成 | `test/integration/local/` | 使用本地 PoolManager 验证 Wrapped Swap、Direct 路由边界、LP Hook 等跨合约流程 | `make test-local` |
 | X Layer | `test/integration/xlayer/` | 当前保留部署清单和说明，尚无可执行的 `.t.sol` fork 套件 | `make test-xlayer`（不构成链上验收） |
 
 默认 Foundry profile 执行 `test/` 下测试并排除 X Layer 目录，因此 `make test` 运行单元测试、本地集成和 invariant。`unit`、`local`、`xlayer` profile 可单独选择对应目录。
@@ -19,7 +19,7 @@
 | Registry 准入、配置与生命周期 | `test/unit/v1/registry/` | 组件绑定、Factory 检查、W/U/Q 关系、证券与池状态、tier 快照、converter、角色和暂停边界 |
 | 使用量与额度 | `test/unit/v1/trading/VolumeLedger*.t.sol` | 额度写入、使用量更正、共享证券额度、UTC-5 日切、失败回滚与 Ledger invariant |
 | Wrapped Swap 与交易策略 | `test/integration/local/trading/Wrapped*.t.sol` | 双向 exact-input 交易、完整成交、滑点和过期边界、余额保留、暂停、授权、重入及升级边界 |
-| DEX Adapter | `test/integration/local/trading/DexAdapter.t.sol` | 认证 trailer、签名有效期与重放、multiplier 快照、双向收付及失败回滚 |
+| 外部 Adapter ABI / TSV Direct 边界 | `test/unit/v1/operations/DexAdapterCalldata.t.sol`、`test/integration/local/trading/ContractDirectSwap.t.sol` | 操作器编码、TSV 收款及授权边界；不验证外部实现 |
 | LP Hook | `test/integration/local/deployment/LPHook.t.sol` | mint、increase、decrease、collect、burn、NFT 计数、普通操作门禁和授权退出 |
 | LP 链接库与初始化 | `test/unit/v1/deployment/` | 代理初始化、链接库调用上下文、权限边界及 delta-funded action 拒绝 |
 | 治理、角色与升级 | `test/unit/v1/governance/` | 初始化权限、业务角色、组件升级授权及升级后的状态保留 |
@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | `FoundationFixture` | Registry、Ledger、Factory、W | Registry 的 Hook/LP 调用身份由测试合约承担；适合验证基础组件交互，不代表真实部署角色配置 |
 | `VolumeLedgerFixture` | Ledger 存储、额度和 oracle 授权逻辑 | Hook 身份及池到证券的查询使用 mock；不覆盖真实 Hook/池集成 |
-| Wrapped 本地集成 | PoolManager、Factory、W、Registry、Hook、Ledger、Router 代理及 TSVAdapter | U/Q、发行方 multiplier/checker 和 SBT 使用替身；`V1WrappedLiquiditySeed` 只准备交易流动性 |
+| Wrapped 本地集成 | PoolManager、Factory、W、Registry、Hook、Ledger、Router 代理 | U/Q、发行方 multiplier/checker 和 SBT 使用替身；`V1WrappedLiquiditySeed` 只准备交易流动性 |
 | `LPHook` 集成 | PoolManager 与生产 LP/Hook 路径 | LP 生命周期与 Wrapped 交易准备流程分开验证；零流动性 NFT 仍参与 NFT 计数断言 |
 | `LPLinkedLibraries` 单元测试 | 被测 LP Manager 与链接库 | PoolManager 使用 mock，用于验证 delegatecall 上下文；不能代替真实 LP 集成 |
 

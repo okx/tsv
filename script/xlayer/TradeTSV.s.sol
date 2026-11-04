@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -75,8 +75,8 @@ contract TradeTSV is Script {
         UnderlyingRecord memory underlyingConfig = registry.getUnderlying(underlying);
         require(underlyingConfig.registered, "stock underlying is not registered");
         require(underlyingConfig.legalShareAdapter.code.length != 0, "legal-share adapter has no code");
-        uint256 expectedMultiplier = IDirectLegalShareAdapter(underlyingConfig.legalShareAdapter)
-            .currentMultiplier(underlying);
+        uint256 expectedMultiplier =
+            IDirectLegalShareAdapter(underlyingConfig.legalShareAdapter).currentMultiplier(underlying);
         require(expectedMultiplier != 0, "invalid stock multiplier");
 
         address inputCurrency = zeroForOne ? currency0Address : currency1Address;
@@ -124,7 +124,8 @@ contract TradeTSV is Script {
     }
 
     function _approve(address token, address spender, uint256 amount) private {
-        (bool success, bytes memory result) = token.call(abi.encodeWithSignature("approve(address,uint256)", spender, amount));
+        (bool success, bytes memory result) =
+            token.call(abi.encodeWithSignature("approve(address,uint256)", spender, amount));
         require(success, "token approval call failed");
         require(result.length == 0 || abi.decode(result, (bool)), "token approval returned false");
     }

@@ -24,3 +24,8 @@ lib/dexrouter/
 # Local deployment artifacts and historical manifests
 dployment/aa/
 dployment/history/
+
+# Internal operation artifacts are maintained on ops/deployment.
+/outputs/
+/docs/deployments/tsv-mcp/
+/.agents/skills/tsv-mcp-deploy/

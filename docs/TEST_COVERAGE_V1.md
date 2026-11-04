@@ -9,7 +9,7 @@
 | Ledger quota、usedWad 和 EST 日切 | `test/unit/v1/trading/VolumeLedgerAccounting.t.sol`、`VolumeLedgerSetUsedWad.t.sol`、`VolumeLedgerInvariant.t.sol` | 直接值覆盖、纠正、额度回滚和模型 invariant |
 | ERC-8056 legal-share conversion | `test/unit/v1/adapters/ERC8056DirectLegalShareAdapter.t.sol`、Registry/Hook suites | multiplier、精度、取整与执行快照 |
 | Router exact-input 与 W/U/Q 结算 | `test/integration/local/trading/WrappedSwap.t.sol`、`WrappedInventory.t.sol`、`WrappedBoundaries.t.sol` | 双向 Swap、完整成交、余额 delta、失败回滚及边界 |
-| 外部 Adapter | `test/integration/local/trading/DexAdapter.t.sol` | Adapter/Router 交互、签名、nonce、multiplier 和结算恢复 |
+| 外部 Adapter 边界 | `test/unit/v1/operations/DexAdapterCalldata.t.sol`、`test/integration/local/trading/ContractDirectSwap.t.sol` | 本仓库操作器编码和 TSV 路由边界，不覆盖外部实现 |
 | LP Manager / Hook | `test/integration/local/deployment/LPHook.t.sol`、`test/unit/v1/deployment/LPLinkedLibraries.t.sol` | 真实本地 PM 的 LP 生命周期，以及 mock PM 下的链接库上下文/入口拒绝 |
 | Proxy 初始化、权限和升级 | `test/unit/v1/deployment/`、`test/unit/v1/governance/`、交易初始化测试 | 初始化锁、UUPS 授权、升级前后状态及权限边界 |
 

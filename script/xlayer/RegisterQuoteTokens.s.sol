@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -39,7 +39,9 @@ contract RegisterQuoteTokens is Script {
             bytes32 reasonCode = vm.envBytes32(string.concat("TSV_QUOTE_REASON_", suffix));
             require(quote.code.length != 0, "quote token has no code");
             require(reasonCode != bytes32(0), "quote reason code must be nonzero");
-            for (uint256 j; j < i; ++j) require(quotes[j] != quote, "duplicate quote token in list");
+            for (uint256 j; j < i; ++j) {
+                require(quotes[j] != quote, "duplicate quote token in list");
+            }
 
             QuoteTokenRecord memory quoteRecord = registry.getQuoteToken(quote);
             if (quoteRecord.registered) {

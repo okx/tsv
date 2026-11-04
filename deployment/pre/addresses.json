@@ -76,8 +76,7 @@
   "sources": [
     "chain-snapshot.json",
     "../../script/xlayer/deployment.json",
-    "../../docs/operations/xlayer-pre-20261015.md",
-    "../../outputs/tsv-disperse-test-20261030/summary.json"
+    "../../docs/operations/xlayer-pre-20261015.md"
   ],
   "notes": [
     "Pre and prod both use chain 196; pre is not a testnet.",
@@ -85,5 +84,13 @@
     "Asset and integration entries retain source dates and are not assertions that every historical asset is currently enabled."
   ],
   "initialDeploymentDate": "2026-10-14",
-  "initialDeploymentSourceVerification": false
+  "initialDeploymentSourceVerification": false,
+  "archivedSources": {
+    "branch": "ops/deployment",
+    "commit": "298ee17bd657a7fb57106b19c3a0a24628226320",
+    "pathsRelativeTo": "deployment/pre/addresses.json",
+    "paths": [
+      "../../outputs/tsv-disperse-test-20261030/summary.json"
+    ]
+  }
 }

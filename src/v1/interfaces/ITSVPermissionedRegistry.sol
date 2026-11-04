@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {PermissionFlag} from "../vendor/permissionedPools/libraries/PermissionFlags.sol";
-import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
 
 import {
     UnderlyingRecord,
@@ -90,9 +90,7 @@ interface ITSVPermissionedRegistry {
     /// @param lifecycle New lifecycle to set.
     /// @param reasonCode Nonzero operational reason code for the lifecycle change.
     /// @return Whether storage changed.
-    function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle, bytes32 reasonCode)
-        external
-        returns (bool);
+    function updatePoolLifeCycle(bytes32 poolId, PoolLifecycle lifecycle, bytes32 reasonCode) external returns (bool);
 
     /// @notice Updates many registered pools to the same lifecycle.
     /// @param poolIds Pool IDs whose lifecycle should be updated.
@@ -185,7 +183,6 @@ interface ITSVPermissionedRegistry {
     /// @param reasonCode Nonzero operational reason code.
     function applySecurityStatus(bytes32 securityId, SecurityPauseMode mode, bool enable, bytes32 reasonCode) external;
 
-
     /// @notice Lists a new security with its first stock W, or adds a W to an existing listed security.
     /// @param registerParam Permissioned stock registration payload for the W/U/security binding.
     /// @param tierId Tier to assign to a newly listed security, or the existing security tier for additional W.
@@ -222,6 +219,5 @@ interface ITSVPermissionedRegistry {
     /// @param lpManager LP Manager authorized to register exact pool keys before initialization.
     /// @param factory Real issuer Factory used to verify W provenance and derive PoolManager.
     /// @param sbt Fixed SBT contract supplying participant identities.
-    function bindComponents(address hook, address lpManager, address factory, address sbt)
-        external;
+    function bindComponents(address hook, address lpManager, address factory, address sbt) external;
 }

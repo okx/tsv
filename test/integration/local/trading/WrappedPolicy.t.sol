@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {PermissionFlag, PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
@@ -162,8 +162,9 @@ contract TSVWrappedPolicyTest is WrappedSwapFixture {
         _proxy(address(mismatchedPM), abi.encodeCall(TSVSwapRouterV1.initialize, (address(manager), address(registry))));
         PermissionsAdapterFactory otherFactory = new PermissionsAdapterFactory(address(manager));
         TSVSwapRouterV1 mismatchedFactory = new TSVSwapRouterV1(address(manager), address(otherFactory));
-        vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
+        // Factory migration is supported when the candidate Factory uses the same PoolManager.
         router.upgradeToAndCall(address(mismatchedFactory), bytes(""));
+        assertEq(address(router.PERMISSIONS_ADAPTER_FACTORY()), address(otherFactory));
         vm.expectRevert(TSVSwapRouterV1.InvalidRequest.selector);
         router.upgradeToAndCall(address(mismatchedPM), bytes(""));
         TSVSwapRouterV1 next = new TSVSwapRouterV1(address(manager), address(factory));

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -245,9 +245,7 @@ contract RegistryOperations is Script {
         }
     }
 
-    function _migratePermissionsAdapterFactory(TSVRegistryV1 registry, uint256 privateKey, address operator)
-        private
-    {
+    function _migratePermissionsAdapterFactory(TSVRegistryV1 registry, uint256 privateKey, address operator) private {
         _requireRole(registry, registry.DEFAULT_ADMIN_ROLE(), operator);
         _requireRole(registry, registry.UPGRADE_ADMIN_ROLE(), operator);
         require(!registry.emergencyPauseEnable(), "Registry must start unpaused");
@@ -336,8 +334,7 @@ contract RegistryOperations is Script {
             IPositionDescriptor(address(lpManager.tokenDescriptor())),
             IWETH9(address(lpManager.WETH9())),
             replacementFactory,
-            lpManager.DELIVERY_GAS_LIMIT(),
-            ITSVPermissionedRegistry(address(registry))
+            lpManager.DELIVERY_GAS_LIMIT()
         );
         console2.log("LP Manager implementation:", address(nextLpManager));
         lpManager.upgradeToAndCall(address(nextLpManager), bytes(""));
