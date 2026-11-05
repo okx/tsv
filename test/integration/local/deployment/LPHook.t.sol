@@ -77,8 +77,7 @@ contract LPHookTest is Test {
             IPositionDescriptor(address(0)),
             IWETH9(address(0)),
             IPermissionsAdapterFactory(address(factory)),
-            500_000,
-            ITSVPermissionedRegistry(address(registry))
+            500_000
         );
         lp = TSVLPManagerV1(
             payable(address(

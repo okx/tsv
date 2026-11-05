@@ -7,6 +7,7 @@ import argparse
 from collections import deque
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, localcontext
+import hashlib
 from html.parser import HTMLParser
 import json
 import os
@@ -56,6 +57,8 @@ REGISTRY_ABI = [
     {"type": "function", "name": "isTradable", "stateMutability": "view",
      "inputs": [{"name": "poolId", "type": "bytes32"}],
      "outputs": [{"type": "bool"}]},
+    {"type": "function", "name": "hook", "stateMutability": "view",
+     "inputs": [], "outputs": [{"type": "address"}]},
 ]
 ROUTER_ABI = [{"type": "function", "name": "registry", "stateMutability": "view",
                "inputs": [], "outputs": [{"name": "", "type": "address"}]}]
@@ -225,6 +228,12 @@ def inspect_pool(Web3, w3, config: dict, asset: dict, *, require_tradable: bool 
 
     registry_address = config["registry"]
     registry = w3.eth.contract(address=Web3.to_checksum_address(registry_address), abi=REGISTRY_ABI)
+    registry_hook = Web3.to_checksum_address(registry.functions.hook().call())
+    configured_hook = config.get("hook")
+    if configured_hook and registry_hook.lower() != Web3.to_checksum_address(configured_hook).lower():
+        raise RuntimeError(f"configured Hook {configured_hook} does not match Registry Hook {registry_hook}")
+    if registry_hook.lower() != Web3.to_checksum_address(key["hooks"]).lower():
+        raise RuntimeError(f"PoolKey Hook {key['hooks']} does not match Registry Hook {registry_hook}")
     if config.get("router"):
         router = w3.eth.contract(address=Web3.to_checksum_address(config["router"]), abi=ROUTER_ABI)
         router_registry = router.functions.registry().call()
@@ -549,9 +558,14 @@ def build_trade(Web3, w3, config: dict, asset: dict, pool: dict, reference_usd: 
 def execute_trade(config: dict, asset_name: str, request, action: str, pool_usd: Decimal,
                   reference_usd: Decimal, deviation_pct: Decimal, trade_notional_usd: Decimal,
                   target_price: Decimal, target_sqrt: int, slippage_bps: int, quote_decimals: int,
-                  stock_decimals: int, max_trade_notional_usd: Decimal):
+                  stock_decimals: int, max_trade_notional_usd: Decimal, Web3, w3):
     from tsv_xlayer_sdk import ExecutionClient, Operation, Target, TradeRequest
 
+    # RPC URLs are execution credentials and must be sourced from the process
+    # environment. Use the selected deployment's RPC only when the caller did
+    # not explicitly provide XLAYER_RPC_URL.
+    if not os.environ.get("XLAYER_RPC_URL"):
+        os.environ["XLAYER_RPC_URL"] = str(config["rpc_url"])
     client = ExecutionClient(root=ROOT)
     quote_usd = Decimal(str(config.get("quote_usd", "1")))
     quote_units = Decimal(10) ** quote_decimals
@@ -562,6 +576,8 @@ def execute_trade(config: dict, asset_name: str, request, action: str, pool_usd:
         operation_inputs = trade_request.env()
         if config.get("router"):
             operation_inputs["TSV_ROUTER"] = config["router"]
+        if config.get("hook"):
+            operation_inputs["TSV_HOOK"] = config["hook"]
         return Operation(Target.TRADE, f"Robinhood auto-rebalance {asset_name} {action}", operation_inputs)
 
     def simulation_failure(phase: str, result) -> RuntimeError:
@@ -594,7 +610,11 @@ def execute_trade(config: dict, asset_name: str, request, action: str, pool_usd:
     output_match = re.search(r"Actual output \(raw\):\s*(\d+)", probe_output)
     sqrt_match = re.search(r"Post-swap sqrtPriceX96:\s*(\d+)", probe_output)
     if input_match is None or output_match is None or sqrt_match is None:
-        raise RuntimeError("price-calculated simulation omitted actual input, output or post-swap sqrtPriceX96")
+        missing = [label for label, match in (("actual input", input_match),
+                                               ("actual output", output_match),
+                                               ("post-swap sqrtPriceX96", sqrt_match)) if match is None]
+        raise RuntimeError("price-calculated simulation omitted " + ", ".join(missing) +
+                           f"; simulation output tail: {probe_output[-2000:]}")
     actual_in = int(input_match.group(1))
     actual_out = int(output_match.group(1))
     if actual_in != request.amount_in:
@@ -613,7 +633,10 @@ def execute_trade(config: dict, asset_name: str, request, action: str, pool_usd:
     verified_sqrt = re.search(r"Post-swap sqrtPriceX96:\s*(\d+)", verified)
     verified_input = re.search(r"Actual input \(raw\):\s*(\d+)", verified)
     if verified_sqrt is None or verified_input is None:
-        raise RuntimeError("final slippage-protected simulation omitted swap results; nothing was broadcast")
+        missing = [label for label, match in (("actual input", verified_input),
+                                               ("post-swap sqrtPriceX96", verified_sqrt)) if match is None]
+        raise RuntimeError("final slippage-protected simulation omitted " + ", ".join(missing) +
+                           f"; nothing was broadcast. Simulation output tail: {verified[-2000:]}")
 
     actual_trade_input = int(verified_input.group(1))
     actual_trade_notional = (Decimal(actual_trade_input) / quote_units * quote_usd if request.zero_for_one
@@ -631,43 +654,93 @@ def execute_trade(config: dict, asset_name: str, request, action: str, pool_usd:
                       "simulated_post_swap_sqrt_price_x96": int(verified_sqrt.group(1)),
                       "simulation_output": simulation.result.stdout[-2000:]}, ensure_ascii=False))
     progress(f"{asset_name}: final simulation passed; submitting broadcast")
+    artifact_dir = ROOT / "broadcast" / "TradeTSV.s.sol" / str(config["chain_id"])
+    artifact_snapshot = snapshot_broadcast_artifacts(artifact_dir)
     result = client.broadcast(simulation, "BROADCAST")
     if not result.succeeded:
-        raise BroadcastOutcomeUncertain("broadcast command failed; reconcile transaction status before retrying:\n" +
-                                        (result.stderr or result.stdout)[-5000:])
-    print(json.dumps({"asset": asset_name, "execution": "broadcast_submitted",
-                      "broadcast_output": result.stdout[-3000:]}, ensure_ascii=False))
-    return actual_trade_notional
+        error_detail = (result.stderr or result.stdout)[-5000:]
+        try:
+            tx_hash = find_new_router_transaction(artifact_dir, artifact_snapshot, config["router"])
+            receipt = wait_for_transaction_receipt(w3, tx_hash, config)
+            if int(receipt["status"]) != 1:
+                raise BroadcastOutcomeUncertain(
+                    f"forge returned exit {result.returncode}; router transaction {tx_hash} reverted "
+                    f"in block {receipt['block_number']}; reconcile before retry.\n{error_detail}"
+                )
+            progress(f"{asset_name}: forge returned exit {result.returncode}, but router transaction "
+                     f"{tx_hash} is confirmed successful in block {receipt['block_number']}")
+            execution = "broadcast_cli_error_but_confirmed"
+        except BroadcastOutcomeUncertain:
+            raise
+        except Exception as exc:
+            raise BroadcastOutcomeUncertain(
+                "broadcast command returned nonzero and this run could not be confirmed on chain; "
+                f"do not retry until reconciled. Reconciliation detail: {exc}\nFoundry output:\n{error_detail}"
+            ) from exc
+    else:
+        try:
+            tx_hash = find_new_router_transaction(artifact_dir, artifact_snapshot, config["router"])
+            receipt = wait_for_transaction_receipt(w3, tx_hash, config)
+        except Exception as exc:
+            raise BroadcastOutcomeUncertain(
+                f"broadcast command succeeded but its router receipt could not be confirmed; "
+                f"do not retry until reconciled. {exc}\nFoundry output:\n{result.stdout[-3000:]}"
+            ) from exc
+        if int(receipt["status"]) != 1:
+            raise RuntimeError(f"trade transaction {tx_hash} reverted in block {receipt['block_number']}")
+        execution = "broadcast_confirmed"
+    print(json.dumps({"asset": asset_name, "execution": execution,
+                      "reconciliation": execution, "transaction_hash": tx_hash,
+                      "broadcast_returncode": result.returncode,
+                      "broadcast_output": (result.stdout + "\n" + result.stderr)[-5000:]}, ensure_ascii=False))
+    return actual_trade_notional, tx_hash, receipt, execution
 
 
-def wait_for_trade_receipt(Web3, w3, config: dict):
-    """Wait for the router transaction from Foundry's latest broadcast artifact."""
-    artifact = ROOT / "broadcast" / "TradeTSV.s.sol" / str(config["chain_id"]) / "run-latest.json"
-    if not artifact.is_file():
-        raise RuntimeError(f"broadcast artifact not found: {artifact}")
-    try:
-        transactions = json.loads(artifact.read_text(encoding="utf-8")).get("transactions", [])
-    except (OSError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"cannot read broadcast artifact {artifact}: {exc}") from exc
-    router = Web3.to_checksum_address(config["router"]).lower()
-    hashes = []
-    for entry in transactions:
-        tx = entry.get("transaction", {}) if isinstance(entry, dict) else {}
-        tx_hash = entry.get("hash") if isinstance(entry, dict) else None
-        if tx_hash and str(tx.get("to", "")).lower() == router:
-            hashes.append(tx_hash)
-    if not hashes:
-        raise RuntimeError("no router transaction hash found in the latest TradeTSV broadcast artifact")
+def snapshot_broadcast_artifacts(artifact_dir: Path) -> dict[str, str]:
+    """Fingerprint current broadcast artifacts so a stale run-latest is not reused."""
+    snapshot = {}
+    if artifact_dir.is_dir():
+        for artifact in artifact_dir.glob("run-*.json"):
+            try:
+                snapshot[str(artifact)] = hashlib.sha256(artifact.read_bytes()).hexdigest()
+            except OSError:
+                continue
+    return snapshot
+
+
+def find_new_router_transaction(artifact_dir: Path, snapshot: dict[str, str], router: str) -> str:
+    """Find the Router transaction in a broadcast artifact created or changed this run."""
+    candidates = []
+    if artifact_dir.is_dir():
+        for artifact in artifact_dir.glob("run-*.json"):
+            try:
+                raw = artifact.read_bytes()
+                if snapshot.get(str(artifact)) == hashlib.sha256(raw).hexdigest():
+                    continue
+                payload = json.loads(raw)
+                matches = [entry for entry in payload.get("transactions", [])
+                           if isinstance(entry, dict) and entry.get("hash")
+                           and str(entry.get("transaction", {}).get("to", "")).lower() == router.lower()]
+                if matches:
+                    candidates.append((artifact.stat().st_mtime_ns, matches[-1]["hash"]))
+            except (OSError, json.JSONDecodeError, TypeError):
+                continue
+    if not candidates:
+        raise RuntimeError("no new Router transaction found in broadcast artifacts written by this run")
+    candidates.sort(reverse=True)
+    return candidates[0][1]
+
+
+def wait_for_transaction_receipt(w3, tx_hash: str, config: dict):
+    """Wait for a specific transaction hash; do not infer status from forge's exit code."""
     try:
         receipt = w3.eth.wait_for_transaction_receipt(
-            hashes[-1], timeout=int(config.get("receipt_timeout_seconds", 180)), poll_latency=2
+            tx_hash, timeout=int(config.get("receipt_timeout_seconds", 180)), poll_latency=2
         )
     except Exception as exc:
-        raise RuntimeError(f"failed waiting for trade receipt {hashes[-1]}: {exc}") from exc
-    if int(receipt["status"]) != 1:
-        raise RuntimeError(f"trade transaction {hashes[-1]} reverted in block {receipt['blockNumber']}")
-    return {"transaction_hash": hashes[-1], "block_number": int(receipt["blockNumber"]),
-            "gas_used": int(receipt["gasUsed"])}
+        raise RuntimeError(f"failed waiting for trade receipt {tx_hash}: {exc}") from exc
+    return {"transaction_hash": tx_hash, "block_number": int(receipt["blockNumber"]),
+            "status": int(receipt["status"]), "gas_used": int(receipt["gasUsed"])}
 
 
 def main() -> int:
@@ -688,6 +761,11 @@ def main() -> int:
     args = parser.parse_args()
     selected_config = args.config or (TEST_CONFIG if args.environment == "test" else DEFAULT_CONFIG)
     config = load_config(selected_config)
+    if args.mode == "rebalance":
+        required_deployment = ("rpc_url", "registry", "router", "hook", "pool_manager")
+        missing_deployment = [name for name in required_deployment if not config.get(name)]
+        if missing_deployment:
+            parser.error(f"rebalance config is missing deployment addresses: {', '.join(missing_deployment)}")
     names = args.assets or list(config["assets"])
     unknown = [name for name in names if name not in config["assets"]]
     if unknown:
@@ -710,6 +788,8 @@ def main() -> int:
         if w3.eth.chain_id != int(config["chain_id"]):
             parser.error(f"wrong chain id: expected {config['chain_id']}, got {w3.eth.chain_id}")
         progress("X Layer RPC connected")
+        progress(f"Using configured deployment: Registry={config['registry']}, Router={config['router']}, "
+                 f"Hook={config['hook']}, PoolManager={config['pool_manager']}")
 
     last_trade: dict[str, float] = {}
     while True:
@@ -764,17 +844,18 @@ def main() -> int:
                             Web3, w3, config, asset, pool, fair_price,
                             args.max_trade_notional_usd, args.slippage_bps
                         )
-                        actual_notional = execute_trade(
+                        actual_notional, trade_tx_hash, trade_receipt, reconciliation = execute_trade(
                             config, name, request, action, pool_usd, fair_price, deviation_pct,
                             actual_notional, target_price, target_sqrt, args.slippage_bps,
                             pool["quote_decimals"], pool["underlying_decimals"],
-                            args.max_trade_notional_usd
+                            args.max_trade_notional_usd, Web3, w3
                         )
                         last_trade[name] = time.monotonic()
-                        output["execution"] = "broadcast_submitted"
+                        output["execution"] = reconciliation
                         output["dynamic_trade_notional_usd"] = str(actual_notional)
                         output["target_pool_price_usd"] = str(target_price)
-                        output["receipt"] = wait_for_trade_receipt(Web3, w3, config)
+                        output["transaction_hash"] = trade_tx_hash
+                        output["receipt"] = trade_receipt
                         updated_pool = inspect_pool(Web3, w3, config, asset)
                         updated_pool_usd = updated_pool["pool_quote_per_stock"] * Decimal(str(config.get("quote_usd", "1")))
                         updated_deviation = (updated_pool_usd / fair_price - 1) * 100
@@ -788,7 +869,12 @@ def main() -> int:
                       file=sys.stderr, flush=True)
                 return 2
             except (HTTPError, URLError, TimeoutError, RuntimeError, ValueError, InvalidOperation) as exc:
-                print(json.dumps({"asset": name, "error": str(exc)}, ensure_ascii=False), file=sys.stderr, flush=True)
+                error_output = {"asset": name, "error": str(exc)}
+                if "output" in locals() and output.get("asset") == name:
+                    error_output = {**output, **error_output}
+                    if output.get("transaction_hash"):
+                        error_output["post_trade_readback"] = "failed_after_confirmed_broadcast"
+                print(json.dumps(error_output, ensure_ascii=False), file=sys.stderr, flush=True)
         if args.once:
             return 0
         time.sleep(max(0, interval_seconds - (time.monotonic() - cycle_start)))

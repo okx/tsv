@@ -151,8 +151,7 @@ contract TSVProtocol is TSVAA {
                 IPositionDescriptor(_address(j, ".dependencies.positionDescriptor")),
                 IWETH9(_address(j, ".dependencies.wokb")),
                 IPermissionsAdapterFactory(a.factory),
-                vm.parseJsonUint(j, ".configuration.deliveryGasLimit"),
-                ITSVPermissionedRegistry(a.registry)
+                vm.parseJsonUint(j, ".configuration.deliveryGasLimit")
             )
         );
     }
@@ -470,8 +469,7 @@ contract TSVProtocol is TSVAA {
                     oldLP.tokenDescriptor(),
                     oldLP.WETH9(),
                     IPermissionsAdapterFactory(a.factory),
-                    oldLP.DELIVERY_GAS_LIMIT(),
-                    ITSVPermissionedRegistry(a.registry)
+                    oldLP.DELIVERY_GAS_LIMIT()
                 )
             );
         } else {

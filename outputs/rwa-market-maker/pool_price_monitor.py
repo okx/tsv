@@ -49,12 +49,9 @@ def select_assets(config: dict, requested: list[str] | None) -> list[tuple[str, 
             raise ValueError(f"assets not found in selected config: {', '.join(missing)}")
         return selected
 
-    selected = [
-        (name, asset) for name, asset in assets.items()
-        if display_symbol(name, asset) in {"RWT", "MSTR", "BTGO"}
-    ]
+    selected = list(assets.items())
     if not selected:
-        raise ValueError("selected config has no RWT, MSTR, or BTGO pool")
+        raise ValueError("selected config has no configured pools")
     return selected
 
 

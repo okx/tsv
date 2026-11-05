@@ -336,8 +336,7 @@ contract RegistryOperations is Script {
             IPositionDescriptor(address(lpManager.tokenDescriptor())),
             IWETH9(address(lpManager.WETH9())),
             replacementFactory,
-            lpManager.DELIVERY_GAS_LIMIT(),
-            ITSVPermissionedRegistry(address(registry))
+            lpManager.DELIVERY_GAS_LIMIT()
         );
         console2.log("LP Manager implementation:", address(nextLpManager));
         lpManager.upgradeToAndCall(address(nextLpManager), bytes(""));

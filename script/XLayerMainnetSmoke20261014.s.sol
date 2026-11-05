@@ -119,8 +119,7 @@ contract XLayerMainnetSmoke20261014 is Script {
             IPositionDescriptor(DESCRIPTOR),
             IWETH9(WETH9),
             IPermissionsAdapterFactory(FACTORY),
-            500_000,
-            ITSVPermissionedRegistry(address(registry))
+            500_000
         );
         TSVLPManagerV1 lp = TSVLPManagerV1(
             payable(address(

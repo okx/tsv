@@ -134,8 +134,7 @@ contract LPLinkedHarness is TSVLPManagerV1 {
             IPositionDescriptor(address(0)),
             IWETH9(address(0)),
             IPermissionsAdapterFactory(factory),
-            500_000,
-            ITSVPermissionedRegistry(registry_)
+            500_000
         )
     {}
 

@@ -85,7 +85,7 @@ market_price = (bid + ask) / 2
 1. 对 currency0、currency1 做 checksum 格式化，并要求 `currency0 < currency1`（按地址数值比较）。
 2. 用 ABI 编码 `(address,address,uint24,int24,address)` 后计算 keccak，得到 PoolId。若配置了预期 `pool_id`，则比较二者。
 3. 通过 PoolManager 的 `extsload` 读取 `keccak256(abi.encode(poolId, 6))` 对应状态槽。低 160 bit 解为 `sqrtPriceX96`，其后的 24 bit 解为有符号 tick；零 `sqrtPriceX96` 代表池未初始化。
-4. 在测试配置提供 `router` 时，读取 `router.registry()` 并要求与配置 Registry 一致。Registry 地址采用所选 JSON 配置。若资产配置 `security_id`，则读取 `getUnderlying(UnderlyingToken)` 并校验 securityId 与 registered 标志。对两个 pool currency 调用 `getCurrencyUnderlying`，要求恰好有一个映射到配置中的 UnderlyingToken；并要求 Registry 的 `isTradable(poolId)` 为真。
+4. 读取 Registry 的 Hook，并要求它同时匹配所选配置和 PoolKey。再读取 `router.registry()` 并要求与配置 Registry 一致。若资产配置 `security_id`，则读取 `getUnderlying(UnderlyingToken)` 并校验 securityId 与 registered 标志。对两个 pool currency 调用 `getCurrencyUnderlying`，要求恰好有一个映射到配置中的 UnderlyingToken；并要求 Registry 的 `isTradable(poolId)` 为真。
 5. 读取 `keccak256(abi.encode(poolId, 6)) + 3` 对应的 active liquidity slot。该值为当前 tick 可用的活跃流动性；为零时程序跳过交易。
 6. 读取两个 pool currency 的 decimals，以及 UnderlyingToken 的 decimals。
 
@@ -131,14 +131,14 @@ deviation_percent = (pool_price_usd / reference_price_usd - 1) × 100
 
 ## 7. 冷却、模拟和广播
 
-偏离达到门槛后，先检查报价是否 `trade_eligible`，再检查池是否有 active liquidity，最后检查该 ticker 的冷却时间。若 active liquidity 为零，输出 `skipped_no_active_liquidity`，不构造或模拟 swap。冷却计时使用进程内单调时钟；广播调用成功返回后立即记录冷却时间，然后等待回执并读取池状态。冷却字典保存在内存中，进程重启后会清空。
+偏离达到门槛后，先检查报价是否 `trade_eligible`，再检查池是否有 active liquidity，最后检查该 ticker 的冷却时间。若 active liquidity 为零，输出 `skipped_no_active_liquidity`，不构造或模拟 swap。冷却计时使用进程内单调时钟；Router 交易回执确认成功后记录冷却时间，然后读取池状态。冷却字典保存在内存中，进程重启后会清空。
 
 `execute_trade()` 创建 `TradeRequest`，再构造 `Operation(Target.TRADE, ..., request.env())` 并调用项目 `tsv_xlayer_sdk`：
 
 1. SDK 确认目标为 allowlist 中的 `TradeTSV.s.sol:TradeTSV`。
 2. 调用 `simulate()`，通过 Foundry 执行脚本但不带 `--broadcast`。模拟失败时抛错，不进入广播。
 3. `broadcast()` 要求目标是写操作、模拟成功，且调用者传入的确认字必须精确为 `BROADCAST`。它重新读取执行环境并比较操作指纹；如果模拟后环境或输入变化则拒绝广播。
-4. 若所选配置包含 `router`，程序把该地址作为 `TSV_ROUTER` 传入 SDK operation inputs，覆盖部署环境中的默认 Router；校验通过后，SDK 以 `forge script ... --broadcast` 执行 `TradeTSV`。
+4. 程序把所选配置中的 Router 和 Hook 传入 SDK operation inputs，覆盖部署 JSON、`.env.xlayer` 和进程环境中的默认值。RPC URL 只从进程环境读取；若调用者没有设置 `XLAYER_RPC_URL`，程序先将所选配置的 RPC URL 写入进程环境。校验通过后，SDK 以 `forge script ... --broadcast` 执行 `TradeTSV`。
 
 SDK 从部署 JSON 读取公开部署环境，从 `script/xlayer/.env.xlayer` 读取允许的本地环境项，再以进程环境覆盖；操作输入最后合并。写操作要求 `XLAYER_PRIVATE_KEY`，私钥不放入 TradeRequest 参数。SDK 会对 Foundry 输出中的密钥和 RPC URL 做遮蔽。
 
@@ -155,13 +155,12 @@ SDK 从部署 JSON 读取公开部署环境，从 `script/xlayer/.env.xlayer` �
 | `HOLD` | 偏离未到门槛 |
 | `skipped_stale_price` | 报价年龄超过阈值 |
 | `cooldown` | 尚在该 ticker 冷却时间内 |
-| `broadcast_submitted` | SDK 广播成功；后续同一输出记录交易回执和池价回读 |
+| `broadcast_confirmed` | 广播命令与链上 Router receipt 均成功 |
+| `broadcast_cli_error_but_confirmed` | Foundry 命令返回非零，但本次新生成的 artifact 对应 Router 交易已由链上 receipt 确认成功 |
 
-单资产处理中捕获网络错误、HTTP 错误、超时、运行时错误、值错误和 Decimal 错误，写一行错误 JSON 到 stderr 后继续下一个资产。一次性模式会在这一轮所有资产处理完后退出。某些未被捕获的异常（例如不符合预期结构的 JSON 导致的 `KeyError`）可能使进程直接退出。
+单资产处理中捕获网络错误、HTTP 错误、超时、运行时错误、值错误和 Decimal 错误，写一行错误 JSON 到 stderr 后继续下一个资产。广播确认后若池状态回读失败，错误 JSON 仍保留已确认的交易 hash 和 receipt。一次性模式会在这一轮所有资产处理完后退出。某些未被捕获的异常（例如不符合预期结构的 JSON 导致的 `KeyError`）可能使进程直接退出。
 
-广播命令返回成功后，程序从 Foundry `run-latest.json` 找到 Router 交易 hash，等待 receipt 并要求 `status=1`，随后重新读取 PoolManager 状态，输出交易后的池价、偏离率及是否更接近参考价。外部行情使用本轮已获取的同一参考价。失败或超时会写入错误 JSON，冷却仍已启动。
-
-若 SDK 的广播命令返回失败，程序会停止而不是进入下一轮自动重试，因为 RPC 错误可能发生在提交状态尚不明确时。需先用交易 hash、广播 artifact 或链上 nonce/receipt 核实是否已提交，再手动恢复。
+每次广播前，程序记录现有 Foundry broadcast artifact 指纹；广播后只接受本轮新建或变更的 artifact 中 Router 交易 hash，不会拿旧的 `run-latest.json` 冒充本轮交易。无论 Foundry 命令返回成功还是非零，程序都等待该 Router hash 的链上 receipt。若命令非零但 receipt `status=1`，输出 `broadcast_cli_error_but_confirmed` 并继续池状态回读；若 receipt 失败、artifact 缺失或 RPC 无法确认，则输出 `stop_and_reconcile_before_retry`，禁止自动重试。确认交易后，若池状态回读失败，错误 JSON 会保留交易 hash 和成功 receipt，明确标记 `failed_after_confirmed_broadcast`。冷却仍在确认广播后启动。
 
 ## 9. 重要假设与限制
 
@@ -172,7 +171,7 @@ SDK 从部署 JSON 读取公开部署环境，从 `script/xlayer/.env.xlayer` �
 - 交易方向目前依赖 quote 为 currency0、股票 W 为 currency1 的配置约定。
 - active liquidity 是当前 tick 的池状态值；零表示当前价格附近没有可执行 swap 的活跃流动性，但不能据此断言全池没有任何处于区间外的 LP position。
 - `trade_cooldown_seconds` 只在当前进程内有效，无法阻止重启后的重复交易。
-- SDK 的交易广播 RPC 优先级和 Python Web3 读状态 RPC 的来源并非完全同一套：Python 使用进程环境变量或 `production_config.json`；SDK 使用部署文件、`.env.xlayer`、再到进程环境变量的优先级。若未显式统一 `XLAYER_RPC_URL`，读状态与广播可能经由不同 RPC URL（但 Foundry 脚本仍检查链 ID 196）。
+- 再平衡配置必须提供 RPC URL、Registry、Router、Hook 和 PoolManager。Python 链上读取使用配置 RPC（若设置了 `XLAYER_RPC_URL` 环境变量则以它为准）；SDK 的 RPC URL 从进程环境读取，程序在缺少该环境变量时才以配置 RPC 设置进程默认值。每笔操作显式传入所选配置的 Router 和 Hook。启动时会打印所选部署地址，链上预检查会比对 Router→Registry、Registry Hook 和 PoolKey Hook。
 - 程序有 receipt 确认和交易后池价回读；没有持久化重试队列或跨重启冷却记录。
 
 ## 10. 主要代码入口

@@ -21,10 +21,10 @@ pragma solidity ^0.8.22;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {BaseAllowlistChecker} from "./uniswap/permissionedPools/BaseAllowListChecker.sol";
-import {PermissionFlag, PermissionFlags} from "./uniswap/permissionedPools/libraries/PermissionFlags.sol";
-import {IAllowlistChecker} from "./uniswap/permissionedPools/interfaces/IAllowlistChecker.sol";
+import {IERC165} from "../../../lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
+import {BaseAllowlistChecker} from "./permissionedPools/BaseAllowListChecker.sol";
+import {PermissionFlag, PermissionFlags} from "./permissionedPools/libraries/PermissionFlags.sol";
+import {IAllowlistChecker} from "./permissionedPools/interfaces/IAllowlistChecker.sol";
 import {ISecuritizeTSVChecker} from "./interfaces/ISecuritizeTSVChecker.sol";
 import {IDSServiceConsumer} from "./interfaces/IDSServiceConsumer.sol";
 import {IDSRegistryService} from "./interfaces/IDSRegistryService.sol";
@@ -50,6 +50,10 @@ import {IDSToken} from "./interfaces/IDSToken.sol";
  *           otherwise                                                      -> SWAP_ALLOWED | LIQUIDITY_ALLOWED
  */
 contract SecuritizeTSVChecker is ISecuritizeTSVChecker, BaseAllowlistChecker, UUPSUpgradeable, OwnableUpgradeable {
+    event WindDownSet(address indexed tokenAddress, bool isWindDown);
+    event ReportedLostSet(address indexed wallet, bool isReportedLost);
+    event LiquidityRestrictionSet(string investorId, address indexed tokenAddress, bool restricted);
+
     /// @notice Thrown when an invalid address (zero address) is provided
     /// @custom:selector 0xe6c4247b
     error InvalidAddress();
@@ -107,7 +111,6 @@ contract SecuritizeTSVChecker is ISecuritizeTSVChecker, BaseAllowlistChecker, UU
      * @dev Ownership is expected to be transferred to the Securitize owner wallet after deployment
      */
     function initialize() public initializer {
-        __UUPSUpgradeable_init();
         __Ownable_init(msg.sender);
     }
 

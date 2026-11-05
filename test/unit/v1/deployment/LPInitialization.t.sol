@@ -42,8 +42,7 @@ contract TSVLPInitializationTest is Test {
             IPositionDescriptor(address(0)),
             IWETH9(address(0)),
             IPermissionsAdapterFactory(factory),
-            100_000,
-            ITSVPermissionedRegistry(registry)
+            100_000
         );
         implementationAddress = address(implementation);
         lp = TSVLPManagerV1(
