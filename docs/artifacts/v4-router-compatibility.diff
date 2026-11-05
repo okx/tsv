@@ -1,0 +1,98 @@
+--- lib/v4-periphery/src/V4Router.sol
++++ src/v1/vendor/v4-router/V4Router.sol
+@@ -4,6 +4,6 @@
+-import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+-import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+-import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+-import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+-import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+-import {SafeCast} from "@uniswap/v4-core/src/libraries/SafeCast.sol";
++import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
++import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
++import {PoolKey} from "v4-core/types/PoolKey.sol";
++import {Currency} from "v4-core/types/Currency.sol";
++import {TickMath} from "v4-core/libraries/TickMath.sol";
++import {SafeCast} from "v4-core/libraries/SafeCast.sol";
+@@ -19 +18,0 @@
+-import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
+@@ -214 +213 @@
+-            SwapParams(
++            IPoolManager.SwapParams(
+--- lib/v4-periphery/src/base/BaseActionsRouter.sol
++++ src/v1/vendor/v4-router/base/BaseActionsRouter.sol
+@@ -4 +4 @@
+-import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
++import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+@@ -32 +32 @@
+-    function _unlockCallback(bytes calldata data) internal override returns (bytes memory) {
++    function _unlockCallback(bytes calldata data) internal virtual override returns (bytes memory) {
+--- lib/v4-periphery/src/base/DeltaResolver.sol
++++ src/v1/vendor/v4-router/base/DeltaResolver.sol
+@@ -4,3 +4,3 @@
+-import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+-import {TransientStateLibrary} from "@uniswap/v4-core/src/libraries/TransientStateLibrary.sol";
+-import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
++import {Currency} from "v4-core/types/Currency.sol";
++import {TransientStateLibrary} from "v4-core/libraries/TransientStateLibrary.sol";
++import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+@@ -38 +38 @@
+-    function _settle(Currency currency, address payer, uint256 amount) internal {
++    function _settle(Currency currency, address payer, uint256 amount) internal virtual {
+--- lib/v4-periphery/src/base/ImmutableState.sol
++++ src/v1/vendor/v4-router/base/ImmutableState.sol
+@@ -4 +4 @@
+-import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
++import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+--- lib/v4-periphery/src/base/SafeCallback.sol
++++ src/v1/vendor/v4-router/base/SafeCallback.sol
+@@ -4,2 +4,2 @@
+-import {IUnlockCallback} from "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol";
+-import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
++import {IUnlockCallback} from "v4-core/interfaces/callback/IUnlockCallback.sol";
++import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+--- lib/v4-periphery/src/hooks/permissionedPools/PermissionedV4Router.sol
++++ src/v1/vendor/v4-router/hooks/permissionedPools/PermissionedV4Router.sol
+@@ -4 +4 @@
+-import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
++import {IHooks} from "v4-core/interfaces/IHooks.sol";
+@@ -7,3 +7,5 @@
+-import {IPermissionsAdapter} from "./interfaces/IPermissionsAdapter.sol";
+-import {IPermissionsAdapterFactory} from "./interfaces/IPermissionsAdapterFactory.sol";
+-import {PermissionFlags} from "./libraries/PermissionFlags.sol";
++import {IPermissionsAdapter} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapter.sol";
++import {
++    IPermissionsAdapterFactory
++} from "v4-periphery/hooks/permissionedPools/interfaces/IPermissionsAdapterFactory.sol";
++import {PermissionFlags} from "v4-periphery/hooks/permissionedPools/libraries/PermissionFlags.sol";
+@@ -32 +34 @@
+-    function _validatePoolKey(PoolKey memory poolKey) internal view override {
++    function _validatePoolKey(PoolKey memory poolKey) internal view virtual override {
+--- lib/v4-periphery/src/interfaces/IImmutableState.sol
++++ src/v1/vendor/v4-router/interfaces/IImmutableState.sol
+@@ -4 +4 @@
+-import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
++import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+--- lib/v4-periphery/src/interfaces/IV4Router.sol
++++ src/v1/vendor/v4-router/interfaces/IV4Router.sol
+@@ -4,2 +4,2 @@
+-import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+-import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
++import {PoolKey} from "v4-core/types/PoolKey.sol";
++import {Currency} from "v4-core/types/Currency.sol";
+--- lib/v4-periphery/src/libraries/CalldataDecoder.sol
++++ src/v1/vendor/v4-router/libraries/CalldataDecoder.sol
+@@ -4 +4 @@
+-import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
++import {Currency} from "v4-core/types/Currency.sol";
+@@ -6 +6 @@
+-import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
++import {PoolKey} from "v4-core/types/PoolKey.sol";
+--- lib/v4-periphery/src/libraries/PathKey.sol
++++ src/v1/vendor/v4-router/libraries/PathKey.sol
+@@ -4,3 +4,3 @@
+-import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+-import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+-import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
++import {Currency} from "v4-core/types/Currency.sol";
++import {IHooks} from "v4-core/interfaces/IHooks.sol";
++import {PoolKey} from "v4-core/types/PoolKey.sol";

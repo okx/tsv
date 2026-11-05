@@ -1,0 +1,255 @@
+{
+  "storage": [
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "_name",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_string_storage"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "_symbol",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_string_storage"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "_owners",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_mapping(t_uint256,t_address)"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "_balances",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "_tokenApprovals",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_mapping(t_uint256,t_address)"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "_operatorApprovals",
+      "offset": 0,
+      "slot": "5",
+      "type": "t_mapping(t_address,t_mapping(t_address,t_bool))"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "nonces",
+      "offset": 0,
+      "slot": "6",
+      "type": "t_mapping(t_address,t_mapping(t_uint256,t_uint256))"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "subscriber",
+      "offset": 0,
+      "slot": "7",
+      "type": "t_mapping(t_uint256,t_contract(ISubscriber))"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "nextTokenId",
+      "offset": 0,
+      "slot": "8",
+      "type": "t_uint256"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "positionInfo",
+      "offset": 0,
+      "slot": "9",
+      "type": "t_mapping(t_uint256,t_userDefinedValueType(PositionInfo))"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "poolKeys",
+      "offset": 0,
+      "slot": "10",
+      "type": "t_mapping(t_bytes25,t_struct(PoolKey)_storage)"
+    },
+    {
+      "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+      "label": "registry",
+      "offset": 0,
+      "slot": "11",
+      "type": "t_contract(ITSVPermissionedRegistry)"
+    }
+  ],
+  "types": {
+    "t_address": {
+      "encoding": "inplace",
+      "label": "address",
+      "numberOfBytes": "20"
+    },
+    "t_bool": {
+      "encoding": "inplace",
+      "label": "bool",
+      "numberOfBytes": "1"
+    },
+    "t_bytes25": {
+      "encoding": "inplace",
+      "label": "bytes25",
+      "numberOfBytes": "25"
+    },
+    "t_contract(IHooks)": {
+      "encoding": "inplace",
+      "label": "contract IHooks",
+      "numberOfBytes": "20"
+    },
+    "t_contract(ISubscriber)": {
+      "encoding": "inplace",
+      "label": "contract ISubscriber",
+      "numberOfBytes": "20"
+    },
+    "t_contract(ITSVPermissionedRegistry)": {
+      "encoding": "inplace",
+      "label": "contract ITSVPermissionedRegistry",
+      "numberOfBytes": "20"
+    },
+    "t_int24": {
+      "encoding": "inplace",
+      "label": "int24",
+      "numberOfBytes": "3"
+    },
+    "t_mapping(t_address,t_bool)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => bool)",
+      "numberOfBytes": "32",
+      "value": "t_bool"
+    },
+    "t_mapping(t_address,t_mapping(t_address,t_bool))": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => mapping(address => bool))",
+      "numberOfBytes": "32",
+      "value": "t_mapping(t_address,t_bool)"
+    },
+    "t_mapping(t_address,t_mapping(t_uint256,t_uint256))": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => mapping(uint256 => uint256))",
+      "numberOfBytes": "32",
+      "value": "t_mapping(t_uint256,t_uint256)"
+    },
+    "t_mapping(t_address,t_uint256)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => uint256)",
+      "numberOfBytes": "32",
+      "value": "t_uint256"
+    },
+    "t_mapping(t_bytes25,t_struct(PoolKey)_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes25",
+      "label": "mapping(bytes25 => struct PoolKey)",
+      "numberOfBytes": "32",
+      "value": "t_struct(PoolKey)_storage"
+    },
+    "t_mapping(t_uint256,t_address)": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => address)",
+      "numberOfBytes": "32",
+      "value": "t_address"
+    },
+    "t_mapping(t_uint256,t_contract(ISubscriber))": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => contract ISubscriber)",
+      "numberOfBytes": "32",
+      "value": "t_contract(ISubscriber)"
+    },
+    "t_mapping(t_uint256,t_uint256)": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => uint256)",
+      "numberOfBytes": "32",
+      "value": "t_uint256"
+    },
+    "t_mapping(t_uint256,t_userDefinedValueType(PositionInfo))": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => PositionInfo)",
+      "numberOfBytes": "32",
+      "value": "t_userDefinedValueType(PositionInfo)"
+    },
+    "t_string_storage": {
+      "encoding": "bytes",
+      "label": "string",
+      "numberOfBytes": "32"
+    },
+    "t_struct(PoolKey)_storage": {
+      "encoding": "inplace",
+      "label": "struct PoolKey",
+      "members": [
+        {
+          "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+          "label": "currency0",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_userDefinedValueType(Currency)"
+        },
+        {
+          "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+          "label": "currency1",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_userDefinedValueType(Currency)"
+        },
+        {
+          "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+          "label": "fee",
+          "offset": 20,
+          "slot": "1",
+          "type": "t_uint24"
+        },
+        {
+          "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+          "label": "tickSpacing",
+          "offset": 23,
+          "slot": "1",
+          "type": "t_int24"
+        },
+        {
+          "contract": "src/v1/periphery/TSVLPManagerV1.sol:TSVLPManagerV1",
+          "label": "hooks",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_contract(IHooks)"
+        }
+      ],
+      "numberOfBytes": "96"
+    },
+    "t_uint24": {
+      "encoding": "inplace",
+      "label": "uint24",
+      "numberOfBytes": "3"
+    },
+    "t_uint256": {
+      "encoding": "inplace",
+      "label": "uint256",
+      "numberOfBytes": "32"
+    },
+    "t_userDefinedValueType(Currency)": {
+      "encoding": "inplace",
+      "label": "Currency",
+      "numberOfBytes": "20"
+    },
+    "t_userDefinedValueType(PositionInfo)": {
+      "encoding": "inplace",
+      "label": "PositionInfo",
+      "numberOfBytes": "32"
+    }
+  }
+}

@@ -1,0 +1,463 @@
+{
+  "storage": [
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "permissionsAdapterFactory",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_address"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "permissionedPoolManager",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_address"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "hook",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_address"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "lpManager",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_address"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "participantSbt",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_address"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "sbtIdentityConfig",
+      "offset": 0,
+      "slot": "5",
+      "type": "t_mapping(t_uint256,t_struct(SbtIdentityConfig)_storage)"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "identityTokenIds",
+      "offset": 0,
+      "slot": "6",
+      "type": "t_array(t_uint256)dyn_storage"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "securities",
+      "offset": 0,
+      "slot": "7",
+      "type": "t_mapping(t_bytes32,t_struct(SecurityRecord)_storage)"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "tiers",
+      "offset": 0,
+      "slot": "8",
+      "type": "t_mapping(t_uint8,t_struct(TierPolicyRecord)_storage)"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "currencyUnderlying",
+      "offset": 0,
+      "slot": "9",
+      "type": "t_mapping(t_address,t_address)"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "underlyings",
+      "offset": 0,
+      "slot": "10",
+      "type": "t_mapping(t_address,t_struct(UnderlyingRecord)_storage)"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "quoteTokens",
+      "offset": 0,
+      "slot": "11",
+      "type": "t_mapping(t_address,t_struct(QuoteTokenRecord)_storage)"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "pools",
+      "offset": 0,
+      "slot": "12",
+      "type": "t_mapping(t_bytes32,t_struct(PoolRecord)_storage)"
+    },
+    {
+      "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+      "label": "emergencyPauseEnable",
+      "offset": 0,
+      "slot": "13",
+      "type": "t_bool"
+    }
+  ],
+  "types": {
+    "t_address": {
+      "encoding": "inplace",
+      "label": "address",
+      "numberOfBytes": "20"
+    },
+    "t_array(t_bytes32)dyn_storage": {
+      "base": "t_bytes32",
+      "encoding": "dynamic_array",
+      "label": "bytes32[]",
+      "numberOfBytes": "32"
+    },
+    "t_array(t_uint256)dyn_storage": {
+      "base": "t_uint256",
+      "encoding": "dynamic_array",
+      "label": "uint256[]",
+      "numberOfBytes": "32"
+    },
+    "t_bool": {
+      "encoding": "inplace",
+      "label": "bool",
+      "numberOfBytes": "1"
+    },
+    "t_bytes32": {
+      "encoding": "inplace",
+      "label": "bytes32",
+      "numberOfBytes": "32"
+    },
+    "t_contract(IHooks)": {
+      "encoding": "inplace",
+      "label": "contract IHooks",
+      "numberOfBytes": "20"
+    },
+    "t_enum(PoolLifecycle)": {
+      "encoding": "inplace",
+      "label": "enum PoolLifecycle",
+      "numberOfBytes": "1"
+    },
+    "t_int24": {
+      "encoding": "inplace",
+      "label": "int24",
+      "numberOfBytes": "3"
+    },
+    "t_mapping(t_address,t_address)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => address)",
+      "numberOfBytes": "32",
+      "value": "t_address"
+    },
+    "t_mapping(t_address,t_struct(QuoteTokenRecord)_storage)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => struct QuoteTokenRecord)",
+      "numberOfBytes": "32",
+      "value": "t_struct(QuoteTokenRecord)_storage"
+    },
+    "t_mapping(t_address,t_struct(UnderlyingRecord)_storage)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => struct UnderlyingRecord)",
+      "numberOfBytes": "32",
+      "value": "t_struct(UnderlyingRecord)_storage"
+    },
+    "t_mapping(t_bytes32,t_struct(PoolRecord)_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct PoolRecord)",
+      "numberOfBytes": "32",
+      "value": "t_struct(PoolRecord)_storage"
+    },
+    "t_mapping(t_bytes32,t_struct(SecurityRecord)_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct SecurityRecord)",
+      "numberOfBytes": "32",
+      "value": "t_struct(SecurityRecord)_storage"
+    },
+    "t_mapping(t_uint256,t_struct(SbtIdentityConfig)_storage)": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => struct SbtIdentityConfig)",
+      "numberOfBytes": "32",
+      "value": "t_struct(SbtIdentityConfig)_storage"
+    },
+    "t_mapping(t_uint8,t_struct(TierPolicyRecord)_storage)": {
+      "encoding": "mapping",
+      "key": "t_uint8",
+      "label": "mapping(uint8 => struct TierPolicyRecord)",
+      "numberOfBytes": "32",
+      "value": "t_struct(TierPolicyRecord)_storage"
+    },
+    "t_struct(PoolKey)_storage": {
+      "encoding": "inplace",
+      "label": "struct PoolKey",
+      "members": [
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "currency0",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_userDefinedValueType(Currency)"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "currency1",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_userDefinedValueType(Currency)"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "fee",
+          "offset": 20,
+          "slot": "1",
+          "type": "t_uint24"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "tickSpacing",
+          "offset": 23,
+          "slot": "1",
+          "type": "t_int24"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "hooks",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_contract(IHooks)"
+        }
+      ],
+      "numberOfBytes": "96"
+    },
+    "t_struct(PoolRecord)_storage": {
+      "encoding": "inplace",
+      "label": "struct PoolRecord",
+      "members": [
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "key",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_struct(PoolKey)_storage"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "securityId",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_bytes32"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "tierId",
+          "offset": 0,
+          "slot": "4",
+          "type": "t_uint8"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "lifecycle",
+          "offset": 1,
+          "slot": "4",
+          "type": "t_enum(PoolLifecycle)"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "tickCount",
+          "offset": 0,
+          "slot": "5",
+          "type": "t_uint256"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "poolSecurityIndex",
+          "offset": 0,
+          "slot": "6",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "224"
+    },
+    "t_struct(QuoteTokenRecord)_storage": {
+      "encoding": "inplace",
+      "label": "struct QuoteTokenRecord",
+      "members": [
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "rawDecimals",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint8"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "registered",
+          "offset": 1,
+          "slot": "0",
+          "type": "t_bool"
+        }
+      ],
+      "numberOfBytes": "32"
+    },
+    "t_struct(SbtIdentityConfig)_storage": {
+      "encoding": "inplace",
+      "label": "struct SbtIdentityConfig",
+      "members": [
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "registered",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bool"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "permissions",
+          "offset": 1,
+          "slot": "0",
+          "type": "t_userDefinedValueType(PermissionFlag)"
+        }
+      ],
+      "numberOfBytes": "32"
+    },
+    "t_struct(SecurityRecord)_storage": {
+      "encoding": "inplace",
+      "label": "struct SecurityRecord",
+      "members": [
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "securityId",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bytes32"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "tierId",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint8"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "listed",
+          "offset": 1,
+          "slot": "1",
+          "type": "t_bool"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "poolIds",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_array(t_bytes32)dyn_storage"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "listedPoolCount",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_uint32"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "pauseMode",
+          "offset": 4,
+          "slot": "3",
+          "type": "t_uint8"
+        }
+      ],
+      "numberOfBytes": "128"
+    },
+    "t_struct(TierPolicyRecord)_storage": {
+      "encoding": "inplace",
+      "label": "struct TierPolicyRecord",
+      "members": [
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "maxListed",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint32"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "listedCount",
+          "offset": 4,
+          "slot": "0",
+          "type": "t_uint32"
+        }
+      ],
+      "numberOfBytes": "32"
+    },
+    "t_struct(UnderlyingRecord)_storage": {
+      "encoding": "inplace",
+      "label": "struct UnderlyingRecord",
+      "members": [
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "securityId",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bytes32"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "legalShareAdapter",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_address"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "rawDecimals",
+          "offset": 20,
+          "slot": "1",
+          "type": "t_uint8"
+        },
+        {
+          "contract": "src/v1/core/TSVRegistryV1.sol:TSVRegistryV1",
+          "label": "registered",
+          "offset": 21,
+          "slot": "1",
+          "type": "t_bool"
+        }
+      ],
+      "numberOfBytes": "64"
+    },
+    "t_uint24": {
+      "encoding": "inplace",
+      "label": "uint24",
+      "numberOfBytes": "3"
+    },
+    "t_uint256": {
+      "encoding": "inplace",
+      "label": "uint256",
+      "numberOfBytes": "32"
+    },
+    "t_uint32": {
+      "encoding": "inplace",
+      "label": "uint32",
+      "numberOfBytes": "4"
+    },
+    "t_uint8": {
+      "encoding": "inplace",
+      "label": "uint8",
+      "numberOfBytes": "1"
+    },
+    "t_userDefinedValueType(Currency)": {
+      "encoding": "inplace",
+      "label": "Currency",
+      "numberOfBytes": "20"
+    },
+    "t_userDefinedValueType(PermissionFlag)": {
+      "encoding": "inplace",
+      "label": "PermissionFlag",
+      "numberOfBytes": "2"
+    }
+  }
+}

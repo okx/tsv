@@ -1,0 +1,118 @@
+{
+  "chain_id": 196,
+  "rpc_url": "https://xlayerrpc.okx.com",
+  "pool_manager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+  "registry": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+  "router": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+  "lp_manager": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+  "hook": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff",
+  "interval_seconds": 60,
+  "prices_cache_seconds": 15,
+  "max_requests_per_minute": 30,
+  "rebalance_deviation_percent": 8,
+  "rebalance_target_deviation_percent": 1,
+  "trade_cooldown_seconds": 30,
+  "trade_deadline_seconds": 300,
+  "quote_usd": "1",
+  "assets": {
+    "MSTR": {
+      "isin": "US5949724083",
+      "provider": "robinhood",
+      "ticker": "MSTR",
+      "min_poll_seconds": 15,
+      "max_trade_age_seconds": 90,
+      "underlying_token": "0xf83D29cA0F926CEf42597ac57e807ad452Ce5B43",
+      "pool_id": "0xa999aed1e46e931f2728df9136833010bc3e8d86168cb7d027e1ad9a21f2831e",
+      "pool_key": {
+        "currency0": "0xB6CEceAB302E2E4948951eE7843FC24E92933061",
+        "currency1": "0xE1218F57c5FE7d11088Ac4682781906f3C4b0BFF",
+        "fee": 2000,
+        "tick_spacing": 10,
+        "hooks": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff"
+      }
+    },
+    "BTGO": {
+      "isin": "US0919471013",
+      "provider": "marketbeat",
+      "page_url": "https://www.marketbeat.com/stocks/NYSE/BTGO",
+      "min_poll_seconds": 300,
+      "max_trade_age_seconds": 2800,
+      "ticker": "BTGO",
+      "underlying_token": "0xA57157574E6Efd4E26F08B97cAa0BEE6c8A80E4F",
+      "pool_id": "0x35dcb6792cc0dac132d37441cb7eb22f396442493b9e17193300aea8882c10dc",
+      "pool_key": {
+        "currency0": "0xB6CEceAB302E2E4948951eE7843FC24E92933061",
+        "currency1": "0xD5cF2Ce52694249CFf1741C0CE7eBC3F7C0C4C3B",
+        "fee": 2000,
+        "tick_spacing": 10,
+        "hooks": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff"
+      }
+    },
+    "SECZ": {
+      "isin": "US81517B1017",
+      "provider": "marketbeat",
+      "ticker": "SECZ",
+      "min_poll_seconds": 300,
+      "max_trade_age_seconds": 1200,
+      "underlying_token": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
+      "pool_id": "0x899d43e231666175df6204eebdbcde1945c8cdf39e56d492538b63434d8082fd",
+      "pool_key": {
+        "currency0": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+        "currency1": "0xc71874b5ee1fb75ee21228981e818375920b7516",
+        "fee": 2000,
+        "tick_spacing": 10,
+        "hooks": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff"
+      },
+      "page_url": "https://www.marketbeat.com/stocks/NYSE/SECZ"
+    },
+    "HOOD": {
+      "isin": "US7707001027",
+      "provider": "marketbeat",
+      "ticker": "HOOD",
+      "min_poll_seconds": 300,
+      "max_trade_age_seconds": 2800,
+      "underlying_token": "0x698dcbee5842775c55b2d8f73882042ad878335e",
+      "pool_id": "0x031c8d93b10efd5417656f34d5952b07aa655abc9e41311d8f5ea592050a0d19",
+      "pool_key": {
+        "currency0": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+        "currency1": "0xc0d57d1e0a12c74d7416b1895f5eaa087f43c5b3",
+        "fee": 2000,
+        "tick_spacing": 10,
+        "hooks": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff"
+      },
+      "page_url": "https://www.marketbeat.com/stocks/NASDAQ/HOOD"
+    },
+    "COIN": {
+      "isin": "US19260Q1076",
+      "provider": "robinhood",
+      "ticker": "COIN",
+      "min_poll_seconds": 15,
+      "max_trade_age_seconds": 90,
+      "underlying_token": "0xf48722ba326d0888a2954c28ebeddd02c14f86d6",
+      "pool_id": "0x23a8e8337aa384f82a5f3b400861a4e999209b9cc1f41209295ed2ddce439299",
+      "pool_key": {
+        "currency0": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+        "currency1": "0xbd26a1683e8d7159aac52f875247e1d80dc3b5af",
+        "fee": 2000,
+        "tick_spacing": 10,
+        "hooks": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff"
+      }
+    },
+    "CRCL": {
+      "isin": "US1725731079",
+      "provider": "robinhood",
+      "ticker": "CRCL",
+      "min_poll_seconds": 15,
+      "max_trade_age_seconds": 90,
+      "underlying_token": "0x76163273f8bae6570ba3bb202044129a98e98f16",
+      "pool_id": "0xffab809e144e5948be68cd55d6252bbbdd8f351e57e1f457c0bc600588d65b24",
+      "pool_key": {
+        "currency0": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+        "currency1": "0xd4f64a67b2c1295bd6c25b3a306b2a049e392397",
+        "fee": 2000,
+        "tick_spacing": 10,
+        "hooks": "0xf151416e74d6b4ae00197e8d8e4f4765283b3fff"
+      }
+    }
+  }
+}

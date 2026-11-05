@@ -1,0 +1,95 @@
+{
+  "network": "X Layer Mainnet",
+  "chainId": 196,
+  "catalogDate": "2026-11-03",
+  "verification": {
+    "block": 74921811,
+    "scope": "EIP-1967 implementation slots and Registry bindings read at this block; other addresses are explicitly sourced historical records, not a fresh check of all configuration or permissions."
+  },
+  "environment": "pre",
+  "sourceCommit": null,
+  "proxies": {
+    "TSVRegistryV1": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+    "TSVVolumeLedgerV1": "0x4fbffbe7ca5ce0fc3af30c9f305e0f6365ff3bc2",
+    "TSVSwapRouterV1": "0xe5df3ab010bb20094f490dfcf61b6e2d9a3311c8",
+    "TSVLPManagerV1": "0xf73d8683b948564d2795c62a2a909012ea168d29",
+    "TSVHookV1": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+  },
+  "implementations": {
+    "TSVRegistryV1": "0x6b168962366eb82bb7d05c4b454706868614140d",
+    "TSVVolumeLedgerV1": "0x643566f75d354ba0b07be70aec2a6c2611a5eb80",
+    "TSVSwapRouterV1": "0x8e9c6d0ef779e44c54fced3d9708812817a71c7d",
+    "TSVLPManagerV1": "0x7134e7fdfe515d9d0c6c679580dcc84cf4189464",
+    "TSVHookV1": "0x2e0643409b49d6eef91a0dff8c22cbf1bc04f53d"
+  },
+  "libraries": {
+    "PermissionedValidationLib": "0xb60e6270370334727e03694d4bb842c4319f0dc1",
+    "TSVLPManagerLib": "0xe2d66e16c2db1537a941a015f101541a5be1b2ce",
+    "LPPositionMath": "0x70df85a68bc948496dfcac1750f9f68135d1dad2"
+  },
+  "factories": {
+    "PermissionsAdapterFactory": "0x92cdb229613da8ca45e375cf69df4b3b645ff48d",
+    "TSVHookProxyFactoryV1": "0x3c3e76f4beb314713901183ed6e511928e1d2a99",
+    "SmartWalletFactory": "0x1eb8d87d616f31591cfd21f30458c8168b1c1b80"
+  },
+  "dependencies": {
+    "PoolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+    "Permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
+    "PositionDescriptor": "0x9e9fbbef0e1bd752e83de5acff3d0c936a9e5a4b",
+    "WOKB": "0xe538905cf8410324e03a5a23c1c177a474d59b2b",
+    "SBT": "0x053ecef8ccb8844322bee86290dae016b9843b6d"
+  },
+  "recordedIntegrations": {
+    "TSV_ALLOWLIST_CHECKER": "0xb4110157542283aecacb7483b7029d2216507525",
+    "TSV_AA_SMART_WALLET_ENTRY": "0x4607f4b82fa1b1a84bd705a9e6b627225dc530c9",
+    "TSV_ENTRY_POINT": "0x0000000071727de22e5e9d8baf0edac6f37da032",
+    "DEX_TOKEN_APPROVE": "0x1599CF99B177E844dD182809D7A8F55E39972987",
+    "DEX_TOKEN_APPROVE_PROXY": "0xb20Ab6188fc435fF255314924FF9D63B8b2Fa006",
+    "DEX_ROUTER": "0xF473911594c987848b09437D39f3fd6A4c74cf5C",
+    "TSV_DEX_ADAPTER": "0x35738fB64eEa65E01F709FF2ed3Db53D43CD7EB0"
+  },
+  "recordedAssets": {
+    "smoke-20261014": {
+      "U": "0xad090f3fcac8237a600ddf3cc87651d55a5a5d6e",
+      "W": "0xf60ad4d2ef8f6d812df752646a3a3683800bae43",
+      "LegalShareAdapter": "0xc21c79f20d202fe3ebb7db00c12075f3d9abf3f0"
+    },
+    "RWT-20261015": {
+      "U": "0x28ccb07e804c6541634c07f1809f7eaae3b523b0",
+      "W": "0x4cf5b1073ec81b45419358c63a2bafc83842c60d",
+      "LegalShareAdapter": "0x1501e20d4990f4a33f3807a9482af910bdcd3f68",
+      "securityId": "0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3",
+      "poolId": "0x220d89b1d44e1fb2f5b11abc3026d2452e072caae3dc9eda4e328c47c264e0e8"
+    }
+  },
+  "recordedQuoteTokens": {
+    "smokeQuote": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    "USDC": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+    "RWTTestQuote": "0xb0A8640210A0dA1a59d95Bd51E39b3FA488c244e"
+  },
+  "auxiliaryContracts": {
+    "SecuritizeDisperseMock": "0xe6c3702b8f3ac9d096dd38e5267082fd0c003a9c"
+  },
+  "historical": {
+    "PermissionsAdapterFactoryPreviouslyBound": "0x038b77f3355afe8aea10c6c2b7be9312d8148e3f"
+  },
+  "sources": [],
+  "notes": [
+    "Pre and prod both use chain 196; pre is not a testnet.",
+    "Runtime script configuration may lag live bindings; the previous Factory remains separately recorded.",
+    "Asset and integration entries retain source dates and are not assertions that every historical asset is currently enabled."
+  ],
+  "initialDeploymentDate": "2026-10-14",
+  "initialDeploymentSourceVerification": false,
+  "archivedSources": {
+    "branch": "ops/deployment",
+    "commit": "298ee17bd657a7fb57106b19c3a0a24628226320",
+    "pathsRelativeTo": "deployment/pre/addresses.json",
+    "paths": [
+      "chain-snapshot.json",
+      "../../outputs/tsv-disperse-test-20261030/summary.json",
+      "../../docs/operations/xlayer-pre-20261015.md",
+      "../../script/xlayer/deployment.json"
+    ]
+  }
+}

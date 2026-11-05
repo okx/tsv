@@ -1,0 +1,55 @@
+out/
+cache/
+broadcast/
+dependencies/
+.DS_Store
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+!.env.xlayer.example
+__pycache__/
+*.py[cod]
+
+# Local editor state
+.vscode/
+
+# Vendored dependency build output
+lib/v4-core/test/js-scripts/dist/
+
+# Optional upstream DEX checkout; reproducible tests use the committed thin ABI.
+lib/dexrouter/
+
+# Local deployment artifacts and historical manifests
+dployment/aa/
+dployment/history/
+
+# Internal operation artifacts are maintained on ops/deployment.
+/outputs/
+/docs/deployments/tsv-mcp/
+/.agents/
+
+# Historical deployment metadata is archived on ops/deployment.
+/deployment/prod/contracts/
+/deployment/pre/chain-snapshot.json
+/deployment/prod/chain-snapshot.json
+/deployment/prod/releases/
+
+# Archived internal workflows and session-specific artifacts.
+/archive/
+/docs/operations/
+/docs/operations-validation-*.json
+/docs/assets/tsv-sbt-enforcement-excerpt.png
+/docs/TSV_FACTORY_MIGRATION_UPGRADE_GUIDE.md
+/script/TSVProtocol.s.sol
+/script/TSV_PROTOCOL_README.md
+/script/UpgradePermissionsFactory.s.sol
+/script/XLayerMainnet*.s.sol
+/script/complete-local-deployment.py
+/script/lib/
+/script/tsv-protocol.py
+/script/tsv-aa-offline.py
+/script/tsv-offline-transaction.py
+/script/xlayer/deployment.json
+/script/xlayer/deployment.local.json

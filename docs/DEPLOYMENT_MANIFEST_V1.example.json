@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "tsv-v1-current-source-template",
+  "status": "TEMPLATE_ONLY_NOT_DEPLOYED",
+  "target": {
+    "name": "",
+    "chainId": null,
+    "blockNumber": null,
+    "blockHash": ""
+  },
+  "build": {
+    "gitCommit": "",
+    "solidity": "0.8.26",
+    "evmVersion": "cancun",
+    "optimizer": true,
+    "optimizerRuns": 200,
+    "viaIR": true,
+    "openzeppelin": "5.5.0",
+    "submodules": {},
+    "libraryLinks": {
+      "permissionedValidationLib": "",
+      "tsvLPManagerLib": "",
+      "lpPositionMathLib": ""
+    }
+  },
+  "dependencies": {
+    "poolManager": "",
+    "permissionsAdapterFactory": "",
+    "participantSbt": "",
+    "permit2": "",
+    "positionDescriptor": "",
+    "weth9": ""
+  },
+  "components": {
+    "registry": { "proxy": "", "implementation": "", "initializerTx": "" },
+    "volumeLedger": { "proxy": "", "implementation": "", "initializerTx": "" },
+    "hook": { "proxy": "", "implementation": "", "initializerTx": "" },
+    "swapRouter": { "proxy": "", "implementation": "", "initializerTx": "" },
+    "lpManager": { "proxy": "", "implementation": "", "initializerTx": "" }
+  },
+  "hookDeployment": {
+    "proxyFactory": "",
+    "salt": "",
+    "predictedProxy": "",
+    "deployedProxy": "",
+    "requiredPermissionFlags": "0x3FFF"
+  },
+  "bindings": {
+    "registryHook": "",
+    "registryLpManager": "",
+    "registryPermissionsAdapterFactory": "",
+    "registryPoolManager": "",
+    "registryParticipantSbt": "",
+    "hookPoolManager": "",
+    "hookRegistry": "",
+    "hookLedger": "",
+    "hookRouter": "",
+    "hookLpManager": "",
+    "routerPoolManager": "",
+    "routerPermissionsAdapterFactory": "",
+    "routerRegistry": "",
+    "ledgerRegistry": "",
+    "lpPoolManager": "",
+    "lpPermissionsAdapterFactory": "",
+    "lpRegistry": ""
+  },
+  "roles": {
+    "defaultAdmins": [],
+    "symbolAdmins": [],
+    "haltReporters": [],
+    "volumeOracles": [],
+    "emergencyPausers": [],
+    "emergencyResumers": [],
+    "poolCreators": [],
+    "forceExitAdmins": [],
+    "upgradeAdmins": []
+  },
+  "sbtIdentities": [],
+  "assets": {
+    "securities": [],
+    "underlyings": [],
+    "permissionedCurrencies": [],
+    "quoteTokens": [],
+    "pools": []
+  },
+  "releaseEvidence": {
+    "deployTransactions": [],
+    "roleTransactions": [],
+    "admissionTransactions": [],
+    "poolTransactions": [],
+    "quotaTransactions": [],
+    "staticChecks": [],
+    "realAssetTests": []
+  }
+}

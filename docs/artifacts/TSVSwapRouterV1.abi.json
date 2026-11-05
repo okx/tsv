@@ -1,0 +1,892 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pm",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "factory",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "DEFAULT_ADMIN_ROLE",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "PERMISSIONS_ADAPTER_FACTORY",
+    "outputs": [
+      {
+        "internalType": "contract IPermissionsAdapterFactory",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "UPGRADE_ADMIN_ROLE",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "UPGRADE_INTERFACE_VERSION",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pm",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "registry_",
+        "type": "address"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "adapter",
+        "type": "address"
+      }
+    ],
+    "name": "isAdapterAllowed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "allowed",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "msgSender",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "poolManager",
+    "outputs": [
+      {
+        "internalType": "contract IPoolManager",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "proxiableUUID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "registry",
+    "outputs": [
+      {
+        "internalType": "contract TSVRegistryV1",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "adapter",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "allowed",
+        "type": "bool"
+      }
+    ],
+    "name": "setAdapterAllowed",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "currency",
+        "type": "address"
+      }
+    ],
+    "name": "settlementCurrency",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "Currency",
+                "name": "currency0",
+                "type": "address"
+              },
+              {
+                "internalType": "Currency",
+                "name": "currency1",
+                "type": "address"
+              },
+              {
+                "internalType": "uint24",
+                "name": "fee",
+                "type": "uint24"
+              },
+              {
+                "internalType": "int24",
+                "name": "tickSpacing",
+                "type": "int24"
+              },
+              {
+                "internalType": "contract IHooks",
+                "name": "hooks",
+                "type": "address"
+              }
+            ],
+            "internalType": "struct PoolKey",
+            "name": "key",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bool",
+            "name": "zeroForOne",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint128",
+            "name": "amountSpecified",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "limitAmount",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint64",
+            "name": "deadline",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expectedMultiplier",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SwapRequest",
+        "name": "request",
+        "type": "tuple"
+      }
+    ],
+    "name": "swapExactInput",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "actualIn",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "actualOut",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "Currency",
+                "name": "currency0",
+                "type": "address"
+              },
+              {
+                "internalType": "Currency",
+                "name": "currency1",
+                "type": "address"
+              },
+              {
+                "internalType": "uint24",
+                "name": "fee",
+                "type": "uint24"
+              },
+              {
+                "internalType": "int24",
+                "name": "tickSpacing",
+                "type": "int24"
+              },
+              {
+                "internalType": "contract IHooks",
+                "name": "hooks",
+                "type": "address"
+              }
+            ],
+            "internalType": "struct PoolKey",
+            "name": "key",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bool",
+            "name": "zeroForOne",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint128",
+            "name": "amountSpecified",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "limitAmount",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint64",
+            "name": "deadline",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expectedMultiplier",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SwapRequest",
+        "name": "request",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "participant",
+        "type": "address"
+      }
+    ],
+    "name": "swapExactInputFromContract",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "actualIn",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "actualOut",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "Currency",
+                "name": "currency0",
+                "type": "address"
+              },
+              {
+                "internalType": "Currency",
+                "name": "currency1",
+                "type": "address"
+              },
+              {
+                "internalType": "uint24",
+                "name": "fee",
+                "type": "uint24"
+              },
+              {
+                "internalType": "int24",
+                "name": "tickSpacing",
+                "type": "int24"
+              },
+              {
+                "internalType": "contract IHooks",
+                "name": "hooks",
+                "type": "address"
+              }
+            ],
+            "internalType": "struct PoolKey",
+            "name": "key",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bool",
+            "name": "zeroForOne",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint128",
+            "name": "amountSpecified",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "limitAmount",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint64",
+            "name": "deadline",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expectedMultiplier",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SwapRequest",
+        "name": "request",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "payer",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "participant",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      }
+    ],
+    "name": "swapExactInputFromContractDirect",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "actualIn",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "actualOut",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "unlockCallback",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newImplementation",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "upgradeToAndCall",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "adapter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "allowed",
+        "type": "bool"
+      }
+    ],
+    "name": "AdapterAuthorizationUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "version",
+        "type": "uint64"
+      }
+    ],
+    "name": "Initialized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "implementation",
+        "type": "address"
+      }
+    ],
+    "name": "Upgraded",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "neededRole",
+        "type": "bytes32"
+      }
+    ],
+    "name": "AccessControlUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AdapterNotAllowed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "target",
+        "type": "address"
+      }
+    ],
+    "name": "AddressEmptyCode",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ContractLocked",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "Currency",
+        "name": "currency",
+        "type": "address"
+      }
+    ],
+    "name": "DeltaNotNegative",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "Currency",
+        "name": "currency",
+        "type": "address"
+      }
+    ],
+    "name": "DeltaNotPositive",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "implementation",
+        "type": "address"
+      }
+    ],
+    "name": "ERC1967InvalidImplementation",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ERC1967NonPayable",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Expired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "FailedCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "HookNotAllowed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InputLengthMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientBalance",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAdapter",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidBips",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidHopPriceLength",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidInitialization",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidPayer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidPool",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRequest",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotInitializing",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotPoolManager",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PoolDelisted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PoolNotTradable",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RegistryPaused",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "SafeERC20FailedOperation",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SettlementMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SlippageExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SwappingDisabled",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UUPSUnauthorizedCallContext",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "slot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "UUPSUnsupportedProxiableUUID",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnauthorizedUpgrade",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "action",
+        "type": "uint256"
+      }
+    ],
+    "name": "UnsupportedAction",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amountOutRequested",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountOutReceived",
+        "type": "uint256"
+      }
+    ],
+    "name": "V4ExactOutputUnfilled",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "minAmountOutReceived",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountReceived",
+        "type": "uint256"
+      }
+    ],
+    "name": "V4TooLittleReceived",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "hopIndex",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      }
+    ],
+    "name": "V4TooLittleReceivedPerHop",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "minPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      }
+    ],
+    "name": "V4TooLittleReceivedPerHopSingle",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "maxAmountInRequested",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountRequested",
+        "type": "uint256"
+      }
+    ],
+    "name": "V4TooMuchRequested",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "hopIndex",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      }
+    ],
+    "name": "V4TooMuchRequestedPerHop",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "minPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      }
+    ],
+    "name": "V4TooMuchRequestedPerHopSingle",
+    "type": "error"
+  }
+]

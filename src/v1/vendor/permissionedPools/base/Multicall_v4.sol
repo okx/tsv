@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// Vendored from the pinned v4-periphery dependency (src/base/Multicall_v4.sol).
+// Public entry points remain callable through super and are virtual for TSV policy overrides.
+
+import {IMulticall_v4} from "v4-periphery/interfaces/IMulticall_v4.sol";
+
+/// @title Multicall_v4
+/// @notice Enables calling multiple methods in a single call to the contract
+abstract contract Multicall_v4 is IMulticall_v4 {
+    /// @inheritdoc IMulticall_v4
+    function multicall(bytes[] calldata data) public payable virtual returns (bytes[] memory results) {
+        results = new bytes[](data.length);
+        for (uint256 i = 0; i < data.length; i++) {
+            (bool success, bytes memory result) = address(this).delegatecall(data[i]);
+
+            if (!success) {
+                // bubble up the revert reason
+                assembly {
+                    revert(add(result, 0x20), mload(result))
+                }
+            }
+
+            results[i] = result;
+        }
+    }
+}

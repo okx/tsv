@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.26;
+
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
+/// @notice Direct conversion interface used by Hook swap accounting.
+interface IDirectLegalShareAdapter is IERC165 {
+    /// @notice Returns the pool Currency to which this adapter is bound.
+    function poolCurrency() external view returns (address);
+
+    /// @notice Returns the live multiplier used by this adapter's legal-share conversion.
+    /// @dev Static-rate adapters return their configured rate; the value must be nonzero.
+    /// @param currency Canonical underlying Currency registered for the security.
+    function currentMultiplier(address currency) external view returns (uint256 multiplier);
+
+    /// @notice Converts an amount of the bound Currency into legal shares expressed in WAD.
+    /// @param currency Currency being converted; implementations must enforce their configured asset.
+    /// @param rawAmount Amount of Currency in its raw token units.
+    /// @return legalSharesWad Legal-share amount used by TSV volume accounting.
+    function toLegalShares(address currency, uint256 rawAmount) external view returns (uint256 legalSharesWad);
+}
