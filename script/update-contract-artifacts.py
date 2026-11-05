@@ -48,7 +48,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    subprocess.run(["forge", "build"], cwd=ROOT, check=True)
+    # The snapshots below are derived exclusively from src/v1.  Local ops
+    # scripts and tests may depend on internal helper files intentionally
+    # excluded from public checkouts, so they are not part of this build.
+    subprocess.run(["forge", "build", "--skip", "script", "test"], cwd=ROOT, check=True)
     expected = {}
     for name, source in TARGETS.items():
         artifact = json.loads((ROOT / "out" / Path(source).name / (name + ".json")).read_text())

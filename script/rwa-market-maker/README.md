@@ -21,13 +21,13 @@ All six pools use USDC `0xb6ceceab302e2e4948951ee7843fc24e92933061` as `currency
 
 ## 安装
 
-从仓库根目录创建 Python 3.13 虚拟环境并安装依赖：
+从仓库根目录创建 Python 3.13 虚拟环境并安装依赖。依赖清单中的 `web3` 用于读取 X Layer 池状态；只运行 `market_rebalancer.py --mode prices-only` 时无需安装第三方依赖：
 
 ```sh
 cd ~/meili/yunshan.fang_dacs_at_okg.com/117/Desktop/gitlab/tsv
 /opt/homebrew/opt/python@3.13/bin/python3.13 -m venv .venv-rwa
 source .venv-rwa/bin/activate
-python -m pip install -r outputs/rwa-market-maker/requirements.txt
+python -m pip install -r script/rwa-market-maker/requirements.txt
 ```
 
 ## 获取市场参考价
@@ -35,14 +35,14 @@ python -m pip install -r outputs/rwa-market-maker/requirements.txt
 检查生产配置中全部六个资产的行情，一轮后退出：
 
 ```sh
-python3 outputs/rwa-market-maker/market_rebalancer.py --environment production --mode prices-only --once --assets MSTR BTGO SECZ HOOD COIN CRCL
+python3 script/rwa-market-maker/market_rebalancer.py --environment production --mode prices-only --once --assets MSTR BTGO SECZ HOOD COIN CRCL
 ```
 
 `prices-only` 只请求行情，不连接 X Layer RPC，也不读取池状态或发送交易。每个资产输出一行 JSON，包含行情来源、价格口径、报价时间、新鲜度和 `trade_eligible`。MarketBeat 在休市或报价过旧时仍会返回价格，但 `trade_eligible` 为 `false`，不能触发再平衡。省略 `--assets` 时使用所选配置中的全部资产。
 
 ```sh
 # 只读查看 test 配置的 BTGO 参考行情
-python3 outputs/rwa-market-maker/market_rebalancer.py --environment test --mode prices-only --once
+python3 script/rwa-market-maker/market_rebalancer.py --environment test --mode prices-only --once
 ```
 
 ## 只读监控池状态
@@ -51,13 +51,13 @@ python3 outputs/rwa-market-maker/market_rebalancer.py --environment test --mode 
 
 ```sh
 # 生产配置六个池，单轮后退出
-python3 outputs/rwa-market-maker/pool_price_monitor.py --environment production --once
+python3 script/rwa-market-maker/pool_price_monitor.py --environment production --once
 
 # 持续监控 test 配置的 RWT-USDC 池（参考 BTGO 行情）
-python3 outputs/rwa-market-maker/pool_price_monitor.py --environment test
+python3 script/rwa-market-maker/pool_price_monitor.py --environment test
 
 # 只监控指定资产
-python3 outputs/rwa-market-maker/pool_price_monitor.py --environment production --assets MSTR HOOD COIN CRCL --once
+python3 script/rwa-market-maker/pool_price_monitor.py --environment production --assets MSTR HOOD COIN CRCL --once
 ```
 
 轮询间隔至少为配置的 `interval_seconds` 和所选行情源 `min_poll_seconds` 中的最大值；全部市场请求总量限制为每分钟最多 30 次。`active_liquidity=0` 表示当前 tick 没有可用于 swap 的活跃流动性，不代表全池没有区间外 LP 仓位。
@@ -76,8 +76,8 @@ Robinhood 返回的报价必须匹配 ticker、USD、非暂停状态和有效 bi
 再平衡会对符合条件的池执行模拟，并在模拟通过后广播真实主网交易。生产配置和 test 配置均使用 X Layer Mainnet；运行前先核对 `--environment`、配置、RPC 和 `--assets`。下面的 `10` 是每笔 swap 最大输入额度（USD），不是固定成交金额：
 
 ```sh
-PYTHONPATH=sdk/python python3 outputs/rwa-market-maker/market_rebalancer.py --environment test --mode rebalance --max-trade-notional-usd 10
-PYTHONPATH=sdk/python python3 outputs/rwa-market-maker/market_rebalancer.py --environment production --mode rebalance --max-trade-notional-usd 10
+PYTHONPATH=sdk/python python3 script/rwa-market-maker/market_rebalancer.py --environment test --mode rebalance --max-trade-notional-usd 10
+PYTHONPATH=sdk/python python3 script/rwa-market-maker/market_rebalancer.py --environment production --mode rebalance --max-trade-notional-usd 10
 ```
 
 程序仅在报价新鲜、当前 tick 有活跃流动性，且偏离达到 `rebalance_deviation_percent`（当前为 8%）时考虑交易。目标价按 `rebalance_target_deviation_percent`（当前为 1%）计算。脚本根据当前价格、活跃流动性和跨越的初始化 tick 估算 exact-input 数量，并限制在最大输入额度内。之后运行 sizing 模拟，根据模拟输出和 `--slippage-bps`（默认 100 bps，即 1%）计算最低输出，再运行最终模拟；通过后才广播。当前 swap 未启用链上 `sqrtPriceLimitX96`，目标价仅用于输入量估算，成交可能越过目标价。确认回执后脚本重新读取池价。

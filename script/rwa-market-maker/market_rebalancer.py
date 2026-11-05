@@ -73,7 +73,7 @@ def load_web3():
     try:
         from web3 import Web3
     except ImportError as exc:
-        raise RuntimeError("Install requirements with: python3 -m pip install -r outputs/rwa-market-maker/requirements.txt") from exc
+        raise RuntimeError("Install requirements with: python3 -m pip install -r script/rwa-market-maker/requirements.txt") from exc
     return Web3
 
 
