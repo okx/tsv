@@ -1,0 +1,57 @@
+{
+  "environment": "test",
+  "network": "X Layer Mainnet",
+  "deploymentDate": "2026-10-14",
+  "deploymentStatus": "confirmed",
+  "sourceVerification": false,
+  "chainId": 196,
+  "chain_id": 196,
+  "rpc_url": "https://rpc.xlayer.tech",
+  "registry": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+  "pool_manager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+  "router": "0xe5df3ab010bb20094f490dfcf61b6e2d9a3311c8",
+  "lp_manager": "0xf73d8683b948564d2795c62a2a909012ea168d29",
+  "volume_ledger": "0x4fbffbe7ca5ce0fc3af30c9f305e0f6365ff3bc2",
+  "hook": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff",
+  "proxies": {
+    "TSVRegistryV1": "0x2233ea2044ffa04ccceeef0b9adfe0799505a908",
+    "TSVVolumeLedgerV1": "0x4fbffbe7ca5ce0fc3af30c9f305e0f6365ff3bc2",
+    "TSVSwapRouterV1": "0xe5df3ab010bb20094f490dfcf61b6e2d9a3311c8",
+    "TSVLPManagerV1": "0xf73d8683b948564d2795c62a2a909012ea168d29",
+    "TSVHookV1": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+  },
+  "factories": {
+    "PermissionsAdapterFactory": "0x92cdb229613da8ca45e375cf69df4b3b645ff48d",
+    "TSVHookProxyFactoryV1": "0x3c3e76f4beb314713901183ed6e511928e1d2a99",
+    "SmartWalletFactory": "0x1eb8d87d616f31591cfd21f30458c8168b1c1b80"
+  },
+  "interval_seconds": 60,
+  "prices_cache_seconds": 15,
+  "max_requests_per_minute": 30,
+  "rebalance_deviation_percent": 8,
+  "rebalance_target_deviation_percent": 1,
+  "trade_cooldown_seconds": 30,
+  "trade_deadline_seconds": 300,
+  "quote_usd": "1",
+  "assets": {
+    "RWT-USDC": {
+      "ticker": "BTGO",
+      "reference_ticker": "BTGO",
+      "isin": "US0919471013",
+      "provider": "marketbeat",
+      "page_url": "https://www.marketbeat.com/stocks/NYSE/BTGO",
+      "min_poll_seconds": 300,
+      "max_trade_age_seconds": 1500,
+      "underlying_token": "0x28ccb07e804c6541634c07f1809f7eaae3b523b0",
+      "security_id": "0xe29c89c6170c14d1aec33ef8c32df8beb88a6ff3e6e3c30a8bcb27e4321773e3",
+      "pool_id": "0xdfc2f5fd2363bdf32d72ab5d6c949801124eed1d4f8374c02b329281a41ad7ef",
+      "pool_key": {
+        "currency0": "0xb6ceceab302e2e4948951ee7843fc24e92933061",
+        "currency1": "0xf6bb667b55d0cacdb9d2bb9d75d78b4ebe1f1b6c",
+        "fee": 2000,
+        "tick_spacing": 10,
+        "hooks": "0xbc6d8c8a8b681872a93554116f01268f80c9ffff"
+      }
+    }
+  }
+}
