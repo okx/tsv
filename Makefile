@@ -1,11 +1,18 @@
-.PHONY: check test test-unit test-local test-governance test-trading test-liquidity test-operations test-invariants test-xlayer coverage
+.PHONY: build check test test-sdk test-unit test-local test-governance test-trading test-liquidity test-operations test-invariants test-xlayer coverage artifacts artifacts-check
+
+build:
+	forge build
 
 check:
 	python3 script/check-test-layout.py
+	python3 script/check-public-docs.py
 	forge fmt --check
 	git diff --check
 
-test:
+test-sdk:
+	PYTHONPATH=sdk/python python3 -m unittest discover -s sdk/python/tests -v
+
+test: test-sdk
 	python3 script/check-test-layout.py
 	FOUNDRY_PROFILE=default forge test --summary
 
@@ -35,3 +42,9 @@ test-xlayer:
 
 coverage:
 	FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report summary --exclude-tests
+
+artifacts:
+	python3 script/update-contract-artifacts.py
+
+artifacts-check:
+	python3 script/update-contract-artifacts.py --check

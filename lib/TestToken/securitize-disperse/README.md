@@ -1,14 +1,14 @@
 # Securitize 分发合约测试替身
 
-`MockSecuritizeDisperse.sol` 按照 [Securitize distribution contract 文档](https://okg-block.sg.larksuite.com/wiki/PrQCwWK8LiTpg2k8KUulTIGTgNc) 实现最小可用的 ERC-20 批量派息流程，供模拟项目方和事件索引测试使用。这是独立编写的测试合约，非 Securitize 官方实现。
+`MockSecuritizeDisperse.sol` 是独立编写的最小 ERC-20 批量派息测试替身，用于模拟付款和验证事件索引，不是发行方官方实现。接口、事件和失败语义以本目录源码和测试为准，无需访问内部文档。
 
 ## 本版本约定
 
 - 非代理、不可升级，没有暂停功能。
 - 构造参数 `initialAdmin` 指定管理员；管理员需要用 `addOperator(account)` 单独授予付款操作权限，可以授予自己。
-- `MAX_BATCH_SIZE = 200`，是本模拟版本选取的上限，原文未给出具体值。
-- `DUPLICATE_WINDOW = 10 minutes`，按本次测试需求设定，原文未给出具体值。
-- Solidity 使用 `^0.8.22`，兼容原文语言版本及仓库固定的 0.8.26 编译器。
+- `MAX_BATCH_SIZE = 200`，是本模拟版本选取的上限，为本测试替身的选择。
+- `DUPLICATE_WINDOW = 10 minutes`，按本次测试需求设定，为本测试替身的选择。
+- Solidity 使用 `^0.8.22`，兼容仓库固定的 0.8.26 编译器。
 - 使用仓库现有 OpenZeppelin AccessControl、SafeERC20 和 ReentrancyGuard，无新增依赖。
 
 ## 模拟付款
@@ -43,7 +43,7 @@
 
 `isAdmin` / `isOperator` 查询权限。管理员可用 `addOperator`、`revokeOperator` 管理付款人，或用 `changeAdmin` 将自己的管理员角色移交给其他非零地址；已有的其他管理员不受影响。
 
-继承的 `grantRole` 也会发出 `AdminGranted` / `OperatorAdded`。撤销或放弃管理员角色会发出 `AdminRevoked`。操作员角色必须通过 `revokeOperator` 撤销，直接 `revokeRole(OPERATOR_ROLE, ...)` 或 `renounceRole(OPERATOR_ROLE, ...)` 按原文报 `UseRevokeOperator`。
+继承的 `grantRole` 也会发出 `AdminGranted` / `OperatorAdded`。撤销或放弃管理员角色会发出 `AdminRevoked`。操作员角色必须通过 `revokeOperator` 撤销，直接 `revokeRole(OPERATOR_ROLE, ...)` 或 `renounceRole(OPERATOR_ROLE, ...)` 报 `UseRevokeOperator`。
 
 ## 本地构建、测试和 ABI
 

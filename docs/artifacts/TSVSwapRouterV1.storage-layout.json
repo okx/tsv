@@ -1,15 +1,13 @@
 {
   "storage": [
     {
-      "astId": 10033,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "registry",
       "offset": 0,
       "slot": "0",
-      "type": "t_contract(TSVRegistryV1)8979"
+      "type": "t_contract(TSVRegistryV1)"
     },
     {
-      "astId": 10037,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "isAdapterAllowed",
       "offset": 0,
@@ -17,7 +15,6 @@
       "type": "t_mapping(t_address,t_bool)"
     },
     {
-      "astId": 10040,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeParticipant",
       "offset": 0,
@@ -25,7 +22,6 @@
       "type": "t_address"
     },
     {
-      "astId": 10043,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeAmountIn",
       "offset": 0,
@@ -33,7 +29,6 @@
       "type": "t_uint256"
     },
     {
-      "astId": 10046,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeAmountOut",
       "offset": 0,
@@ -41,7 +36,6 @@
       "type": "t_uint256"
     },
     {
-      "astId": 10049,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeRecipient",
       "offset": 0,
@@ -49,11 +43,17 @@
       "type": "t_address"
     },
     {
-      "astId": 10052,
       "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
       "label": "activeInputCurrency",
       "offset": 0,
       "slot": "6",
+      "type": "t_address"
+    },
+    {
+      "contract": "src/v1/periphery/TSVSwapRouterV1.sol:TSVSwapRouterV1",
+      "label": "activePayer",
+      "offset": 0,
+      "slot": "7",
       "type": "t_address"
     }
   ],
@@ -68,7 +68,7 @@
       "label": "bool",
       "numberOfBytes": "1"
     },
-    "t_contract(TSVRegistryV1)8979": {
+    "t_contract(TSVRegistryV1)": {
       "encoding": "inplace",
       "label": "contract TSVRegistryV1",
       "numberOfBytes": "20"

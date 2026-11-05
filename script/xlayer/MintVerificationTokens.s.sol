@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -27,7 +27,9 @@ contract MintVerificationTokens is Script {
             targets[i] = vm.envUint(string.concat("TSV_MINT_TARGET_", suffix));
             require(tokens[i].code.length > 0 && targets[i] > 0, "invalid token or amount");
             require(IRWATVerificationToken(tokens[i]).decimals() == 18, "unexpected decimals");
-            for (uint256 j; j < i; ++j) require(tokens[j] != tokens[i], "duplicate token");
+            for (uint256 j; j < i; ++j) {
+                require(tokens[j] != tokens[i], "duplicate token");
+            }
         }
         console2.log("Operator:", operator);
         vm.startBroadcast(key);

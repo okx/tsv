@@ -1,6 +1,6 @@
 # TSVLPManagerV1_multicall_接口ABI与calldata构建说明
 
-本文参照[《TSV_证券暂停_额度维护与授权强退_接口事件》](https://okg-block.sg.larksuite.com/wiki/AN4ywkxdBi0QfqkThqplnvYEgdc)的接口定义方式，说明 multicall 的 ABI、参数、返回值、调用权限、calldata 构建及后台验收方式，并以批量调用 unwindPositionByTsv 为例。
+本文参照《TSV_证券暂停_额度维护与授权强退_接口事件》的接口定义方式，说明 multicall 的 ABI、参数、返回值、调用权限、calldata 构建及后台验收方式，并以批量调用 unwindPositionByTsv 为例。
 
 核对日期：2026-10-21。依据当前本地源码及编译产物；仓库 HEAD 为 bcdace150aadd84c1215437e64f857e6975ed26e，工作区存在其他未提交改动。本次未核对线上代理的实际 implementation，未发送链上交易。示例 tokenId 123、456 仅用于编码演示。
 

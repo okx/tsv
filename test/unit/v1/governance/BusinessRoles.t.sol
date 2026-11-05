@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {FoundationFixture} from "../../../helpers/v1/FoundationFixture.sol";
+import {PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 /// @dev TSVBusinessRolesTest scenarios; inherited fixtures contain no test functions.
@@ -15,9 +16,9 @@ contract TSVBusinessRolesTest is FoundationFixture {
         vm.expectRevert(
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0))
         );
-        registry.setTierPolicy(2, 1, bytes32("TEST"));
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         vm.prank(next);
-        registry.setTierPolicy(2, 1, bytes32("TEST"));
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
     }
 
     function testDefaultAdminCanBeRevokedAndRenounced() public {
@@ -82,15 +83,17 @@ contract TSVBusinessRolesTest is FoundationFixture {
         vm.expectRevert(denied);
         registry.revokeRole(role, council);
         vm.expectRevert(denied);
-        registry.setTierPolicy(2, 1, bytes32("TEST"));
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         vm.startPrank(next);
         registry.grantRole(role, guardian);
         registry.revokeRole(role, council);
-        registry.setTierPolicy(2, 1, bytes32("TEST"));
+        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         vm.stopPrank();
         assertTrue(registry.hasRole(role, guardian));
         assertFalse(registry.hasRole(role, council));
         // An explicitly granted business role survives admin transfer independently.
         assertTrue(registry.hasRole(role, address(this)));
+        registry.setTierPolicy(2, 1, bytes32("TEST"));
+        assertEq(registry.getTierPolicy(2).maxListed, 1);
     }
 }

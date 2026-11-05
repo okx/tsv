@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -31,8 +31,7 @@ contract AddLiquidityTSV is Script {
         uint256 privateKey = vm.envUint("XLAYER_PRIVATE_KEY");
         address owner = vm.addr(privateKey);
         require(
-            owner == vm.envOr("TSV_LIQUIDITY_EXPECTED_OWNER", owner),
-            "signing wallet differs from expected LP owner"
+            owner == vm.envOr("TSV_LIQUIDITY_EXPECTED_OWNER", owner), "signing wallet differs from expected LP owner"
         );
         address currency0Address = vm.envAddress("TSV_CURRENCY0");
         address currency1Address = vm.envAddress("TSV_CURRENCY1");
@@ -95,9 +94,8 @@ contract AddLiquidityTSV is Script {
 
         uint160 sqrtLower = TickMath.getSqrtPriceAtTick(tickLower);
         uint160 sqrtUpper = TickMath.getSqrtPriceAtTick(tickUpper);
-        uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
-            sqrtPriceX96, sqrtLower, sqrtUpper, amount0Max, amount1Max
-        );
+        uint128 liquidity =
+            LiquidityAmounts.getLiquidityForAmounts(sqrtPriceX96, sqrtLower, sqrtUpper, amount0Max, amount1Max);
         require(liquidity != 0, "liquidity rounds to zero");
 
         PoolKey memory pool = PoolKey(
@@ -108,9 +106,7 @@ contract AddLiquidityTSV is Script {
             IHooks(hookAddress)
         );
         bytes[] memory params = new bytes[](2);
-        params[0] = abi.encode(
-            pool, tickLower, tickUpper, uint256(liquidity), amount0Max, amount1Max, owner, bytes("")
-        );
+        params[0] = abi.encode(pool, tickLower, tickUpper, uint256(liquidity), amount0Max, amount1Max, owner, bytes(""));
         params[1] = abi.encode(pool.currency0, pool.currency1);
 
         console2.log("XLayer chainId:", block.chainid);

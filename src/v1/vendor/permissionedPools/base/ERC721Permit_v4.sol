@@ -100,8 +100,7 @@ abstract contract ERC721Permit_v4 is ERC721, IERC721Permit_v4, EIP712_v4, Unorde
     }
 
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
-        return
-            spender == ownerOf(tokenId) || _tokenApprovals[tokenId] == spender
-                || _operatorApprovals[ownerOf(tokenId)][spender];
+        return spender == ownerOf(tokenId) || _tokenApprovals[tokenId] == spender
+            || _operatorApprovals[ownerOf(tokenId)][spender];
     }
 }

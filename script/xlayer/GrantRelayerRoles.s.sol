@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -24,8 +24,7 @@ contract GrantRelayerRoles is Script {
         require(admin != address(0), "zero admin");
         require(registryAddress.code.length != 0, "Registry has no code");
         require(
-            IRelayerRegistryBound(vm.envAddress("TSV_LEDGER")).registry() == registryAddress,
-            "Ledger Registry mismatch"
+            IRelayerRegistryBound(vm.envAddress("TSV_LEDGER")).registry() == registryAddress, "Ledger Registry mismatch"
         );
         require(
             IRelayerRegistryBound(vm.envAddress("TSV_LP_MANAGER")).registry() == registryAddress,

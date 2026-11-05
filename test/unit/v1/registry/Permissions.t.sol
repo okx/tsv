@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {PermissionFlag, PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
@@ -84,7 +84,7 @@ contract TSVOperationsPermissionsTest is FoundationFixture {
         address operator = makeAddr("business-only");
         registry.grantRole(registry.SYMBOL_ADMIN_ROLE(), operator);
         registry.grantRole(registry.EMERGENCY_PAUSER_ROLE(), operator);
-        vm.expectRevert(_denied(operator, 0));
+        // A symbol operator may set tiers but receives no default-admin or oracle authority.
         vm.prank(operator);
         registry.setTierPolicy(2, 1, bytes32("TEST"));
         vm.expectRevert(_denied(operator, 0));
@@ -94,7 +94,7 @@ contract TSVOperationsPermissionsTest is FoundationFixture {
         vm.prank(operator);
         ledger.setQuota(SECURITY, 100e18, bytes32("TEST"));
         assertEq(ledger.Quota(SECURITY), 0);
-        assertEq(registry.getTierPolicy(2).maxListed, 0);
+        assertEq(registry.getTierPolicy(2).maxListed, 1);
         assertEq(registry.sbtTokenIds().length, 0);
     }
 

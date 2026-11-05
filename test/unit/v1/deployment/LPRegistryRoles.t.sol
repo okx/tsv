@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {
@@ -31,7 +31,11 @@ contract LPRegistryRolesTest is LPLinkedFixture {
         lp.initializePool(key, uint160(1 << 96));
 
         TSVRegistryV1(registry).grantRole(role, address(this));
-        vm.mockCall(registry, abi.encodeCall(ITSVPermissionedRegistry.registerPool, (key)), abi.encode(bytes32(0)));
+        vm.mockCall(
+            registry,
+            abi.encodeWithSelector(ITSVPermissionedRegistry.registerPool.selector, key),
+            abi.encode(bytes32(0))
+        );
         vm.mockCall(
             address(manager), abi.encodeCall(IPoolManager.initialize, (key, uint160(1 << 96))), abi.encode(int24(0))
         );

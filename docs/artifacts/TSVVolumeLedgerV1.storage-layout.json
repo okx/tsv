@@ -1,15 +1,13 @@
 {
   "storage": [
     {
-      "astId": 7614,
       "contract": "src/v1/core/TSVVolumeLedgerV1.sol:TSVVolumeLedgerV1",
       "label": "registry",
       "offset": 0,
       "slot": "0",
-      "type": "t_contract(TSVRegistryV1)7567"
+      "type": "t_contract(TSVRegistryV1)"
     },
     {
-      "astId": 7619,
       "contract": "src/v1/core/TSVVolumeLedgerV1.sol:TSVVolumeLedgerV1",
       "label": "Quota",
       "offset": 0,
@@ -17,7 +15,6 @@
       "type": "t_mapping(t_bytes32,t_uint256)"
     },
     {
-      "astId": 7625,
       "contract": "src/v1/core/TSVVolumeLedgerV1.sol:TSVVolumeLedgerV1",
       "label": "usedWad",
       "offset": 0,
@@ -31,7 +28,7 @@
       "label": "bytes32",
       "numberOfBytes": "32"
     },
-    "t_contract(TSVRegistryV1)7567": {
+    "t_contract(TSVRegistryV1)": {
       "encoding": "inplace",
       "label": "contract TSVRegistryV1",
       "numberOfBytes": "20"

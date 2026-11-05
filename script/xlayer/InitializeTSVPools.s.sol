@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {Script} from "forge-std/Script.sol";
@@ -8,12 +8,7 @@ import {PoolKey as CorePoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {IHooks as CoreHooks} from "v4-core/interfaces/IHooks.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
-import {
-    Currency,
-    PoolKey as LPManagerPoolKey,
-    IHooks,
-    TSVLPManagerV1
-} from "tsv-v1/periphery/TSVLPManagerV1.sol";
+import {Currency, PoolKey as LPManagerPoolKey, IHooks, TSVLPManagerV1} from "tsv-v1/periphery/TSVLPManagerV1.sol";
 import {QuoteTokenRecord, UnderlyingRecord, SecurityRecord} from "tsv-v1/types/TSVTypes.sol";
 
 /// @notice Registers and initializes a configured list of TSV W/Q pools atomically, one pool per transaction.
@@ -81,7 +76,9 @@ contract InitializeTSVPools is Script {
             );
             bytes32 poolId = PoolId.unwrap(key.toId());
             require(!registry.isKnownPool(poolId), "pool key is already registered");
-            for (uint256 j; j < i; ++j) require(poolIds[j] != poolId, "duplicate pool key in list");
+            for (uint256 j; j < i; ++j) {
+                require(poolIds[j] != poolId, "duplicate pool key in list");
+            }
 
             // forge-lint: disable-next-line(unsafe-typecast)
             prices[i] = uint160(sqrtPriceRaw);
@@ -100,7 +97,9 @@ contract InitializeTSVPools is Script {
         console2.log("LP Manager:", address(lpManager));
         console2.log("Pool creator:", creator);
         vm.startBroadcast(privateKey);
-        for (uint256 i; i < count; ++i) lpManager.initializePool(_toLPManagerKey(keys[i]), prices[i]);
+        for (uint256 i; i < count; ++i) {
+            lpManager.initializePool(_toLPManagerKey(keys[i]), prices[i]);
+        }
         vm.stopBroadcast();
     }
 

@@ -1,0 +1,24 @@
+# Paths preserved from the pre-merge operations HEAD when syncing a public release.
+.agents
+archive
+outputs
+docs/operations
+docs/operations-validation-20261102.json
+docs/deployments/tsv-mcp
+docs/assets/tsv-sbt-enforcement-excerpt.png
+docs/TSV_FACTORY_MIGRATION_UPGRADE_GUIDE.md
+deployment/prod/contracts
+deployment/prod/releases
+deployment/pre/chain-snapshot.json
+deployment/prod/chain-snapshot.json
+script/TSVProtocol.s.sol
+script/TSV_PROTOCOL_README.md
+script/UpgradePermissionsFactory.s.sol
+script/XLayerMainnetLPTransactions20261014.s.sol
+script/XLayerMainnetSmoke20261014.s.sol
+script/complete-local-deployment.py
+script/lib
+script/tsv-protocol.py
+script/tsv-aa-offline.py
+script/tsv-offline-transaction.py
+script/xlayer/deployment.json

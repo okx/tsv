@@ -40,6 +40,6 @@ ERC-8056 是代币接口标准，不是某个特定代币或源码仓库。这�
 
 该 EIP 目前仍为 Draft。通过本地测试代币的接口检查，不能证明发行方 multiplier 是经批准的法律股数公式；该标准本身也不保证转账两侧余额变化精确或发行方权限安全。此合约没有部署，因此没有链上地址映射。
 
-[`TSVProtocolLocal.t.sol`](../../test/integration/local/TSVProtocolLocal.t.sol) 将该代币作为标准股票测试资产（本地符号 `STDx`），配合普通 `V1LocalERC20` 报价币测试双向 V4 Swap、LP 加仓/减仓、强退和 multiplier 变化。测试检查 multiplier 只改变 UI/法律股数换算，不改变 raw 结算；旧 `TSLAx → wTSLAx` 包装结算路径另有负向用例，确认不会被准入。
+当前本地 TSV 集成测试位于 [test/integration/local/trading/](../../test/integration/local/trading/)，使用可配置的发行方、Underlying 和 SBT 测试替身。测试结果不代表任何真实发行方资产已通过准入。
 
-TSV 侧的配置、股数换算及生产准入边界见[ERC-8056 代币实例规格](../../docs/ERC8056_INTEGRATION.md)。
+生产资产的法律股数换算与准入边界见 [Token 准入标准](../../docs/TOKEN_ADMISSION_STANDARD_V1.md) 和 [ERC8056DirectLegalShareAdapter](../../src/v1/adapters/ERC8056DirectLegalShareAdapter.sol)。

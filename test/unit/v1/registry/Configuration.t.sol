@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 import {PermissionFlag, PermissionFlags} from "tsv-v1/vendor/permissionedPools/libraries/PermissionFlags.sol";
@@ -66,18 +66,15 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
     function testInvalidIdentityRegistrationAndUpdateAreAtomic() public {
         OperationsSbt good = identitySbt;
         good.setFailVerify(true);
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        // Configuration is administrative and does not probe individual SBT IDs.
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
-        assertEq(address(registry.participantSbt()), address(good));
-        assertEq(registry.sbtTokenIds().length, 0);
-        good.setFailVerify(false);
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
-        good.setFailVerify(true);
         vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
+        registry.setSbtConfig(8, PermissionFlag.wrap(bytes2(uint16(4))), bytes32("TEST"));
+        assertEq(registry.sbtTokenIds().length, 1);
+        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
+        registry.setSbtConfig(7, PermissionFlag.wrap(bytes2(uint16(4))), bytes32("TEST"));
         _assertConfig(7, true, true);
         assertEq(address(registry.participantSbt()), address(good));
-        assertEq(registry.sbtTokenIds().length, 1);
         // Removal does not depend on a live SBT verification call.
         registry.setSbtConfig(7, PermissionFlags.NONE, bytes32("TEST"));
         (bool removedRegistered,) = registry.sbtIdentityConfig(7);
@@ -87,18 +84,21 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
 
     function testSbtConfigurationAndUpdateEventsWithMalformedReadsAtomic() public {
         OperationsSbt credential = identitySbt;
+        address owner = makeAddr("malformed-holder");
         bytes[3] memory malformed = [bytes(hex""), bytes(hex"01"), abi.encode(uint256(2))];
         for (uint256 i; i < malformed.length; ++i) {
             vm.mockCall(address(credential), abi.encodeWithSelector(ISmartWalletSbtV1.verify.selector), malformed[i]);
-            vm.expectRevert();
+            vm.expectEmit(true, true, false, true, address(registry));
+            emit TSVRegistryV1.SbtConfigChanged(address(credential), 7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
             registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
-            assertEq(address(registry.participantSbt()), address(credential));
-            assertEq(registry.sbtTokenIds().length, 0);
+            vm.expectRevert();
+            registry.hasCredential(owner);
+            vm.expectRevert();
+            registry.permissionsOf(owner);
+            _assertConfig(7, true, false);
+            assertEq(registry.sbtTokenIds().length, 1);
             vm.clearMockedCalls();
         }
-        vm.expectEmit(true, true, false, true, address(registry));
-        emit TSVRegistryV1.SbtConfigChanged(address(credential), 7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
-        registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED, bytes32("TEST"));
         credential.setPaused(true);
         vm.expectEmit(true, true, false, true, address(registry));
         emit TSVRegistryV1.SbtConfigChanged(address(credential), 7, PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
@@ -112,11 +112,9 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
         registry.setSbtConfig(7, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         bytes memory makerConfigCall = abi.encodeCall(ISmartWalletSbtV1.verify, (address(registry), 8));
         vm.mockCallRevert(address(credential), makerConfigCall, "marketmaker unavailable");
-        vm.expectRevert(TSVRegistryV1.InvalidConfig.selector);
         registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
-        assertEq(registry.sbtTokenIds().length, 1);
+        assertEq(registry.sbtTokenIds().length, 2);
         vm.clearMockedCalls();
-        registry.setSbtConfig(8, PermissionFlags.SWAP_ALLOWED | PermissionFlags.LIQUIDITY_ALLOWED, bytes32("TEST"));
         address owner = makeAddr("holder");
         credential.setCredential(owner, 7, true);
         for (uint256 id = 7; id <= 8; ++id) {
@@ -127,6 +125,8 @@ contract TSVOperationsConfigurationTest is FoundationFixture {
             registry.permissionsOf(owner);
             vm.clearMockedCalls();
         }
+        assertEq(registry.sbtTokenIds().length, 2);
+        assertTrue(registry.hasCredential(owner));
     }
 
     function testIdentityQueriesRecognizeOnlyRegisteredIdsAndWorkWhilePaused() public {
