@@ -7,6 +7,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVSwapRouterV1} from "tsv-v1/periphery/TSVSwapRouterV1.sol";
 import {SwapRequest, UnderlyingRecord, QuoteTokenRecord} from "tsv-v1/types/TSVTypes.sol";
@@ -121,6 +122,8 @@ contract TradeTSV is Script {
 
         console2.log("Actual input (raw):", actualIn);
         console2.log("Actual output (raw):", actualOut);
+        (uint160 postSwapSqrtPriceX96,,,) = StateLibrary.getSlot0(router.poolManager(), PoolId.wrap(poolId));
+        console2.log("Post-swap sqrtPriceX96:", uint256(postSwapSqrtPriceX96));
     }
 
     function _approve(address token, address spender, uint256 amount) private {

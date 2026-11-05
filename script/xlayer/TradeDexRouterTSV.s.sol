@@ -73,7 +73,7 @@ contract TradeDexRouterTSV is Script {
         console2.log("DexRouter returned (raw):", amountOut);
     }
 
-    function _readConfig(address trader) private view returns (TradeConfig memory c) {
+    function _readConfig(address trader) internal view returns (TradeConfig memory c) {
         c.dexRouter = vm.envAddress("DEX_ROUTER");
         c.tokenApprove = vm.envAddress("DEX_TOKEN_APPROVE");
         c.approveProxy = vm.envAddress("DEX_TOKEN_APPROVE_PROXY");
@@ -150,7 +150,7 @@ contract TradeDexRouterTSV is Script {
     }
 
     function _paths(TradeConfig memory c, bytes memory moreInfo)
-        private
+        internal
         pure
         returns (IDexRouter.RouterPath[] memory paths)
     {
