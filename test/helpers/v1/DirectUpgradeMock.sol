@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
