@@ -111,7 +111,7 @@ Public preproduction and production address inventories are maintained in [`depl
 
 ## Source availability and license
 
-First-party TSV code is intended to use BUSL-1.1, a source-available license that is not an Open Source license during its BUSL period. The [LICENSE](LICENSE) Parameters are an explicitly unfinished draft pending the rights holder, additional grant, change date and conversion license. Complete them before publication; see [publication boundaries](docs/PUBLICATION.md). Third-party licenses remain unchanged; see [licensing status](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+The TSV V1 core contracts (first-party Solidity under `src/v1`, excluding `src/v1/vendor`) are licensed under [BUSL-1.1](LICENSE), a source-available license that is not an Open Source license during its BUSL period. They convert to GPL-2.0-or-later on 2029-11-06. Third-party licenses remain unchanged; see [licensing status](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## External contracts
 

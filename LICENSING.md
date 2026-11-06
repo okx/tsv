@@ -1,7 +1,10 @@
 # Licensing status
 
-BUSL-1.1 is the intended license for first-party TSV files. The repository-level LICENSE is a DRAFT: the Licensor, Additional Use Grant, Change Date and Change License remain to be completed by the rights holder before publication. Do not treat this draft as a finalized production-use grant.
+| Scope | License |
+| --- | --- |
+| TSV V1 core contracts: first-party Solidity under `src/v1`, excluding `src/v1/vendor` | BUSL-1.1, see [LICENSE](LICENSE) |
+| Third-party components, including `src/v1/vendor` | Their original licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) |
 
-First-party Solidity under src/v1 (excluding vendor), tests and scripts uses BUSL-1.1 identifiers. The first-party Python SDK and documentation fall within the same intended scope. SPDX labels do not remove the need to finalize the Parameters.
+The BUSL-1.1 Parameters are: Licensor OKX Technology Inc.; no Additional Use Grant; Change Date 2029-11-06; Change License GPL-2.0-or-later. Until the Change Date, BUSL-1.1 is a source-available license and not an Open Source license; production use of the core contracts requires a license from the Licensor. Existing contractual arrangements with the Licensor apply according to their terms.
 
-Existing third-party files keep their original licenses and copyright notices. Prior releases and third-party grants are not retroactively relicensed by this draft. See THIRD_PARTY_NOTICES.md.
+Each file's SPDX identifier states its license. Third-party files keep their original licenses and copyright notices, and are not relicensed by the root LICENSE.

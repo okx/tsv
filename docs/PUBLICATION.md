@@ -10,7 +10,7 @@ The CLI requires an explicit deployment JSON and the SDK requires `deployment_fi
 
 ## License status
 
-BUSL-1.1 is the intended first-party license; it is source-available and is not an Open Source license during its BUSL period. The user-approved draft retains four pending Parameters: Licensor, Additional Use Grant, Change Date and Change License. Complete those before public release. Third-party licenses and earlier grants remain unchanged; the [component notices](../THIRD_PARTY_NOTICES.md) explicitly include retained AGPL dependencies. Source cleanup does not settle any outstanding license compatibility or redistribution review.
+The TSV V1 core contracts use BUSL-1.1, a source-available license that is not an Open Source license during its BUSL period. See [licensing status](../LICENSING.md) for the scope and Parameters. Third-party licenses and earlier grants remain unchanged; the [component notices](../THIRD_PARTY_NOTICES.md) explicitly include retained AGPL dependencies. Source cleanup does not settle any outstanding license compatibility or redistribution review.
 
 ## Deferred history work
 
