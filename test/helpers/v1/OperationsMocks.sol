@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
 /// @dev Credential fixture distinguishes IDs; fault injection is confined to its view selectors.
