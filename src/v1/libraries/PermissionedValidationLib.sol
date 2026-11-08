@@ -89,6 +89,8 @@ library PermissionedValidationLib {
         bytes4 invalidSelector = InvalidPermissionedConfig.selector;
         assembly ("memory-safe") {
             let ptr := mload(0x40)
+            // Allocate two words for the selector and optional argument.
+            mstore(0x40, add(ptr, 0x40))
             mstore(ptr, selector)
             mstore(add(ptr, 4), argument)
             let ok := staticcall(gas(), target, ptr, inputLength, 0, 32)
