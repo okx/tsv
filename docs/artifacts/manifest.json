@@ -37,7 +37,7 @@
     "src/v1/interfaces/ITSVLPUnwindContext.sol": "b11d4ad9b8fe08817d23bdfeca2366528a30126f46288faa19709c2125629929",
     "src/v1/interfaces/ITSVPermissionedRegistry.sol": "ff3013eda635637c7e2cca77350f76a584886d6cc8d4c5f5369863ec9487ed7a",
     "src/v1/interfaces/external/ITSVDEXAdapter.sol": "5aa17ab230c8d99711d6a5ad679ac671ed9209752381cec36176a4be07270b2d",
-    "src/v1/libraries/PermissionedValidationLib.sol": "a6dc26069591573b9711c82e599c103bbef43077df54d7127f76981fb5069f98",
+    "src/v1/libraries/PermissionedValidationLib.sol": "4cbb51c4ed10bdc01af64d2fc52096d733de43e56a0a6b90db7bf8262ebac906",
     "src/v1/libraries/TSVLPManagerLib.sol": "abfbd167ecdcc180cf74bb6cf029d32208d15361e6f57a78a7e17562767f7a3a",
     "src/v1/libraries/TSVPermissionedSettlementLib.sol": "a6c0a2834cf59ecaee805f31671212833ac51e964767b07926ce701f0966add7",
     "src/v1/periphery/TSVLPManagerV1.sol": "c4a06597447c945976ff3edf6ba61ee937c4d96c67f883d074442bdbd4c24b39",
