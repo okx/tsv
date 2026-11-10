@@ -7,17 +7,20 @@ License text copyright (c) 2017 MariaDB Corporation Ab, All Rights Reserved.
 
 Parameters
 
-Licensor:             [TO BE COMPLETED: legal rights holder]
+Licensor:             OKX Technology Inc.
 
-Licensed Work:        TSV first-party source code, scripts, SDK and documentation.
-                      Third-party components retain their own licenses; see
+Licensed Work:        TSV V1 Core Contracts
+                      The Licensed Work is (c) 2026 OKX Technology Inc.
+                      The Licensed Work comprises the first-party Solidity files
+                      under src/v1, excluding src/v1/vendor. Third-party
+                      components retain their own licenses; see
                       THIRD_PARTY_NOTICES.md.
 
-Additional Use Grant: [TO BE COMPLETED]
+Additional Use Grant: None
 
-Change Date:          [TO BE COMPLETED]
+Change Date:          2029-11-06
 
-Change License:       [TO BE COMPLETED]
+Change License:       GNU General Public License v2.0 or later
 
 -----------------------------------------------------------------------------
 

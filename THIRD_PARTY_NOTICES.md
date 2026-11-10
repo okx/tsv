@@ -1,6 +1,6 @@
 # Third-party components
 
-The first-party BUSL-1.1 draft does not replace third-party licenses.
+The first-party BUSL-1.1 license does not replace third-party licenses.
 
 | Component | Source/version | License and retained notices |
 | --- | --- | --- |
@@ -16,4 +16,4 @@ The first-party BUSL-1.1 draft does not replace third-party licenses.
 
 Finalize license compatibility and any required authorizations before distribution. External SBT, DEX adapters and issuer checkers are integrated through contract addresses and ABI boundaries; their implementations are not relicensed or bundled as private dependencies.
 
-Solmate dependencies remain in the issuer PermissionsAdapter path. Their AGPL-3.0-only notices remain applicable; the first-party BUSL draft does not grant alternate terms for them. Independently sourced development skills are maintained on the operations branch rather than redistributed as TSV first-party code.
+Solmate dependencies remain in the issuer PermissionsAdapter path. Their AGPL-3.0-only notices remain applicable; the first-party BUSL-1.1 license does not grant alternate terms for them. Independently sourced development skills are maintained on the operations branch rather than redistributed as TSV first-party code.
