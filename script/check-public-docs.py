@@ -36,7 +36,7 @@ for name in sorted(set(paths)):
         continue  # Staged deletions and gitlinks have no document body.
     if any(name == pattern or name.startswith(pattern + "/") or fnmatch.fnmatchcase(name, pattern)
            for pattern in OPERATIONS_ONLY):
-        errors.append(f"{name}: operations-only content must stay on ops/deployment")
+        errors.append(f"{name}: content is excluded from public distribution")
     if name.startswith(VENDORED) or path.suffix not in (".md", ".html", ".svg"):
         continue
     for number, line in enumerate(path.read_text().splitlines(), 1):

@@ -93,31 +93,19 @@
     "TSV_DEX_ADAPTER": "0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0"
   },
   "deploymentChannels": {
-    "MCP": "Core libraries, factories, implementations, four business proxies and six LegalShareAdapters; see archived process manifests on ops/deployment.",
     "TSVHookV1Proxy": {
-      "channel": "USER_MANUAL_FACTORY_CALL",
+      "channel": "FACTORY_CREATE2",
       "transactionHash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501"
-    }
+    },
+    "EOA_CREATE": "Core libraries, factories, implementations, four business proxies and LegalShareAdapters."
   },
   "sources": [],
   "notes": [
     "Initial deployment source is a8bfc93; newer main commits do not imply a production upgrade.",
-    "Hook proxy is included in the address catalog even though it was not deployed through MCP.",
+    "Hook proxy was deployed through Factory CREATE2; its creation transaction is recorded in deploymentChannels.",
     "The three duplicate adapters succeeded on chain but are recorded as unused; token and external adapter entries reflect historical records.",
     "Core proxies were upgraded on 2026-11-16 to the recorded currentCoreSourceCommit. releaseBranch identifies the initial release branch; the V0.0.2 branch and tag remain pending publication."
   ],
-  "archivedSources": {
-    "branch": "ops/deployment",
-    "commit": "298ee17bd657a7fb57106b19c3a0a24628226320",
-    "pathsRelativeTo": "deployment/prod/addresses.json",
-    "paths": [
-      "chain-snapshot.json",
-      "../../docs/deployments/tsv-mcp/runs/20261030-legal-share-adapters/manifest.json",
-      "../../outputs/production-w-readiness-20261102/chain-snapshot.json",
-      "../../outputs/tsv-operation-history-20261030/state-at-snapshot.json",
-      "releases/20261029-mcp-addresses.json"
-    ]
-  },
   "currentCoreSourceCommit": "423de5c4b422abd57d0ceacf18aafb60229bcbd1",
   "upgradeHistory": [
     {
