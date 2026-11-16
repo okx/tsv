@@ -2,6 +2,8 @@
 
 所有环境的合约地址清单统一放在本目录：
 
+生产核心组件已于 2026-11-16 完成本次代理升级。`prod/addresses.json` 的 `currentCoreSourceCommit` 标识当前核心源码基线，`implementations` / `libraries` 为核验区块的生效地址，`upgradeHistory` 保留前后地址和升级交易。`initialDeploymentCommit` 及旧 `releaseBranch` 字段描述初始发布，不代表后续版本已创建对应 Tag。版本变化及发布准备状态见 [V0.0.2 发布说明](../docs/releases/V0.0.2.md)。
+
 | 环境 | 地址清单 | 核验依据 |
 | --- | --- | --- |
 | pre（X Layer 主网预发） | [pre/addresses.json](pre/addresses.json) | `archivedSources` 中的固定区块快照 |
