@@ -25,18 +25,18 @@ lib/dexrouter/
 dployment/aa/
 dployment/history/
 
-# Internal operation artifacts are maintained on ops/deployment.
+# Generated execution artifacts.
 /outputs/
 /docs/deployments/tsv-mcp/
 /.agents/
 
-# Historical deployment metadata is archived on ops/deployment.
+# Generated deployment metadata.
 /deployment/prod/contracts/
 /deployment/pre/chain-snapshot.json
 /deployment/prod/chain-snapshot.json
 /deployment/prod/releases/
 
-# Archived internal workflows and session-specific artifacts.
+# Non-distribution tooling and local execution artifacts.
 /archive/
 /docs/operations/
 /docs/operations-validation-*.json

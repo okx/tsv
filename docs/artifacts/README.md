@@ -9,6 +9,6 @@ make artifacts-check  # fail if checked-in snapshots differ from the current bui
 
 Storage snapshots support review; they do not prove upgrade compatibility. Compare layouts against the actual deployed implementation and the project's upgrade policy. These snapshots also do not record linked library addresses, constructor immutables, compiler metadata, deployed addresses, or target-chain state; preserve those in a release record separately.
 
-`manifest.json` records compiler settings and source/artifact SHA-256 values. Historical production deployment ABIs are archived under `deployment/prod/contracts/` on `ops/deployment` at commit `298ee17bd657a7fb57106b19c3a0a24628226320`; they are not distributed with main or overwritten by this command.
+`manifest.json` records compiler settings and source/artifact SHA-256 values. For a deployed version, use the ABI and layout produced from that exact source and build configuration.
 
 Storage snapshots omit AST IDs and normalize compiler-assigned struct/enum/contract/value-type IDs so incremental compilation does not create irrelevant drift. Slot, offset, member, encoding, byte-size and type-shape information is retained.

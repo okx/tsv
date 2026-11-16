@@ -17,7 +17,7 @@ RPC：`https://rpc.xlayer.tech`
 
 ## SecuritizeTSVChecker
 
-这是外部发行方 checker 的地址记录，不表示 main 提供其可独立部署的实现。本仓库核心合约通过公开 checker 接口集成；依赖额外发行方接口的独立实现保留在运维分支，不进入 TSV 默认构建。
+这是外部发行方 checker 的地址记录，不表示 main 提供其可独立部署的实现。本仓库核心合约通过公开 checker 接口集成，TSV 默认构建不依赖发行方实现源码。
 
 以下地址由请求方提供；它不是上述 4 个 Token service ID 的读取结果。对其 EIP-1967 implementation slot 做了只读核对：
 
