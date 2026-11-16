@@ -4,7 +4,7 @@ The operator runs parameterized Foundry scripts for an explicitly chosen TSV dep
 
 ## Configuration and use
 
-Copy [deployment.example.json](deployment.example.json) to the ignored `script/xlayer/deployment.local.json` or a file outside the repository, replace every placeholder and review the target addresses. The SDK rejects unfilled placeholders. Use the public [address catalogs](../../deployment/README.md) only as references; confirm the intended release and live bindings before use. Historical live operator configurations and session-specific tools belong to `ops/deployment`.
+Copy [deployment.example.json](deployment.example.json) to the ignored `script/xlayer/deployment.local.json` or a file outside the repository, replace every placeholder and review the target addresses. The SDK rejects unfilled placeholders. Use the public [address catalogs](../../deployment/README.md) only as references; confirm the intended release and live bindings before use.
 
 ```sh
 python3 script/xlayer/operate.py --deployment /path/to/reviewed-deployment.json
