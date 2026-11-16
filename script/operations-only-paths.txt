@@ -22,3 +22,6 @@ script/tsv-protocol.py
 script/tsv-aa-offline.py
 script/tsv-offline-transaction.py
 script/xlayer/deployment.json
+
+# Issuer-owned integration source requiring separate issuer interfaces.
+src/v1/vendor/SecuritizeTSVChecker.sol
