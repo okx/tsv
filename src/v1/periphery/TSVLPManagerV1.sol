@@ -51,20 +51,6 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     error IncompatibleImplementation();
     error WithdrawClaimForbidden();
 
-    /// @notice Emitted after each successful LP position modification.
-    /// @dev Amount deltas are principal only, exclude accrued fees, and use PoolManager delta signs.
-    event PositionLiquidityModified(
-        bytes32 indexed poolId,
-        address indexed account,
-        uint256 indexed nftId,
-        int24 currentTick,
-        int24 tickLower,
-        int24 tickUpper,
-        int256 liquidityDelta,
-        int256 amount0Delta,
-        int256 amount1Delta
-    );
-
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
     bytes32 public constant FORCE_EXIT_ADMIN_ROLE = keccak256("FORCE_EXIT_ADMIN_ROLE");
