@@ -16,7 +16,7 @@ import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {ITSVLPUnwindContext} from "tsv-v1/interfaces/ITSVLPUnwindContext.sol";
-import {PoolRecord} from "tsv-v1/types/TSVTypes.sol";
+import {PoolRecord, PriceBandUpdate} from "tsv-v1/types/TSVTypes.sol";
 
 /// @notice Upgradeable hook whose proxy address carries the V4 permission bits.
 contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
@@ -53,13 +53,6 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
     error InvalidPriceBand(bytes32 poolId);
     /// @dev Reverts when an in-window post-swap tick is outside the configured inclusive band.
     error PriceOutsideBand(bytes32 poolId, int24 postSwapTick, int24 lowerTick, int24 upperTick);
-
-    struct PriceBandUpdate {
-        int24 lowerTick;
-        int24 upperTick;
-        uint48 startsAt;
-        uint48 endsAt;
-    }
 
     event PriceBandSet(
         bytes32 indexed poolId, int24 lowerTick, int24 upperTick, uint48 startsAt, uint48 endsAt

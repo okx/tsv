@@ -12,7 +12,7 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {BalanceDelta, toBalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
-import {PoolRecord, UnderlyingRecord, PoolLifecycle} from "tsv-v1/types/TSVTypes.sol";
+import {PoolRecord, UnderlyingRecord, PoolLifecycle, PriceBandUpdate} from "tsv-v1/types/TSVTypes.sol";
 import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 
@@ -195,8 +195,8 @@ contract PriceBandTest is Test {
     function testSetPriceBandsRejectsUnauthorizedWriterAndMismatchedArrays() public {
         bytes32[] memory poolIds = new bytes32[](1);
         poolIds[0] = poolId;
-        TSVHookV1.PriceBandUpdate[] memory updates = new TSVHookV1.PriceBandUpdate[](1);
-        updates[0] = TSVHookV1.PriceBandUpdate(LOWER, UPPER, START, END);
+        PriceBandUpdate[] memory updates = new PriceBandUpdate[](1);
+        updates[0] = PriceBandUpdate(LOWER, UPPER, START, END);
 
         registry.setWriterAuthorized(false);
         vm.expectRevert(TSVHookV1.UnauthorizedPriceBandWriter.selector);
@@ -211,9 +211,9 @@ contract PriceBandTest is Test {
     function testSetPriceBandsRejectsInvalidWindow() public {
         bytes32[] memory poolIds = new bytes32[](1);
         poolIds[0] = poolId;
-        TSVHookV1.PriceBandUpdate[] memory updates = new TSVHookV1.PriceBandUpdate[](1);
+        PriceBandUpdate[] memory updates = new PriceBandUpdate[](1);
 
-        updates[0] = TSVHookV1.PriceBandUpdate(LOWER, UPPER, END, START);
+        updates[0] = PriceBandUpdate(LOWER, UPPER, END, START);
         vm.expectRevert(abi.encodeWithSelector(TSVHookV1.InvalidPriceBand.selector, poolId));
         hook.setPriceBands(poolIds, updates);
 
@@ -244,9 +244,9 @@ contract PriceBandTest is Test {
         bytes32[] memory poolIds = new bytes32[](2);
         poolIds[0] = poolId;
         poolIds[1] = poolId;
-        TSVHookV1.PriceBandUpdate[] memory updates = new TSVHookV1.PriceBandUpdate[](2);
-        updates[0] = TSVHookV1.PriceBandUpdate(LOWER, UPPER, START, END);
-        updates[1] = TSVHookV1.PriceBandUpdate(LOWER, UPPER, END, START);
+        PriceBandUpdate[] memory updates = new PriceBandUpdate[](2);
+        updates[0] = PriceBandUpdate(LOWER, UPPER, START, END);
+        updates[1] = PriceBandUpdate(LOWER, UPPER, END, START);
 
         vm.expectRevert(abi.encodeWithSelector(TSVHookV1.InvalidPriceBand.selector, poolId));
         hook.setPriceBands(poolIds, updates);
@@ -258,8 +258,8 @@ contract PriceBandTest is Test {
     function _setBand(int24 lower, int24 upper, uint48 startsAt, uint48 endsAt) private {
         bytes32[] memory poolIds = new bytes32[](1);
         poolIds[0] = poolId;
-        TSVHookV1.PriceBandUpdate[] memory updates = new TSVHookV1.PriceBandUpdate[](1);
-        updates[0] = TSVHookV1.PriceBandUpdate(lower, upper, startsAt, endsAt);
+        PriceBandUpdate[] memory updates = new PriceBandUpdate[](1);
+        updates[0] = PriceBandUpdate(lower, upper, startsAt, endsAt);
         hook.setPriceBands(poolIds, updates);
     }
 

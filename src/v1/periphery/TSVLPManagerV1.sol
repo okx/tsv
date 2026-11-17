@@ -18,7 +18,7 @@ import {
 import {TSVLPManagerLib} from "../libraries/TSVLPManagerLib.sol";
 import {IStatusQuoter} from "../interfaces/IStatusQuoter.sol";
 import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.sol";
-import {PoolLifecycle} from "../types/TSVTypes.sol";
+import {PoolLifecycle, PositionLiquidityEventData} from "../types/TSVTypes.sol";
 import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
 import {ERC721Permit_v4} from "../vendor/permissionedPools/base/ERC721Permit_v4.sol";
 import {PositionManager} from "../vendor/permissionedPools/PositionManager.sol";
@@ -46,16 +46,6 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 
 contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionManager {
     using CalldataDecoder for bytes;
-
-    struct PositionLiquidityEventData {
-        PoolKey poolKey;
-        uint256 nftId;
-        int24 tickLower;
-        int24 tickUpper;
-        int256 liquidityDelta;
-        uint160 sqrtPriceX96;
-        int24 currentTick;
-    }
 
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error UnauthorizedUpgrade();
