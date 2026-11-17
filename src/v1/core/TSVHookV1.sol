@@ -5,6 +5,8 @@ import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
+import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
@@ -14,6 +16,7 @@ import {TSVRegistryV1} from "tsv-v1/core/TSVRegistryV1.sol";
 import {TSVVolumeLedgerV1} from "tsv-v1/core/TSVVolumeLedgerV1.sol";
 import {IDirectLegalShareAdapter} from "tsv-v1/interfaces/IDirectLegalShareAdapter.sol";
 import {ITSVLPUnwindContext} from "tsv-v1/interfaces/ITSVLPUnwindContext.sol";
+import {PoolRecord} from "tsv-v1/types/TSVTypes.sol";
 
 /// @notice Upgradeable hook whose proxy address carries the V4 permission bits.
 contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
@@ -42,12 +45,34 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
     error InvalidMultiplierSnapshot();
     /// @dev Reverts when the requested Hook callback is not supported.
     error UnsupportedCallback();
+    /// @dev Reverts when a price-band update caller lacks the existing VOLUME_ORACLE_ROLE.
+    error UnauthorizedPriceBandWriter();
+    /// @dev Reverts when pool IDs and updates do not have matching lengths.
+    error InvalidPriceBandBatchLength();
+    /// @dev Reverts when a pool or its price-band configuration is invalid.
+    error InvalidPriceBand(bytes32 poolId);
+    /// @dev Reverts when an in-window post-swap tick is outside the configured inclusive band.
+    error PriceOutsideBand(bytes32 poolId, int24 postSwapTick, int24 lowerTick, int24 upperTick);
+
+    struct PriceBandUpdate {
+        int24 lowerTick;
+        int24 upperTick;
+        uint48 startsAt;
+        uint48 endsAt;
+    }
+
+    event PriceBandSet(
+        bytes32 indexed poolId, int24 lowerTick, int24 upperTick, uint48 startsAt, uint48 endsAt
+    );
 
     IPoolManager public poolManager;
     TSVRegistryV1 public registry;
     TSVVolumeLedgerV1 public ledger;
     address public router;
     address public lpManager;
+
+    // Appended after existing proxy storage fields; do not reorder.
+    mapping(bytes32 poolId => PriceBandUpdate band) public priceBands;
 
     /// @dev Locks the implementation; proxy storage is initialized separately.
     constructor() {
@@ -225,11 +250,54 @@ contract TSVHookV1 is Initializable, UUPSUpgradeable, IHooks {
     ) external override onlyPoolManager returns (bytes4, int128) {
         if (sender != router) revert UnauthorizedCallback();
         _validateMultiplierSnapshot(key, _decodeMultiplierSnapshot(hookData));
-        bytes32 poolId = PoolId.unwrap(key.toId());
+        PoolId poolId = key.toId();
+        _checkPriceBand(poolId);
+        bytes32 poolIdBytes = PoolId.unwrap(poolId);
         uint256 shares0 = _sharesForLeg(Currency.unwrap(key.currency0), delta.amount0());
         uint256 shares1 = _sharesForLeg(Currency.unwrap(key.currency1), delta.amount1());
-        ledger.recordSwap(poolId, delta.amount0(), delta.amount1(), shares0, shares1);
+        ledger.recordSwap(poolIdBytes, delta.amount0(), delta.amount1(), shares0, shares1);
         return (IHooks.afterSwap.selector, 0);
+    }
+
+    /// @notice Atomically sets per-pool tick bands and their UTC Unix time windows.
+    /// @dev Uses the existing Registry VOLUME_ORACLE_ROLE; windows are active on [startsAt, endsAt).
+    function setPriceBands(bytes32[] calldata poolIds, PriceBandUpdate[] calldata updates) external {
+        if (!registry.hasRole(ledger.VOLUME_ORACLE_ROLE(), msg.sender)) revert UnauthorizedPriceBandWriter();
+        if (poolIds.length != updates.length) revert InvalidPriceBandBatchLength();
+
+        for (uint256 i; i < poolIds.length; ++i) {
+            bytes32 poolId = poolIds[i];
+            PriceBandUpdate calldata update = updates[i];
+            if (!_isValidPriceBand(poolId, update)) revert InvalidPriceBand(poolId);
+
+            priceBands[poolId] = update;
+            emit PriceBandSet(poolId, update.lowerTick, update.upperTick, update.startsAt, update.endsAt);
+        }
+    }
+
+    function _isValidPriceBand(bytes32 poolId, PriceBandUpdate calldata update) private view returns (bool) {
+        if (!registry.isKnownPool(poolId)) return false;
+        PoolRecord memory pool = registry.getPool(poolId);
+        int24 spacing = pool.key.tickSpacing;
+        if (address(pool.key.hooks) != address(this) || spacing < 1 || spacing > 32767) return false;
+        if (
+            update.lowerTick >= update.upperTick || update.lowerTick < TickMath.MIN_TICK
+                || update.upperTick > TickMath.MAX_TICK || update.startsAt >= update.endsAt
+        ) return false;
+        return true;
+    }
+
+    /// @dev Checks the transaction's post-swap tick only during the configured half-open time window.
+    function _checkPriceBand(PoolId poolId) private view {
+        bytes32 id = PoolId.unwrap(poolId);
+        PriceBandUpdate memory band = priceBands[id];
+        if (band.endsAt == 0) return;
+        if (block.timestamp < band.startsAt || block.timestamp >= band.endsAt) return;
+
+        (, int24 postSwapTick,,) = StateLibrary.getSlot0(poolManager, poolId);
+        if (postSwapTick < band.lowerTick || postSwapTick > band.upperTick) {
+            revert PriceOutsideBand(id, postSwapTick, band.lowerTick, band.upperTick);
+        }
     }
 
     /// @notice Rejects donations because TSV V1 exposes no donation operation.
