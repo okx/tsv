@@ -34,12 +34,28 @@ import {IUnorderedNonce} from "v4-periphery/interfaces/IUnorderedNonce.sol";
 import {INotifier} from "v4-periphery/interfaces/INotifier.sol";
 import {IMulticall_v4} from "v4-periphery/interfaces/IMulticall_v4.sol";
 import {PoolInitializer_v4} from "../vendor/permissionedPools/base/PoolInitializer_v4.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {SqrtPriceMath} from "@uniswap/v4-core/src/libraries/SqrtPriceMath.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {SafeCast} from "@uniswap/v4-core/src/libraries/SafeCast.sol";
+import {PositionInfo} from "v4-periphery/libraries/PositionInfoLibrary.sol";
+import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {IPoolInitializer_v4} from "v4-periphery/interfaces/IPoolInitializer_v4.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionManager {
     using CalldataDecoder for bytes;
+
+    struct PositionLiquidityEventData {
+        PoolKey poolKey;
+        uint256 nftId;
+        int24 tickLower;
+        int24 tickUpper;
+        int256 liquidityDelta;
+        uint160 sqrtPriceX96;
+        int24 currentTick;
+    }
 
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error UnauthorizedUpgrade();
@@ -50,6 +66,20 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     error PoolTickCountUpdateFailed();
     error IncompatibleImplementation();
     error WithdrawClaimForbidden();
+
+    /// @notice Emitted after each successful LP position modification.
+    /// @dev Amount deltas are principal only, exclude accrued fees, and use PoolManager delta signs.
+    event PositionLiquidityModified(
+        bytes32 indexed poolId,
+        address indexed account,
+        uint256 indexed nftId,
+        int24 currentTick,
+        int24 tickLower,
+        int24 tickUpper,
+        int256 liquidityDelta,
+        int256 amount0Delta,
+        int256 amount1Delta
+    );
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
@@ -350,7 +380,9 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
             action == Actions.MINT_POSITION || action == Actions.INCREASE_LIQUIDITY
                 || action == Actions.DECREASE_LIQUIDITY || action == Actions.BURN_POSITION
         ) {
+            PositionLiquidityEventData memory eventData = _positionLiquidityEventData(action, params);
             _handlePositionAction(action, params);
+            _emitPositionLiquidityModified(eventData);
             return;
         }
         _handleSettlementAction(action, params);
@@ -370,6 +402,75 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
         } else if (action == Actions.BURN_POSITION) {
             _updatePoolTickCount(poolKey, -1);
         }
+    }
+
+    /// @dev Wraps the existing PositionManager action dispatch so the event can be emitted without
+    ///      changing the vendored PositionManager implementation.
+    function _positionLiquidityEventData(uint256 action, bytes calldata params)
+        private
+        view
+        returns (PositionLiquidityEventData memory data)
+    {
+        if (action == Actions.MINT_POSITION) {
+            (
+                PoolKey calldata decodedPoolKey,
+                int24 decodedTickLower,
+                int24 decodedTickUpper,
+                uint256 liquidity,,,,
+            ) = params.decodeMintParams();
+            data.poolKey = decodedPoolKey;
+            data.nftId = nextTokenId;
+            data.tickLower = decodedTickLower;
+            data.tickUpper = decodedTickUpper;
+            data.liquidityDelta = SafeCast.toInt256(liquidity);
+        } else {
+            uint256 liquidity;
+            if (action == Actions.INCREASE_LIQUIDITY) {
+                (data.nftId, liquidity,,,) = params.decodeModifyLiquidityParams();
+                data.liquidityDelta = SafeCast.toInt256(liquidity);
+            } else if (action == Actions.DECREASE_LIQUIDITY) {
+                (data.nftId, liquidity,,,) = params.decodeModifyLiquidityParams();
+                data.liquidityDelta = -SafeCast.toInt256(liquidity);
+            } else {
+                (data.nftId,,,) = params.decodeBurnParams();
+                data.liquidityDelta = -SafeCast.toInt256(uint256(getPositionLiquidity(data.nftId)));
+            }
+
+            PositionInfo info;
+            (data.poolKey, info) = getPoolAndPositionInfo(data.nftId);
+            data.tickLower = info.tickLower();
+            data.tickUpper = info.tickUpper();
+        }
+
+        (data.sqrtPriceX96, data.currentTick,,) = StateLibrary.getSlot0(poolManager, data.poolKey.toId());
+    }
+
+    function _emitPositionLiquidityModified(PositionLiquidityEventData memory data) private {
+        int256 amount0Delta;
+        int256 amount1Delta;
+        int128 liquidityDelta128 = SafeCast.toInt128(data.liquidityDelta);
+        uint160 sqrtLowerX96 = TickMath.getSqrtPriceAtTick(data.tickLower);
+        uint160 sqrtUpperX96 = TickMath.getSqrtPriceAtTick(data.tickUpper);
+        if (data.currentTick < data.tickLower) {
+            amount0Delta = SqrtPriceMath.getAmount0Delta(sqrtLowerX96, sqrtUpperX96, liquidityDelta128);
+        } else if (data.currentTick < data.tickUpper) {
+            amount0Delta = SqrtPriceMath.getAmount0Delta(data.sqrtPriceX96, sqrtUpperX96, liquidityDelta128);
+            amount1Delta = SqrtPriceMath.getAmount1Delta(sqrtLowerX96, data.sqrtPriceX96, liquidityDelta128);
+        } else {
+            amount1Delta = SqrtPriceMath.getAmount1Delta(sqrtLowerX96, sqrtUpperX96, liquidityDelta128);
+        }
+
+        emit PositionLiquidityModified(
+            PoolId.unwrap(data.poolKey.toId()),
+            msgSender(),
+            data.nftId,
+            data.currentTick,
+            data.tickLower,
+            data.tickUpper,
+            data.liquidityDelta,
+            amount0Delta,
+            amount1Delta
+        );
     }
 
     /// @dev Explicit recipients are checked after resolving sentinels. CLOSE_CURRENCY and CLEAR_OR_TAKE
