@@ -16,17 +16,27 @@ import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.s
 import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
 import {PositionInfo} from "v4-periphery/libraries/PositionInfoLibrary.sol";
 import {ActionConstants} from "v4-periphery/libraries/ActionConstants.sol";
+import {PositionLiquidityEventData} from "../types/TSVTypes.sol";
 import {ISubscriber} from "v4-periphery/interfaces/ISubscriber.sol";
 import {INotifier} from "v4-periphery/interfaces/INotifier.sol";
 import {CustomRevert} from "../vendor/permissionedPools/base/Notifier.sol";
 import {TSVPermissionedSettlementLib} from "./TSVPermissionedSettlementLib.sol";
-import {PoolId} from "lib/v4-periphery/lib/v4-core/src/types/PoolId.sol";
+import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {Position} from "@uniswap/v4-core/src/libraries/Position.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {SqrtPriceMath} from "@uniswap/v4-core/src/libraries/SqrtPriceMath.sol";
+import {SafeCast} from "@uniswap/v4-core/src/libraries/SafeCast.sol";
+import {PositionInfoLibrary} from "v4-periphery/libraries/PositionInfoLibrary.sol";
 
 /// @notice Linked copies of TSV LP and inherited periphery routines, executed in the manager's context.
 /// @dev Holds no persistent state. Callback authorization uses the manager's existing transient slot.
 library TSVLPManagerLib {
     using CalldataDecoder for bytes;
     using CustomRevert for *;
+    using PoolIdLibrary for PoolKey;
+    using PositionInfoLibrary for PositionInfo;
+    using StateLibrary for IPoolManager;
 
     ISubscriber private constant NO_SUBSCRIBER = ISubscriber(address(0));
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
@@ -79,6 +89,19 @@ library TSVLPManagerLib {
         bool asClaim
     );
 
+    /// @dev Kept in sync with TSVLPManagerV1.PositionLiquidityModified; this library emits via delegatecall.
+    event PositionLiquidityModified(
+        bytes32 indexed poolId,
+        address indexed account,
+        uint256 indexed nftId,
+        int24 currentTick,
+        int24 tickLower,
+        int24 tickUpper,
+        int256 liquidityDelta,
+        int256 amount0Delta,
+        int256 amount1Delta
+    );
+
     /// @dev Pending callback hash, 1 during an authorized position burn, or 0 when inactive.
     bytes32 private constant UNWIND_CALLBACK_SLOT = bytes32(uint256(keccak256("tsv.lpmanager.unwind.callback")) - 1);
 
@@ -108,6 +131,97 @@ library TSVLPManagerLib {
 
     function requireRegistryNotPaused(ITSVPermissionedRegistry registry) external view {
         if (registry.isPaused()) revert RegistryPaused();
+    }
+
+    /// @notice Resolves the position and pool snapshot needed for the LP event.
+    /// @dev Storage references are the PositionManager mappings in the calling manager context.
+    function positionLiquidityEventData(
+        IPoolManager poolManager,
+        uint256 action,
+        bytes calldata params,
+        uint256 nextTokenId,
+        mapping(uint256 => PositionInfo) storage positionInfo,
+        mapping(bytes25 => PoolKey) storage poolKeys
+    ) external view returns (PositionLiquidityEventData memory data) {
+        if (action == Actions.MINT_POSITION) {
+            (
+                PoolKey calldata decodedPoolKey,
+                int24 decodedTickLower,
+                int24 decodedTickUpper,
+                uint256 liquidity,,,,
+            ) = params.decodeMintParams();
+            data.poolKey = decodedPoolKey;
+            data.nftId = nextTokenId;
+            data.tickLower = decodedTickLower;
+            data.tickUpper = decodedTickUpper;
+            data.liquidityDelta = SafeCast.toInt256(liquidity);
+        } else {
+            uint256 liquidity;
+            if (action == Actions.INCREASE_LIQUIDITY) {
+                (data.nftId, liquidity,,,) = params.decodeModifyLiquidityParams();
+                data.liquidityDelta = SafeCast.toInt256(liquidity);
+            } else if (action == Actions.DECREASE_LIQUIDITY) {
+                (data.nftId, liquidity,,,) = params.decodeModifyLiquidityParams();
+                data.liquidityDelta = -SafeCast.toInt256(liquidity);
+            } else {
+                (data.nftId,,,) = params.decodeBurnParams();
+            }
+
+            PositionInfo info = positionInfo[data.nftId];
+            data.poolKey = poolKeys[info.poolId()];
+            data.tickLower = info.tickLower();
+            data.tickUpper = info.tickUpper();
+            if (action == Actions.BURN_POSITION) {
+                bytes32 positionId = Position.calculatePositionKey(
+                    address(this), data.tickLower, data.tickUpper, bytes32(data.nftId)
+                );
+                uint128 positionLiquidity = poolManager.getPositionLiquidity(data.poolKey.toId(), positionId);
+                data.liquidityDelta = -SafeCast.toInt256(uint256(positionLiquidity));
+            }
+        }
+
+        (data.sqrtPriceX96, data.currentTick,,) = poolManager.getSlot0(data.poolKey.toId());
+    }
+
+    /// @notice Emits the principal-only liquidity event from the manager's delegatecall context.
+    function emitPositionLiquidityModified(PositionLiquidityEventData calldata data, address account) external {
+        int256 amount0Delta;
+        int256 amount1Delta;
+        int128 liquidityDelta128 = SafeCast.toInt128(data.liquidityDelta);
+        uint160 sqrtLowerX96 = TickMath.getSqrtPriceAtTick(data.tickLower);
+        uint160 sqrtUpperX96 = TickMath.getSqrtPriceAtTick(data.tickUpper);
+        if (data.currentTick < data.tickLower) {
+            amount0Delta = SqrtPriceMath.getAmount0Delta(sqrtLowerX96, sqrtUpperX96, liquidityDelta128);
+        } else if (data.currentTick < data.tickUpper) {
+            amount0Delta = SqrtPriceMath.getAmount0Delta(data.sqrtPriceX96, sqrtUpperX96, liquidityDelta128);
+            amount1Delta = SqrtPriceMath.getAmount1Delta(sqrtLowerX96, data.sqrtPriceX96, liquidityDelta128);
+        } else {
+            amount1Delta = SqrtPriceMath.getAmount1Delta(sqrtLowerX96, sqrtUpperX96, liquidityDelta128);
+        }
+
+        emit PositionLiquidityModified(
+            PoolId.unwrap(data.poolKey.toId()),
+            account,
+            data.nftId,
+            data.currentTick,
+            data.tickLower,
+            data.tickUpper,
+            data.liquidityDelta,
+            amount0Delta,
+            amount1Delta
+        );
+    }
+
+    /// @notice Checks the action executor, position owner, and pool listing independently from event preparation.
+    function checkPositionAction(
+        ITSVPermissionedRegistry registry,
+        uint256 action,
+        bytes calldata params,
+        address executor,
+        PoolKey memory poolKey,
+        mapping(uint256 => address) storage owners
+    ) external view {
+        _checkPositionOwnerAndPool(registry, action, params, executor, owners, poolKey);
     }
 
     /// @dev Original TSV exit body; state mappings and immutable dependencies are explicit parameters.
@@ -366,25 +480,22 @@ library TSVLPManagerLib {
         permissionsAdapter.wrapToPoolManager(amount);
     }
 
-    function checkPositionAction(
+    function _checkPositionOwnerAndPool(
         ITSVPermissionedRegistry registry,
         uint256 action,
         bytes calldata params,
         address executor,
         mapping(uint256 => address) storage owners,
-        mapping(uint256 => PositionInfo) storage positionInfo,
-        mapping(bytes25 => PoolKey) storage poolKeys
-    ) external view returns (PoolKey memory poolKey) {
+        PoolKey memory poolKey
+    ) private view {
         _requireLiquidityPermission(registry, executor);
         address owner;
         if (action == Actions.MINT_POSITION) {
-            (PoolKey calldata key,,,,,, address recipient,) = params.decodeMintParams();
-            poolKey = key;
+            (,,,,,, address recipient,) = params.decodeMintParams();
             owner = _mapRecipient(recipient, executor);
         } else {
             uint256 tokenId = abi.decode(params, (uint256));
             require((owner = owners[tokenId]) != address(0), "NOT_MINTED");
-            poolKey = poolKeys[positionInfo[tokenId].poolId()];
         }
         _requireLiquidityPermission(registry, owner);
         if (!registry.isLPAllowed(PoolId.unwrap(poolKey.toId()))) revert PoolNotAllowed();
@@ -524,6 +635,10 @@ library TSVLPManagerLib {
     }
 
     function updatePoolTickCount(ITSVPermissionedRegistry registry, PoolKey memory poolKey, int256 delta) external {
+        _updatePoolTickCount(registry, poolKey, delta);
+    }
+
+    function _updatePoolTickCount(ITSVPermissionedRegistry registry, PoolKey memory poolKey, int256 delta) private {
         if (!ITSVLPRegistry(address(registry)).updatePoolTickCount(poolKey, delta)) revert PoolTickCountUpdateFailed();
     }
 
