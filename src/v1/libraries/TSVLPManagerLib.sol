@@ -185,6 +185,29 @@ library TSVLPManagerLib {
 
     /// @notice Emits the principal-only liquidity event from the manager's delegatecall context.
     function emitPositionLiquidityModified(PositionLiquidityEventData calldata data, address account) external {
+        _emitPositionLiquidityModified(data, account);
+    }
+
+    function _burnPositionLiquidityEventData(
+        IPoolManager poolManager,
+        PoolKey memory poolKey,
+        uint256 tokenId,
+        mapping(uint256 => PositionInfo) storage positionInfo
+    ) private view returns (PositionLiquidityEventData memory data) {
+        data.poolKey = poolKey;
+        data.nftId = tokenId;
+        PositionInfo info = positionInfo[tokenId];
+        data.tickLower = info.tickLower();
+        data.tickUpper = info.tickUpper();
+        bytes32 positionId = Position.calculatePositionKey(
+            address(this), data.tickLower, data.tickUpper, bytes32(tokenId)
+        );
+        uint128 positionLiquidity = poolManager.getPositionLiquidity(poolKey.toId(), positionId);
+        data.liquidityDelta = -SafeCast.toInt256(uint256(positionLiquidity));
+        (data.sqrtPriceX96, data.currentTick,,) = poolManager.getSlot0(poolKey.toId());
+    }
+
+    function _emitPositionLiquidityModified(PositionLiquidityEventData memory data, address account) private {
         int256 amount0Delta;
         int256 amount1Delta;
         int128 liquidityDelta128 = SafeCast.toInt128(data.liquidityDelta);
@@ -255,6 +278,9 @@ library TSVLPManagerLib {
             }
         }
 
+        PositionLiquidityEventData memory eventData =
+            _burnPositionLiquidityEventData(p.poolManager, poolKey, tokenId, positionInfo);
+
         // Approve so BURN_POSITION passes onlyIfApproved.
         // ERC-721 _burn clears getApproved as part of its teardown, so the approval is self-cleaning.
         approvals[tokenId] = msg.sender;
@@ -265,6 +291,7 @@ library TSVLPManagerLib {
         params[0] = abi.encode(tokenId, amount0Min, amount1Min, hookData);
         params[1] = abi.encode(poolKey.currency0, poolKey.currency1, lp);
         _unlockWithAuthorizedCallback(p.poolManager, abi.encode(actions, params));
+        _emitPositionLiquidityModified(eventData, msg.sender);
         emit TsvPositionUnwound(
             tokenId,
             lp,
@@ -311,6 +338,9 @@ library TSVLPManagerLib {
             }
         }
 
+        PositionLiquidityEventData memory eventData =
+            _burnPositionLiquidityEventData(p.poolManager, poolKey, tokenId, positionInfo);
+
         // Approve so BURN_POSITION passes onlyIfApproved.
         // ERC-721 _burn clears getApproved as part of its teardown, so the approval is self-cleaning.
         approvals[tokenId] = msg.sender;
@@ -323,6 +353,7 @@ library TSVLPManagerLib {
         params[1] = abi.encode(poolKey.currency0);
         params[2] = abi.encode(poolKey.currency1);
         _unlockWithAuthorizedCallback(p.poolManager, abi.encode(actions, params));
+        _emitPositionLiquidityModified(eventData, msg.sender);
 
         // Reads the full 6909 balance, not a burn delta: the burn output plus any stray MINT_6909 claims
         // parked in this contract.
