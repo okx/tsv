@@ -903,6 +903,40 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "priceBands",
+    "outputs": [
+      {
+        "internalType": "int24",
+        "name": "lowerTick",
+        "type": "int24"
+      },
+      {
+        "internalType": "int24",
+        "name": "upperTick",
+        "type": "int24"
+      },
+      {
+        "internalType": "uint48",
+        "name": "startsAt",
+        "type": "uint48"
+      },
+      {
+        "internalType": "uint48",
+        "name": "endsAt",
+        "type": "uint48"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "proxiableUUID",
     "outputs": [
@@ -944,6 +978,46 @@
   {
     "inputs": [
       {
+        "internalType": "bytes32[]",
+        "name": "poolIds",
+        "type": "bytes32[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "int24",
+            "name": "lowerTick",
+            "type": "int24"
+          },
+          {
+            "internalType": "int24",
+            "name": "upperTick",
+            "type": "int24"
+          },
+          {
+            "internalType": "uint48",
+            "name": "startsAt",
+            "type": "uint48"
+          },
+          {
+            "internalType": "uint48",
+            "name": "endsAt",
+            "type": "uint48"
+          }
+        ],
+        "internalType": "struct PriceBandUpdate[]",
+        "name": "updates",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "setPriceBands",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "newImplementation",
         "type": "address"
@@ -970,6 +1044,43 @@
       }
     ],
     "name": "Initialized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "int24",
+        "name": "lowerTick",
+        "type": "int24"
+      },
+      {
+        "indexed": false,
+        "internalType": "int24",
+        "name": "upperTick",
+        "type": "int24"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint48",
+        "name": "startsAt",
+        "type": "uint48"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint48",
+        "name": "endsAt",
+        "type": "uint48"
+      }
+    ],
+    "name": "PriceBandSet",
     "type": "event"
   },
   {
@@ -1043,6 +1154,22 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "InvalidPriceBand",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidPriceBandBatchLength",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "MultiplierChanged",
     "type": "error"
@@ -1050,6 +1177,32 @@
   {
     "inputs": [],
     "name": "NotInitializing",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "int24",
+        "name": "postSwapTick",
+        "type": "int24"
+      },
+      {
+        "internalType": "int24",
+        "name": "lowerTick",
+        "type": "int24"
+      },
+      {
+        "internalType": "int24",
+        "name": "upperTick",
+        "type": "int24"
+      }
+    ],
+    "name": "PriceOutsideBand",
     "type": "error"
   },
   {
@@ -1071,6 +1224,11 @@
   {
     "inputs": [],
     "name": "UnauthorizedCallback",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnauthorizedPriceBandWriter",
     "type": "error"
   },
   {

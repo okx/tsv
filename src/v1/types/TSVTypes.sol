@@ -3,6 +3,8 @@ pragma solidity 0.8.26;
 
 import {PermissionFlag} from "../vendor/permissionedPools/libraries/PermissionFlags.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
+// Match the PoolKey source unit used by the vendored PositionManager.
+import {PoolKey as PositionPoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 
 /// @notice Selects which operation pause bits applySecurityStatus updates.
 /// @dev These enum ordinals are API selectors, NOT the stored mask values:
@@ -92,6 +94,25 @@ struct PoolRecord {
     uint256 tickCount;
     /// @notice One-based index inside `SecurityRecord.poolIds`; zero means absent.
     uint256 poolSecurityIndex;
+}
+
+/// @notice Per-pool tick bounds and the UTC Unix time window during which swaps enforce them.
+struct PriceBandUpdate {
+    int24 lowerTick;
+    int24 upperTick;
+    uint48 startsAt;
+    uint48 endsAt;
+}
+
+/// @notice Captures position and pool state used to emit a liquidity modification event.
+struct PositionLiquidityEventData {
+    PositionPoolKey poolKey;
+    uint256 nftId;
+    int24 tickLower;
+    int24 tickUpper;
+    int256 liquidityDelta;
+    uint160 sqrtPriceX96;
+    int24 currentTick;
 }
 
 /// @notice One-pool exact-input request for permissioned-stock/original-quote swaps.
