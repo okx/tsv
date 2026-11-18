@@ -43,7 +43,6 @@
     "src/v1/periphery/TSVLPManagerV1.sol": "141165c1a17e649263d8f98337e07d4ac68870654646fa460645197eedf063f5",
     "src/v1/periphery/TSVSwapRouterV1.sol": "9cbe04af50dfe49218a5c72faffaedbca220e1d36d764e4c721182a75013961b",
     "src/v1/types/TSVTypes.sol": "9bdb85ab1c55be8dc4f5d86e4314abd6ca08ec1fc3d27e1de4f3eae3d39b59a5",
-    "src/v1/vendor/SecuritizeTSVChecker.sol": "7a7cd4f01a8e219b4910babbcc4cc1428eade3f3bbe4e3ba7b5e485e4072c4bd",
     "src/v1/vendor/interfaces/IDSBlackListManager.sol": "69dfebc2f986d88e999e2aeb5780b80c3cd3b0deae12c9140c8cd194d43032e9",
     "src/v1/vendor/interfaces/IDSLockManager.sol": "c46d199830706660848992b8adc4ee36b8977b2f60fb9940a2faf0c7f40a175d",
     "src/v1/vendor/interfaces/IDSRegistryService.sol": "dc7ceed474d083c497a519482dc19e3ad0c9d98eb3b02aa11fcfb420010cfe45",
