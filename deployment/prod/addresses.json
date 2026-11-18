@@ -1,10 +1,10 @@
 {
   "network": "X Layer Mainnet",
   "chainId": 196,
-  "catalogDate": "2026-11-03",
+  "catalogDate": "2026-11-16",
   "verification": {
-    "block": 74921811,
-    "scope": "EIP-1967 implementation slots and Registry bindings read at this block; other addresses are explicitly sourced historical records, not a fresh check of all configuration or permissions."
+    "block": 76052809,
+    "scope": "All five implementation slots, recorded component getters and Registry emergency pause checked at this block. Upgraded implementation/library code hashes matched the deployment records. Asset registration, balances and business-operation readiness were not comprehensively revalidated."
   },
   "environment": "prod",
   "initialDeploymentDate": "2026-10-29",
@@ -18,14 +18,14 @@
     "TSVHookV1": "0xF151416e74d6B4Ae00197e8D8E4f4765283B3fff"
   },
   "implementations": {
-    "TSVRegistryV1": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+    "TSVRegistryV1": "0xf9b8cfdfd02d40b44d3c237b2b930d5e2ac382ec",
     "TSVVolumeLedgerV1": "0x8f4c315e7b8627e8afbe4192ba95f81e1c37f0c3",
-    "TSVSwapRouterV1": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
-    "TSVLPManagerV1": "0x98f9398f865b58c868b7750449f7188c639e4175",
+    "TSVSwapRouterV1": "0x1c2514674219de36dc4c8b91216884018fb23647",
+    "TSVLPManagerV1": "0x3354bc849225fe9d1d77936c31f5798c210a7618",
     "TSVHookV1": "0x6422ef382cfe42b200aec323236c005c604550f7"
   },
   "libraries": {
-    "PermissionedValidationLib": "0x8db3a851e94b38e258f801f835e2e7deeb217538",
+    "PermissionedValidationLib": "0xf628dbe1c76734a21ed4c6b08524d54c92e881ed",
     "TSVLPManagerLib": "0x1fb638662581dcdd02f3908459030c337f521114",
     "LPPositionMath": "0xe3334c3a8bf40cb9079ed0cb26cd8e696f76d6f4"
   },
@@ -55,6 +55,30 @@
       "U": "0x811eef1ef8033743109d45af69dc9e59f79f4b5c",
       "W": "0xc71874b5ee1fb75ee21228981e818375920b7516",
       "LegalShareAdapter": "0x5b6bf58fe97361eca2721666be532c7889c9c4ae"
+    },
+    "HOOD": {
+      "U": "0x698DcbEe5842775c55B2d8f73882042ad878335e",
+      "W": "0xC0d57D1e0A12C74d7416b1895f5EAa087f43c5B3",
+      "LegalShareAdapter": "0xd6671409c25a65f67ad96e5b84eb7187dc6b715f",
+      "legalShareAdapterDeploymentTx": "0x24b44d6d03e0dd05787b8c130d7fab9b1e5bc7a0b35579f02b67e82632a046ce",
+      "verificationBlock": 75074563,
+      "note": "Historical LegalShareAdapter deployment and W/U pairing evidence; current Registry admission and pool status require independent checks."
+    },
+    "COIN": {
+      "U": "0xF48722Ba326d0888A2954c28eBEDDD02C14F86d6",
+      "W": "0xbD26A1683E8D7159aAC52f875247E1d80Dc3b5af",
+      "LegalShareAdapter": "0x487fc3fdafa670f35177aff47fc752a651357b8e",
+      "legalShareAdapterDeploymentTx": "0x5b6aaaa53453b5fab91983bbd5be02c367ebecf1916f9bb329f839766602f4df",
+      "verificationBlock": 75074563,
+      "note": "Historical LegalShareAdapter deployment and W/U pairing evidence; current Registry admission and pool status require independent checks."
+    },
+    "CRCL": {
+      "U": "0x76163273F8BaE6570bA3bb202044129a98E98F16",
+      "W": "0xd4f64A67b2C1295bd6C25b3a306b2A049e392397",
+      "LegalShareAdapter": "0x25901ed714faa116e3c3f1da3d73603637eec25c",
+      "legalShareAdapterDeploymentTx": "0x55bcd57e04ceee54f2e59482c79cecb43706a030819141084be81bde5903e3ad",
+      "verificationBlock": 75074563,
+      "note": "Historical LegalShareAdapter deployment and W/U pairing evidence; current Registry admission and pool status require independent checks."
     }
   },
   "recordedQuoteTokens": {
@@ -69,28 +93,62 @@
     "TSV_DEX_ADAPTER": "0xbc4eb2f78def67f26d9fb359fe719ea643d7f1c0"
   },
   "deploymentChannels": {
-    "MCP": "Core libraries, factories, implementations, four business proxies and six LegalShareAdapters; see archived process manifests on ops/deployment.",
     "TSVHookV1Proxy": {
-      "channel": "USER_MANUAL_FACTORY_CALL",
+      "channel": "FACTORY_CREATE2",
       "transactionHash": "0xf5abf4076eeaf44a52fd26531cc924cd4e0b624ac6f677c110fdae0126c53501"
-    }
+    },
+    "EOA_CREATE": "Core libraries, factories, implementations, four business proxies and LegalShareAdapters."
   },
   "sources": [],
   "notes": [
     "Initial deployment source is a8bfc93; newer main commits do not imply a production upgrade.",
-    "Hook proxy is included in the address catalog even though it was not deployed through MCP.",
-    "The three duplicate adapters succeeded on chain but are recorded as unused; token and external adapter entries reflect historical records."
+    "Hook proxy was deployed through Factory CREATE2; its creation transaction is recorded in deploymentChannels.",
+    "The three duplicate adapters succeeded on chain but are recorded as unused; token and external adapter entries reflect historical records.",
+    "Core proxies were upgraded on 2026-11-16 to the recorded currentCoreSourceCommit. releaseBranch identifies the initial release branch; the V0.0.2 branch and tag remain pending publication."
   ],
-  "archivedSources": {
-    "branch": "ops/deployment",
-    "commit": "298ee17bd657a7fb57106b19c3a0a24628226320",
-    "pathsRelativeTo": "deployment/prod/addresses.json",
-    "paths": [
-      "chain-snapshot.json",
-      "../../docs/deployments/tsv-mcp/runs/20261030-legal-share-adapters/manifest.json",
-      "../../outputs/production-w-readiness-20261102/chain-snapshot.json",
-      "../../outputs/tsv-operation-history-20261030/state-at-snapshot.json",
-      "releases/20261029-mcp-addresses.json"
-    ]
-  }
+  "currentCoreSourceCommit": "423de5c4b422abd57d0ceacf18aafb60229bcbd1",
+  "upgradeHistory": [
+    {
+      "date": "2026-11-16",
+      "sourceCommit": "423de5c4b422abd57d0ceacf18aafb60229bcbd1",
+      "status": "PROXY_UPGRADES_CHAIN_VERIFIED",
+      "verificationBlock": 76052809,
+      "upgrades": [
+        {
+          "name": "TSVRegistryV1",
+          "proxy": "0x5bd7ea82642b49ebdfc3fbc0e656941c165392ea",
+          "previousImplementation": "0xf68f1d1d990352eeb83fc68ab705a98114bbbf13",
+          "newImplementation": "0xf9b8cfdfd02d40b44d3c237b2b930d5e2ac382ec",
+          "txHash": "0x4d64698f8c75dfa0ae1abaebf34ef27f31387f0aae1f8938a5d14c6d5cf32ee4",
+          "block": 76052755,
+          "executedAtUTC": "2026-11-16T09:36:31+00:00"
+        },
+        {
+          "name": "TSVLPManagerV1",
+          "proxy": "0x9418a8ccb8170814d27c7f3db99e1b9f8c4a7b76",
+          "previousImplementation": "0x98f9398f865b58c868b7750449f7188c639e4175",
+          "newImplementation": "0x3354bc849225fe9d1d77936c31f5798c210a7618",
+          "txHash": "0x9805edde0dc4f6b524347fb47b5533bcb031351ad36fd26b234e1e2fca3fa1ff",
+          "block": 76052775,
+          "executedAtUTC": "2026-11-16T09:36:51+00:00"
+        },
+        {
+          "name": "TSVSwapRouterV1",
+          "proxy": "0xc58d2bf7ad7cb023760e767e9050be3f15cad686",
+          "previousImplementation": "0x1bb8de0128ce24cc32398cff58cd1c1afc944599",
+          "newImplementation": "0x1c2514674219de36dc4c8b91216884018fb23647",
+          "txHash": "0x8120005b5b40cda393cc70e74512dfe6b24158c95542f29ee307870f7bd178fc",
+          "block": 76052785,
+          "executedAtUTC": "2026-11-16T09:37:01+00:00"
+        }
+      ],
+      "libraryChange": {
+        "name": "PermissionedValidationLib",
+        "previous": "0x8db3a851e94b38e258f801f835e2e7deeb217538",
+        "current": "0xf628dbe1c76734a21ed4c6b08524d54c92e881ed"
+      },
+      "pausedAtVerification": false,
+      "businessSmokeTestsPerformedByThisCheck": false
+    }
+  ]
 }

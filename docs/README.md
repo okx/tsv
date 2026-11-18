@@ -21,9 +21,10 @@
 | Router / LP / Ledger 接入 | [`BACKEND_INTEGRATION_GUIDE_V1.md`](./BACKEND_INTEGRATION_GUIDE_V1.md) · [English](./BACKEND_INTEGRATION_GUIDE_V1_EN.md) | 按当前 ABI 组装调用与读取状态 |
 | 外部 DEX Adapter | [`EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md`](./EXTERNAL_DEX_ROUTER_ADAPTER_TSV_INTEGRATION.md) | Adapter 白名单、participant 身份和 exact-input 限制 |
 | 环境合约地址 | [pre](../deployment/pre/addresses.json) · [prod](../deployment/prod/addresses.json) | 地址清单、实现、库、Factory 及资产 |
-| 部署过程 | [公开部署说明](./deployments/README.md) | 发布与部署步骤；原始操作证据保留在运维分支 |
+| 生产版本发布说明 | [V0.0.2（发布准备）](releases/V0.0.2.md) | 已上线核心版本、升级变化、交易及验证边界；Tag/Release 尚未创建 |
+| 部署过程 | [公开部署说明](./deployments/README.md) | 部署、升级及目标链核验步骤 |
 | 发布范围 | [PUBLICATION.md](./PUBLICATION.md) | 当前文件范围、显式配置、待完善许可及后续历史处理 |
-| 分支维护 | [分支职责](./REPOSITORY_BRANCHES.md) | main、ops/deployment 和正式 release 的维护规则 |
+| 分支维护 | [分支职责](./REPOSITORY_BRANCHES.md) | 开发分支、版本快照和正式发布规则 |
 | 部署准备 | [`DEPLOYMENT_CHECKLIST_V1.md`](./DEPLOYMENT_CHECKLIST_V1.md) | 构造参数、代理初始化、绑定、角色与尚缺的部署证据 |
 | 部署记录模板 | [`DEPLOYMENT_MANIFEST_V1.example.json`](./DEPLOYMENT_MANIFEST_V1.example.json) | 当前五组件地址、外部依赖、角色、资产和发布证据字段 |
 | 测试 | [`../test/README.md`](../test/README.md) | 可执行测试目录、fixture 边界和命令 |

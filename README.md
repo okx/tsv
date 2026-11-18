@@ -107,7 +107,7 @@ docs/                 Current code guide and explicitly labeled historical desig
 
 ## Deployment boundary
 
-Public preproduction and production address inventories are maintained in [`deployment/`](deployment/README.md), with public deployment guidance in [`docs/deployments/`](docs/deployments/README.md). Raw operation evidence and MCP workflows are maintained on `ops/deployment`; see [branch responsibilities](docs/REPOSITORY_BRANCHES.md). These historical records do not mean that current main is the deployed implementation. `test/integration/xlayer/` has no executable fork suite. Production Factory, PoolManager, SBT, issuer tokens, roles, and transfers must be verified on the target deployment; local mocks are not evidence of those external systems.
+Public preproduction and production address inventories are maintained in [`deployment/`](deployment/README.md), with public deployment guidance in [`docs/deployments/`](docs/deployments/README.md). See the [release workflow](docs/REPOSITORY_BRANCHES.md) for version pinning and verification. Address records do not mean that current main is the deployed implementation. `test/integration/xlayer/` has no executable fork suite. Production Factory, PoolManager, SBT, issuer tokens, roles, and transfers must be verified on the target deployment; local mocks are not evidence of those external systems.
 
 ## Source availability and license
 
