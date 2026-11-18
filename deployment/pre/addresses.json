@@ -19,12 +19,12 @@
     "TSVRegistryV1": "0x6b168962366eb82bb7d05c4b454706868614140d",
     "TSVVolumeLedgerV1": "0x643566f75d354ba0b07be70aec2a6c2611a5eb80",
     "TSVSwapRouterV1": "0x8e9c6d0ef779e44c54fced3d9708812817a71c7d",
-    "TSVLPManagerV1": "0x28daC82c548D6001E4c5C1424feB707564D15d41",
+    "TSVLPManagerV1": "0x20a6A5c57d744cFc062C4Ac484560c788Bd153b3",
     "TSVHookV1": "0xe96daa90eea2b558a84599ffbc74e04e04db2c15"
   },
   "libraries": {
     "PermissionedValidationLib": "0xb60e6270370334727e03694d4bb842c4319f0dc1",
-    "TSVLPManagerLib": "0x17cc240001f837b9615edc3cebce5d87c35aa465",
+    "TSVLPManagerLib": "0x11Bbd7773FEed1d1af143311d047455A3EB7C8Ad",
     "LPPositionMath": "0x70df85a68bc948496dfcac1750f9f68135d1dad2"
   },
   "factories": {
