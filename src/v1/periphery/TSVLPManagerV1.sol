@@ -18,7 +18,7 @@ import {
 import {TSVLPManagerLib} from "../libraries/TSVLPManagerLib.sol";
 import {IStatusQuoter} from "../interfaces/IStatusQuoter.sol";
 import {ITSVPermissionedRegistry} from "../interfaces/ITSVPermissionedRegistry.sol";
-import {PoolLifecycle} from "../types/TSVTypes.sol";
+import {PoolLifecycle, PositionLiquidityEventData} from "../types/TSVTypes.sol";
 import {CalldataDecoder} from "v4-periphery/libraries/CalldataDecoder.sol";
 import {ERC721Permit_v4} from "../vendor/permissionedPools/base/ERC721Permit_v4.sol";
 import {PositionManager} from "../vendor/permissionedPools/PositionManager.sol";
@@ -50,6 +50,20 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     error PoolTickCountUpdateFailed();
     error IncompatibleImplementation();
     error WithdrawClaimForbidden();
+
+    /// @notice Emitted after each successful LP position modification.
+    /// @dev Amount deltas are principal only, exclude accrued fees, and use PoolManager delta signs.
+    event PositionLiquidityModified(
+        bytes32 indexed poolId,
+        address indexed account,
+        uint256 indexed nftId,
+        int24 currentTick,
+        int24 tickLower,
+        int24 tickUpper,
+        int256 liquidityDelta,
+        int256 amount0Delta,
+        int256 amount1Delta
+    );
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
@@ -350,7 +364,11 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
             action == Actions.MINT_POSITION || action == Actions.INCREASE_LIQUIDITY
                 || action == Actions.DECREASE_LIQUIDITY || action == Actions.BURN_POSITION
         ) {
-            _handlePositionAction(action, params);
+            PositionLiquidityEventData memory eventData = TSVLPManagerLib.positionLiquidityEventData(
+                poolManager, action, params, nextTokenId, positionInfo, poolKeys
+            );
+            _handlePositionAction(action, params, eventData.poolKey);
+            TSVLPManagerLib.emitPositionLiquidityModified(eventData, msgSender());
             return;
         }
         _handleSettlementAction(action, params);
@@ -361,9 +379,8 @@ contract TSVLPManagerV1 is Initializable, UUPSUpgradeable, PermissionedPositionM
     ///      accumulated raw withdrawal amounts. No worst-price principal or accrued-fee bound is enforced here.
     ///      Legal-share quotas, especially with small multipliers, cannot substitute for raw amount limits;
     ///      admission and position policies must account for these bounds if full forced exits are required.
-    function _handlePositionAction(uint256 action, bytes calldata params) private {
-        PoolKey memory poolKey =
-            TSVLPManagerLib.checkPositionAction(registry, action, params, msgSender(), _owners, positionInfo, poolKeys);
+    function _handlePositionAction(uint256 action, bytes calldata params, PoolKey memory poolKey) private {
+        TSVLPManagerLib.checkPositionAction(registry, action, params, msgSender(), poolKey, _owners);
         PermissionedPositionManager._handleAction(action, params);
         if (action == Actions.MINT_POSITION) {
             _updatePoolTickCount(poolKey, 1);

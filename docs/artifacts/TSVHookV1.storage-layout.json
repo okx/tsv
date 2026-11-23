@@ -34,6 +34,13 @@
       "offset": 0,
       "slot": "4",
       "type": "t_address"
+    },
+    {
+      "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+      "label": "priceBands",
+      "offset": 0,
+      "slot": "5",
+      "type": "t_mapping(t_bytes32,t_struct(PriceBandUpdate)_storage)"
     }
   ],
   "types": {
@@ -41,6 +48,11 @@
       "encoding": "inplace",
       "label": "address",
       "numberOfBytes": "20"
+    },
+    "t_bytes32": {
+      "encoding": "inplace",
+      "label": "bytes32",
+      "numberOfBytes": "32"
     },
     "t_contract(IPoolManager)": {
       "encoding": "inplace",
@@ -56,6 +68,58 @@
       "encoding": "inplace",
       "label": "contract TSVVolumeLedgerV1",
       "numberOfBytes": "20"
+    },
+    "t_int24": {
+      "encoding": "inplace",
+      "label": "int24",
+      "numberOfBytes": "3"
+    },
+    "t_mapping(t_bytes32,t_struct(PriceBandUpdate)_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct PriceBandUpdate)",
+      "numberOfBytes": "32",
+      "value": "t_struct(PriceBandUpdate)_storage"
+    },
+    "t_struct(PriceBandUpdate)_storage": {
+      "encoding": "inplace",
+      "label": "struct PriceBandUpdate",
+      "members": [
+        {
+          "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+          "label": "lowerTick",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_int24"
+        },
+        {
+          "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+          "label": "upperTick",
+          "offset": 3,
+          "slot": "0",
+          "type": "t_int24"
+        },
+        {
+          "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+          "label": "startsAt",
+          "offset": 6,
+          "slot": "0",
+          "type": "t_uint48"
+        },
+        {
+          "contract": "src/v1/core/TSVHookV1.sol:TSVHookV1",
+          "label": "endsAt",
+          "offset": 12,
+          "slot": "0",
+          "type": "t_uint48"
+        }
+      ],
+      "numberOfBytes": "32"
+    },
+    "t_uint48": {
+      "encoding": "inplace",
+      "label": "uint48",
+      "numberOfBytes": "6"
     }
   }
 }
